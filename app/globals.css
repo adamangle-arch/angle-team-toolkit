@@ -1,0 +1,120 @@
+@import "tailwindcss";
+
+@theme {
+  --color-navy: #0f172a;
+  --color-navy-light: #16213c;
+  --color-navy-lighter: #1e293b;
+  --color-amber: #f59e0b;
+  --color-amber-dark: #b45309;
+  --color-amber-light: #fbbf24;
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+html,
+body {
+  height: 100%;
+  background: var(--color-navy);
+  color: #e2e8f0;
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+@layer components {
+  .app-shell {
+    @apply mx-auto flex min-h-dvh w-full max-w-md flex-col bg-navy;
+  }
+
+  .app-header {
+    @apply sticky top-0 z-20 border-b border-white/10 bg-navy/95 px-4 py-3 backdrop-blur;
+  }
+
+  .app-title {
+    @apply text-lg font-bold tracking-tight text-white;
+  }
+
+  .app-subtitle {
+    @apply text-xs text-slate-400;
+  }
+
+  .page-main {
+    @apply flex-1 space-y-4 overflow-y-auto px-4 pb-28 pt-4;
+  }
+
+  .card {
+    @apply rounded-2xl border border-white/10 bg-navy-lighter p-4 shadow-sm;
+  }
+
+  .section-title {
+    @apply text-sm font-semibold uppercase tracking-wide text-amber;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium transition active:scale-95 disabled:opacity-40 disabled:active:scale-100;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium transition active:scale-95 disabled:opacity-40 disabled:active:scale-100 bg-amber text-navy hover:bg-amber-light;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium transition active:scale-95 disabled:opacity-40 disabled:active:scale-100 bg-white/10 text-white hover:bg-white/15;
+  }
+
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium transition active:scale-95 disabled:opacity-40 disabled:active:scale-100 bg-red-500/15 text-red-300 hover:bg-red-500/25;
+  }
+
+  .btn-icon {
+    @apply flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-lg font-bold text-white transition active:scale-90 disabled:opacity-30 disabled:active:scale-100;
+  }
+
+  .input {
+    @apply w-full rounded-xl border border-white/10 bg-navy px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-amber focus:outline-none;
+  }
+
+  .select {
+    @apply w-full rounded-xl border border-white/10 bg-navy px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-amber focus:outline-none appearance-none pr-8;
+  }
+
+  .textarea {
+    @apply w-full rounded-xl border border-white/10 bg-navy px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-amber focus:outline-none min-h-24 resize-y;
+  }
+
+  .pill {
+    @apply inline-flex items-center rounded-full bg-white/10 px-2.5 py-1 text-xs font-medium text-slate-200;
+  }
+
+  .pill-amber {
+    @apply inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium bg-amber/15 text-amber-light;
+  }
+
+  .toggle-pill {
+    @apply flex flex-1 items-center justify-center rounded-lg py-1.5 text-sm font-semibold transition;
+  }
+
+  .toggle-pill-active {
+    @apply flex flex-1 items-center justify-center rounded-lg py-1.5 text-sm font-semibold transition bg-amber text-navy;
+  }
+
+  .toggle-pill-inactive {
+    @apply flex flex-1 items-center justify-center rounded-lg py-1.5 text-sm font-semibold transition bg-transparent text-slate-400;
+  }
+
+  .empty-state {
+    @apply rounded-2xl border border-dashed border-white/15 p-6 text-center text-sm text-slate-400;
+  }
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
