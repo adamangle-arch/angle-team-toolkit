@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  outputFileTracingIncludes: {
+    "/api/assistant": ["./lib/angle-team-system-prompt.txt"],
+  },
 };
 
 export default nextConfig;

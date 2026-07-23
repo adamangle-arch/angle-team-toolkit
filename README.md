@@ -1,11 +1,12 @@
 # Angle Team Toolkit
 
 A mobile-friendly activity tracker for a network marketing team, built with
-Next.js (App Router) and Supabase. Six tabs, one for each part of the
+Next.js (App Router) and Supabase. Seven tabs, one for each part of the
 day-to-day workflow: Pipeline Tracker, Candidate Roadmap, A/B Contact List,
-Core Run Streak, Recognition Log, and Goals. Everyone signs in with their own
-email/password account, and each person's data is private to them. All data
-is stored in Supabase (Postgres), so it persists across sessions and devices.
+Core Run Streak, Recognition Log, Goals, and an AI Assistant trained on the
+team's process. Everyone signs in with their own email/password account, and
+each person's data is private to them. All data is stored in Supabase
+(Postgres), so it persists across sessions and devices.
 
 ## 1. Set up Supabase
 
@@ -27,8 +28,7 @@ is stored in Supabase (Postgres), so it persists across sessions and devices.
 
 ## 2. Configure environment variables
 
-Copy `.env.local.example` to `.env.local` and fill in the two values from
-Supabase:
+Copy `.env.local.example` to `.env.local` and fill in the values:
 
 ```bash
 cp .env.local.example .env.local
@@ -37,7 +37,13 @@ cp .env.local.example .env.local
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-public-key
+ANTHROPIC_API_KEY=your-anthropic-api-key
 ```
+
+The first two come from Supabase (step 1). The last one powers the
+**Assistant** tab — get it from [console.anthropic.com](https://console.anthropic.com)
+(Settings > API Keys) after creating an account and adding billing. This is a
+metered, pay-per-use API, not free — see "Notes on the AI Assistant" below.
 
 ## 3. Run locally
 
@@ -55,9 +61,11 @@ See the deployment steps the assistant gave you in chat, or in short:
 
 1. Push this repo to GitHub (already done if you're reading this from the repo).
 2. Import the repo at [vercel.com/new](https://vercel.com/new).
-3. Add the two env vars above (`NEXT_PUBLIC_SUPABASE_URL`,
-   `NEXT_PUBLIC_SUPABASE_ANON_KEY`) in the Vercel project's
-   **Settings > Environment Variables**.
+3. Add all three env vars above (`NEXT_PUBLIC_SUPABASE_URL`,
+   `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `ANTHROPIC_API_KEY`) in the Vercel
+   project's **Settings > Environment Variables**. `ANTHROPIC_API_KEY` must
+   **not** be marked "expose to browser" / prefixed with `NEXT_PUBLIC_` — it
+   should only ever be readable by the server.
 4. Deploy.
 
 ## Notes on privacy & security
@@ -86,6 +94,27 @@ existing data.
 By default Supabase requires email confirmation on signup; see step 2 above
 if you want teammates to be able to log in immediately after creating an
 account.
+
+## Notes on the AI Assistant
+
+The **Assistant** tab is backed by a large system prompt
+(`lib/angle-team-system-prompt.txt`, ~70k+ tokens) that encodes the team's
+process, scripts, product knowledge, and coaching philosophy. Every message
+calls Anthropic's Claude API (model set in `app/api/assistant/route.ts`,
+currently `claude-sonnet-5`) from a server-only API route — the API key
+never reaches the browser, and the route checks that the caller has a valid
+Supabase session before it will respond.
+
+Because the system prompt is so large, cost is dominated by it rather than
+by the conversation itself. The route uses Anthropic's prompt caching
+(`cache_control: ephemeral`) so repeated messages within the same short
+window are much cheaper than the first one, but this is still a real,
+metered cost per message — keep an eye on usage at
+[console.anthropic.com](https://console.anthropic.com). To use a cheaper or
+more capable model, change the `model` value in
+`app/api/assistant/route.ts`. Chat history is stored per-user in the
+`assistant_messages` table with the same private-by-default RLS as
+everything else.
 
 ## Tech stack
 

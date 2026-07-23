@@ -184,6 +184,18 @@ select id, email from auth.users
 on conflict (id) do nothing;
 
 -- ============================================================
+-- 8. ASSISTANT CHAT HISTORY
+-- One row per chat message with the Angle Team AI Assistant, per user.
+-- ============================================================
+create table if not exists assistant_messages (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  role text not null check (role in ('user', 'assistant')),
+  content text not null,
+  created_at timestamptz not null default now()
+);
+
+-- ============================================================
 -- Row Level Security
 -- Every table: a user can only read/write their own rows. The admin
 -- (is_app_admin() above) can additionally read, update, or delete every
@@ -197,7 +209,8 @@ begin
   for t in
     select unnest(array[
       'pipeline_periods', 'candidates', 'contacts',
-      'streak_days', 'recognition_log', 'goals', 'quarterly_goals'
+      'streak_days', 'recognition_log', 'goals', 'quarterly_goals',
+      'assistant_messages'
     ])
   loop
     execute format('alter table %I enable row level security;', t);

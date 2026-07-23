@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { href: "/streak", label: "Run Streak", icon: "🔥" },
   { href: "/recognition", label: "Wins", icon: "🏆" },
   { href: "/goals", label: "Goals", icon: "🎯" },
+  { href: "/assistant", label: "Assistant", icon: "🤖" },
 ];
 
 const ADMIN_NAV_ITEM = { href: "/team", label: "Team", icon: "👥" };
