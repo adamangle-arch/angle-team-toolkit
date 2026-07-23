@@ -1,5 +1,11 @@
 import type { PipelineStageKey } from "./constants";
 
+export type Profile = {
+  id: string;
+  email: string;
+  created_at: string;
+};
+
 export type PipelinePeriod = {
   id: string;
   user_id: string;

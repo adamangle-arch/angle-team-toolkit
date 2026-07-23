@@ -66,12 +66,22 @@ Every table has Row Level Security scoped to `user_id = auth.uid()`, so
 signed-in users only ever see their own rows through the app — Pipeline,
 Candidates, Contacts, Streak, Recognition, and Goals are all private per
 person. The one exception is the admin email hardcoded in
-`is_app_admin()` (see `supabase/schema.sql`): that account can additionally
-read, update, or delete any row via direct Supabase access (e.g. the
-dashboard's **Table Editor**, which always has full access regardless of
-RLS since it runs as the project owner). New rows are always attributed to
-whoever is actually logged in, admin included — there's no "post as someone
-else."
+`is_app_admin()` (see `supabase/schema.sql`): that account gets an extra
+**Team** tab in the app showing every signed-up member and a read-only
+summary of their data across all sections, and can also read, update, or
+delete any row via direct Supabase access (e.g. the dashboard's
+**Table Editor**, which always has full access regardless of RLS since it
+runs as the project owner). New rows are always attributed to whoever is
+actually logged in, admin included — there's no "post as someone else."
+The admin email is duplicated in two places — `is_app_admin()` in
+`supabase/schema.sql` and `ADMIN_EMAIL` in `lib/constants.ts` — change both
+together if it ever needs to be a different account.
+
+The **Team** tab depends on a `profiles` table that's populated by a
+database trigger whenever someone signs up (see the "PROFILES" section in
+`supabase/schema.sql`). If you already ran the schema before this was
+added, run just that section again — it's additive and won't touch your
+existing data.
 
 By default Supabase requires email confirmation on signup; see step 2 above
 if you want teammates to be able to log in immediately after creating an

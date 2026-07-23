@@ -1,3 +1,7 @@
+// The one account that can see every team member's data. Must match the
+// email hardcoded in is_app_admin() in supabase/schema.sql.
+export const ADMIN_EMAIL = "adamangle@icloud.com";
+
 // Pipeline Tracker: ordered stages
 export const PIPELINE_STAGES = [
   { key: "questions", label: "Questions" },

@@ -142,6 +142,48 @@ create table quarterly_goals (
 );
 
 -- ============================================================
+-- 7. PROFILES
+-- A directory of every signed-up account (just id + email), so the
+-- admin can see who's on the team. Populated automatically by a
+-- trigger whenever someone signs up, plus a backfill below for
+-- accounts created before this table existed.
+-- ============================================================
+create table if not exists profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  email text not null,
+  created_at timestamptz not null default now()
+);
+
+alter table profiles enable row level security;
+
+drop policy if exists "select_own_or_admin" on profiles;
+create policy "select_own_or_admin" on profiles for select
+using (id = auth.uid() or public.is_app_admin());
+
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.profiles (id, email)
+  values (new.id, new.email)
+  on conflict (id) do nothing;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
+
+insert into public.profiles (id, email)
+select id, email from auth.users
+on conflict (id) do nothing;
+
+-- ============================================================
 -- Row Level Security
 -- Every table: a user can only read/write their own rows. The admin
 -- (is_app_admin() above) can additionally read, update, or delete every
