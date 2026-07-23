@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from "react";
 import PageHeader from "@/components/PageHeader";
+import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import { CANDIDATE_STEPS } from "@/lib/constants";
 import type { Candidate } from "@/lib/types";
 
 export default function CandidatesPage() {
+  const { user } = useAuth();
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
   const [newName, setNewName] = useState("");
@@ -18,13 +20,13 @@ export default function CandidatesPage() {
       const { data } = await supabase
         .from("candidates")
         .select("*")
-        .order("launched", { ascending: true })
+        .eq("user_id", user.id)
         .order("created_at", { ascending: false });
       setCandidates((data as Candidate[]) ?? []);
       setLoading(false);
     }
     load();
-  }, []);
+  }, [user.id]);
 
   async function addCandidate() {
     const name = newName.trim();
@@ -32,7 +34,7 @@ export default function CandidatesPage() {
     setAdding(true);
     const { data } = await supabase
       .from("candidates")
-      .insert({ name })
+      .insert({ name, user_id: user.id })
       .select("*")
       .single();
     if (data) setCandidates((prev) => [data as Candidate, ...prev]);
@@ -59,8 +61,9 @@ export default function CandidatesPage() {
     updateCandidate(candidate.id, { current_step: next });
   }
 
-  const active = candidates.filter((c) => !c.launched);
+  const active = candidates.filter((c) => !c.launched && !c.filtered_out);
   const launched = candidates.filter((c) => c.launched);
+  const filteredOut = candidates.filter((c) => c.filtered_out);
 
   return (
     <>
@@ -88,7 +91,7 @@ export default function CandidatesPage() {
 
         {loading ? (
           <div className="empty-state">Loading candidates…</div>
-        ) : active.length === 0 && launched.length === 0 ? (
+        ) : candidates.length === 0 ? (
           <div className="empty-state">No candidates yet. Add your first one above.</div>
         ) : (
           <>
@@ -105,6 +108,20 @@ export default function CandidatesPage() {
               <div className="space-y-2">
                 <p className="section-title px-1">Launched 🎉</p>
                 {launched.map((candidate) => (
+                  <CandidateCard
+                    key={candidate.id}
+                    candidate={candidate}
+                    onMoveStep={moveStep}
+                    onUpdate={updateCandidate}
+                  />
+                ))}
+              </div>
+            )}
+
+            {filteredOut.length > 0 && (
+              <div className="space-y-2">
+                <p className="section-title px-1">Filtered Out</p>
+                {filteredOut.map((candidate) => (
                   <CandidateCard
                     key={candidate.id}
                     candidate={candidate}
@@ -132,9 +149,10 @@ function CandidateCard({
 }) {
   const [notes, setNotes] = useState(candidate.notes);
   const step = CANDIDATE_STEPS[candidate.current_step];
+  const isSettled = candidate.launched || candidate.filtered_out;
 
   return (
-    <div className={`card space-y-3 ${candidate.launched ? "opacity-70" : ""}`}>
+    <div className={`card space-y-3 ${isSettled ? "opacity-70" : ""}`}>
       <div className="flex items-start justify-between gap-2">
         <div>
           <p className="font-semibold text-white">{candidate.name}</p>
@@ -142,12 +160,27 @@ function CandidateCard({
             Step {candidate.current_step + 1}/9: {step.label}
           </p>
         </div>
-        {!candidate.launched && (
+        {!isSettled ? (
+          <div className="flex shrink-0 flex-col gap-1.5">
+            <button
+              className="btn-primary"
+              onClick={() => onUpdate(candidate.id, { launched: true, filtered_out: false })}
+            >
+              Mark Launched
+            </button>
+            <button
+              className="btn-danger"
+              onClick={() => onUpdate(candidate.id, { filtered_out: true, launched: false })}
+            >
+              Filtered Out
+            </button>
+          </div>
+        ) : (
           <button
-            className="btn-primary shrink-0"
-            onClick={() => onUpdate(candidate.id, { launched: true })}
+            className="btn-secondary shrink-0"
+            onClick={() => onUpdate(candidate.id, { launched: false, filtered_out: false })}
           >
-            Mark Launched
+            Restore
           </button>
         )}
       </div>

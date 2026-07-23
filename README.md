@@ -1,20 +1,27 @@
 # Angle Team Toolkit
 
 A mobile-friendly activity tracker for a network marketing team, built with
-Next.js (App Router) and Supabase. Eight tabs, one for each part of the
-day-to-day workflow: Pipeline Tracker, Candidate Roadmap, First 30 Days
-Checklist, A/B Contact List, Call Log, Self-Education Streak, Recognition Log,
-and Goals. All data is stored in Supabase (Postgres), so it persists across
-sessions and devices.
+Next.js (App Router) and Supabase. Six tabs, one for each part of the
+day-to-day workflow: Pipeline Tracker, Candidate Roadmap, A/B Contact List,
+Core Run Streak, Recognition Log, and Goals. Everyone signs in with their own
+email/password account, and each person's data is private to them. All data
+is stored in Supabase (Postgres), so it persists across sessions and devices.
 
 ## 1. Set up Supabase
 
 1. Create a free project at [supabase.com](https://supabase.com).
-2. In the Supabase dashboard, open **SQL Editor > New query**, paste the
+2. Open **Authentication > Sign In / Providers > Email** and turn **off**
+   "Confirm email" (unless you want teammates to click an email link before
+   their first login — off is simpler for a small internal team).
+3. In the Supabase dashboard, open **SQL Editor > New query**, paste the
    contents of [`supabase/schema.sql`](./supabase/schema.sql), and run it.
-   This creates every table the app needs and seeds the First 30 Days
-   checklist tasks.
-3. Go to **Project Settings > API** and copy:
+   This creates every table the app needs with per-user Row Level Security.
+   **Re-running this file drops and recreates every app table**, so only run
+   it again later if you're OK losing existing data.
+4. Near the top of `supabase/schema.sql`, the `is_app_admin()` function is
+   hardcoded to one email address — change it to whichever account should be
+   able to see/manage everyone's data, then re-run the file.
+5. Go to **Project Settings > API** and copy:
    - **Project URL**
    - **anon / public** key
 
@@ -39,8 +46,8 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). It redirects to the
-Pipeline Tracker tab.
+Open [http://localhost:3000](http://localhost:3000). You'll land on a
+sign-in screen; use "Need an account? Sign up" to create the first login.
 
 ## Deploying to Vercel
 
@@ -53,19 +60,25 @@ See the deployment steps the assistant gave you in chat, or in short:
    **Settings > Environment Variables**.
 4. Deploy.
 
-## Notes on security
+## Notes on privacy & security
 
-This app has no login screen — every visitor with the deployed URL can read
-and write data using the Supabase `anon` key, which is intentionally public
-(it's shipped to the browser). `supabase/schema.sql` enables Row Level
-Security with a permissive "allow all" policy so the app works out of the
-box. That's fine for a private team tool, but don't share the live URL
-publicly. If you need real access control later, add
-[Supabase Auth](https://supabase.com/docs/guides/auth) and tighten the RLS
-policies in `supabase/schema.sql`.
+Every table has Row Level Security scoped to `user_id = auth.uid()`, so
+signed-in users only ever see their own rows through the app — Pipeline,
+Candidates, Contacts, Streak, Recognition, and Goals are all private per
+person. The one exception is the admin email hardcoded in
+`is_app_admin()` (see `supabase/schema.sql`): that account can additionally
+read, update, or delete any row via direct Supabase access (e.g. the
+dashboard's **Table Editor**, which always has full access regardless of
+RLS since it runs as the project owner). New rows are always attributed to
+whoever is actually logged in, admin included — there's no "post as someone
+else."
+
+By default Supabase requires email confirmation on signup; see step 2 above
+if you want teammates to be able to log in immediately after creating an
+account.
 
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)
 - [Tailwind CSS](https://tailwindcss.com) v4 (navy `#0f172a` / amber `#f59e0b` theme)
-- [Supabase](https://supabase.com) (Postgres + client SDK, no server API layer needed)
+- [Supabase](https://supabase.com) (Postgres + Auth + client SDK, no server API layer needed)

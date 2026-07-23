@@ -58,18 +58,6 @@ export const CONTACT_STATUSES = [
   "Not interested",
 ] as const;
 
-// Call Log: call types
-export const CALL_TYPES = ["QI1", "QI2", "IS1", "FU1", "IS2", "FU2", "Offer Call"] as const;
-
-// First 30 Days: fixed categories (tasks come from the DB, seeded by schema.sql)
-export const CHECKLIST_CATEGORIES = [
-  "Build Your List",
-  "Upline Communication",
-  "Attend Events",
-  "Listen & Read",
-  "Try the Products",
-] as const;
-
 // Recognition Log: win types
 export const RECOGNITION_TYPES = [
   "Launched",

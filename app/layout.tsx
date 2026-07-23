@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import BottomNav from "@/components/BottomNav";
-import ConfigWarning from "@/components/ConfigWarning";
+import AuthGate from "@/components/AuthGate";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -38,9 +37,7 @@ export default function RootLayout({
     >
       <body className="min-h-full bg-navy">
         <div className="app-shell">
-          <ConfigWarning />
-          {children}
-          <BottomNav />
+          <AuthGate>{children}</AuthGate>
         </div>
       </body>
     </html>

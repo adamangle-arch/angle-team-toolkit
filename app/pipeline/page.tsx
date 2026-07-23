@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import PageHeader from "@/components/PageHeader";
+import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import { PIPELINE_STAGES, type PipelineStageKey } from "@/lib/constants";
 import { getMonthStart, getWeekStart, formatDateLabel } from "@/lib/dates";
@@ -15,6 +16,7 @@ function pct(numerator: number, denominator: number): string {
 }
 
 export default function PipelinePage() {
+  const { user } = useAuth();
   const [periodType, setPeriodType] = useState<PeriodType>("weekly");
   const [period, setPeriod] = useState<PipelinePeriod | null>(null);
   const [loading, setLoading] = useState(true);
@@ -30,6 +32,7 @@ export default function PipelinePage() {
       const { data: existing } = await supabase
         .from("pipeline_periods")
         .select("*")
+        .eq("user_id", user.id)
         .eq("period_type", periodType)
         .eq("period_start", periodStart)
         .maybeSingle();
@@ -44,7 +47,7 @@ export default function PipelinePage() {
 
       const { data: created } = await supabase
         .from("pipeline_periods")
-        .insert({ period_type: periodType, period_start: periodStart })
+        .insert({ user_id: user.id, period_type: periodType, period_start: periodStart })
         .select("*")
         .single();
 
@@ -58,7 +61,7 @@ export default function PipelinePage() {
     return () => {
       cancelled = true;
     };
-  }, [periodType]);
+  }, [periodType, user.id]);
 
   async function updateStage(key: PipelineStageKey, delta: number) {
     if (!period) return;

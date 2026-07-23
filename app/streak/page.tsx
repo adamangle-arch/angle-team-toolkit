@@ -2,20 +2,25 @@
 
 import { useEffect, useMemo, useState } from "react";
 import PageHeader from "@/components/PageHeader";
+import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import { getToday } from "@/lib/dates";
 import type { StreakDay } from "@/lib/types";
 
-const ACTIVITIES: { key: keyof Pick<StreakDay, "read" | "listen" | "associate" | "events">; label: string; icon: string }[] = [
+const ACTIVITIES: {
+  key: keyof Pick<StreakDay, "read" | "listen" | "daily_update" | "story_share">;
+  label: string;
+  icon: string;
+}[] = [
   { key: "read", label: "Read", icon: "📖" },
   { key: "listen", label: "Listen", icon: "🎧" },
-  { key: "associate", label: "Associate", icon: "🤝" },
-  { key: "events", label: "Events", icon: "🎤" },
+  { key: "daily_update", label: "Daily Update", icon: "📝" },
+  { key: "story_share", label: "Story Share", icon: "📣" },
 ];
 
 function qualifies(day: StreakDay): boolean {
   return (
-    [day.read, day.listen, day.associate, day.events].filter(Boolean).length >= 3
+    [day.read, day.listen, day.daily_update, day.story_share].filter(Boolean).length >= 3
   );
 }
 
@@ -26,6 +31,7 @@ function addDays(dateStr: string, delta: number): string {
 }
 
 export default function StreakPage() {
+  const { user } = useAuth();
   const [history, setHistory] = useState<Record<string, StreakDay>>({});
   const [loading, setLoading] = useState(true);
   const today = getToday();
@@ -37,6 +43,7 @@ export default function StreakPage() {
       const { data } = await supabase
         .from("streak_days")
         .select("*")
+        .eq("user_id", user.id)
         .gte("day", since)
         .order("day", { ascending: false });
       const map: Record<string, StreakDay> = {};
@@ -48,11 +55,19 @@ export default function StreakPage() {
     }
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [user.id]);
 
   const todayRow: StreakDay =
     history[today] ??
-    ({ id: "", day: today, read: false, listen: false, associate: false, events: false } as StreakDay);
+    ({
+      id: "",
+      user_id: user.id,
+      day: today,
+      read: false,
+      listen: false,
+      daily_update: false,
+      story_share: false,
+    } as StreakDay);
 
   async function toggle(key: (typeof ACTIVITIES)[number]["key"]) {
     const updated = { ...todayRow, [key]: !todayRow[key] };
@@ -61,13 +76,14 @@ export default function StreakPage() {
       .from("streak_days")
       .upsert(
         {
+          user_id: user.id,
           day: today,
           read: updated.read,
           listen: updated.listen,
-          associate: updated.associate,
-          events: updated.events,
+          daily_update: updated.daily_update,
+          story_share: updated.story_share,
         },
-        { onConflict: "day" }
+        { onConflict: "user_id,day" }
       )
       .select("*")
       .single();
@@ -92,7 +108,10 @@ export default function StreakPage() {
 
   return (
     <>
-      <PageHeader title="Self-Education Streak" subtitle="Read • Listen • Associate • Events" />
+      <PageHeader
+        title="Core Run Streak"
+        subtitle="Read • Listen • Daily Update • Story Share"
+      />
       <main className="page-main">
         <div className="card flex items-center justify-between">
           <div>

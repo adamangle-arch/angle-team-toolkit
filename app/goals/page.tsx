@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import PageHeader from "@/components/PageHeader";
+import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import type { Goals, QuarterlyGoal } from "@/lib/types";
 
@@ -12,6 +13,7 @@ function currentQuarterLabel(): string {
 }
 
 export default function GoalsPage() {
+  const { user } = useAuth();
   const [vision, setVision] = useState("");
   const [savedVision, setSavedVision] = useState("");
   const [quarterlyGoals, setQuarterlyGoals] = useState<QuarterlyGoal[]>([]);
@@ -25,10 +27,11 @@ export default function GoalsPage() {
     async function load() {
       setLoading(true);
       const [{ data: goalsData }, { data: quarterlyData }] = await Promise.all([
-        supabase.from("goals").select("*").eq("id", 1).maybeSingle(),
+        supabase.from("goals").select("*").eq("user_id", user.id).maybeSingle(),
         supabase
           .from("quarterly_goals")
           .select("*")
+          .eq("user_id", user.id)
           .order("quarter", { ascending: false })
           .order("sort_order"),
       ]);
@@ -39,15 +42,17 @@ export default function GoalsPage() {
       setLoading(false);
     }
     load();
-  }, []);
+  }, [user.id]);
 
   async function saveVision() {
     if (vision === savedVision) return;
     setSavedVision(vision);
     await supabase
       .from("goals")
-      .update({ vision, updated_at: new Date().toISOString() })
-      .eq("id", 1);
+      .upsert(
+        { user_id: user.id, vision, updated_at: new Date().toISOString() },
+        { onConflict: "user_id" }
+      );
   }
 
   async function addGoal() {
@@ -57,7 +62,7 @@ export default function GoalsPage() {
     setAdding(true);
     const { data } = await supabase
       .from("quarterly_goals")
-      .insert({ quarter, text })
+      .insert({ quarter, text, user_id: user.id })
       .select("*")
       .single();
     if (data) {

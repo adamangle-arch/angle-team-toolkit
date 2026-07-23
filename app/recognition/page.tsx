@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react";
 import PageHeader from "@/components/PageHeader";
+import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import { RECOGNITION_TYPES } from "@/lib/constants";
 import { formatDateLabel, getToday } from "@/lib/dates";
 import type { RecognitionEntry } from "@/lib/types";
 
 export default function RecognitionPage() {
+  const { user } = useAuth();
   const [entries, setEntries] = useState<RecognitionEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -23,12 +25,13 @@ export default function RecognitionPage() {
       const { data } = await supabase
         .from("recognition_log")
         .select("*")
+        .eq("user_id", user.id)
         .order("event_date", { ascending: false });
       setEntries((data as RecognitionEntry[]) ?? []);
       setLoading(false);
     }
     load();
-  }, []);
+  }, [user.id]);
 
   async function addEntry() {
     const trimmedName = name.trim();
@@ -36,7 +39,7 @@ export default function RecognitionPage() {
     setSaving(true);
     const { data } = await supabase
       .from("recognition_log")
-      .insert({ name: trimmedName, type, event_date: eventDate, note })
+      .insert({ name: trimmedName, type, event_date: eventDate, note, user_id: user.id })
       .select("*")
       .single();
     if (data) {
