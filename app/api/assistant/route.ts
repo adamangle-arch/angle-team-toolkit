@@ -18,6 +18,16 @@ const supabaseAuthClient = createClient(
 
 const MAX_HISTORY_MESSAGES = 20;
 
+const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
+
+function parseImageDataUrl(dataUrl: string) {
+  const match = /^data:(image\/[a-zA-Z+.-]+);base64,(.+)$/.exec(dataUrl);
+  if (!match) return null;
+  const [, mediaType, data] = match;
+  if (!ALLOWED_IMAGE_TYPES.has(mediaType)) return null;
+  return { mediaType, data };
+}
+
 export async function POST(request: Request) {
   const authHeader = request.headers.get("authorization");
   const token = authHeader?.replace(/^Bearer\s+/i, "");
@@ -38,7 +48,9 @@ export async function POST(request: Request) {
     );
   }
 
-  let body: { messages?: { role: string; content: string }[] };
+  let body: {
+    messages?: { role: string; content: string; image_data?: string | null }[];
+  };
   try {
     body = await request.json();
   } catch {
@@ -50,10 +62,29 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing messages" }, { status: 400 });
   }
 
-  const recentMessages = messages.slice(-MAX_HISTORY_MESSAGES).map((m) => ({
-    role: m.role === "assistant" ? ("assistant" as const) : ("user" as const),
-    content: m.content,
-  }));
+  const recentMessages = messages.slice(-MAX_HISTORY_MESSAGES).map((m) => {
+    const role = m.role === "assistant" ? ("assistant" as const) : ("user" as const);
+    const image = m.image_data ? parseImageDataUrl(m.image_data) : null;
+
+    if (!image) {
+      return { role, content: m.content };
+    }
+
+    return {
+      role,
+      content: [
+        {
+          type: "image" as const,
+          source: {
+            type: "base64" as const,
+            media_type: image.mediaType as "image/jpeg" | "image/png" | "image/gif" | "image/webp",
+            data: image.data,
+          },
+        },
+        ...(m.content ? [{ type: "text" as const, text: m.content }] : []),
+      ],
+    };
+  });
 
   try {
     const response = await anthropic.messages.create({

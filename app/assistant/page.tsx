@@ -6,14 +6,27 @@ import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import type { AssistantMessage } from "@/lib/types";
 
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function AssistantPage() {
   const { user } = useAuth();
   const [messages, setMessages] = useState<AssistantMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [input, setInput] = useState("");
+  const [pendingImage, setPendingImage] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     async function load() {
@@ -33,16 +46,38 @@ export default function AssistantPage() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, sending]);
 
+  async function attachImageFile(file: File) {
+    if (!file.type.startsWith("image/")) return;
+    if (file.size > MAX_IMAGE_BYTES) {
+      setError("That image is too large — try a screenshot under 5MB.");
+      return;
+    }
+    setError(null);
+    const dataUrl = await readFileAsDataUrl(file);
+    setPendingImage(dataUrl);
+  }
+
+  function handlePaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
+    const item = Array.from(e.clipboardData.items).find((i) => i.type.startsWith("image/"));
+    if (!item) return;
+    const file = item.getAsFile();
+    if (!file) return;
+    e.preventDefault();
+    attachImageFile(file);
+  }
+
   async function handleSend() {
     const text = input.trim();
-    if (!text || sending) return;
+    if ((!text && !pendingImage) || sending) return;
     setError(null);
     setInput("");
+    const imageToSend = pendingImage;
+    setPendingImage(null);
     setSending(true);
 
     const { data: userRow } = await supabase
       .from("assistant_messages")
-      .insert({ user_id: user.id, role: "user", content: text })
+      .insert({ user_id: user.id, role: "user", content: text, image_data: imageToSend })
       .select("*")
       .single();
 
@@ -60,7 +95,11 @@ export default function AssistantPage() {
           Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
-          messages: updated.map((m) => ({ role: m.role, content: m.content })),
+          messages: updated.map((m) => ({
+            role: m.role,
+            content: m.content,
+            image_data: m.image_data,
+          })),
         }),
       });
 
@@ -95,7 +134,8 @@ export default function AssistantPage() {
           <div className="empty-state">
             Tell it which list you want to practice (A, B, or C/marketplace) and who the prospect
             is. It will play the prospect one message at a time, then score your conversation when
-            you say &quot;end role-play.&quot; For process, scripts, products, or comp plan
+            you say &quot;end role-play.&quot; You can also paste or attach a screenshot of a real
+            text thread and ask for feedback on it. For process, scripts, products, or comp plan
             questions, check the Resources tab instead.
           </div>
         ) : (
@@ -112,6 +152,14 @@ export default function AssistantPage() {
                       : "card !rounded-2xl text-slate-200"
                   }`}
                 >
+                  {m.image_data && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={m.image_data}
+                      alt="Attached screenshot"
+                      className="mb-2 max-h-64 rounded-lg"
+                    />
+                  )}
                   {m.content}
                 </div>
               </div>
@@ -131,13 +179,44 @@ export default function AssistantPage() {
 
         <div ref={bottomRef} />
 
+        {pendingImage && (
+          <div className="card flex items-center gap-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={pendingImage} alt="Attached screenshot preview" className="h-16 rounded-lg" />
+            <span className="flex-1 text-xs text-slate-400">Screenshot attached</span>
+            <button className="pill" onClick={() => setPendingImage(null)}>
+              Remove
+            </button>
+          </div>
+        )}
+
         <div className="card flex items-end gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) attachImageFile(file);
+              e.target.value = "";
+            }}
+          />
+          <button
+            type="button"
+            className="btn-secondary shrink-0"
+            onClick={() => fileInputRef.current?.click()}
+            aria-label="Attach a screenshot"
+          >
+            📎
+          </button>
           <textarea
             className="textarea min-h-0 flex-1"
-            placeholder="Start a role-play or reply in character…"
+            placeholder="Start a role-play, reply in character, or paste a screenshot…"
             rows={2}
             value={input}
             onChange={(e) => setInput(e.target.value)}
+            onPaste={handlePaste}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
@@ -148,7 +227,7 @@ export default function AssistantPage() {
           <button
             className="btn-primary shrink-0"
             onClick={handleSend}
-            disabled={sending || !input.trim()}
+            disabled={sending || (!input.trim() && !pendingImage)}
           >
             Send
           </button>

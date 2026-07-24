@@ -125,6 +125,18 @@ more capable model, change the `model` value in
 `assistant_messages` table with the same private-by-default RLS as
 everything else.
 
+Users can also paste or attach a screenshot of a real text/DM thread
+(📎 button or paste directly into the message box) instead of typing —
+Claude reads the image directly and either critiques the finished
+conversation or continues the role-play in character from the last message
+shown. Images add a small amount of per-message cost (roughly a cent or two
+per screenshot at typical phone-screenshot resolution, no caching discount
+since each one is unique) and are stored as base64 in the `image_data`
+column on `assistant_messages`. If you already ran `supabase/schema.sql`
+before this was added, just run the `alter table assistant_messages add
+column if not exists image_data text;` line again — it's additive and won't
+touch existing data.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

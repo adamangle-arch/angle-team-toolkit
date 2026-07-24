@@ -53,5 +53,6 @@ export type AssistantMessage = {
   user_id: string;
   role: "user" | "assistant";
   content: string;
+  image_data?: string | null;
   created_at: string;
 };

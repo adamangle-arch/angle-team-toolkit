@@ -159,8 +159,13 @@ create table if not exists assistant_messages (
   user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
   role text not null check (role in ('user', 'assistant')),
   content text not null,
+  image_data text,
   created_at timestamptz not null default now()
 );
+
+-- Additive: lets a re-run of this section pick up image_data on a table
+-- that already existed before screenshot support was added.
+alter table assistant_messages add column if not exists image_data text;
 
 -- ============================================================
 -- Row Level Security
