@@ -421,6 +421,16 @@ day's Core Run (Read, Listen, Daily Update, Story Share), reading the
 same `streak_days` row that page already writes to — no separate
 schema needed. Locked out, the page links straight to Core Run Streak.
 
+### Diamond Chase (mini-game)
+
+A second mini-game: classic Snake, reskinned — a trail of diamonds
+(head outlined in white) chases down books instead of apples, on a
+15x20 grid. Controls: arrow keys/WASD, swipe, or the on-screen D-pad.
+Speed ramps up slightly with every book eaten. Same pattern as Diamond
+Run: plain canvas, no library, no gate, best score saved per person
+(`snake_high_scores` table + `get_snake_leaderboard()`) and shown on
+an in-page leaderboard.
+
 ### Success quote on open
 
 Every time the app is opened fresh, a dismissible overlay shows a

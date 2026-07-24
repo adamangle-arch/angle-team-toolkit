@@ -1205,6 +1205,53 @@ $$;
 
 grant execute on function public.get_game_leaderboard() to authenticated;
 
+-- ============================================================
+-- 11. DIAMOND CHASE (mini-game)
+-- Same shape/pattern as game_high_scores above (Diamond Run) - a
+-- second, independent mini-game's best-score table. Also client-side
+-- only, same no-anti-cheat trust level.
+-- ============================================================
+create table if not exists snake_high_scores (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  best_score int not null default 0,
+  updated_at timestamptz not null default now()
+);
+
+alter table snake_high_scores enable row level security;
+
+drop policy if exists "snake_high_scores_select_all" on snake_high_scores;
+create policy "snake_high_scores_select_all" on snake_high_scores
+for select using (true);
+
+drop policy if exists "snake_high_scores_insert_own" on snake_high_scores;
+create policy "snake_high_scores_insert_own" on snake_high_scores
+for insert with check (user_id = auth.uid());
+
+drop policy if exists "snake_high_scores_update_own" on snake_high_scores;
+create policy "snake_high_scores_update_own" on snake_high_scores
+for update using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+create or replace function public.get_snake_leaderboard()
+returns table (
+  user_id uuid,
+  first_name text,
+  last_name text,
+  best_score int
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select s.user_id, p.first_name, p.last_name, s.best_score
+  from snake_high_scores s
+  join profiles p on p.id = s.user_id
+  order by s.best_score desc
+  limit 20;
+$$;
+
+grant execute on function public.get_snake_leaderboard() to authenticated;
+
 create or replace function public.get_likers(p_entry_keys text[])
 returns table (
   entry_key text,
