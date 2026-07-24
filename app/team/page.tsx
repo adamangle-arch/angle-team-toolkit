@@ -113,6 +113,12 @@ export default function TeamPage() {
     if (!isAdmin || !selectedId) return;
     let cancelled = false;
 
+    // Pipeline/candidates/contacts are household-shareable — if this
+    // person has linked to a spouse, their real rows live under the
+    // spouse's id. Core Run Streak stays individual regardless.
+    const selected = profiles.find((p) => p.id === selectedId);
+    const ownerId = selected?.household_id ?? selectedId;
+
     async function load() {
       setLoadingMember(true);
       const [{ data: pipeline }, { data: candidates }, { data: contacts }, { data: streakDays }] =
@@ -120,19 +126,19 @@ export default function TeamPage() {
           supabase
             .from("pipeline_periods")
             .select("*")
-            .eq("user_id", selectedId)
+            .eq("user_id", ownerId)
             .order("updated_at", { ascending: false })
             .limit(1)
             .maybeSingle(),
           supabase
             .from("candidates")
             .select("*")
-            .eq("user_id", selectedId)
+            .eq("user_id", ownerId)
             .order("created_at", { ascending: false }),
           supabase
             .from("contacts")
             .select("*")
-            .eq("user_id", selectedId)
+            .eq("user_id", ownerId)
             .order("created_at", { ascending: false }),
           supabase
             .from("streak_days")
@@ -157,7 +163,7 @@ export default function TeamPage() {
     return () => {
       cancelled = true;
     };
-  }, [isAdmin, selectedId]);
+  }, [isAdmin, selectedId, profiles]);
 
   if (!isAdmin) {
     return (
@@ -255,6 +261,9 @@ export default function TeamPage() {
                   <span className="truncate">
                     {p.first_name && p.last_name ? `${p.first_name} ${p.last_name}` : p.email}
                     {p.team && <span className="text-xs text-slate-500"> · {p.team}</span>}
+                    {p.household_id && (
+                      <span className="text-xs text-slate-500"> · shared w/ spouse</span>
+                    )}
                   </span>
                   <span className="shrink-0 text-xs text-slate-500">
                     joined {formatDateLabel(p.created_at.slice(0, 10))}

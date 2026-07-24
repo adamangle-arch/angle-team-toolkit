@@ -8,7 +8,7 @@ import { CONTACT_STATUSES } from "@/lib/constants";
 import type { Contact } from "@/lib/types";
 
 export default function ContactsPage() {
-  const { user } = useAuth();
+  const { ownerId } = useAuth();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [newName, setNewName] = useState("");
@@ -21,13 +21,13 @@ export default function ContactsPage() {
       const { data } = await supabase
         .from("contacts")
         .select("*")
-        .eq("user_id", user.id)
+        .eq("user_id", ownerId)
         .order("created_at", { ascending: false });
       setContacts((data as Contact[]) ?? []);
       setLoading(false);
     }
     load();
-  }, [user.id]);
+  }, [ownerId]);
 
   async function addContact() {
     const name = newName.trim();
@@ -35,7 +35,7 @@ export default function ContactsPage() {
     setAdding(true);
     const { data } = await supabase
       .from("contacts")
-      .insert({ name, category: newCategory, user_id: user.id })
+      .insert({ name, category: newCategory, user_id: ownerId })
       .select("*")
       .single();
     if (data) setContacts((prev) => [data as Contact, ...prev]);

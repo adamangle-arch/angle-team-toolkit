@@ -21,7 +21,7 @@ function pct(numerator: number, denominator: number): string {
 }
 
 export default function PipelinePage() {
-  const { user } = useAuth();
+  const { ownerId } = useAuth();
   const [periodType, setPeriodType] = useState<PeriodType>("weekly");
   const [period, setPeriod] = useState<PipelinePeriod | null>(null);
   const [loading, setLoading] = useState(true);
@@ -42,7 +42,7 @@ export default function PipelinePage() {
       const { data: existing } = await supabase
         .from("pipeline_periods")
         .select("*")
-        .eq("user_id", user.id)
+        .eq("user_id", ownerId)
         .eq("period_type", periodType)
         .eq("period_start", periodStart)
         .maybeSingle();
@@ -57,7 +57,7 @@ export default function PipelinePage() {
 
       const { data: created } = await supabase
         .from("pipeline_periods")
-        .insert({ user_id: user.id, period_type: periodType, period_start: periodStart })
+        .insert({ user_id: ownerId, period_type: periodType, period_start: periodStart })
         .select("*")
         .single();
 
@@ -71,7 +71,7 @@ export default function PipelinePage() {
     return () => {
       cancelled = true;
     };
-  }, [periodType, user.id]);
+  }, [periodType, ownerId]);
 
   useEffect(() => {
     async function load() {
@@ -79,13 +79,13 @@ export default function PipelinePage() {
       const { data } = await supabase
         .from("candidates")
         .select("*")
-        .eq("user_id", user.id)
+        .eq("user_id", ownerId)
         .order("created_at", { ascending: false });
       setCandidates((data as Candidate[]) ?? []);
       setLoadingCandidates(false);
     }
     load();
-  }, [user.id]);
+  }, [ownerId]);
 
   async function updateStage(key: PipelineStageKey, delta: number) {
     if (!period) return;
@@ -104,7 +104,7 @@ export default function PipelinePage() {
     setAdding(true);
     const { data } = await supabase
       .from("candidates")
-      .insert({ name, user_id: user.id })
+      .insert({ name, user_id: ownerId })
       .select("*")
       .single();
     if (data) setCandidates((prev) => [data as Candidate, ...prev]);

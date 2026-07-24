@@ -12,6 +12,13 @@ import type { Profile } from "@/lib/types";
 
 type AuthContextValue = {
   user: User;
+  // Resolved household owner for the shared business tables (pipeline,
+  // candidates, contacts, PV, customer sales) — equals user.id unless
+  // this account has linked to a spouse via My Profile, in which case
+  // it's the spouse's id. Core Run Streak and the profile itself always
+  // use user.id directly, never ownerId.
+  ownerId: string;
+  refreshProfile: () => void;
   signOut: () => void;
 };
 
@@ -102,8 +109,17 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     );
   }
 
+  const ownerId = profile.household_id ?? user.id;
+
   return (
-    <AuthContext.Provider value={{ user, signOut: () => supabase.auth.signOut() }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        ownerId,
+        refreshProfile: () => loadProfile(user.id),
+        signOut: () => supabase.auth.signOut(),
+      }}
+    >
       <ConfigWarning />
       {children}
       <BottomNav />

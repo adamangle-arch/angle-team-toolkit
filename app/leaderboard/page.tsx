@@ -42,6 +42,39 @@ function PersonLink({
   );
 }
 
+// For household-shareable data, a linked spouse shows up as two names,
+// each linking to their own profile — the shared numbers are one entity,
+// but the profiles stay individual.
+function CoupleLink({
+  entry,
+}: {
+  entry: {
+    user_id: string;
+    first_name: string | null;
+    last_name: string | null;
+    partner_user_id: string | null;
+    partner_first_name: string | null;
+    partner_last_name: string | null;
+  };
+}) {
+  if (!entry.partner_user_id) {
+    return <PersonLink entry={entry} />;
+  }
+  const partnerName =
+    [entry.partner_first_name, entry.partner_last_name].filter(Boolean).join(" ") || "Unnamed";
+  return (
+    <>
+      <PersonLink entry={entry} /> &{" "}
+      <Link
+        href={`/profile/${entry.partner_user_id}`}
+        className="underline decoration-dotted underline-offset-2"
+      >
+        {partnerName}
+      </Link>
+    </>
+  );
+}
+
 function leadingTeams(teams: TeamTotals[], key: PipelineStageKey): TeamTotals[] {
   const max = teams.reduce((best, t) => Math.max(best, t[key]), 0);
   if (max === 0) return [];
@@ -239,7 +272,7 @@ export default function LeaderboardPage() {
                         <span className="text-amber-light">
                           {winners.map((w, i) => (
                             <span key={w.user_id}>
-                              <PersonLink entry={w} /> ({w.team})
+                              <CoupleLink entry={w} /> ({w.team})
                               {i < winners.length - 1 ? ", " : ""}
                             </span>
                           ))}
@@ -262,7 +295,7 @@ export default function LeaderboardPage() {
                 qi1Rhythm.map((entry, i) => (
                   <div key={`${entry.user_id}-${i}`} className="flex items-center justify-between text-sm">
                     <span className="text-slate-200">
-                      {i + 1}. <PersonLink entry={entry} />{" "}
+                      {i + 1}. <CoupleLink entry={entry} />{" "}
                       <span className="text-xs text-slate-500">({entry.team})</span>
                     </span>
                     <span className="pill pill-amber">{entry.qi1} QI1</span>
@@ -295,7 +328,7 @@ export default function LeaderboardPage() {
                 activeCandidates.map((entry, i) => (
                   <div key={`${entry.user_id}-${i}`} className="flex items-center justify-between text-sm">
                     <span className="text-slate-200">
-                      <PersonLink entry={entry} /> <span className="text-xs text-slate-500">({entry.team})</span>
+                      <CoupleLink entry={entry} /> <span className="text-xs text-slate-500">({entry.team})</span>
                     </span>
                     <span className="pill pill-amber">{entry.active_count}</span>
                   </div>
@@ -313,7 +346,7 @@ export default function LeaderboardPage() {
                     core300.map((entry, i) => (
                       <div key={`${entry.user_id}-${i}`} className="flex items-center justify-between text-sm">
                         <span className="text-slate-200">
-                          {i + 1}. <PersonLink entry={entry} />{" "}
+                          {i + 1}. <CoupleLink entry={entry} />{" "}
                           <span className="text-xs text-slate-500">({entry.team})</span>
                         </span>
                         <span className="pill pill-amber">{entry.pv} PV</span>
@@ -330,7 +363,7 @@ export default function LeaderboardPage() {
                     ditto.map((entry, i) => (
                       <div key={`${entry.user_id}-${i}`} className="flex items-center justify-between text-sm">
                         <span className="text-slate-200">
-                          {i + 1}. <PersonLink entry={entry} />{" "}
+                          {i + 1}. <CoupleLink entry={entry} />{" "}
                           <span className="text-xs text-slate-500">({entry.team})</span>
                         </span>
                         <span className="pill pill-amber">{entry.day1_ditto_pv} PV</span>

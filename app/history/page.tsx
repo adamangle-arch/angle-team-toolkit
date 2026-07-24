@@ -9,7 +9,7 @@ import { formatDateLabel } from "@/lib/dates";
 import type { Candidate } from "@/lib/types";
 
 export default function HistoryPage() {
-  const { user } = useAuth();
+  const { ownerId } = useAuth();
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -19,14 +19,14 @@ export default function HistoryPage() {
       const { data } = await supabase
         .from("candidates")
         .select("*")
-        .eq("user_id", user.id)
+        .eq("user_id", ownerId)
         .order("connected_date", { ascending: false })
         .order("created_at", { ascending: false });
       setCandidates((data as Candidate[]) ?? []);
       setLoading(false);
     }
     load();
-  }, [user.id]);
+  }, [ownerId]);
 
   async function updateCandidate(id: string, patch: Partial<Candidate>) {
     setCandidates((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));

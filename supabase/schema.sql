@@ -194,6 +194,17 @@ alter table profiles add column if not exists favorite_book_3 text;
 alter table profiles add column if not exists team_impact text;
 alter table profiles add column if not exists profile_prompted boolean not null default false;
 
+-- Additive: household linking for a spouse/co-owner on the same business.
+-- When set, this person's shared business tables (pipeline, candidates,
+-- contacts, PV, customer sales — everything except Core Run Streak and
+-- the profile itself) read/write against the linked partner's rows
+-- instead of their own, so the two logins share one set of numbers.
+-- Self-service via link_spouse() below; only one side ever sets this
+-- (the side that "defers" to the other), so there's no cycle to resolve.
+alter table profiles add column if not exists household_id uuid references auth.users(id);
+alter table profiles drop constraint if exists profiles_household_not_self;
+alter table profiles add constraint profiles_household_not_self check (household_id is null or household_id <> id);
+
 alter table profiles enable row level security;
 
 drop policy if exists "select_own_or_admin" on profiles;
@@ -204,6 +215,50 @@ drop policy if exists "update_own" on profiles;
 create policy "update_own" on profiles for update
 using (id = auth.uid())
 with check (id = auth.uid());
+
+-- Self-service spouse linking (My Profile > Linked Spouse). Looks up the
+-- partner by email (profiles.email isn't otherwise readable across users)
+-- and, if valid, sets the caller's own household_id — the caller's
+-- shared business tables then read/write against the partner's rows.
+-- Unlinking is just a normal `update profiles set household_id = null`,
+-- already covered by the update_own policy above.
+create or replace function public.link_spouse(p_partner_email text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  target_id uuid;
+  target_household uuid;
+  my_household uuid;
+begin
+  select id, household_id into target_id, target_household
+  from profiles
+  where lower(email) = lower(p_partner_email);
+
+  if target_id is null then
+    raise exception 'No account found with that email.';
+  end if;
+
+  if target_id = auth.uid() then
+    raise exception 'You can''t link to your own account.';
+  end if;
+
+  if target_household is not null then
+    raise exception 'That account is already linked to someone else.';
+  end if;
+
+  select household_id into my_household from profiles where id = auth.uid();
+  if my_household is not null then
+    raise exception 'You''re already linked to someone. Unlink first.';
+  end if;
+
+  update profiles set household_id = target_id where id = auth.uid();
+end;
+$$;
+
+grant execute on function public.link_spouse(text) to authenticated;
 
 create or replace function public.handle_new_user()
 returns trigger
@@ -378,7 +433,10 @@ returns table (
   last_name text,
   team text,
   value int,
-  user_id uuid
+  user_id uuid,
+  partner_user_id uuid,
+  partner_first_name text,
+  partner_last_name text
 )
 language sql
 stable
@@ -386,9 +444,13 @@ security definer
 set search_path = public
 as $$
   with periods as (
-    select pp.*, pr.first_name, pr.last_name, pr.team
+    select pp.*, pr.first_name, pr.last_name, pr.team,
+           partner.id as partner_user_id,
+           partner.first_name as partner_first_name,
+           partner.last_name as partner_last_name
     from pipeline_periods pp
     join profiles pr on pr.id = pp.user_id
+    left join profiles partner on partner.household_id = pr.id
     where pp.period_type = p_period_type
       and pp.period_start = p_period_start
   ),
@@ -405,31 +467,31 @@ as $$
       max(launches) as launches
     from periods
   )
-  select 'yeses', p.first_name, p.last_name, p.team, p.yeses, p.user_id
+  select 'yeses', p.first_name, p.last_name, p.team, p.yeses, p.user_id, p.partner_user_id, p.partner_first_name, p.partner_last_name
   from periods p, maxes m where p.yeses = m.yeses and m.yeses > 0
   union all
-  select 'qi1', p.first_name, p.last_name, p.team, p.qi1, p.user_id
+  select 'qi1', p.first_name, p.last_name, p.team, p.qi1, p.user_id, p.partner_user_id, p.partner_first_name, p.partner_last_name
   from periods p, maxes m where p.qi1 = m.qi1 and m.qi1 > 0
   union all
-  select 'qi2', p.first_name, p.last_name, p.team, p.qi2, p.user_id
+  select 'qi2', p.first_name, p.last_name, p.team, p.qi2, p.user_id, p.partner_user_id, p.partner_first_name, p.partner_last_name
   from periods p, maxes m where p.qi2 = m.qi2 and m.qi2 > 0
   union all
-  select 'is1', p.first_name, p.last_name, p.team, p.is1, p.user_id
+  select 'is1', p.first_name, p.last_name, p.team, p.is1, p.user_id, p.partner_user_id, p.partner_first_name, p.partner_last_name
   from periods p, maxes m where p.is1 = m.is1 and m.is1 > 0
   union all
-  select 'fu1', p.first_name, p.last_name, p.team, p.fu1, p.user_id
+  select 'fu1', p.first_name, p.last_name, p.team, p.fu1, p.user_id, p.partner_user_id, p.partner_first_name, p.partner_last_name
   from periods p, maxes m where p.fu1 = m.fu1 and m.fu1 > 0
   union all
-  select 'is2', p.first_name, p.last_name, p.team, p.is2, p.user_id
+  select 'is2', p.first_name, p.last_name, p.team, p.is2, p.user_id, p.partner_user_id, p.partner_first_name, p.partner_last_name
   from periods p, maxes m where p.is2 = m.is2 and m.is2 > 0
   union all
-  select 'fu2', p.first_name, p.last_name, p.team, p.fu2, p.user_id
+  select 'fu2', p.first_name, p.last_name, p.team, p.fu2, p.user_id, p.partner_user_id, p.partner_first_name, p.partner_last_name
   from periods p, maxes m where p.fu2 = m.fu2 and m.fu2 > 0
   union all
-  select 'questionnaire', p.first_name, p.last_name, p.team, p.questionnaire, p.user_id
+  select 'questionnaire', p.first_name, p.last_name, p.team, p.questionnaire, p.user_id, p.partner_user_id, p.partner_first_name, p.partner_last_name
   from periods p, maxes m where p.questionnaire = m.questionnaire and m.questionnaire > 0
   union all
-  select 'launches', p.first_name, p.last_name, p.team, p.launches, p.user_id
+  select 'launches', p.first_name, p.last_name, p.team, p.launches, p.user_id, p.partner_user_id, p.partner_first_name, p.partner_last_name
   from periods p, maxes m where p.launches = m.launches and m.launches > 0;
 $$;
 
@@ -487,16 +549,21 @@ returns table (
   last_name text,
   team text,
   pv int,
-  user_id uuid
+  user_id uuid,
+  partner_user_id uuid,
+  partner_first_name text,
+  partner_last_name text
 )
 language sql
 stable
 security definer
 set search_path = public
 as $$
-  select pr.first_name, pr.last_name, pr.team, mp.pv, pr.id
+  select pr.first_name, pr.last_name, pr.team, mp.pv, pr.id,
+         partner.id, partner.first_name, partner.last_name
   from monthly_pv mp
   join profiles pr on pr.id = mp.user_id
+  left join profiles partner on partner.household_id = pr.id
   where mp.period_start = p_period_start
     and mp.pv >= 300
   order by mp.pv desc;
@@ -513,14 +580,18 @@ returns table (
   last_name text,
   team text,
   active_count int,
-  user_id uuid
+  user_id uuid,
+  partner_user_id uuid,
+  partner_first_name text,
+  partner_last_name text
 )
 language sql
 stable
 security definer
 set search_path = public
 as $$
-  select pr.first_name, pr.last_name, pr.team, cc.active_count, pr.id
+  select pr.first_name, pr.last_name, pr.team, cc.active_count, pr.id,
+         partner.id, partner.first_name, partner.last_name
   from (
     select user_id, count(*)::int as active_count
     from candidates
@@ -529,6 +600,7 @@ as $$
     having count(*) >= 5
   ) cc
   join profiles pr on pr.id = cc.user_id
+  left join profiles partner on partner.household_id = pr.id
   order by cc.active_count desc;
 $$;
 
@@ -546,16 +618,21 @@ returns table (
   last_name text,
   team text,
   qi1 int,
-  user_id uuid
+  user_id uuid,
+  partner_user_id uuid,
+  partner_first_name text,
+  partner_last_name text
 )
 language sql
 stable
 security definer
 set search_path = public
 as $$
-  select pr.first_name, pr.last_name, pr.team, pp.qi1, pr.id
+  select pr.first_name, pr.last_name, pr.team, pp.qi1, pr.id,
+         partner.id, partner.first_name, partner.last_name
   from pipeline_periods pp
   join profiles pr on pr.id = pp.user_id
+  left join profiles partner on partner.household_id = pr.id
   where pp.period_type = p_period_type
     and pp.period_start = p_period_start
     and pp.qi1 >= p_min_qi1
@@ -574,16 +651,21 @@ returns table (
   last_name text,
   team text,
   day1_ditto_pv int,
-  user_id uuid
+  user_id uuid,
+  partner_user_id uuid,
+  partner_first_name text,
+  partner_last_name text
 )
 language sql
 stable
 security definer
 set search_path = public
 as $$
-  select pr.first_name, pr.last_name, pr.team, mp.day1_ditto_pv, pr.id
+  select pr.first_name, pr.last_name, pr.team, mp.day1_ditto_pv, pr.id,
+         partner.id, partner.first_name, partner.last_name
   from monthly_pv mp
   join profiles pr on pr.id = mp.user_id
+  left join profiles partner on partner.household_id = pr.id
   where mp.period_start = p_period_start
     and mp.day1_ditto_pv > 100
   order by mp.day1_ditto_pv desc;
@@ -593,20 +675,17 @@ grant execute on function public.get_ditto_leaderboard(date) to authenticated;
 
 -- ============================================================
 -- Row Level Security
--- Every table: a user can only read/write their own rows. The admin
--- (is_app_admin() above) can additionally read, update, or delete every
--- row, for oversight — but inserts always attribute to whoever is
--- actually logged in, admin included.
+--
+-- Personal tables (streak_days, assistant_messages): strictly owner or
+-- admin — never shared with a linked spouse, since Core Run Streak and
+-- assistant chat history stay individual even for a linked household.
 -- ============================================================
 do $$
 declare
   t text;
 begin
   for t in
-    select unnest(array[
-      'pipeline_periods', 'candidates', 'contacts',
-      'streak_days', 'assistant_messages', 'monthly_pv', 'customer_sales'
-    ])
+    select unnest(array['streak_days', 'assistant_messages'])
   loop
     execute format('alter table %I enable row level security;', t);
 
@@ -631,6 +710,50 @@ begin
     execute format('drop policy if exists "delete_own_or_admin" on %I;', t);
     execute format(
       'create policy "delete_own_or_admin" on %I for delete using (user_id = auth.uid() or public.is_app_admin());',
+      t
+    );
+  end loop;
+end $$;
+
+-- ============================================================
+-- Household-shareable tables: pipeline, candidates, contacts, PV, and
+-- customer sales are the "same business" data — a user_id here can be
+-- either the caller's own id OR the id they've linked to via
+-- link_spouse() (household_id), so a linked pair reads/writes one
+-- shared set of rows instead of two separate ones.
+-- ============================================================
+do $$
+declare
+  t text;
+begin
+  for t in
+    select unnest(array[
+      'pipeline_periods', 'candidates', 'contacts', 'monthly_pv', 'customer_sales'
+    ])
+  loop
+    execute format('alter table %I enable row level security;', t);
+
+    execute format('drop policy if exists "select_own_or_admin" on %I;', t);
+    execute format(
+      'create policy "select_own_or_admin" on %I for select using (user_id = auth.uid() or user_id = (select household_id from profiles where id = auth.uid()) or public.is_app_admin());',
+      t
+    );
+
+    execute format('drop policy if exists "insert_own" on %I;', t);
+    execute format(
+      'create policy "insert_own" on %I for insert with check (user_id = auth.uid() or user_id = (select household_id from profiles where id = auth.uid()));',
+      t
+    );
+
+    execute format('drop policy if exists "update_own_or_admin" on %I;', t);
+    execute format(
+      'create policy "update_own_or_admin" on %I for update using (user_id = auth.uid() or user_id = (select household_id from profiles where id = auth.uid()) or public.is_app_admin()) with check (user_id = auth.uid() or user_id = (select household_id from profiles where id = auth.uid()) or public.is_app_admin());',
+      t
+    );
+
+    execute format('drop policy if exists "delete_own_or_admin" on %I;', t);
+    execute format(
+      'create policy "delete_own_or_admin" on %I for delete using (user_id = auth.uid() or user_id = (select household_id from profiles where id = auth.uid()) or public.is_app_admin());',
       t
     );
   end loop;

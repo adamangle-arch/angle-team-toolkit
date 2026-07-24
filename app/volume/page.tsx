@@ -8,7 +8,7 @@ import { getMonthStart, formatMonthLabel } from "@/lib/dates";
 import type { MonthlyPv, CustomerSale } from "@/lib/types";
 
 export default function VolumePage() {
-  const { user } = useAuth();
+  const { ownerId } = useAuth();
   const periodStart = getMonthStart();
 
   const [pvInput, setPvInput] = useState("0");
@@ -37,13 +37,13 @@ export default function VolumePage() {
         supabase
           .from("monthly_pv")
           .select("*")
-          .eq("user_id", user.id)
+          .eq("user_id", ownerId)
           .eq("period_start", periodStart)
           .maybeSingle(),
         supabase
           .from("monthly_pv")
           .select("*")
-          .eq("user_id", user.id)
+          .eq("user_id", ownerId)
           .order("period_start", { ascending: false })
           .limit(6),
       ]);
@@ -60,7 +60,7 @@ export default function VolumePage() {
     return () => {
       cancelled = true;
     };
-  }, [user.id, periodStart]);
+  }, [ownerId, periodStart]);
 
   useEffect(() => {
     let cancelled = false;
@@ -70,7 +70,7 @@ export default function VolumePage() {
       const { data } = await supabase
         .from("customer_sales")
         .select("*")
-        .eq("user_id", user.id)
+        .eq("user_id", ownerId)
         .eq("period_start", periodStart)
         .order("created_at", { ascending: false });
       if (!cancelled) {
@@ -83,7 +83,7 @@ export default function VolumePage() {
     return () => {
       cancelled = true;
     };
-  }, [user.id, periodStart]);
+  }, [ownerId, periodStart]);
 
   async function savePv() {
     const pv = Math.max(0, parseInt(pvInput, 10) || 0);
@@ -92,7 +92,7 @@ export default function VolumePage() {
     await supabase
       .from("monthly_pv")
       .upsert(
-        { user_id: user.id, period_start: periodStart, pv, updated_at: new Date().toISOString() },
+        { user_id: ownerId, period_start: periodStart, pv, updated_at: new Date().toISOString() },
         { onConflict: "user_id,period_start" }
       );
     setPvInput(String(pv));
@@ -108,7 +108,7 @@ export default function VolumePage() {
       .from("monthly_pv")
       .upsert(
         {
-          user_id: user.id,
+          user_id: ownerId,
           period_start: periodStart,
           day1_ditto_pv,
           updated_at: new Date().toISOString(),
@@ -127,7 +127,7 @@ export default function VolumePage() {
     const { data } = await supabase
       .from("customer_sales")
       .insert({
-        user_id: user.id,
+        user_id: ownerId,
         period_start: periodStart,
         description,
         notes: saleNotes.trim(),

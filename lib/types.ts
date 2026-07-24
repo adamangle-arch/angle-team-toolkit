@@ -17,6 +17,7 @@ export type Profile = {
   favorite_book_3: string | null;
   team_impact: string | null;
   profile_prompted: boolean;
+  household_id: string | null;
   created_at: string;
 };
 
@@ -43,6 +44,15 @@ export type TeamTotals = {
   member_count: number;
 } & Record<PipelineStageKey, number>;
 
+// Household-shareable leaderboard entries (everything except streaks)
+// carry partner_* fields — non-null when this person has a linked
+// spouse, so the Leaderboard can show and link to both profiles.
+type WithPartner = {
+  partner_user_id: string | null;
+  partner_first_name: string | null;
+  partner_last_name: string | null;
+};
+
 export type IndividualLeaderEntry = {
   category: PipelineStageKey;
   first_name: string | null;
@@ -50,7 +60,7 @@ export type IndividualLeaderEntry = {
   team: string | null;
   value: number;
   user_id: string;
-};
+} & WithPartner;
 
 export type StreakLeaderboardEntry = {
   first_name: string | null;
@@ -66,7 +76,7 @@ export type Core300Entry = {
   team: string | null;
   pv: number;
   user_id: string;
-};
+} & WithPartner;
 
 export type ActiveCandidatesEntry = {
   first_name: string | null;
@@ -74,7 +84,7 @@ export type ActiveCandidatesEntry = {
   team: string | null;
   active_count: number;
   user_id: string;
-};
+} & WithPartner;
 
 export type Qi1RhythmEntry = {
   first_name: string | null;
@@ -82,7 +92,7 @@ export type Qi1RhythmEntry = {
   team: string | null;
   qi1: number;
   user_id: string;
-};
+} & WithPartner;
 
 export type DittoEntry = {
   first_name: string | null;
@@ -90,7 +100,7 @@ export type DittoEntry = {
   team: string | null;
   day1_ditto_pv: number;
   user_id: string;
-};
+} & WithPartner;
 
 export type MonthlyPv = {
   id: string;

@@ -195,6 +195,33 @@ file per user at `avatars/<user_id>/photo.<ext>` — public read (so
 teammates can actually see the photo) but restricted to each user only
 being able to upload/replace/delete their own file.
 
+### Linked spouses (same business, one set of numbers)
+
+A husband and wife running the same business can link their two logins
+from **My Profile** — enter your spouse's email and, once linked, your
+Pipeline Tracker, Candidate Roadmap/History, Contacts, and Volume (PV,
+Day 1 Ditto, Customer Sales) all read and write the *same* rows as your
+spouse's login, instead of two separate sets. Core Run Streak and the
+profile itself (photo, background, favorites, team impact) stay
+individual on purpose — each person keeps their own streak, and a linked
+couple still shows up as two separate, tappable profiles wherever the
+Leaderboard shows a combined "First & First Last" entry.
+
+Mechanically: `profiles.household_id` (self-service via the
+`link_spouse(email)` function) lets one side "defer" to the other's
+account. Every app page reads/writes the shared tables using a resolved
+`ownerId` (`household_id ?? your own id`) instead of your raw user id, and
+RLS on those five tables allows a row if `user_id` matches either your own
+id or your linked household_id. Only one side ever sets household_id — the
+other side's data already **is** the shared record, so nothing points back
+the other way and there's no cycle to worry about. Unlinking is just
+clearing `household_id`; nothing is deleted.
+
+**Heads up:** linking does not merge or migrate any data that already
+exists — it only affects what each login reads/writes going forward.
+If both spouses already had their own separate pipeline/candidates/PV
+history before linking, that old data doesn't get combined automatically.
+
 ## Notes on the Role-Play Coach
 
 The **Role-Play Coach** tab is strictly a practice simulator for A-list,
