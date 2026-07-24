@@ -406,44 +406,37 @@ yet. A few things worth knowing:
   key in particular bypasses Row Level Security entirely and must never
   be exposed to the browser (no `NEXT_PUBLIC_` prefix, server-only).
 
-### Diamond Run (mini-game)
+### Games
 
-A **Diamond Run** tab has a lightweight Flappy Bird-style game — tap to
-keep your diamond airborne and dodge classic green pipes — built with
-plain HTML5 canvas, no game library. High scores are saved per person
-and shown on an in-page leaderboard (`game_high_scores` table +
-`get_game_leaderboard()`). It's just for fun: the game runs entirely
-client-side, so there's no anti-cheat on scores, same trust level as any
-other self-reported number in this app.
+A single **Games** tab holds three mini-games behind a pill-tab
+switcher (`app/games/page.tsx`, same pattern as the Resources hub's
+section tabs) — each game is its own component under
+`components/games/` and only mounts while its tab is active.
 
-Playing is gated: it unlocks for the day once you've completed that
-day's Core Run (Read, Listen, Daily Update, Story Share), reading the
-same `streak_days` row that page already writes to — no separate
-schema needed. Locked out, the page links straight to Core Run Streak.
+- **Diamond Run** — a lightweight Flappy Bird-style game: tap to keep
+  your diamond airborne and dodge classic green pipes. Playing is
+  gated: it unlocks for the day once you've completed that day's Core
+  Run (Read, Listen, Daily Update, Story Share), reading the same
+  `streak_days` row that page already writes to. Locked out, it links
+  straight to Core Run Streak. High scores: `game_high_scores` +
+  `get_game_leaderboard()`.
+- **Diamond Chase** — classic Snake, reskinned: a trail of diamonds
+  (head outlined in white) chases down books instead of apples on a
+  15x20 grid. Controls: arrow keys/WASD, swipe, or the on-screen
+  D-pad. Speed ramps up slightly with every book eaten. No play gate.
+  High scores: `snake_high_scores` + `get_snake_leaderboard()`.
+- **Trivia** — multiple-choice trivia in survival mode: questions come
+  one at a time from a shuffled queue (reshuffles once exhausted, so
+  there's always a next question regardless of pool size), scoring
+  your current correct-in-a-row streak. Get one wrong and the round
+  ends. High scores: `trivia_high_scores` + `get_trivia_leaderboard()`.
+  Questions live in `lib/trivia-data.ts`'s `TRIVIA_QUESTIONS` and
+  currently only have 3 clearly-marked placeholders — swap in real
+  product/process/script questions whenever you have them ready.
 
-### Diamond Chase (mini-game)
-
-A second mini-game: classic Snake, reskinned — a trail of diamonds
-(head outlined in white) chases down books instead of apples, on a
-15x20 grid. Controls: arrow keys/WASD, swipe, or the on-screen D-pad.
-Speed ramps up slightly with every book eaten. Same pattern as Diamond
-Run: plain canvas, no library, no gate, best score saved per person
-(`snake_high_scores` table + `get_snake_leaderboard()`) and shown on
-an in-page leaderboard.
-
-### Trivia (mini-game)
-
-A third mini-game: multiple-choice trivia in survival mode — questions
-come one at a time from a shuffled queue (reshuffles once exhausted, so
-there's always a next question regardless of pool size), scoring your
-current correct-in-a-row streak. Get one wrong and the round ends; best
-streak is saved per person (`trivia_high_scores` table +
-`get_trivia_leaderboard()`) and shown on an in-page leaderboard, same
-pattern as the other two mini-games.
-
-Questions live in `lib/trivia-data.ts`'s `TRIVIA_QUESTIONS` and currently
-only have 3 clearly-marked placeholders — swap in real product/process/
-script questions whenever you have them ready.
+All three: plain HTML5 canvas (or plain DOM for Trivia), no game
+library, and no anti-cheat on scores — same trust level as any other
+self-reported number in this app.
 
 ### Success quote on open
 

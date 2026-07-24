@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import type { GameLeaderEntry } from "@/lib/types";
@@ -32,7 +31,7 @@ const OPPOSITE: Record<Direction, Direction> = {
   right: "left",
 };
 
-export default function SnakeGamePage() {
+export default function DiamondChaseGame() {
   const { user } = useAuth();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -297,86 +296,80 @@ export default function SnakeGamePage() {
 
   return (
     <>
-      <PageHeader
-        title="Diamond Chase"
-        subtitle="Eat the books — don't hit the walls or yourself"
-      />
-      <main className="page-main">
-        <div className="card flex items-center justify-between">
-          <span className="text-sm text-slate-400">
-            Score: <span className="font-bold text-white">{score}</span>
-          </span>
-          <span className="text-sm text-slate-400">
-            Best: <span className="font-bold text-amber-light">{bestScore}</span>
-          </span>
-        </div>
+      <div className="card flex items-center justify-between">
+        <span className="text-sm text-slate-400">
+          Score: <span className="font-bold text-white">{score}</span>
+        </span>
+        <span className="text-sm text-slate-400">
+          Best: <span className="font-bold text-amber-light">{bestScore}</span>
+        </span>
+      </div>
 
-        <div
-          className="relative mx-auto overflow-hidden rounded-2xl border border-white/10"
-          style={{ width: WIDTH, height: HEIGHT }}
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
-        >
-          <canvas ref={canvasRef} width={WIDTH} height={HEIGHT} />
-          {!running && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-navy/70 px-4 text-center">
-              {gameOver ? (
-                <>
-                  <p className="text-lg font-bold text-white">Game Over</p>
-                  <p className="text-sm text-slate-300">Score: {score}</p>
-                </>
-              ) : (
-                <p className="text-lg font-bold text-white">💎 Tap to Start</p>
-              )}
-              <button
-                className="btn-primary mt-2"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  startGame();
-                }}
-              >
-                {gameOver ? "Play Again" : "Start"}
-              </button>
+      <div
+        className="relative mx-auto overflow-hidden rounded-2xl border border-white/10"
+        style={{ width: WIDTH, height: HEIGHT }}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
+        <canvas ref={canvasRef} width={WIDTH} height={HEIGHT} />
+        {!running && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-navy/70 px-4 text-center">
+            {gameOver ? (
+              <>
+                <p className="text-lg font-bold text-white">Game Over</p>
+                <p className="text-sm text-slate-300">Score: {score}</p>
+              </>
+            ) : (
+              <p className="text-lg font-bold text-white">💎 Tap to Start</p>
+            )}
+            <button
+              className="btn-primary mt-2"
+              onClick={(e) => {
+                e.stopPropagation();
+                startGame();
+              }}
+            >
+              {gameOver ? "Play Again" : "Start"}
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="mx-auto grid w-36 grid-cols-3 grid-rows-3 gap-1.5">
+        <div />
+        <button className="btn-icon" onClick={() => setDirection("up")} aria-label="Up">
+          ▲
+        </button>
+        <div />
+        <button className="btn-icon" onClick={() => setDirection("left")} aria-label="Left">
+          ◀
+        </button>
+        <div />
+        <button className="btn-icon" onClick={() => setDirection("right")} aria-label="Right">
+          ▶
+        </button>
+        <div />
+        <button className="btn-icon" onClick={() => setDirection("down")} aria-label="Down">
+          ▼
+        </button>
+        <div />
+      </div>
+
+      <div className="card space-y-1.5">
+        <p className="section-title">💎 High Scores</p>
+        {leaders.length === 0 ? (
+          <p className="text-sm text-slate-400">No scores yet — be the first!</p>
+        ) : (
+          leaders.map((l, i) => (
+            <div key={l.user_id} className="flex items-center justify-between text-sm">
+              <span className="text-slate-200">
+                {i + 1}. {[l.first_name, l.last_name].filter(Boolean).join(" ") || "Unnamed"}
+              </span>
+              <span className="pill pill-amber">{l.best_score}</span>
             </div>
-          )}
-        </div>
-
-        <div className="mx-auto grid w-36 grid-cols-3 grid-rows-3 gap-1.5">
-          <div />
-          <button className="btn-icon" onClick={() => setDirection("up")} aria-label="Up">
-            ▲
-          </button>
-          <div />
-          <button className="btn-icon" onClick={() => setDirection("left")} aria-label="Left">
-            ◀
-          </button>
-          <div />
-          <button className="btn-icon" onClick={() => setDirection("right")} aria-label="Right">
-            ▶
-          </button>
-          <div />
-          <button className="btn-icon" onClick={() => setDirection("down")} aria-label="Down">
-            ▼
-          </button>
-          <div />
-        </div>
-
-        <div className="card space-y-1.5">
-          <p className="section-title">💎 High Scores</p>
-          {leaders.length === 0 ? (
-            <p className="text-sm text-slate-400">No scores yet — be the first!</p>
-          ) : (
-            leaders.map((l, i) => (
-              <div key={l.user_id} className="flex items-center justify-between text-sm">
-                <span className="text-slate-200">
-                  {i + 1}. {[l.first_name, l.last_name].filter(Boolean).join(" ") || "Unnamed"}
-                </span>
-                <span className="pill pill-amber">{l.best_score}</span>
-              </div>
-            ))
-          )}
-        </div>
-      </main>
+          ))
+        )}
+      </div>
     </>
   );
 }

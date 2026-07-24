@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import { TRIVIA_QUESTIONS } from "@/lib/trivia-data";
@@ -16,7 +15,7 @@ function shuffledIndices(length: number): number[] {
   return arr;
 }
 
-export default function TriviaPage() {
+export default function TriviaGame() {
   const { user } = useAuth();
 
   const [score, setScore] = useState(0);
@@ -131,75 +130,72 @@ export default function TriviaPage() {
 
   return (
     <>
-      <PageHeader title="Trivia" subtitle="How many can you get in a row?" />
-      <main className="page-main">
-        <div className="card flex items-center justify-between">
-          <span className="text-sm text-slate-400">
-            Streak: <span className="font-bold text-white">{score}</span>
-          </span>
-          <span className="text-sm text-slate-400">
-            Best: <span className="font-bold text-amber-light">{bestScore}</span>
-          </span>
-        </div>
+      <div className="card flex items-center justify-between">
+        <span className="text-sm text-slate-400">
+          Streak: <span className="font-bold text-white">{score}</span>
+        </span>
+        <span className="text-sm text-slate-400">
+          Best: <span className="font-bold text-amber-light">{bestScore}</span>
+        </span>
+      </div>
 
-        {!running ? (
-          <div className="card space-y-3 text-center">
-            {roundOver ? (
-              <>
-                <p className="text-lg font-bold text-white">Round Over</p>
-                <p className="text-sm text-slate-300">You got {score} in a row.</p>
-              </>
-            ) : (
-              <p className="text-lg font-bold text-white">🧠 Ready?</p>
-            )}
-            <button className="btn-primary w-full" onClick={startGame} disabled={noQuestions}>
-              {roundOver ? "Play Again" : "Start"}
-            </button>
-            {noQuestions && (
-              <p className="text-xs text-slate-500">No trivia questions loaded yet.</p>
-            )}
-          </div>
-        ) : question ? (
-          <div className="card space-y-2">
-            <p className="text-base font-medium text-white">{question.question}</p>
-            <div className="space-y-1.5">
-              {question.options.map((option, i) => {
-                let extra = "";
-                if (revealed) {
-                  if (i === question.correctIndex) extra = "!border-amber bg-amber/15";
-                  else if (i === selected) extra = "!border-red-500/60 bg-red-500/10";
-                }
-                return (
-                  <button
-                    key={i}
-                    className={`input w-full text-left ${extra}`}
-                    onClick={() => selectAnswer(i)}
-                    disabled={revealed}
-                  >
-                    {option}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        ) : null}
-
-        <div className="card space-y-1.5">
-          <p className="section-title">🧠 High Scores</p>
-          {leaders.length === 0 ? (
-            <p className="text-sm text-slate-400">No scores yet — be the first!</p>
+      {!running ? (
+        <div className="card space-y-3 text-center">
+          {roundOver ? (
+            <>
+              <p className="text-lg font-bold text-white">Round Over</p>
+              <p className="text-sm text-slate-300">You got {score} in a row.</p>
+            </>
           ) : (
-            leaders.map((l, i) => (
-              <div key={l.user_id} className="flex items-center justify-between text-sm">
-                <span className="text-slate-200">
-                  {i + 1}. {[l.first_name, l.last_name].filter(Boolean).join(" ") || "Unnamed"}
-                </span>
-                <span className="pill pill-amber">{l.best_score}</span>
-              </div>
-            ))
+            <p className="text-lg font-bold text-white">🧠 Ready?</p>
+          )}
+          <button className="btn-primary w-full" onClick={startGame} disabled={noQuestions}>
+            {roundOver ? "Play Again" : "Start"}
+          </button>
+          {noQuestions && (
+            <p className="text-xs text-slate-500">No trivia questions loaded yet.</p>
           )}
         </div>
-      </main>
+      ) : question ? (
+        <div className="card space-y-2">
+          <p className="text-base font-medium text-white">{question.question}</p>
+          <div className="space-y-1.5">
+            {question.options.map((option, i) => {
+              let extra = "";
+              if (revealed) {
+                if (i === question.correctIndex) extra = "!border-amber bg-amber/15";
+                else if (i === selected) extra = "!border-red-500/60 bg-red-500/10";
+              }
+              return (
+                <button
+                  key={i}
+                  className={`input w-full text-left ${extra}`}
+                  onClick={() => selectAnswer(i)}
+                  disabled={revealed}
+                >
+                  {option}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="card space-y-1.5">
+        <p className="section-title">🧠 High Scores</p>
+        {leaders.length === 0 ? (
+          <p className="text-sm text-slate-400">No scores yet — be the first!</p>
+        ) : (
+          leaders.map((l, i) => (
+            <div key={l.user_id} className="flex items-center justify-between text-sm">
+              <span className="text-slate-200">
+                {i + 1}. {[l.first_name, l.last_name].filter(Boolean).join(" ") || "Unnamed"}
+              </span>
+              <span className="pill pill-amber">{l.best_score}</span>
+            </div>
+          ))
+        )}
+      </div>
     </>
   );
 }
