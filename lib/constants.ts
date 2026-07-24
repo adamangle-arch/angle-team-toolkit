@@ -106,6 +106,12 @@ export const ONBOARDING_SESSIONS: OnboardingSession[] = [
     description: "Build a healthy financial foundation.",
     resources: [
       {
+        label: "🎧 Excited to Confident",
+        detail:
+          "Audio by Alex and Laura Angle — listen before your Budget Session.",
+        url: "https://www.dropbox.com/scl/fi/nem1bqacjnfo4r3mtgraa/Excited-to-Confident-L22-3613-AUD.mp3?rlkey=0z1shlbvk28ndg7tfuk0p64za&st=revpnfob&dl=0",
+      },
+      {
         label: "📋 Homework: Budget Worksheet & Audio",
         detail:
           "Listen to the audio explaining how to fill out the budget, then bring your completed budget to your next meeting with your coach.",
