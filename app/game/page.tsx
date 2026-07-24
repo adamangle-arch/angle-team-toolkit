@@ -10,7 +10,6 @@ import type { GameLeaderEntry } from "@/lib/types";
 
 type UnlockStatus = {
   coreRunDone: boolean;
-  yesesToday: number;
 };
 
 const WIDTH = 350;
@@ -75,7 +74,7 @@ export default function GamePage() {
       setLoadingUnlock(true);
       const { data } = await supabase
         .from("streak_days")
-        .select("read,listen,daily_update,story_share,yeses")
+        .select("read,listen,daily_update,story_share")
         .eq("user_id", user.id)
         .eq("day", getToday())
         .maybeSingle();
@@ -84,7 +83,6 @@ export default function GamePage() {
         coreRunDone: Boolean(
           data?.read && data?.listen && data?.daily_update && data?.story_share
         ),
-        yesesToday: data?.yeses ?? 0,
       });
       setLoadingUnlock(false);
     }
@@ -320,7 +318,7 @@ export default function GamePage() {
     return () => cancelAnimationFrame(animFrame.current);
   }, []);
 
-  const unlocked = Boolean(unlockStatus?.coreRunDone && (unlockStatus?.yesesToday ?? 0) >= 1);
+  const unlocked = Boolean(unlockStatus?.coreRunDone);
 
   return (
     <>
@@ -332,18 +330,12 @@ export default function GamePage() {
           <div className="card space-y-2">
             <p className="section-title">🔒 Locked for Today</p>
             <p className="text-sm text-slate-400">
-              Complete today&apos;s Core Run and get at least 1 Yes to unlock Diamond Run.
+              Complete today&apos;s Core Run to unlock Diamond Run.
             </p>
             <div className="flex items-center justify-between text-sm">
               <span className="text-slate-200">Core Run complete</span>
               <span className={unlockStatus?.coreRunDone ? "pill-amber" : "pill"}>
                 {unlockStatus?.coreRunDone ? "Done" : "Not yet"}
-              </span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-200">Yeses today</span>
-              <span className={(unlockStatus?.yesesToday ?? 0) >= 1 ? "pill-amber" : "pill"}>
-                {unlockStatus?.yesesToday ?? 0}/1
               </span>
             </div>
             <Link href="/streak" className="btn-primary block w-full text-center">

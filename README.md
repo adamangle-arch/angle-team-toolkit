@@ -412,12 +412,9 @@ client-side, so there's no anti-cheat on scores, same trust level as any
 other self-reported number in this app.
 
 Playing is gated: it unlocks for the day once you've completed that
-day's Core Run **and** logged at least 1 Yes in today's "Today's
-Activity" count on the Core Run Streak page. Both checks read the
-same `streak_days` row that page already writes to (the `yeses` column
-added for daily activity tracking) — no separate schema needed. Locked
-out, the page shows exactly what's missing and links straight to Core
-Run Streak.
+day's Core Run (Read, Listen, Daily Update, Story Share), reading the
+same `streak_days` row that page already writes to — no separate
+schema needed. Locked out, the page links straight to Core Run Streak.
 
 ## Notes on the Role-Play Coach
 
