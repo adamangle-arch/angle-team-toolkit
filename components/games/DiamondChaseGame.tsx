@@ -10,9 +10,9 @@ const ROWS = 20;
 const CELL = 20;
 const WIDTH = COLS * CELL;
 const HEIGHT = ROWS * CELL;
-const INITIAL_TICK_MS = 160;
-const MIN_TICK_MS = 80;
-const SPEED_STEP_MS = 4;
+const INITIAL_TICK_MS = 200;
+const MIN_TICK_MS = 90;
+const SPEED_STEP_MS = 3;
 
 type Point = { x: number; y: number };
 type Direction = "up" | "down" | "left" | "right";
@@ -115,6 +115,21 @@ export default function DiamondChaseGame() {
     ctx.restore();
   }
 
+  function drawBook(ctx: CanvasRenderingContext2D, px: number, py: number) {
+    const pad = 3;
+    const w = CELL - pad * 2;
+    const h = CELL - pad * 2;
+    const x = px + pad;
+    const y = py + pad;
+
+    ctx.fillStyle = "#c0392b";
+    ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = "#f5e9da";
+    ctx.fillRect(x + w * 0.3, y + h * 0.1, w * 0.6, h * 0.8);
+    ctx.fillStyle = "#8e2a1f";
+    ctx.fillRect(x, y, w * 0.22, h);
+  }
+
   function render() {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
@@ -127,14 +142,7 @@ export default function DiamondChaseGame() {
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-    ctx.font = `${CELL - 2}px sans-serif`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(
-      "📚",
-      food.current.x * CELL + CELL / 2,
-      food.current.y * CELL + CELL / 2 + 1
-    );
+    drawBook(ctx, food.current.x * CELL, food.current.y * CELL);
 
     snake.current.forEach((seg, i) => {
       drawDiamondSegment(ctx, seg.x * CELL, seg.y * CELL, i === 0);
@@ -252,7 +260,7 @@ export default function DiamondChaseGame() {
     const dx = t.clientX - start.x;
     const dy = t.clientY - start.y;
 
-    if (Math.abs(dx) < 20 && Math.abs(dy) < 20) {
+    if (Math.abs(dx) < 10 && Math.abs(dy) < 10) {
       if (!runningRef.current) startGame();
       return;
     }
@@ -335,21 +343,37 @@ export default function DiamondChaseGame() {
         )}
       </div>
 
-      <div className="mx-auto grid w-36 grid-cols-3 grid-rows-3 gap-1.5">
+      <div className="mx-auto grid w-48 grid-cols-3 grid-rows-3 gap-2">
         <div />
-        <button className="btn-icon" onClick={() => setDirection("up")} aria-label="Up">
+        <button
+          className="btn-icon !h-14 !w-14 text-2xl"
+          onClick={() => setDirection("up")}
+          aria-label="Up"
+        >
           ▲
         </button>
         <div />
-        <button className="btn-icon" onClick={() => setDirection("left")} aria-label="Left">
+        <button
+          className="btn-icon !h-14 !w-14 text-2xl"
+          onClick={() => setDirection("left")}
+          aria-label="Left"
+        >
           ◀
         </button>
         <div />
-        <button className="btn-icon" onClick={() => setDirection("right")} aria-label="Right">
+        <button
+          className="btn-icon !h-14 !w-14 text-2xl"
+          onClick={() => setDirection("right")}
+          aria-label="Right"
+        >
           ▶
         </button>
         <div />
-        <button className="btn-icon" onClick={() => setDirection("down")} aria-label="Down">
+        <button
+          className="btn-icon !h-14 !w-14 text-2xl"
+          onClick={() => setDirection("down")}
+          aria-label="Down"
+        >
           ▼
         </button>
         <div />

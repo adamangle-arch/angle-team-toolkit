@@ -421,9 +421,13 @@ section tabs) — each game is its own component under
   straight to Core Run Streak. High scores: `game_high_scores` +
   `get_game_leaderboard()`.
 - **Diamond Chase** — classic Snake, reskinned: a trail of diamonds
-  (head outlined in white) chases down books instead of apples on a
-  15x20 grid. Controls: arrow keys/WASD, swipe, or the on-screen
-  D-pad. Speed ramps up slightly with every book eaten. No play gate.
+  (head outlined in white) chases down a hand-drawn book icon instead
+  of apples on a 15x20 grid (drawn with canvas shapes rather than an
+  emoji — emoji rendered via canvas `fillText` is unreliable on iOS
+  Safari and wasn't showing up there). Controls: arrow keys/WASD,
+  swipe, or the on-screen D-pad (large 56px buttons for easier
+  tapping). Speed ramps up slightly with every book eaten, starting a
+  bit slower than the first version for easier control. No play gate.
   High scores: `snake_high_scores` + `get_snake_leaderboard()`.
 - **Trivia** — multiple-choice trivia in survival mode: questions come
   one at a time from a shuffled queue (reshuffles once exhausted, so
