@@ -3,16 +3,15 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "./AuthGate";
-import { ADMIN_EMAIL } from "@/lib/constants";
+import { isAdminEmail } from "@/lib/constants";
 
 const NAV_ITEMS = [
   { href: "/pipeline", label: "Pipeline", icon: "📊" },
   { href: "/candidates", label: "Roadmap", icon: "🧭" },
   { href: "/contacts", label: "Contacts", icon: "📇" },
   { href: "/streak", label: "Run Streak", icon: "🔥" },
-  { href: "/recognition", label: "Wins", icon: "🏆" },
-  { href: "/goals", label: "Goals", icon: "🎯" },
   { href: "/assistant", label: "Assistant", icon: "🤖" },
+  { href: "/library", label: "Library", icon: "📚" },
 ];
 
 const ADMIN_NAV_ITEM = { href: "/team", label: "Team", icon: "👥" };
@@ -20,7 +19,7 @@ const ADMIN_NAV_ITEM = { href: "/team", label: "Team", icon: "👥" };
 export default function BottomNav() {
   const pathname = usePathname();
   const { user } = useAuth();
-  const items = user.email === ADMIN_EMAIL ? [...NAV_ITEMS, ADMIN_NAV_ITEM] : NAV_ITEMS;
+  const items = isAdminEmail(user.email) ? [...NAV_ITEMS, ADMIN_NAV_ITEM] : NAV_ITEMS;
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto w-full max-w-md border-t border-white/10 bg-navy/95 backdrop-blur">

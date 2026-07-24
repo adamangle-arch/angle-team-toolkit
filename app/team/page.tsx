@@ -4,18 +4,9 @@ import { useEffect, useState } from "react";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
-import { ADMIN_EMAIL, PIPELINE_STAGES, CANDIDATE_STEPS } from "@/lib/constants";
+import { isAdminEmail, PIPELINE_STAGES, CANDIDATE_STEPS } from "@/lib/constants";
 import { formatDateLabel } from "@/lib/dates";
-import type {
-  Profile,
-  PipelinePeriod,
-  Candidate,
-  Contact,
-  StreakDay,
-  RecognitionEntry,
-  Goals,
-  QuarterlyGoal,
-} from "@/lib/types";
+import type { Profile, PipelinePeriod, Candidate, Contact, StreakDay } from "@/lib/types";
 
 function pct(numerator: number, denominator: number): string {
   if (!denominator) return "—";
@@ -54,14 +45,11 @@ type MemberData = {
   candidates: Candidate[];
   contacts: Contact[];
   streakDays: StreakDay[];
-  recognition: RecognitionEntry[];
-  goals: Goals | null;
-  quarterlyGoals: QuarterlyGoal[];
 };
 
 export default function TeamPage() {
   const { user } = useAuth();
-  const isAdmin = user.email === ADMIN_EMAIL;
+  const isAdmin = isAdminEmail(user.email);
 
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loadingProfiles, setLoadingProfiles] = useState(true);
@@ -89,51 +77,32 @@ export default function TeamPage() {
 
     async function load() {
       setLoadingMember(true);
-      const [
-        { data: pipeline },
-        { data: candidates },
-        { data: contacts },
-        { data: streakDays },
-        { data: recognition },
-        { data: goals },
-        { data: quarterlyGoals },
-      ] = await Promise.all([
-        supabase
-          .from("pipeline_periods")
-          .select("*")
-          .eq("user_id", selectedId)
-          .order("updated_at", { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-        supabase
-          .from("candidates")
-          .select("*")
-          .eq("user_id", selectedId)
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("contacts")
-          .select("*")
-          .eq("user_id", selectedId)
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("streak_days")
-          .select("*")
-          .eq("user_id", selectedId)
-          .order("day", { ascending: false })
-          .limit(30),
-        supabase
-          .from("recognition_log")
-          .select("*")
-          .eq("user_id", selectedId)
-          .order("event_date", { ascending: false }),
-        supabase.from("goals").select("*").eq("user_id", selectedId).maybeSingle(),
-        supabase
-          .from("quarterly_goals")
-          .select("*")
-          .eq("user_id", selectedId)
-          .order("quarter", { ascending: false })
-          .order("sort_order"),
-      ]);
+      const [{ data: pipeline }, { data: candidates }, { data: contacts }, { data: streakDays }] =
+        await Promise.all([
+          supabase
+            .from("pipeline_periods")
+            .select("*")
+            .eq("user_id", selectedId)
+            .order("updated_at", { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+          supabase
+            .from("candidates")
+            .select("*")
+            .eq("user_id", selectedId)
+            .order("created_at", { ascending: false }),
+          supabase
+            .from("contacts")
+            .select("*")
+            .eq("user_id", selectedId)
+            .order("created_at", { ascending: false }),
+          supabase
+            .from("streak_days")
+            .select("*")
+            .eq("user_id", selectedId)
+            .order("day", { ascending: false })
+            .limit(30),
+        ]);
 
       if (!cancelled) {
         setMemberData({
@@ -141,9 +110,6 @@ export default function TeamPage() {
           candidates: (candidates as Candidate[]) ?? [],
           contacts: (contacts as Contact[]) ?? [],
           streakDays: (streakDays as StreakDay[]) ?? [],
-          recognition: (recognition as RecognitionEntry[]) ?? [],
-          goals: (goals as Goals) ?? null,
-          quarterlyGoals: (quarterlyGoals as QuarterlyGoal[]) ?? [],
         });
         setLoadingMember(false);
       }
@@ -277,43 +243,6 @@ export default function TeamPage() {
                   <p className="text-2xl font-bold text-amber">
                     🔥 {computeStreak(memberData.streakDays)}
                   </p>
-                </div>
-
-                <div className="card space-y-1.5">
-                  <p className="section-title">Recognition ({memberData.recognition.length})</p>
-                  {memberData.recognition.length === 0 ? (
-                    <p className="text-sm text-slate-400">No wins logged yet.</p>
-                  ) : (
-                    memberData.recognition.map((r) => (
-                      <div key={r.id} className="flex items-center justify-between text-sm">
-                        <span className="text-slate-200">{r.name}</span>
-                        <span className="pill-amber">{r.type}</span>
-                      </div>
-                    ))
-                  )}
-                </div>
-
-                <div className="card space-y-2">
-                  <p className="section-title">Goals</p>
-                  <p className="text-sm text-slate-300">
-                    {memberData.goals?.vision || (
-                      <span className="text-slate-500">No 10-year vision written yet.</span>
-                    )}
-                  </p>
-                  {memberData.quarterlyGoals.length > 0 && (
-                    <div className="space-y-1 border-t border-white/10 pt-2">
-                      {memberData.quarterlyGoals.map((g) => (
-                        <div key={g.id} className="flex items-center gap-2 text-sm">
-                          <span
-                            className={g.completed ? "text-slate-500 line-through" : "text-slate-200"}
-                          >
-                            {g.text}
-                          </span>
-                          <span className="pill shrink-0">{g.quarter}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
               </>
             )}

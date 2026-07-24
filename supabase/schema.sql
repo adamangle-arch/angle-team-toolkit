@@ -19,7 +19,7 @@ returns boolean
 language sql
 stable
 as $$
-  select coalesce(auth.jwt() ->> 'email', '') = 'adamangle@icloud.com';
+  select lower(coalesce(auth.jwt() ->> 'email', '')) = lower('adamangle@icloud.com');
 $$;
 
 -- ============================================================
@@ -109,40 +109,7 @@ create table streak_days (
 );
 
 -- ============================================================
--- 5. RECOGNITION LOG
--- ============================================================
-create table recognition_log (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
-  name text not null,
-  type text not null,
-  event_date date not null default current_date,
-  note text not null default '',
-  created_at timestamptz not null default now()
-);
-
--- ============================================================
--- 6. GOALS
--- One vision row per user, plus a checkable quarterly goals list.
--- ============================================================
-create table goals (
-  user_id uuid primary key default auth.uid() references auth.users(id) on delete cascade,
-  vision text not null default '',
-  updated_at timestamptz not null default now()
-);
-
-create table quarterly_goals (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
-  quarter text not null,
-  text text not null,
-  completed boolean not null default false,
-  sort_order int not null default 0,
-  created_at timestamptz not null default now()
-);
-
--- ============================================================
--- 7. PROFILES
+-- 5. PROFILES
 -- A directory of every signed-up account (just id + email), so the
 -- admin can see who's on the team. Populated automatically by a
 -- trigger whenever someone signs up, plus a backfill below for
@@ -184,7 +151,7 @@ select id, email from auth.users
 on conflict (id) do nothing;
 
 -- ============================================================
--- 8. ASSISTANT CHAT HISTORY
+-- 6. ASSISTANT CHAT HISTORY
 -- One row per chat message with the Angle Team AI Assistant, per user.
 -- ============================================================
 create table if not exists assistant_messages (
@@ -209,8 +176,7 @@ begin
   for t in
     select unnest(array[
       'pipeline_periods', 'candidates', 'contacts',
-      'streak_days', 'recognition_log', 'goals', 'quarterly_goals',
-      'assistant_messages'
+      'streak_days', 'assistant_messages'
     ])
   loop
     execute format('alter table %I enable row level security;', t);

@@ -2,6 +2,10 @@
 // email hardcoded in is_app_admin() in supabase/schema.sql.
 export const ADMIN_EMAIL = "adamangle@icloud.com";
 
+export function isAdminEmail(email: string | null | undefined): boolean {
+  return (email ?? "").trim().toLowerCase() === ADMIN_EMAIL.toLowerCase();
+}
+
 // Pipeline Tracker: ordered stages
 export const PIPELINE_STAGES = [
   { key: "questions", label: "Questions" },
@@ -60,14 +64,4 @@ export const CONTACT_STATUSES = [
   "Questionnaire",
   "Launched",
   "Not interested",
-] as const;
-
-// Recognition Log: win types
-export const RECOGNITION_TYPES = [
-  "Launched",
-  "Rank Advance",
-  "First Customer",
-  "First QI2",
-  "Hit Core 300",
-  "Other",
 ] as const;
