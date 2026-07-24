@@ -399,6 +399,34 @@ $$;
 
 grant execute on function public.get_core300_leaderboard(date) to authenticated;
 
+-- Everyone currently running 5+ active candidates (not launched, not
+-- filtered out) through the roadmap, ranked by how many.
+create or replace function public.get_active_candidates_leaderboard()
+returns table (
+  first_name text,
+  last_name text,
+  team text,
+  active_count int
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select pr.first_name, pr.last_name, pr.team, cc.active_count
+  from (
+    select user_id, count(*)::int as active_count
+    from candidates
+    where launched = false and filtered_out = false
+    group by user_id
+    having count(*) >= 5
+  ) cc
+  join profiles pr on pr.id = cc.user_id
+  order by cc.active_count desc;
+$$;
+
+grant execute on function public.get_active_candidates_leaderboard() to authenticated;
+
 -- ============================================================
 -- Row Level Security
 -- Every table: a user can only read/write their own rows. The admin

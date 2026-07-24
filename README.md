@@ -2,7 +2,8 @@
 
 A mobile-friendly activity tracker for a network marketing team, built with
 Next.js (App Router) and Supabase. Tabs for each part of the day-to-day
-workflow: Pipeline Tracker, Candidate Roadmap, Contacts, Core Run Streak, a
+workflow: Pipeline Tracker (which also holds the Candidate Roadmap and a
+full candidate history table), Contacts, Core Run Streak, Volume, a
 Leaderboard, a Role-Play Coach for practicing A-list/B-list/C-list
 conversations, and a Resources hub (Products, Scripts & FAQ, Process Guide,
 Leaders, Acquisition, Audio & Book Library). Everyone signs in with their own
@@ -119,10 +120,21 @@ visible to everyone, not just primary users.
 
 The Leaderboard recognizes every pipeline stage except Questions, for both
 teams and individuals, plus who's currently on a Core Run Streak (all 4
-activities every day — not 3 of 4 — counted back from today or yesterday).
-Weeks run Monday–Sunday and months reset on the calendar month, not a
-rolling 30 days; the monthly view can page back up to 12 months to see past
-numbers.
+activities every day — not 3 of 4 — counted back from today or yesterday)
+and who's running 5+ active candidates through the roadmap at once. Weeks
+run Monday–Sunday and months reset on the calendar month, not a rolling 30
+days; the monthly view can page back up to 12 months to see past numbers.
+
+### Candidate Roadmap
+
+The Candidate Roadmap now lives on the **Pipeline Tracker** tab, underneath
+the pipeline counters, rather than its own tab. Marking a candidate
+"Filtered Out" removes them from the active roadmap board immediately —
+they're not deleted from the database, just hidden from the working
+list — and every candidate you've ever added (active, launched, or
+filtered out, and exactly which step they filtered out at) stays visible
+in the **Candidate History** table at the bottom of the page, with a
+Restore option for anything settled by mistake.
 
 Personal Circle PV lives on its own **Volume** tab: each person self-reports
 their own current-month PV there (stored in the additive `monthly_pv`

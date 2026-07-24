@@ -36,6 +36,13 @@ export type Core300Entry = {
   pv: number;
 };
 
+export type ActiveCandidatesEntry = {
+  first_name: string | null;
+  last_name: string | null;
+  team: string | null;
+  active_count: number;
+};
+
 export type MonthlyPv = {
   id: string;
   user_id: string;

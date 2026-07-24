@@ -15,6 +15,7 @@ import type {
   IndividualLeaderEntry,
   StreakLeaderboardEntry,
   Core300Entry,
+  ActiveCandidatesEntry,
 } from "@/lib/types";
 
 type PeriodType = "weekly" | "monthly";
@@ -43,6 +44,7 @@ export default function LeaderboardPage() {
   const [individualLeaders, setIndividualLeaders] = useState<IndividualLeaderEntry[]>([]);
   const [streakLeaders, setStreakLeaders] = useState<StreakLeaderboardEntry[]>([]);
   const [core300, setCore300] = useState<Core300Entry[]>([]);
+  const [activeCandidates, setActiveCandidates] = useState<ActiveCandidatesEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -78,6 +80,16 @@ export default function LeaderboardPage() {
     let cancelled = false;
     supabase.rpc("get_streak_leaderboard").then(({ data }) => {
       if (!cancelled) setStreakLeaders((data as StreakLeaderboardEntry[]) ?? []);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    supabase.rpc("get_active_candidates_leaderboard").then(({ data }) => {
+      if (!cancelled) setActiveCandidates((data as ActiveCandidatesEntry[]) ?? []);
     });
     return () => {
       cancelled = true;
@@ -217,6 +229,22 @@ export default function LeaderboardPage() {
                       {personName(s)} <span className="text-xs text-slate-500">({s.team})</span>
                     </span>
                     <span className="pill pill-amber">{s.streak_days}d</span>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="card space-y-1.5">
+              <p className="section-title">🎯 5+ Active Candidates</p>
+              {activeCandidates.length === 0 ? (
+                <p className="text-sm text-slate-400">No one&apos;s running 5+ active candidates right now.</p>
+              ) : (
+                activeCandidates.map((entry, i) => (
+                  <div key={`${entry.first_name}-${entry.last_name}-${i}`} className="flex items-center justify-between text-sm">
+                    <span className="text-slate-200">
+                      {personName(entry)} <span className="text-xs text-slate-500">({entry.team})</span>
+                    </span>
+                    <span className="pill pill-amber">{entry.active_count}</span>
                   </div>
                 ))
               )}
