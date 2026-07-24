@@ -11,7 +11,7 @@ import {
   formatDateLabel,
   formatMonthLabel,
 } from "@/lib/dates";
-import { PIPELINE_STAGES, type PipelineStageKey } from "@/lib/constants";
+import { PIPELINE_STAGES, STREAK_MILESTONES, type PipelineStageKey } from "@/lib/constants";
 import type {
   TeamTotals,
   IndividualLeaderEntry,
@@ -22,6 +22,7 @@ import type {
   DittoEntry,
   NewMember,
   Liker,
+  MilestoneEntry,
 } from "@/lib/types";
 
 type PeriodType = "weekly" | "monthly";
@@ -140,6 +141,9 @@ function core300EntryKey(periodStart: string, userId: string) {
 function dittoEntryKey(periodStart: string, userId: string) {
   return `ditto:${periodStart}:${userId}`;
 }
+function milestoneEntryKey(userId: string, milestoneDays: number) {
+  return `milestone:${userId}:${milestoneDays}`;
+}
 
 export default function LeaderboardPage() {
   const { user } = useAuth();
@@ -157,6 +161,7 @@ export default function LeaderboardPage() {
   const [qi1Rhythm, setQi1Rhythm] = useState<Qi1RhythmEntry[]>([]);
   const [ditto, setDitto] = useState<DittoEntry[]>([]);
   const [newMembers, setNewMembers] = useState<NewMember[]>([]);
+  const [milestones, setMilestones] = useState<MilestoneEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [myName, setMyName] = useState("You");
@@ -231,6 +236,16 @@ export default function LeaderboardPage() {
 
   useEffect(() => {
     let cancelled = false;
+    supabase.rpc("get_recent_milestones").then(({ data }) => {
+      if (!cancelled) setMilestones((data as MilestoneEntry[]) ?? []);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
     supabase
       .from("profiles")
       .select("first_name,last_name")
@@ -292,6 +307,7 @@ export default function LeaderboardPage() {
     for (const e of activeCandidates) keys.add(activeCandidatesEntryKey(e.user_id));
     for (const e of core300) keys.add(core300EntryKey(periodStart, e.user_id));
     for (const e of ditto) keys.add(dittoEntryKey(periodStart, e.user_id));
+    for (const m of milestones) keys.add(milestoneEntryKey(m.user_id, m.milestone_days));
     return Array.from(keys);
   }, [
     teamTotals,
@@ -301,6 +317,7 @@ export default function LeaderboardPage() {
     activeCandidates,
     core300,
     ditto,
+    milestones,
     periodType,
     periodStart,
   ]);
@@ -420,6 +437,38 @@ export default function LeaderboardPage() {
                 <span className="pill">{formatDateLabel(m.created_at.slice(0, 10))}</span>
               </div>
             ))}
+          </div>
+        )}
+
+        {milestones.length > 0 && (
+          <div className="card space-y-1.5">
+            <p className="section-title">🏅 Milestone Alerts</p>
+            {milestones.map((m) => {
+              const label =
+                STREAK_MILESTONES.find((s) => s.days === m.milestone_days)?.label ??
+                `${m.milestone_days} Days`;
+              const key = milestoneEntryKey(m.user_id, m.milestone_days);
+              return (
+                <div
+                  key={key}
+                  className="flex items-center justify-between gap-2 text-sm"
+                >
+                  <span className="text-slate-200">
+                    <PersonLink entry={m} /> just hit{" "}
+                    <span className="text-amber-light">{label}</span>{" "}
+                    <span className="text-xs text-slate-500">({m.team})</span>
+                  </span>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <span className="pill pill-amber">🔥 {m.current_streak}d</span>
+                    <LikeButton
+                      entryKey={key}
+                      likes={likesMap.get(key) ?? NO_LIKES}
+                      onToggle={toggleLike}
+                    />
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
 

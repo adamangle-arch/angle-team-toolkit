@@ -62,6 +62,15 @@ export type Liker = {
   last_name: string | null;
 };
 
+export type MilestoneEntry = {
+  user_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  team: string | null;
+  milestone_days: number;
+  current_streak: number;
+};
+
 export type TeamTotals = {
   team: string;
   member_count: number;

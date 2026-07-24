@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import PageHeader from "@/components/PageHeader";
+import TrendChart from "@/components/TrendChart";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import {
@@ -10,7 +11,13 @@ import {
   ACTIVE_PIPELINE_MIN_STEP,
   type PipelineStageKey,
 } from "@/lib/constants";
-import { getMonthStart, getWeekStart, formatDateLabel } from "@/lib/dates";
+import {
+  getMonthStart,
+  getWeekStart,
+  formatDateLabel,
+  formatShortDateLabel,
+  formatShortMonthLabel,
+} from "@/lib/dates";
 import type { PipelinePeriod, Candidate } from "@/lib/types";
 
 type PeriodType = "weekly" | "monthly";
@@ -30,6 +37,9 @@ export default function PipelinePage() {
   const [loadingCandidates, setLoadingCandidates] = useState(true);
   const [newName, setNewName] = useState("");
   const [adding, setAdding] = useState(false);
+
+  const [trendStage, setTrendStage] = useState<PipelineStageKey>("questions");
+  const [trendHistory, setTrendHistory] = useState<PipelinePeriod[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -86,6 +96,46 @@ export default function PipelinePage() {
     }
     load();
   }, [ownerId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      const limit = periodType === "weekly" ? 8 : 6;
+      const { data } = await supabase
+        .from("pipeline_periods")
+        .select("*")
+        .eq("user_id", ownerId)
+        .eq("period_type", periodType)
+        .order("period_start", { ascending: false })
+        .limit(limit);
+      if (!cancelled) setTrendHistory((data as PipelinePeriod[]) ?? []);
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [periodType, ownerId]);
+
+  const chartData = useMemo(() => {
+    const merged = [...trendHistory];
+    if (period) {
+      const idx = merged.findIndex((p) => p.period_start === period.period_start);
+      if (idx >= 0) merged[idx] = period;
+      else merged.push(period);
+    }
+    return merged
+      .slice()
+      .sort((a, b) => a.period_start.localeCompare(b.period_start))
+      .map((p) => ({
+        label:
+          periodType === "weekly"
+            ? formatShortDateLabel(p.period_start)
+            : formatShortMonthLabel(p.period_start),
+        value: p[trendStage] as number,
+      }));
+  }, [trendHistory, period, periodType, trendStage]);
 
   async function updateStage(key: PipelineStageKey, delta: number) {
     if (!period) return;
@@ -231,6 +281,24 @@ export default function PipelinePage() {
             })}
           </div>
         )}
+
+        <div className="card space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <p className="section-title">Trend</p>
+            <select
+              className="select"
+              value={trendStage}
+              onChange={(e) => setTrendStage(e.target.value as PipelineStageKey)}
+            >
+              {PIPELINE_STAGES.map((s) => (
+                <option key={s.key} value={s.key}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <TrendChart data={chartData} />
+        </div>
 
         <div className="flex items-center justify-between px-1 pt-2">
           <p className="section-title">Candidate Roadmap</p>

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import PageHeader from "@/components/PageHeader";
+import NotificationOptIn from "@/components/NotificationOptIn";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import { getToday, getWeekStart, getMonthStart, formatDateLabel } from "@/lib/dates";
@@ -260,6 +261,8 @@ export default function StreakPage() {
         subtitle="Read • Listen • Daily Update • Story Share"
       />
       <main className="page-main">
+        <NotificationOptIn />
+
         <div className="card flex items-center justify-between">
           <div>
             <p className="section-title">Current Streak</p>

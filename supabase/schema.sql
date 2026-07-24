@@ -604,6 +604,40 @@ $$;
 
 grant execute on function public.get_new_members(int) to authenticated;
 
+-- Recent Core Run Streak milestone hits (1 week, 30/90 days, 6 months, 1
+-- year — must match STREAK_MILESTONES in lib/constants.ts), for a
+-- "just hit it!" spotlight on the Leaderboard. A user matches while
+-- their current streak is within 2 days of crossing a threshold, so it
+-- naturally shows for a few days around the moment they hit it without
+-- needing to store a separate "reached_at" date anywhere.
+create or replace function public.get_recent_milestones()
+returns table (
+  user_id uuid,
+  first_name text,
+  last_name text,
+  team text,
+  milestone_days int,
+  current_streak int
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  with streaks as (
+    select p.id, p.first_name, p.last_name, p.team, public.get_current_streak(p.id) as streak
+    from profiles p
+    where p.team is not null
+  )
+  select s.id, s.first_name, s.last_name, s.team, t.d, s.streak
+  from streaks s
+  cross join unnest(array[7, 30, 90, 182, 365]) as t(d)
+  where s.streak >= t.d and s.streak <= t.d + 2
+  order by s.streak desc;
+$$;
+
+grant execute on function public.get_recent_milestones() to authenticated;
+
 -- ============================================================
 -- 6. ASSISTANT CHAT HISTORY
 -- One row per chat message with the Angle Team AI Assistant, per user.
@@ -1058,6 +1092,40 @@ for delete using (liker_id = auth.uid());
 -- Resolves liker_id -> display name for the "who liked this" list, since
 -- ordinary profile RLS wouldn't let a random teammate read someone else's
 -- name directly.
+-- ============================================================
+-- 9. PUSH SUBSCRIPTIONS
+-- One row per device/browser a user has enabled Daily Reminders on. The
+-- cron-triggered /api/push/send-reminders route reads across everyone's
+-- rows using the service role key (bypasses RLS); ordinary app usage
+-- only ever touches your own row via these policies.
+-- ============================================================
+create table if not exists push_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  endpoint text not null unique,
+  p256dh text not null,
+  auth text not null,
+  created_at timestamptz not null default now()
+);
+
+alter table push_subscriptions enable row level security;
+
+drop policy if exists "push_subscriptions_select_own" on push_subscriptions;
+create policy "push_subscriptions_select_own" on push_subscriptions
+for select using (user_id = auth.uid());
+
+drop policy if exists "push_subscriptions_insert_own" on push_subscriptions;
+create policy "push_subscriptions_insert_own" on push_subscriptions
+for insert with check (user_id = auth.uid());
+
+drop policy if exists "push_subscriptions_update_own" on push_subscriptions;
+create policy "push_subscriptions_update_own" on push_subscriptions
+for update using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+drop policy if exists "push_subscriptions_delete_own" on push_subscriptions;
+create policy "push_subscriptions_delete_own" on push_subscriptions
+for delete using (user_id = auth.uid());
+
 create or replace function public.get_likers(p_entry_keys text[])
 returns table (
   entry_key text,

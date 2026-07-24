@@ -332,6 +332,55 @@ like to add/remove, readable by anyone) plus `get_likers()` to resolve
 names, since leaderboard rows themselves are computed on the fly rather
 than stored records.
 
+### Milestone Alerts
+
+Separate from the milestone badges on a public profile, the Leaderboard
+itself has a **🏅 Milestone Alerts** card that spotlights anyone whose
+current Core Run Streak just crossed 1 Week, 30/90 Days, 6 Months, or 1
+Year — visible to everyone, likeable just like any other ranking row. It's
+powered by `get_recent_milestones()`, which matches while a streak is
+within 2 days of a threshold; there's no separate "reached on" date
+stored anywhere, so the alert just naturally stops appearing a couple of
+days after the fact.
+
+### Trend charts
+
+Pipeline Tracker (pick any stage from the dropdown) and Volume both show
+a small line chart of your own numbers over the last several
+weeks/months/periods, instead of only ever showing the current one — a
+lightweight custom SVG chart (`components/TrendChart.tsx`), no charting
+library needed.
+
+### Daily Reminders (push notifications)
+
+Anyone can turn on a push notification (from the Core Run Streak page)
+that fires once in the evening if they haven't logged that day's Core Run
+yet. A few things worth knowing:
+
+- **iPhone requires "Add to Home Screen" first** — this is a hard Safari
+  rule, not something the app can work around. If someone opens the app
+  in a regular Safari tab, they'll see instructions instead of an Enable
+  button; once they've added it to their Home Screen and reopened it from
+  there, the Enable button appears.
+- The reminder fires once daily via a Vercel Cron job hitting
+  `/api/push/send-reminders`, currently scheduled for **8:00 PM Eastern**
+  (`0 0 * * *` UTC). Because it's a fixed UTC hour, it'll actually land at
+  7 or 9 PM Eastern for the ~5 months a year on the other side of Daylight
+  Saving Time — nudge the hour in `vercel.json` by ±1 around the March/
+  November changeovers if you want it exact year-round.
+- The route is protected by a shared secret (`CRON_SECRET`) that Vercel
+  automatically sends back as a Bearer token when it fires the cron job —
+  anyone hitting that URL without it just gets a 401.
+- It only messages people who both (a) have enabled reminders on at least
+  one device and (b) haven't completed all 4 of today's Core Run items
+  yet — everyone else is silently skipped, no spam.
+- **New environment variables required** — see `.env.local.example` for
+  the full list (`NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`,
+  `VAPID_SUBJECT`, `SUPABASE_SERVICE_ROLE_KEY`, `CRON_SECRET`). These are
+  separate from the Supabase anon key already in use — the service role
+  key in particular bypasses Row Level Security entirely and must never
+  be exposed to the browser (no `NEXT_PUBLIC_` prefix, server-only).
+
 ## Notes on the Role-Play Coach
 
 The **Role-Play Coach** tab is strictly a practice simulator for A-list,

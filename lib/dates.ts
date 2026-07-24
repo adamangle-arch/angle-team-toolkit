@@ -49,3 +49,15 @@ export function formatDateLabel(dateStr: string): string {
     year: "numeric",
   });
 }
+
+// Compact labels for trend chart axes, where "Jul 20, 2026" is too wide
+// to repeat across several points.
+export function formatShortDateLabel(dateStr: string): string {
+  const d = new Date(`${dateStr}T00:00:00`);
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+export function formatShortMonthLabel(dateStr: string): string {
+  const d = new Date(`${dateStr}T00:00:00`);
+  return d.toLocaleDateString(undefined, { month: "short" });
+}

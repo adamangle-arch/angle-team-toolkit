@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import PageHeader from "@/components/PageHeader";
+import TrendChart from "@/components/TrendChart";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
-import { getMonthStart, formatMonthLabel } from "@/lib/dates";
+import { getMonthStart, formatMonthLabel, formatShortMonthLabel } from "@/lib/dates";
 import type { MonthlyPv, CustomerSale } from "@/lib/types";
 
 export default function VolumePage() {
@@ -84,6 +85,15 @@ export default function VolumePage() {
       cancelled = true;
     };
   }, [ownerId, periodStart]);
+
+  const chartData = useMemo(() => {
+    const past = history
+      .slice()
+      .sort((a, b) => a.period_start.localeCompare(b.period_start))
+      .map((h) => ({ label: formatShortMonthLabel(h.period_start), value: h.pv }));
+    const currentPv = Math.max(0, parseInt(pvInput, 10) || 0);
+    return [...past, { label: formatShortMonthLabel(periodStart), value: currentPv }];
+  }, [history, pvInput, periodStart]);
 
   async function savePv() {
     const pv = Math.max(0, parseInt(pvInput, 10) || 0);
@@ -189,6 +199,11 @@ export default function VolumePage() {
             </button>
           </div>
           {savedDitto && <p className="text-xs text-amber-light">Saved.</p>}
+        </div>
+
+        <div className="card space-y-2">
+          <p className="section-title">PV Trend</p>
+          <TrendChart data={chartData} valueSuffix=" PV" />
         </div>
 
         <div className="card space-y-1.5">
