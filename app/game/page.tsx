@@ -1,10 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
+import { getToday } from "@/lib/dates";
 import type { GameLeaderEntry } from "@/lib/types";
+
+type UnlockStatus = {
+  coreRunDone: boolean;
+  yesesToday: number;
+};
 
 const WIDTH = 350;
 const HEIGHT = 500;
@@ -28,6 +35,8 @@ export default function GamePage() {
   const [running, setRunning] = useState(false);
   const [gameOver, setGameOver] = useState(false);
   const [leaders, setLeaders] = useState<GameLeaderEntry[]>([]);
+  const [unlockStatus, setUnlockStatus] = useState<UnlockStatus | null>(null);
+  const [loadingUnlock, setLoadingUnlock] = useState(true);
 
   const diamondY = useRef(HEIGHT / 2);
   const velocity = useRef(0);
@@ -54,6 +63,33 @@ export default function GamePage() {
     }
 
     loadBest();
+    return () => {
+      cancelled = true;
+    };
+  }, [user.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadUnlockStatus() {
+      setLoadingUnlock(true);
+      const { data } = await supabase
+        .from("streak_days")
+        .select("read,listen,daily_update,story_share,yeses")
+        .eq("user_id", user.id)
+        .eq("day", getToday())
+        .maybeSingle();
+      if (cancelled) return;
+      setUnlockStatus({
+        coreRunDone: Boolean(
+          data?.read && data?.listen && data?.daily_update && data?.story_share
+        ),
+        yesesToday: data?.yeses ?? 0,
+      });
+      setLoadingUnlock(false);
+    }
+
+    loadUnlockStatus();
     return () => {
       cancelled = true;
     };
@@ -284,47 +320,77 @@ export default function GamePage() {
     return () => cancelAnimationFrame(animFrame.current);
   }, []);
 
+  const unlocked = Boolean(unlockStatus?.coreRunDone && (unlockStatus?.yesesToday ?? 0) >= 1);
+
   return (
     <>
       <PageHeader title="Diamond Run" subtitle="Tap to flap — dodge the pipes" />
       <main className="page-main">
-        <div className="card flex items-center justify-between">
-          <span className="text-sm text-slate-400">
-            Score: <span className="font-bold text-white">{score}</span>
-          </span>
-          <span className="text-sm text-slate-400">
-            Best: <span className="font-bold text-amber-light">{bestScore}</span>
-          </span>
-        </div>
-
-        <div
-          className="relative mx-auto overflow-hidden rounded-2xl border border-white/10"
-          style={{ width: WIDTH, height: HEIGHT }}
-          onClick={flap}
-        >
-          <canvas ref={canvasRef} width={WIDTH} height={HEIGHT} />
-          {!running && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-navy/70 px-4 text-center">
-              {gameOver ? (
-                <>
-                  <p className="text-lg font-bold text-white">Game Over</p>
-                  <p className="text-sm text-slate-300">Score: {score}</p>
-                </>
-              ) : (
-                <p className="text-lg font-bold text-white">💎 Tap to Start</p>
-              )}
-              <button
-                className="btn-primary mt-2"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  flap();
-                }}
-              >
-                {gameOver ? "Play Again" : "Start"}
-              </button>
+        {loadingUnlock ? (
+          <div className="empty-state">Loading…</div>
+        ) : !unlocked ? (
+          <div className="card space-y-2">
+            <p className="section-title">🔒 Locked for Today</p>
+            <p className="text-sm text-slate-400">
+              Complete today&apos;s Core Run and get at least 1 Yes to unlock Diamond Run.
+            </p>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-200">Core Run complete</span>
+              <span className={unlockStatus?.coreRunDone ? "pill-amber" : "pill"}>
+                {unlockStatus?.coreRunDone ? "Done" : "Not yet"}
+              </span>
             </div>
-          )}
-        </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-200">Yeses today</span>
+              <span className={(unlockStatus?.yesesToday ?? 0) >= 1 ? "pill-amber" : "pill"}>
+                {unlockStatus?.yesesToday ?? 0}/1
+              </span>
+            </div>
+            <Link href="/streak" className="btn-primary block w-full text-center">
+              Go to Core Run Streak
+            </Link>
+          </div>
+        ) : (
+          <>
+            <div className="card flex items-center justify-between">
+              <span className="text-sm text-slate-400">
+                Score: <span className="font-bold text-white">{score}</span>
+              </span>
+              <span className="text-sm text-slate-400">
+                Best: <span className="font-bold text-amber-light">{bestScore}</span>
+              </span>
+            </div>
+
+            <div
+              className="relative mx-auto overflow-hidden rounded-2xl border border-white/10"
+              style={{ width: WIDTH, height: HEIGHT }}
+              onClick={flap}
+            >
+              <canvas ref={canvasRef} width={WIDTH} height={HEIGHT} />
+              {!running && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-navy/70 px-4 text-center">
+                  {gameOver ? (
+                    <>
+                      <p className="text-lg font-bold text-white">Game Over</p>
+                      <p className="text-sm text-slate-300">Score: {score}</p>
+                    </>
+                  ) : (
+                    <p className="text-lg font-bold text-white">💎 Tap to Start</p>
+                  )}
+                  <button
+                    className="btn-primary mt-2"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      flap();
+                    }}
+                  >
+                    {gameOver ? "Play Again" : "Start"}
+                  </button>
+                </div>
+              )}
+            </div>
+          </>
+        )}
 
         <div className="card space-y-1.5">
           <p className="section-title">💎 High Scores</p>
