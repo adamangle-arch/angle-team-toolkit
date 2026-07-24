@@ -19,17 +19,10 @@ export default function PageHeader({
         {subtitle ? <p className="app-subtitle">{subtitle}</p> : null}
       </div>
       <div className="flex shrink-0 items-center gap-1.5">
-        <Link
-          href="/profile"
-          className="rounded-lg bg-white/10 px-2.5 py-1.5 text-xs font-medium text-slate-300 active:scale-95"
-        >
+        <Link href="/profile" className="chip-btn">
           My Profile
         </Link>
-        <button
-          className="rounded-lg bg-white/10 px-2.5 py-1.5 text-xs font-medium text-slate-300 active:scale-95"
-          onClick={() => signOut()}
-          title={user.email ?? undefined}
-        >
+        <button className="chip-btn" onClick={() => signOut()} title={user.email ?? undefined}>
           Sign Out
         </button>
       </div>

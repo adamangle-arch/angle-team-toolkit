@@ -1,9 +1,9 @@
 @import "tailwindcss";
 
 @theme {
-  --color-navy: #0f172a;
-  --color-navy-light: #16213c;
-  --color-navy-lighter: #1e293b;
+  --color-navy: #0a0f1e;
+  --color-navy-light: #121a2e;
+  --color-navy-lighter: #1a2338;
   --color-amber: #f59e0b;
   --color-amber-dark: #b45309;
   --color-amber-light: #fbbf24;
@@ -14,9 +14,15 @@
 html,
 body {
   height: 100%;
-  background: var(--color-navy);
+  background:
+    radial-gradient(120% 50% at 50% -10%, rgba(245, 158, 11, 0.1), transparent 60%),
+    radial-gradient(80% 40% at 100% 0%, rgba(56, 130, 246, 0.06), transparent 60%),
+    var(--color-navy);
+  background-attachment: fixed;
   color: #e2e8f0;
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
 }
 
 * {
@@ -25,11 +31,14 @@ body {
 
 @layer components {
   .app-shell {
-    @apply mx-auto flex min-h-dvh w-full max-w-md flex-col bg-navy;
+    @apply relative mx-auto flex min-h-dvh w-full max-w-md flex-col;
   }
 
   .app-header {
-    @apply sticky top-0 z-20 border-b border-white/10 bg-navy/95 px-4 py-3 backdrop-blur;
+    @apply sticky top-0 z-20 px-4 py-3.5 backdrop-blur-xl;
+    background: linear-gradient(180deg, rgba(10, 15, 30, 0.92), rgba(10, 15, 30, 0.75));
+    border-bottom: 1px solid rgba(245, 158, 11, 0.15);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04);
   }
 
   .app-title {
@@ -37,75 +46,130 @@ body {
   }
 
   .app-subtitle {
-    @apply text-xs text-slate-400;
+    @apply text-xs font-medium text-slate-400;
   }
 
   .page-main {
-    @apply flex-1 space-y-4 overflow-y-auto px-4 pb-28 pt-4;
+    @apply flex-1 space-y-3 overflow-y-auto px-4 pb-28 pt-4;
   }
 
   .card {
-    @apply rounded-2xl border border-white/10 bg-navy-lighter p-4 shadow-sm;
+    @apply relative rounded-2xl border p-4;
+    border-color: rgba(255, 255, 255, 0.08);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0) 45%),
+      var(--color-navy-lighter);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.06) inset,
+      0 12px 28px -18px rgba(0, 0, 0, 0.75);
   }
 
   .section-title {
-    @apply text-sm font-semibold uppercase tracking-wide text-amber;
+    @apply text-[13px] font-bold uppercase tracking-wider text-amber-light;
   }
 
   .btn {
-    @apply inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium transition active:scale-95 disabled:opacity-40 disabled:active:scale-100;
+    @apply inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold transition duration-150 active:scale-95 disabled:opacity-40 disabled:active:scale-100;
   }
 
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium transition active:scale-95 disabled:opacity-40 disabled:active:scale-100 bg-amber text-navy hover:bg-amber-light;
+    @apply inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-sm font-bold text-navy transition duration-150 active:scale-95 disabled:opacity-40 disabled:active:scale-100;
+    background: linear-gradient(135deg, var(--color-amber-light), var(--color-amber));
+    box-shadow: 0 6px 20px -8px rgba(245, 158, 11, 0.55);
+  }
+
+  .btn-primary:hover {
+    filter: brightness(1.05);
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium transition active:scale-95 disabled:opacity-40 disabled:active:scale-100 bg-white/10 text-white hover:bg-white/15;
+    @apply inline-flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-medium text-white transition duration-150 active:scale-95 disabled:opacity-40 disabled:active:scale-100;
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
   }
 
   .btn-danger {
-    @apply inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium transition active:scale-95 disabled:opacity-40 disabled:active:scale-100 bg-red-500/15 text-red-300 hover:bg-red-500/25;
+    @apply inline-flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-semibold text-red-300 transition duration-150 active:scale-95 disabled:opacity-40 disabled:active:scale-100;
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.2);
+  }
+
+  .btn-danger:hover {
+    background: rgba(239, 68, 68, 0.18);
   }
 
   .btn-icon {
-    @apply flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-lg font-bold text-white transition active:scale-90 disabled:opacity-30 disabled:active:scale-100;
+    @apply flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-lg font-bold text-white transition duration-150 active:scale-90 disabled:opacity-30 disabled:active:scale-100;
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.1);
   }
 
-  .input {
-    @apply w-full rounded-xl border border-white/10 bg-navy px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-amber focus:outline-none;
+  .input,
+  .select,
+  .textarea {
+    @apply w-full rounded-xl border px-3 py-2 text-sm text-white placeholder:text-slate-500 transition duration-150 focus:outline-none;
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .input:focus,
+  .select:focus,
+  .textarea:focus {
+    border-color: var(--color-amber);
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
   }
 
   .select {
-    @apply w-full rounded-xl border border-white/10 bg-navy px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-amber focus:outline-none appearance-none pr-8;
+    @apply appearance-none pr-8;
   }
 
   .textarea {
-    @apply w-full rounded-xl border border-white/10 bg-navy px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-amber focus:outline-none min-h-24 resize-y;
+    @apply min-h-24 resize-y;
   }
 
   .pill {
-    @apply inline-flex items-center rounded-full bg-white/10 px-2.5 py-1 text-xs font-medium text-slate-200;
+    @apply inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium text-slate-200;
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.08);
   }
 
   .pill-amber {
-    @apply inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium bg-amber/15 text-amber-light;
+    @apply inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold text-amber-light;
+    background: rgba(245, 158, 11, 0.14);
+    border-color: rgba(245, 158, 11, 0.25);
   }
 
   .toggle-pill {
-    @apply flex flex-1 items-center justify-center rounded-lg py-1.5 text-sm font-semibold transition;
+    @apply flex flex-1 items-center justify-center rounded-lg py-1.5 text-sm font-semibold transition duration-150;
   }
 
   .toggle-pill-active {
-    @apply flex flex-1 items-center justify-center rounded-lg py-1.5 text-sm font-semibold transition bg-amber text-navy;
+    @apply flex flex-1 items-center justify-center rounded-lg py-1.5 text-sm font-bold text-navy transition duration-150;
+    background: linear-gradient(135deg, var(--color-amber-light), var(--color-amber));
+    box-shadow: 0 4px 14px -6px rgba(245, 158, 11, 0.6);
   }
 
   .toggle-pill-inactive {
-    @apply flex flex-1 items-center justify-center rounded-lg py-1.5 text-sm font-semibold transition bg-transparent text-slate-400;
+    @apply flex flex-1 items-center justify-center rounded-lg py-1.5 text-sm font-semibold text-slate-400 transition duration-150;
   }
 
   .empty-state {
-    @apply rounded-2xl border border-dashed border-white/15 p-6 text-center text-sm text-slate-400;
+    @apply rounded-2xl border border-dashed p-6 text-center text-sm text-slate-400;
+    border-color: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  .chip-btn {
+    @apply rounded-lg border px-2.5 py-1.5 text-xs font-medium text-slate-300 transition duration-150 active:scale-95;
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .chip-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
   }
 }
 

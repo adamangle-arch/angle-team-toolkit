@@ -21,7 +21,13 @@ export default function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto w-full max-w-md border-t border-white/10 bg-navy/95 backdrop-blur">
+    <nav
+      className="fixed inset-x-0 bottom-0 z-30 mx-auto w-full max-w-md backdrop-blur-xl"
+      style={{
+        background: "linear-gradient(180deg, rgba(10,15,30,0.75), rgba(10,15,30,0.97))",
+        borderTop: "1px solid rgba(245,158,11,0.15)",
+      }}
+    >
       <div
         className="no-scrollbar flex overflow-x-auto"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
@@ -32,11 +38,20 @@ export default function BottomNav() {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex min-w-[64px] flex-1 flex-col items-center gap-0.5 px-1 py-2 text-[11px] font-medium transition ${
-                active ? "text-amber" : "text-slate-400"
+              className={`flex min-w-[64px] flex-1 flex-col items-center gap-1 px-1 py-2.5 text-[11px] font-medium transition-all duration-150 ${
+                active ? "text-amber-light" : "text-slate-400"
               }`}
             >
-              <span className="text-lg leading-none">{item.icon}</span>
+              <span
+                className="flex h-7 w-7 items-center justify-center rounded-full text-lg leading-none transition-all duration-150"
+                style={
+                  active
+                    ? { background: "rgba(245,158,11,0.16)", boxShadow: "0 0 12px rgba(245,158,11,0.35)" }
+                    : undefined
+                }
+              >
+                {item.icon}
+              </span>
               <span>{item.label}</span>
             </Link>
           );
