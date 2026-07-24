@@ -18,6 +18,8 @@ export type Profile = {
   team_impact: string | null;
   profile_prompted: boolean;
   household_id: string | null;
+  account_number: string | null;
+  upline_id: string | null;
   created_at: string;
 };
 

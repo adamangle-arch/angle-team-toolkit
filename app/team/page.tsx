@@ -13,6 +13,7 @@ import type {
   Contact,
   StreakDay,
   TeamTotals,
+  AssistantMessage,
 } from "@/lib/types";
 
 type ViewMode = "members" | "teams";
@@ -53,6 +54,7 @@ type MemberData = {
   candidates: Candidate[];
   contacts: Contact[];
   streakDays: StreakDay[];
+  assistantMessages: AssistantMessage[];
 };
 
 export default function TeamPage() {
@@ -73,9 +75,10 @@ export default function TeamPage() {
   const [loadingTeams, setLoadingTeams] = useState(true);
 
   useEffect(() => {
-    if (!isAdmin) return;
     async function load() {
       setLoadingProfiles(true);
+      // RLS scopes this automatically: admins get everyone, everyone
+      // else gets their own row plus anyone in their downline.
       const { data } = await supabase
         .from("profiles")
         .select("*")
@@ -84,7 +87,7 @@ export default function TeamPage() {
       setLoadingProfiles(false);
     }
     load();
-  }, [isAdmin]);
+  }, []);
 
   useEffect(() => {
     if (!isAdmin || viewMode !== "teams") return;
@@ -110,43 +113,54 @@ export default function TeamPage() {
   }, [isAdmin, viewMode, periodType, periodStart]);
 
   useEffect(() => {
-    if (!isAdmin || !selectedId) return;
+    if (!selectedId) return;
     let cancelled = false;
 
     // Pipeline/candidates/contacts are household-shareable — if this
     // person has linked to a spouse, their real rows live under the
-    // spouse's id. Core Run Streak stays individual regardless.
+    // spouse's id. Core Run Streak and Assistant chat stay individual
+    // regardless, so those always use the selected person's own id.
     const selected = profiles.find((p) => p.id === selectedId);
     const ownerId = selected?.household_id ?? selectedId;
 
     async function load() {
       setLoadingMember(true);
-      const [{ data: pipeline }, { data: candidates }, { data: contacts }, { data: streakDays }] =
-        await Promise.all([
-          supabase
-            .from("pipeline_periods")
-            .select("*")
-            .eq("user_id", ownerId)
-            .order("updated_at", { ascending: false })
-            .limit(1)
-            .maybeSingle(),
-          supabase
-            .from("candidates")
-            .select("*")
-            .eq("user_id", ownerId)
-            .order("created_at", { ascending: false }),
-          supabase
-            .from("contacts")
-            .select("*")
-            .eq("user_id", ownerId)
-            .order("created_at", { ascending: false }),
-          supabase
-            .from("streak_days")
-            .select("*")
-            .eq("user_id", selectedId)
-            .order("day", { ascending: false })
-            .limit(30),
-        ]);
+      const [
+        { data: pipeline },
+        { data: candidates },
+        { data: contacts },
+        { data: streakDays },
+        { data: assistantMessages },
+      ] = await Promise.all([
+        supabase
+          .from("pipeline_periods")
+          .select("*")
+          .eq("user_id", ownerId)
+          .order("updated_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from("candidates")
+          .select("*")
+          .eq("user_id", ownerId)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("contacts")
+          .select("*")
+          .eq("user_id", ownerId)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("streak_days")
+          .select("*")
+          .eq("user_id", selectedId)
+          .order("day", { ascending: false })
+          .limit(30),
+        supabase
+          .from("assistant_messages")
+          .select("*")
+          .eq("user_id", selectedId)
+          .order("created_at", { ascending: true }),
+      ]);
 
       if (!cancelled) {
         setMemberData({
@@ -154,6 +168,7 @@ export default function TeamPage() {
           candidates: (candidates as Candidate[]) ?? [],
           contacts: (contacts as Contact[]) ?? [],
           streakDays: (streakDays as StreakDay[]) ?? [],
+          assistantMessages: (assistantMessages as AssistantMessage[]) ?? [],
         });
         setLoadingMember(false);
       }
@@ -163,41 +178,39 @@ export default function TeamPage() {
     return () => {
       cancelled = true;
     };
-  }, [isAdmin, selectedId, profiles]);
-
-  if (!isAdmin) {
-    return (
-      <>
-        <PageHeader title="Team" />
-        <main className="page-main">
-          <div className="empty-state">You don&apos;t have access to this page.</div>
-        </main>
-      </>
-    );
-  }
+  }, [selectedId, profiles]);
 
   const selectedProfile = profiles.find((p) => p.id === selectedId) ?? null;
 
   return (
     <>
-      <PageHeader title="Team" subtitle={`${profiles.length} member(s) signed up`} />
+      <PageHeader
+        title="Team"
+        subtitle={
+          isAdmin
+            ? `${profiles.length} member(s) signed up`
+            : `${profiles.length} member(s) in your downline`
+        }
+      />
       <main className="page-main">
-        <div className="card flex p-1">
-          <button
-            className={viewMode === "members" ? "toggle-pill-active" : "toggle-pill-inactive"}
-            onClick={() => setViewMode("members")}
-          >
-            Members
-          </button>
-          <button
-            className={viewMode === "teams" ? "toggle-pill-active" : "toggle-pill-inactive"}
-            onClick={() => setViewMode("teams")}
-          >
-            Teams
-          </button>
-        </div>
+        {isAdmin && (
+          <div className="card flex p-1">
+            <button
+              className={viewMode === "members" ? "toggle-pill-active" : "toggle-pill-inactive"}
+              onClick={() => setViewMode("members")}
+            >
+              Members
+            </button>
+            <button
+              className={viewMode === "teams" ? "toggle-pill-active" : "toggle-pill-inactive"}
+              onClick={() => setViewMode("teams")}
+            >
+              Teams
+            </button>
+          </div>
+        )}
 
-        {viewMode === "teams" && (
+        {viewMode === "teams" && isAdmin && (
           <>
             <div className="card flex p-1">
               <button
@@ -355,6 +368,34 @@ export default function TeamPage() {
                   <p className="text-2xl font-bold text-amber">
                     🔥 {computeStreak(memberData.streakDays)}
                   </p>
+                </div>
+
+                <div className="card space-y-2">
+                  <p className="section-title">
+                    Assistant Conversations ({memberData.assistantMessages.length})
+                  </p>
+                  {memberData.assistantMessages.length === 0 ? (
+                    <p className="text-sm text-slate-400">No Assistant conversations yet.</p>
+                  ) : (
+                    <div className="max-h-80 space-y-2 overflow-y-auto">
+                      {memberData.assistantMessages.map((m) => (
+                        <div
+                          key={m.id}
+                          className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
+                        >
+                          <div
+                            className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-xs ${
+                              m.role === "user"
+                                ? "bg-amber text-navy"
+                                : "bg-navy text-slate-200"
+                            }`}
+                          >
+                            {m.content}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </>
             )}

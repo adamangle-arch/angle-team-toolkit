@@ -205,11 +205,64 @@ alter table profiles add column if not exists household_id uuid references auth.
 alter table profiles drop constraint if exists profiles_household_not_self;
 alter table profiles add constraint profiles_household_not_self check (household_id is null or household_id <> id);
 
+-- Additive: upline visibility. Every profile gets a short account_number
+-- to hand out to recruits; a downline enters their upline's number
+-- (link_upline() below) to set their own upline_id, which — unlike
+-- household linking — is read-only visibility, not shared data. An
+-- upline sees every level of their downline (recursive via is_upline_of),
+-- same as a primary user sees everyone, including Assistant chat history.
+alter table profiles add column if not exists account_number text;
+alter table profiles add column if not exists upline_id uuid references auth.users(id);
+alter table profiles drop constraint if exists profiles_upline_not_self;
+alter table profiles add constraint profiles_upline_not_self check (upline_id is null or upline_id <> id);
+
+create or replace function public.generate_account_number()
+returns text
+language plpgsql
+as $$
+declare
+  candidate text;
+begin
+  loop
+    candidate := lpad(floor(random() * 1000000)::text, 6, '0');
+    exit when not exists (select 1 from profiles where account_number = candidate);
+  end loop;
+  return candidate;
+end;
+$$;
+
+update profiles set account_number = public.generate_account_number() where account_number is null;
+
+alter table profiles drop constraint if exists profiles_account_number_unique;
+alter table profiles add constraint profiles_account_number_unique unique (account_number);
+
+-- True if p_viewer is anywhere in p_target's upline chain (any level).
+-- Security definer so it can walk the full profiles table regardless of
+-- who's calling — the depth cap is just a safety net against a bad
+-- upline_id cycle from manual data edits.
+create or replace function public.is_upline_of(p_viewer uuid, p_target uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  with recursive chain as (
+    select id, upline_id, 0 as depth from profiles where id = p_target
+    union all
+    select pr.id, pr.upline_id, c.depth + 1
+    from profiles pr
+    join chain c on pr.id = c.upline_id
+    where c.depth < 20
+  )
+  select coalesce(p_viewer in (select upline_id from chain where upline_id is not null), false);
+$$;
+
 alter table profiles enable row level security;
 
 drop policy if exists "select_own_or_admin" on profiles;
 create policy "select_own_or_admin" on profiles for select
-using (id = auth.uid() or public.is_app_admin());
+using (id = auth.uid() or public.is_upline_of(auth.uid(), id) or public.is_app_admin());
 
 drop policy if exists "update_own" on profiles;
 create policy "update_own" on profiles for update
@@ -260,6 +313,40 @@ $$;
 
 grant execute on function public.link_spouse(text) to authenticated;
 
+-- Self-service upline linking (My Profile > My Upline). Looks up the
+-- upline by their account_number and sets the caller's own upline_id —
+-- read-only visibility for the upline going forward, not shared data.
+-- Changing/removing your upline later is just a normal
+-- `update profiles set upline_id = ...`, already covered by update_own.
+create or replace function public.link_upline(p_account_number text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  target_id uuid;
+begin
+  select id into target_id from profiles where account_number = p_account_number;
+
+  if target_id is null then
+    raise exception 'No account found with that number.';
+  end if;
+
+  if target_id = auth.uid() then
+    raise exception 'You can''t set yourself as your own upline.';
+  end if;
+
+  if public.is_upline_of(auth.uid(), target_id) then
+    raise exception 'That would create a loop — they''re already in your downline.';
+  end if;
+
+  update profiles set upline_id = target_id where id = auth.uid();
+end;
+$$;
+
+grant execute on function public.link_upline(text) to authenticated;
+
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -267,8 +354,8 @@ security definer
 set search_path = public
 as $$
 begin
-  insert into public.profiles (id, email)
-  values (new.id, new.email)
+  insert into public.profiles (id, email, account_number)
+  values (new.id, new.email, public.generate_account_number())
   on conflict (id) do nothing;
   return new;
 end;
@@ -676,9 +763,12 @@ grant execute on function public.get_ditto_leaderboard(date) to authenticated;
 -- ============================================================
 -- Row Level Security
 --
--- Personal tables (streak_days, assistant_messages): strictly owner or
--- admin — never shared with a linked spouse, since Core Run Streak and
--- assistant chat history stay individual even for a linked household.
+-- Personal tables (streak_days, assistant_messages): never shared with a
+-- linked spouse — Core Run Streak and assistant chat history stay
+-- individual even for a linked household. They ARE visible read-only to
+-- an upline (any level) or admin, same as the business tables below —
+-- that's the whole point of upline linking, seeing a downline's numbers
+-- AND their Assistant conversations.
 -- ============================================================
 do $$
 declare
@@ -691,7 +781,7 @@ begin
 
     execute format('drop policy if exists "select_own_or_admin" on %I;', t);
     execute format(
-      'create policy "select_own_or_admin" on %I for select using (user_id = auth.uid() or public.is_app_admin());',
+      'create policy "select_own_or_admin" on %I for select using (user_id = auth.uid() or public.is_upline_of(auth.uid(), user_id) or public.is_app_admin());',
       t
     );
 
@@ -720,7 +810,8 @@ end $$;
 -- customer sales are the "same business" data — a user_id here can be
 -- either the caller's own id OR the id they've linked to via
 -- link_spouse() (household_id), so a linked pair reads/writes one
--- shared set of rows instead of two separate ones.
+-- shared set of rows instead of two separate ones. Also readable
+-- (read-only) by an upline at any level, or admin.
 -- ============================================================
 do $$
 declare
@@ -735,7 +826,7 @@ begin
 
     execute format('drop policy if exists "select_own_or_admin" on %I;', t);
     execute format(
-      'create policy "select_own_or_admin" on %I for select using (user_id = auth.uid() or user_id = (select household_id from profiles where id = auth.uid()) or public.is_app_admin());',
+      'create policy "select_own_or_admin" on %I for select using (user_id = auth.uid() or user_id = (select household_id from profiles where id = auth.uid()) or public.is_upline_of(auth.uid(), user_id) or public.is_app_admin());',
       t
     );
 

@@ -222,6 +222,33 @@ exists — it only affects what each login reads/writes going forward.
 If both spouses already had their own separate pipeline/candidates/PV
 history before linking, that old data doesn't get combined automatically.
 
+### Upline visibility
+
+Every account gets a 6-digit `account_number` (shown at the top of **My
+Profile**, generated automatically on signup by `handle_new_user()`). A
+downline enters their upline's number under "My Upline" on their own My
+Profile page (self-service, via the `link_upline(account_number)`
+function), which sets their own `profiles.upline_id` — read-only visibility
+for the upline, not shared data like the spouse linking above.
+
+Once linked, the upline sees that person (and everyone below them,
+recursively — an upline's upline sees the whole downline chain) on the
+**Team** tab: Pipeline, Candidates, Contacts, Volume, Core Run Streak, and
+now their **Assistant conversations** too, the same access primary users
+(`adamangle@icloud.com`, `alexangle@me.com`) already have to everyone. The
+**Team** tab is visible to every signed-in user now, not just primary
+users — non-admins just see their own downline (or nobody, until someone
+links to them) instead of the whole company, and don't get the
+company-wide **Teams** aggregate view, which stays primary-user-only.
+
+The recursion is `is_upline_of(viewer, target)`, a `security definer`
+function that walks `upline_id` up to 20 levels looking for `viewer` —
+that depth cap is just a safety net against a bad manual edit creating a
+cycle; `link_upline()` itself also refuses to link if it would create one.
+This is the only case in the app where reading someone's Assistant chat
+history is possible by anyone other than that person themselves — worth
+knowing if a downline ever asks who can see their role-play conversations.
+
 ## Notes on the Role-Play Coach
 
 The **Role-Play Coach** tab is strictly a practice simulator for A-list,

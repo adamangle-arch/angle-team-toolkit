@@ -2,8 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useAuth } from "./AuthGate";
-import { isPrimaryUser } from "@/lib/constants";
 
 const NAV_ITEMS = [
   { href: "/pipeline", label: "Pipeline", icon: "📊" },
@@ -14,14 +12,13 @@ const NAV_ITEMS = [
   { href: "/leaderboard", label: "Leaderboard", icon: "🏆" },
   { href: "/assistant", label: "Assistant", icon: "🤖" },
   { href: "/library", label: "Resources", icon: "📚" },
+  // Visible to everyone: admins see the whole company, everyone else
+  // sees their own downline (RLS scopes it either way).
+  { href: "/team", label: "Team", icon: "👥" },
 ];
-
-const PRIMARY_NAV_ITEM = { href: "/team", label: "Team", icon: "👥" };
 
 export default function BottomNav() {
   const pathname = usePathname();
-  const { user } = useAuth();
-  const items = isPrimaryUser(user.email) ? [...NAV_ITEMS, PRIMARY_NAV_ITEM] : NAV_ITEMS;
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto w-full max-w-md border-t border-white/10 bg-navy/95 backdrop-blur">
@@ -29,7 +26,7 @@ export default function BottomNav() {
         className="no-scrollbar flex overflow-x-auto"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
-        {items.map((item) => {
+        {NAV_ITEMS.map((item) => {
           const active = pathname?.startsWith(item.href);
           return (
             <Link
