@@ -60,7 +60,18 @@ export default function OnboardingPage() {
                   <div className="space-y-1.5">
                     {session.resources.map((r) => (
                       <div key={r.label} className="rounded-lg bg-navy px-3 py-2">
-                        <p className="text-sm font-medium text-white">{r.label}</p>
+                        {r.url ? (
+                          <a
+                            href={r.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm font-medium text-amber-light underline decoration-dotted underline-offset-2"
+                          >
+                            {r.label}
+                          </a>
+                        ) : (
+                          <p className="text-sm font-medium text-white">{r.label}</p>
+                        )}
                         <p className="text-xs text-slate-400">{r.detail}</p>
                       </div>
                     ))}

@@ -91,6 +91,7 @@ export const STREAK_MILESTONES = [
 export type OnboardingResource = {
   label: string;
   detail: string;
+  url?: string;
 };
 
 export type OnboardingSession = {
@@ -104,8 +105,12 @@ export const ONBOARDING_SESSIONS: OnboardingSession[] = [
     title: "Session 1: Budget Session",
     description: "Build a healthy financial foundation.",
     resources: [
-      { label: "📊 Budget Worksheet", detail: "Replace with your real budget worksheet link." },
-      { label: "🎥 Budget Training Video", detail: "Replace with your budget training video link." },
+      {
+        label: "📋 Homework: Budget Worksheet & Audio",
+        detail:
+          "Listen to the audio explaining how to fill out the budget, then bring your completed budget to your next meeting with your coach.",
+        url: "https://www.dropbox.com/scl/fo/9provgioq5ijeudeaebt1/ACExQWjHLo9nFbsXm8gUBYE?rlkey=k2kadsk4wmc9h0am8nn13lxl1&st=8u9146yf&dl=0",
+      },
     ],
   },
   {
