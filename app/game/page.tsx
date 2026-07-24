@@ -15,12 +15,12 @@ type UnlockStatus = {
 
 const WIDTH = 350;
 const HEIGHT = 500;
-const GRAVITY = 0.5;
-const FLAP_VELOCITY = -8;
-const PIPE_GAP = 150;
+const GRAVITY = 0.32;
+const FLAP_VELOCITY = -5.5;
+const PIPE_GAP = 180;
 const PIPE_WIDTH = 60;
-const PIPE_SPEED = 3;
-const PIPE_INTERVAL_MS = 1500;
+const PIPE_SPEED = 2.5;
+const PIPE_INTERVAL_MS = 1600;
 const DIAMOND_SIZE = 24;
 const DIAMOND_X = 70;
 
