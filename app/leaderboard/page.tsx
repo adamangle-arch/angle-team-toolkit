@@ -4,9 +4,22 @@ import { useEffect, useState } from "react";
 import PageHeader from "@/components/PageHeader";
 import { supabase } from "@/lib/supabaseClient";
 import { getMonthStart, getWeekStart, formatDateLabel } from "@/lib/dates";
+import type { PipelineStageKey } from "@/lib/constants";
 import type { TeamTotals, Qi1LeaderboardEntry } from "@/lib/types";
 
 type PeriodType = "weekly" | "monthly";
+type Award = { label: string; key: PipelineStageKey };
+
+const WEEKLY_AWARDS: Award[] = [
+  { label: "Most Yeses", key: "yeses" },
+  { label: "Most QI1s", key: "qi1" },
+  { label: "Most IS1s", key: "is1" },
+];
+
+const MONTHLY_AWARDS: Award[] = [
+  { label: "Most QI1s", key: "qi1" },
+  { label: "Most Launches", key: "launches" },
+];
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 
@@ -15,12 +28,19 @@ function displayName(entry: Qi1LeaderboardEntry): string {
   return name || "Unnamed";
 }
 
+function leadingTeams(teams: TeamTotals[], key: PipelineStageKey): TeamTotals[] {
+  const max = teams.reduce((best, t) => Math.max(best, t[key]), 0);
+  if (max === 0) return [];
+  return teams.filter((t) => t[key] === max);
+}
+
 export default function LeaderboardPage() {
   const [periodType, setPeriodType] = useState<PeriodType>("weekly");
   const [teamTotals, setTeamTotals] = useState<TeamTotals[]>([]);
   const [topIndividuals, setTopIndividuals] = useState<Qi1LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const periodStart = periodType === "weekly" ? getWeekStart() : getMonthStart();
+  const awards = periodType === "weekly" ? WEEKLY_AWARDS : MONTHLY_AWARDS;
 
   useEffect(() => {
     let cancelled = false;
@@ -40,8 +60,7 @@ export default function LeaderboardPage() {
       ]);
 
       if (!cancelled) {
-        const sortedTeams = ((teams as TeamTotals[]) ?? []).slice().sort((a, b) => b.qi1 - a.qi1);
-        setTeamTotals(sortedTeams);
+        setTeamTotals((teams as TeamTotals[]) ?? []);
         setTopIndividuals((individuals as Qi1LeaderboardEntry[]) ?? []);
         setLoading(false);
       }
@@ -57,7 +76,7 @@ export default function LeaderboardPage() {
     <>
       <PageHeader
         title="Leaderboard"
-        subtitle={`${periodType === "weekly" ? "Week of" : "Month of"} ${formatDateLabel(periodStart)} · QI1s`}
+        subtitle={`${periodType === "weekly" ? "Week of" : "Month of"} ${formatDateLabel(periodStart)}`}
       />
       <main className="page-main">
         <div className="card flex p-1">
@@ -79,28 +98,30 @@ export default function LeaderboardPage() {
           <div className="empty-state">Loading leaderboard…</div>
         ) : (
           <>
-            <div className="card space-y-1.5">
-              <p className="section-title">Top Teams</p>
-              {teamTotals.length === 0 || teamTotals.every((t) => t.qi1 === 0) ? (
-                <p className="text-sm text-slate-400">No QI1s logged for this period yet.</p>
-              ) : (
-                teamTotals
-                  .filter((t) => t.qi1 > 0)
-                  .map((t, i) => (
-                    <div key={t.team} className="flex items-center justify-between text-sm">
-                      <span className="text-slate-200">
-                        {i < 3 ? `${MEDALS[i]} ` : `${i + 1}. `}
-                        {t.team}{" "}
-                        <span className="text-xs text-slate-500">({t.member_count} members)</span>
-                      </span>
-                      <span className="pill pill-amber">{t.qi1} QI1</span>
-                    </div>
-                  ))
-              )}
-            </div>
+            {awards.map((award) => {
+              const winners = leadingTeams(teamTotals, award.key);
+              return (
+                <div key={award.key} className="card space-y-1.5">
+                  <p className="section-title">🏆 {award.label}</p>
+                  {winners.length === 0 ? (
+                    <p className="text-sm text-slate-400">Nothing logged for this period yet.</p>
+                  ) : (
+                    winners.map((t) => (
+                      <div key={t.team} className="flex items-center justify-between text-sm">
+                        <span className="text-slate-200">
+                          {t.team}{" "}
+                          <span className="text-xs text-slate-500">({t.member_count} members)</span>
+                        </span>
+                        <span className="pill pill-amber">{t[award.key]}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              );
+            })}
 
             <div className="card space-y-1.5">
-              <p className="section-title">Top 3 Individuals</p>
+              <p className="section-title">Top 3 Individuals · QI1s</p>
               {topIndividuals.length === 0 ? (
                 <p className="text-sm text-slate-400">No QI1s logged for this period yet.</p>
               ) : (
