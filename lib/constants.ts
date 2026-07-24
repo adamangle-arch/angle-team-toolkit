@@ -101,44 +101,46 @@ export type OnboardingSession = {
 
 export const ONBOARDING_SESSIONS: OnboardingSession[] = [
   {
-    title: "Session 1: Welcome & Getting Started",
-    description: "The basics — what to expect, mindset, and your first steps.",
+    title: "Session 1: Budget Session",
+    description: "Build a healthy financial foundation.",
     resources: [
-      { label: "🎥 Welcome Video", detail: "Replace with your real welcome video link." },
-      { label: "📖 Read", detail: "Replace with your onboarding reading assignment." },
-      { label: "✅ First Steps Checklist", detail: "Replace with your actual first-steps checklist." },
+      { label: "📊 Budget Worksheet", detail: "Replace with your real budget worksheet link." },
+      { label: "🎥 Budget Training Video", detail: "Replace with your budget training video link." },
     ],
   },
   {
-    title: "Session 2: Building Your List",
-    description: "How to build and organize your A/B contact list.",
+    title: "Session 2: List Building",
+    description: "Identify who you can help.",
     resources: [
-      { label: "🎥 Training Video", detail: "Replace with your list-building training link." },
-      { label: "📖 Read", detail: "Replace with your assigned reading." },
+      { label: "📖 List Building Guide", detail: "Replace with your list-building guide/reading." },
+      { label: "✅ List Building Exercise", detail: "Replace with your actual list-building exercise." },
     ],
   },
   {
-    title: "Session 3: The Invite",
-    description: "How to invite confidently and handle common responses.",
+    title: "Session 3: Customer Acquisition",
+    description: "Learn to create value through products.",
     resources: [
-      { label: "🎥 Training Video", detail: "Replace with your invite training link." },
-      { label: "🎧 Audio", detail: "Replace with your invite-scripts audio." },
+      { label: "🎥 Customer Acquisition Training", detail: "Replace with your training video link." },
+      { label: "📖 Product Value Guide", detail: "Replace with your product/value reading." },
     ],
   },
   {
-    title: "Session 4: Presenting & Follow-Up",
-    description: "Running QI1/QI2 and following up effectively.",
+    title: "Session 4: Sharing Your Story",
+    description: "Learn to confidently share with your A & B Lists.",
     resources: [
-      { label: "🎥 Training Video", detail: "Replace with your presentation training link." },
-      { label: "📖 Read", detail: "Replace with your follow-up reading assignment." },
+      { label: "🎥 Story Training Video", detail: "Replace with your story-sharing training link." },
+      { label: "🎧 Story Examples Audio", detail: "Replace with example story audio." },
     ],
   },
   {
-    title: "Session 5: Launch & Beyond",
-    description: "Getting your new team member launched and building momentum.",
+    title: "Session 5: 30-Day Core Run",
+    description: "Establish the daily habits that create long-term momentum.",
     resources: [
-      { label: "🎥 Training Video", detail: "Replace with your launch training link." },
-      { label: "✅ Launch Checklist", detail: "Replace with your actual launch checklist." },
+      { label: "🎥 Core Run Training Video", detail: "Replace with your Core Run training video link." },
+      {
+        label: "🔥 Core Run Streak",
+        detail: "Head to the Run Streak tab to start your daily Read/Listen/Daily Update/Story Share habit.",
+      },
     ],
   },
 ];
