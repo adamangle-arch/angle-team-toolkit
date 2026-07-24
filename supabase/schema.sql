@@ -178,6 +178,22 @@ alter table profiles add constraint profiles_team_check check (
   )
 );
 
+-- Additive: the public-facing profile shown when someone's name is
+-- tapped on the Leaderboard. Optional and skippable — profile_prompted
+-- just tracks whether the one-time "fill this in" screen has been shown
+-- (either filled in or skipped) so it doesn't nag on every login.
+alter table profiles add column if not exists photo_url text;
+alter table profiles add column if not exists hometown text;
+alter table profiles add column if not exists background text;
+alter table profiles add column if not exists favorite_audio_1 text;
+alter table profiles add column if not exists favorite_audio_2 text;
+alter table profiles add column if not exists favorite_audio_3 text;
+alter table profiles add column if not exists favorite_book_1 text;
+alter table profiles add column if not exists favorite_book_2 text;
+alter table profiles add column if not exists favorite_book_3 text;
+alter table profiles add column if not exists team_impact text;
+alter table profiles add column if not exists profile_prompted boolean not null default false;
+
 alter table profiles enable row level security;
 
 drop policy if exists "select_own_or_admin" on profiles;
@@ -211,6 +227,66 @@ create trigger on_auth_user_created
 insert into public.profiles (id, email)
 select id, email from auth.users
 on conflict (id) do nothing;
+
+-- ============================================================
+-- 5b. PROFILE PHOTOS (STORAGE)
+-- A public bucket for profile photos — public so teammates can view
+-- each other's photo on the Leaderboard/profile page without a signed
+-- URL, but uploads are restricted to a user's own folder
+-- (avatars/<user_id>/...).
+-- ============================================================
+insert into storage.buckets (id, name, public)
+values ('avatars', 'avatars', true)
+on conflict (id) do nothing;
+
+drop policy if exists "avatars_public_read" on storage.objects;
+create policy "avatars_public_read" on storage.objects for select
+using (bucket_id = 'avatars');
+
+drop policy if exists "avatars_insert_own" on storage.objects;
+create policy "avatars_insert_own" on storage.objects for insert
+with check (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+
+drop policy if exists "avatars_update_own" on storage.objects;
+create policy "avatars_update_own" on storage.objects for update
+using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+
+drop policy if exists "avatars_delete_own" on storage.objects;
+create policy "avatars_delete_own" on storage.objects for delete
+using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- Public-safe profile view for the "tap a name on the Leaderboard" page.
+-- Security definer so it can read any profile row, but only ever returns
+-- the fields meant to be shared — never email or anything private.
+create or replace function public.get_public_profile(p_user_id uuid)
+returns table (
+  first_name text,
+  last_name text,
+  team text,
+  photo_url text,
+  hometown text,
+  background text,
+  favorite_audio_1 text,
+  favorite_audio_2 text,
+  favorite_audio_3 text,
+  favorite_book_1 text,
+  favorite_book_2 text,
+  favorite_book_3 text,
+  team_impact text
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select first_name, last_name, team, photo_url, hometown, background,
+         favorite_audio_1, favorite_audio_2, favorite_audio_3,
+         favorite_book_1, favorite_book_2, favorite_book_3, team_impact
+  from profiles
+  where id = p_user_id;
+$$;
+
+grant execute on function public.get_public_profile(uuid) to authenticated;
 
 -- ============================================================
 -- 6. ASSISTANT CHAT HISTORY
@@ -301,7 +377,8 @@ returns table (
   first_name text,
   last_name text,
   team text,
-  value int
+  value int,
+  user_id uuid
 )
 language sql
 stable
@@ -328,31 +405,31 @@ as $$
       max(launches) as launches
     from periods
   )
-  select 'yeses', p.first_name, p.last_name, p.team, p.yeses
+  select 'yeses', p.first_name, p.last_name, p.team, p.yeses, p.user_id
   from periods p, maxes m where p.yeses = m.yeses and m.yeses > 0
   union all
-  select 'qi1', p.first_name, p.last_name, p.team, p.qi1
+  select 'qi1', p.first_name, p.last_name, p.team, p.qi1, p.user_id
   from periods p, maxes m where p.qi1 = m.qi1 and m.qi1 > 0
   union all
-  select 'qi2', p.first_name, p.last_name, p.team, p.qi2
+  select 'qi2', p.first_name, p.last_name, p.team, p.qi2, p.user_id
   from periods p, maxes m where p.qi2 = m.qi2 and m.qi2 > 0
   union all
-  select 'is1', p.first_name, p.last_name, p.team, p.is1
+  select 'is1', p.first_name, p.last_name, p.team, p.is1, p.user_id
   from periods p, maxes m where p.is1 = m.is1 and m.is1 > 0
   union all
-  select 'fu1', p.first_name, p.last_name, p.team, p.fu1
+  select 'fu1', p.first_name, p.last_name, p.team, p.fu1, p.user_id
   from periods p, maxes m where p.fu1 = m.fu1 and m.fu1 > 0
   union all
-  select 'is2', p.first_name, p.last_name, p.team, p.is2
+  select 'is2', p.first_name, p.last_name, p.team, p.is2, p.user_id
   from periods p, maxes m where p.is2 = m.is2 and m.is2 > 0
   union all
-  select 'fu2', p.first_name, p.last_name, p.team, p.fu2
+  select 'fu2', p.first_name, p.last_name, p.team, p.fu2, p.user_id
   from periods p, maxes m where p.fu2 = m.fu2 and m.fu2 > 0
   union all
-  select 'questionnaire', p.first_name, p.last_name, p.team, p.questionnaire
+  select 'questionnaire', p.first_name, p.last_name, p.team, p.questionnaire, p.user_id
   from periods p, maxes m where p.questionnaire = m.questionnaire and m.questionnaire > 0
   union all
-  select 'launches', p.first_name, p.last_name, p.team, p.launches
+  select 'launches', p.first_name, p.last_name, p.team, p.launches, p.user_id
   from periods p, maxes m where p.launches = m.launches and m.launches > 0;
 $$;
 
@@ -365,7 +442,8 @@ returns table (
   first_name text,
   last_name text,
   team text,
-  streak_days int
+  streak_days int,
+  user_id uuid
 )
 language sql
 stable
@@ -391,7 +469,7 @@ as $$
     from walk
     group by user_id
   )
-  select pr.first_name, pr.last_name, pr.team, b.streak_days::int
+  select pr.first_name, pr.last_name, pr.team, b.streak_days::int, pr.id
   from best_per_user b
   join profiles pr on pr.id = b.user_id
   order by b.streak_days desc;
@@ -408,14 +486,15 @@ returns table (
   first_name text,
   last_name text,
   team text,
-  pv int
+  pv int,
+  user_id uuid
 )
 language sql
 stable
 security definer
 set search_path = public
 as $$
-  select pr.first_name, pr.last_name, pr.team, mp.pv
+  select pr.first_name, pr.last_name, pr.team, mp.pv, pr.id
   from monthly_pv mp
   join profiles pr on pr.id = mp.user_id
   where mp.period_start = p_period_start
@@ -433,14 +512,15 @@ returns table (
   first_name text,
   last_name text,
   team text,
-  active_count int
+  active_count int,
+  user_id uuid
 )
 language sql
 stable
 security definer
 set search_path = public
 as $$
-  select pr.first_name, pr.last_name, pr.team, cc.active_count
+  select pr.first_name, pr.last_name, pr.team, cc.active_count, pr.id
   from (
     select user_id, count(*)::int as active_count
     from candidates
@@ -465,14 +545,15 @@ returns table (
   first_name text,
   last_name text,
   team text,
-  qi1 int
+  qi1 int,
+  user_id uuid
 )
 language sql
 stable
 security definer
 set search_path = public
 as $$
-  select pr.first_name, pr.last_name, pr.team, pp.qi1
+  select pr.first_name, pr.last_name, pr.team, pp.qi1, pr.id
   from pipeline_periods pp
   join profiles pr on pr.id = pp.user_id
   where pp.period_type = p_period_type
@@ -492,14 +573,15 @@ returns table (
   first_name text,
   last_name text,
   team text,
-  day1_ditto_pv int
+  day1_ditto_pv int,
+  user_id uuid
 )
 language sql
 stable
 security definer
 set search_path = public
 as $$
-  select pr.first_name, pr.last_name, pr.team, mp.day1_ditto_pv
+  select pr.first_name, pr.last_name, pr.team, mp.day1_ditto_pv, pr.id
   from monthly_pv mp
   join profiles pr on pr.id = mp.user_id
   where mp.period_start = p_period_start

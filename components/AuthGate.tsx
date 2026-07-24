@@ -7,6 +7,8 @@ import LoginForm from "./LoginForm";
 import BottomNav from "./BottomNav";
 import ConfigWarning from "./ConfigWarning";
 import ProfileGate from "./ProfileGate";
+import ProfileDetailsGate from "./ProfileDetailsGate";
+import type { Profile } from "@/lib/types";
 
 type AuthContextValue = {
   user: User;
@@ -24,7 +26,8 @@ export function useAuth(): AuthContextValue {
 export default function AuthGate({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [profileComplete, setProfileComplete] = useState<boolean | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -37,21 +40,21 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     return () => listener.subscription.unsubscribe();
   }, []);
 
+  async function loadProfile(uid: string) {
+    const { data } = await supabase.from("profiles").select("*").eq("id", uid).single();
+    setProfile((data as Profile) ?? null);
+    setProfileLoading(false);
+  }
+
   useEffect(() => {
     if (!user) return;
-    let cancelled = false;
-    supabase
-      .from("profiles")
-      .select("first_name, last_name, team")
-      .eq("id", user.id)
-      .single()
-      .then(({ data }) => {
-        if (cancelled) return;
-        setProfileComplete(Boolean(data?.first_name && data?.last_name && data?.team));
-      });
-    return () => {
-      cancelled = true;
-    };
+    const uid = user.id;
+    async function load() {
+      const { data } = await supabase.from("profiles").select("*").eq("id", uid).single();
+      setProfile((data as Profile) ?? null);
+      setProfileLoading(false);
+    }
+    load();
   }, [user]);
 
   if (loading) {
@@ -71,7 +74,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (profileComplete === null) {
+  if (profileLoading || !profile) {
     return (
       <div className="flex flex-1 items-center justify-center text-sm text-slate-400">
         Loading…
@@ -79,11 +82,22 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!profileComplete) {
+  const nameTeamComplete = Boolean(profile.first_name && profile.last_name && profile.team);
+
+  if (!nameTeamComplete) {
     return (
       <>
         <ConfigWarning />
-        <ProfileGate user={user} onComplete={() => setProfileComplete(true)} />
+        <ProfileGate user={user} onComplete={() => loadProfile(user.id)} />
+      </>
+    );
+  }
+
+  if (!profile.profile_prompted) {
+    return (
+      <>
+        <ConfigWarning />
+        <ProfileDetailsGate user={user} profile={profile} onDone={() => loadProfile(user.id)} />
       </>
     );
   }

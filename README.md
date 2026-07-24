@@ -8,8 +8,11 @@ Leaderboard, a Role-Play Coach for practicing A-list/B-list/C-list
 conversations, and a Resources hub (Products, Scripts & FAQ, Process Guide,
 Leaders, Acquisition, Audio & Book Library). Everyone signs in with their own
 email/password account, picks their team on first login, and each person's
-individual data is private to them. All data is stored in Supabase
-(Postgres), so it persists across sessions and devices.
+individual data is private to them. Tapping a name anywhere on the
+Leaderboard opens that person's public profile (photo, hometown,
+background, favorite audios/books, and how the team has impacted them) —
+see "Public profiles" below. All data is stored in Supabase (Postgres), so
+it persists across sessions and devices.
 
 ## 1. Set up Supabase
 
@@ -170,6 +173,27 @@ running record.
 By default Supabase requires email confirmation on signup; see step 2 above
 if you want teammates to be able to log in immediately after creating an
 account.
+
+### Public profiles
+
+After the mandatory name/team screen, every user sees a one-time, skippable
+prompt ("Tell the team about you") for a photo, hometown, background, top 3
+favorite audios, top 3 favorite books, and one way being on this team has
+positively impacted them. It's genuinely optional — hitting "Skip for now"
+marks `profiles.profile_prompted` true and moves on; nobody is ever blocked
+from using the app over it. Anyone can fill it in (or edit it) anytime from
+**My Profile**, linked from every page's header.
+
+Tapping a name anywhere on the Leaderboard opens that person's profile at
+`/profile/[id]` — a read-only view built from `get_public_profile(user_id)`,
+a `security definer` function that only ever returns the fields meant to be
+shared (never email or anything private), so it's safe to expose to any
+signed-in user, not just primary users.
+
+Photos upload to a public Supabase Storage bucket called `avatars`, one
+file per user at `avatars/<user_id>/photo.<ext>` — public read (so
+teammates can actually see the photo) but restricted to each user only
+being able to upload/replace/delete their own file.
 
 ## Notes on the Role-Play Coach
 

@@ -6,7 +6,36 @@ export type Profile = {
   first_name: string | null;
   last_name: string | null;
   team: string | null;
+  photo_url: string | null;
+  hometown: string | null;
+  background: string | null;
+  favorite_audio_1: string | null;
+  favorite_audio_2: string | null;
+  favorite_audio_3: string | null;
+  favorite_book_1: string | null;
+  favorite_book_2: string | null;
+  favorite_book_3: string | null;
+  team_impact: string | null;
+  profile_prompted: boolean;
   created_at: string;
+};
+
+// What get_public_profile returns — only the fields meant to be shared,
+// never email or anything private.
+export type PublicProfile = {
+  first_name: string | null;
+  last_name: string | null;
+  team: string | null;
+  photo_url: string | null;
+  hometown: string | null;
+  background: string | null;
+  favorite_audio_1: string | null;
+  favorite_audio_2: string | null;
+  favorite_audio_3: string | null;
+  favorite_book_1: string | null;
+  favorite_book_2: string | null;
+  favorite_book_3: string | null;
+  team_impact: string | null;
 };
 
 export type TeamTotals = {
@@ -20,6 +49,7 @@ export type IndividualLeaderEntry = {
   last_name: string | null;
   team: string | null;
   value: number;
+  user_id: string;
 };
 
 export type StreakLeaderboardEntry = {
@@ -27,6 +57,7 @@ export type StreakLeaderboardEntry = {
   last_name: string | null;
   team: string | null;
   streak_days: number;
+  user_id: string;
 };
 
 export type Core300Entry = {
@@ -34,6 +65,7 @@ export type Core300Entry = {
   last_name: string | null;
   team: string | null;
   pv: number;
+  user_id: string;
 };
 
 export type ActiveCandidatesEntry = {
@@ -41,6 +73,7 @@ export type ActiveCandidatesEntry = {
   last_name: string | null;
   team: string | null;
   active_count: number;
+  user_id: string;
 };
 
 export type Qi1RhythmEntry = {
@@ -48,6 +81,7 @@ export type Qi1RhythmEntry = {
   last_name: string | null;
   team: string | null;
   qi1: number;
+  user_id: string;
 };
 
 export type DittoEntry = {
@@ -55,6 +89,7 @@ export type DittoEntry = {
   last_name: string | null;
   team: string | null;
   day1_ditto_pv: number;
+  user_id: string;
 };
 
 export type MonthlyPv = {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import { supabase } from "@/lib/supabaseClient";
 import {
@@ -27,6 +28,18 @@ const CATEGORIES = PIPELINE_STAGES.filter((s) => s.key !== "questions");
 function personName(entry: { first_name: string | null; last_name: string | null }): string {
   const name = [entry.first_name, entry.last_name].filter(Boolean).join(" ");
   return name || "Unnamed";
+}
+
+function PersonLink({
+  entry,
+}: {
+  entry: { user_id: string; first_name: string | null; last_name: string | null };
+}) {
+  return (
+    <Link href={`/profile/${entry.user_id}`} className="underline decoration-dotted underline-offset-2">
+      {personName(entry)}
+    </Link>
+  );
 }
 
 function leadingTeams(teams: TeamTotals[], key: PipelineStageKey): TeamTotals[] {
@@ -224,7 +237,12 @@ export default function LeaderboardPage() {
                       <span className="text-slate-200">
                         {c.label}:{" "}
                         <span className="text-amber-light">
-                          {winners.map((w) => `${personName(w)} (${w.team})`).join(", ")}
+                          {winners.map((w, i) => (
+                            <span key={w.user_id}>
+                              <PersonLink entry={w} /> ({w.team})
+                              {i < winners.length - 1 ? ", " : ""}
+                            </span>
+                          ))}
                         </span>
                       </span>
                       <span className="pill pill-amber">{winners[0].value}</span>
@@ -242,9 +260,9 @@ export default function LeaderboardPage() {
                 <p className="text-sm text-slate-400">No one&apos;s hit that rhythm yet.</p>
               ) : (
                 qi1Rhythm.map((entry, i) => (
-                  <div key={`${entry.first_name}-${entry.last_name}-${i}`} className="flex items-center justify-between text-sm">
+                  <div key={`${entry.user_id}-${i}`} className="flex items-center justify-between text-sm">
                     <span className="text-slate-200">
-                      {i + 1}. {personName(entry)}{" "}
+                      {i + 1}. <PersonLink entry={entry} />{" "}
                       <span className="text-xs text-slate-500">({entry.team})</span>
                     </span>
                     <span className="pill pill-amber">{entry.qi1} QI1</span>
@@ -259,9 +277,9 @@ export default function LeaderboardPage() {
                 <p className="text-sm text-slate-400">No one&apos;s on a streak right now.</p>
               ) : (
                 streakLeaders.map((s, i) => (
-                  <div key={`${s.first_name}-${s.last_name}-${i}`} className="flex items-center justify-between text-sm">
+                  <div key={`${s.user_id}-${i}`} className="flex items-center justify-between text-sm">
                     <span className="text-slate-200">
-                      {personName(s)} <span className="text-xs text-slate-500">({s.team})</span>
+                      <PersonLink entry={s} /> <span className="text-xs text-slate-500">({s.team})</span>
                     </span>
                     <span className="pill pill-amber">{s.streak_days}d</span>
                   </div>
@@ -275,9 +293,9 @@ export default function LeaderboardPage() {
                 <p className="text-sm text-slate-400">No one&apos;s running 5+ active candidates right now.</p>
               ) : (
                 activeCandidates.map((entry, i) => (
-                  <div key={`${entry.first_name}-${entry.last_name}-${i}`} className="flex items-center justify-between text-sm">
+                  <div key={`${entry.user_id}-${i}`} className="flex items-center justify-between text-sm">
                     <span className="text-slate-200">
-                      {personName(entry)} <span className="text-xs text-slate-500">({entry.team})</span>
+                      <PersonLink entry={entry} /> <span className="text-xs text-slate-500">({entry.team})</span>
                     </span>
                     <span className="pill pill-amber">{entry.active_count}</span>
                   </div>
@@ -293,9 +311,9 @@ export default function LeaderboardPage() {
                     <p className="text-sm text-slate-400">No one&apos;s hit Core 300 yet this month.</p>
                   ) : (
                     core300.map((entry, i) => (
-                      <div key={`${entry.first_name}-${entry.last_name}-${i}`} className="flex items-center justify-between text-sm">
+                      <div key={`${entry.user_id}-${i}`} className="flex items-center justify-between text-sm">
                         <span className="text-slate-200">
-                          {i + 1}. {personName(entry)}{" "}
+                          {i + 1}. <PersonLink entry={entry} />{" "}
                           <span className="text-xs text-slate-500">({entry.team})</span>
                         </span>
                         <span className="pill pill-amber">{entry.pv} PV</span>
@@ -310,9 +328,9 @@ export default function LeaderboardPage() {
                     <p className="text-sm text-slate-400">No one&apos;s over 100 PV on a day 1 Ditto yet.</p>
                   ) : (
                     ditto.map((entry, i) => (
-                      <div key={`${entry.first_name}-${entry.last_name}-${i}`} className="flex items-center justify-between text-sm">
+                      <div key={`${entry.user_id}-${i}`} className="flex items-center justify-between text-sm">
                         <span className="text-slate-200">
-                          {i + 1}. {personName(entry)}{" "}
+                          {i + 1}. <PersonLink entry={entry} />{" "}
                           <span className="text-xs text-slate-500">({entry.team})</span>
                         </span>
                         <span className="pill pill-amber">{entry.day1_ditto_pv} PV</span>
