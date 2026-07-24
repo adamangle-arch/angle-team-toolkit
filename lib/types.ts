@@ -90,6 +90,7 @@ export type Candidate = {
   name: string;
   current_step: number;
   notes: string;
+  connected_date: string;
   launched: boolean;
   filtered_out: boolean;
   created_at: string;

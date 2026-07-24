@@ -7,6 +7,7 @@ import { isPrimaryUser } from "@/lib/constants";
 
 const NAV_ITEMS = [
   { href: "/pipeline", label: "Pipeline", icon: "📊" },
+  { href: "/history", label: "History", icon: "🗂️" },
   { href: "/contacts", label: "Contacts", icon: "📇" },
   { href: "/streak", label: "Run Streak", icon: "🔥" },
   { href: "/volume", label: "Volume", icon: "📦" },

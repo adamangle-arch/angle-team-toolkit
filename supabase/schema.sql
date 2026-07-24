@@ -64,21 +64,29 @@ create table pipeline_periods (
 
 -- ============================================================
 -- 2. CANDIDATE ROADMAP
--- current_step is an index (0-8) into the 9 roadmap steps defined in
--- lib/constants.ts. A candidate can end up Launched or Filtered Out;
--- both are independent flags so either can be reversed later.
+-- current_step is an index (0-9) into the 10 roadmap steps defined in
+-- lib/constants.ts (step 0 is "Yes," before a QI1 is booked). A
+-- candidate only counts as "active in the pipeline" once current_step
+-- >= ACTIVE_PIPELINE_MIN_STEP (1, i.e. QI1 booked or beyond). A candidate
+-- can end up Launched or Filtered Out; both are independent flags so
+-- either can be reversed later.
 -- ============================================================
 create table candidates (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
   name text not null,
-  current_step int not null default 0 check (current_step between 0 and 8),
+  current_step int not null default 0 check (current_step between 0 and 9),
   notes text not null default '',
+  connected_date date not null default current_date,
   launched boolean not null default false,
   filtered_out boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- Additive: lets a re-run of this section pick up connected_date on a
+-- table that already existed before it was added.
+alter table candidates add column if not exists connected_date date not null default current_date;
 
 -- ============================================================
 -- 3. A/B CONTACT LIST
@@ -417,8 +425,9 @@ $$;
 
 grant execute on function public.get_core300_leaderboard(date) to authenticated;
 
--- Everyone currently running 5+ active candidates (not launched, not
--- filtered out) through the roadmap, ranked by how many.
+-- Everyone currently running 5+ active candidates through the roadmap
+-- (not launched, not filtered out, and a QI1 has actually been booked —
+-- current_step >= 1), ranked by how many.
 create or replace function public.get_active_candidates_leaderboard()
 returns table (
   first_name text,
@@ -435,7 +444,7 @@ as $$
   from (
     select user_id, count(*)::int as active_count
     from candidates
-    where launched = false and filtered_out = false
+    where launched = false and filtered_out = false and current_step >= 1
     group by user_id
     having count(*) >= 5
   ) cc

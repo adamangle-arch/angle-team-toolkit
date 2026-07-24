@@ -2,8 +2,8 @@
 
 A mobile-friendly activity tracker for a network marketing team, built with
 Next.js (App Router) and Supabase. Tabs for each part of the day-to-day
-workflow: Pipeline Tracker (which also holds the Candidate Roadmap and a
-full candidate history table), Contacts, Core Run Streak, Volume, a
+workflow: Pipeline Tracker (which also holds the active Candidate Roadmap),
+a separate Candidate History tab, Contacts, Core Run Streak, Volume, a
 Leaderboard, a Role-Play Coach for practicing A-list/B-list/C-list
 conversations, and a Resources hub (Products, Scripts & FAQ, Process Guide,
 Leaders, Acquisition, Audio & Book Library). Everyone signs in with their own
@@ -129,14 +129,29 @@ months to see past numbers.
 
 ### Candidate Roadmap
 
-The Candidate Roadmap now lives on the **Pipeline Tracker** tab, underneath
-the pipeline counters, rather than its own tab. Marking a candidate
-"Filtered Out" removes them from the active roadmap board immediately —
-they're not deleted from the database, just hidden from the working
-list — and every candidate you've ever added (active, launched, or
-filtered out, and exactly which step they filtered out at) stays visible
-in the **Candidate History** table at the bottom of the page, with a
-Restore option for anything settled by mistake.
+The active Candidate Roadmap lives on the **Pipeline Tracker** tab,
+underneath the pipeline counters. A new candidate starts at step 0, **Yes**
+(they said yes, but no QI1 is booked yet) — advancing them to step 1, QI1,
+is what makes them count as "active in the pipeline." That count shows at
+the top of the Candidate Roadmap section, and the same threshold
+(`ACTIVE_PIPELINE_MIN_STEP` in `lib/constants.ts`) is what the Leaderboard's
+5+ Active Candidates section uses.
+
+Each candidate also has a **Connected** date (defaults to today when
+added, editable anytime). Marking a candidate "Filtered Out" removes them
+from the active roadmap board immediately — they're not deleted from the
+database, just hidden from the working list. Every candidate you've ever
+added (active, launched, or filtered out, and exactly which step they
+filtered out at) lives on its own **Candidate History** tab, ordered by
+connected date, with a Restore option for anything settled by mistake.
+
+**Upgrading an existing project:** the roadmap steps shifted by one
+position to make room for the new "Yes" step at index 0 — run this once
+(not part of the reusable schema.sql patches) so existing candidates keep
+pointing at the same step they were actually on:
+```sql
+update candidates set current_step = current_step + 1;
+```
 
 Personal Circle PV lives on its own **Volume** tab: each person self-reports
 their own current-month PV there (stored in the additive `monthly_pv`

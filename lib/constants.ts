@@ -38,8 +38,11 @@ export const PIPELINE_STAGES = [
 
 export type PipelineStageKey = (typeof PIPELINE_STAGES)[number]["key"];
 
-// Candidate Roadmap: ordered steps with homework due at each step
+// Candidate Roadmap: ordered steps with homework due at each step.
+// A candidate only counts toward "active in the pipeline" once they've
+// moved past step 0 (Yes) — i.e. once a QI1 is actually booked.
 export const CANDIDATE_STEPS: { label: string; homework: string }[] = [
+  { label: "Yes", homework: "Get a QI1 booked with them." },
   { label: "QI1", homework: "Send the intro video/audio before the call." },
   { label: "QI2", homework: "Listen to a testimonial audio before the call." },
   {
@@ -65,6 +68,10 @@ export const CANDIDATE_STEPS: { label: string; homework: string }[] = [
     homework: "Decide together and confirm next steps.",
   },
 ];
+
+// The step index a candidate must reach to count as "active in the
+// pipeline" — index 1 is QI1, so this is "QI1 booked or beyond."
+export const ACTIVE_PIPELINE_MIN_STEP = 1;
 
 // A/B Contact List: pipeline status dropdown options
 export const CONTACT_STATUSES = [

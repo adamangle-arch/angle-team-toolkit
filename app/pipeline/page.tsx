@@ -4,7 +4,12 @@ import { useEffect, useState } from "react";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
-import { PIPELINE_STAGES, CANDIDATE_STEPS, type PipelineStageKey } from "@/lib/constants";
+import {
+  PIPELINE_STAGES,
+  CANDIDATE_STEPS,
+  ACTIVE_PIPELINE_MIN_STEP,
+  type PipelineStageKey,
+} from "@/lib/constants";
 import { getMonthStart, getWeekStart, formatDateLabel } from "@/lib/dates";
 import type { PipelinePeriod, Candidate } from "@/lib/types";
 
@@ -130,9 +135,12 @@ export default function PipelinePage() {
   const launches = period?.launches ?? 0;
 
   // Filtered-out candidates disappear from the active roadmap once they're
-  // filtered out — they only live on in the Candidate History table below.
+  // filtered out — they only live on in the Candidate History tab.
   const active = candidates.filter((c) => !c.launched && !c.filtered_out);
   const launched = candidates.filter((c) => c.launched);
+  const activeInPipelineCount = active.filter(
+    (c) => c.current_step >= ACTIVE_PIPELINE_MIN_STEP
+  ).length;
 
   return (
     <>
@@ -224,7 +232,10 @@ export default function PipelinePage() {
           </div>
         )}
 
-        <p className="section-title px-1 pt-2">Candidate Roadmap</p>
+        <div className="flex items-center justify-between px-1 pt-2">
+          <p className="section-title">Candidate Roadmap</p>
+          <span className="pill pill-amber">{activeInPipelineCount} active in pipeline</span>
+        </div>
 
         <div className="card space-y-2">
           <p className="section-title">Add Candidate</p>
@@ -280,59 +291,6 @@ export default function PipelinePage() {
             )}
           </>
         )}
-
-        {candidates.length > 0 && (
-          <div className="card space-y-2">
-            <p className="section-title">Candidate History</p>
-            <p className="text-xs text-slate-400">
-              Every candidate you&apos;ve ever added, including where they filtered out.
-            </p>
-            <div className="no-scrollbar overflow-x-auto">
-              <table className="w-full min-w-[420px] text-left text-xs">
-                <thead>
-                  <tr className="text-slate-500">
-                    <th className="pb-1 pr-2 font-medium">Name</th>
-                    <th className="pb-1 pr-2 font-medium">Status</th>
-                    <th className="pb-1 pr-2 font-medium">Notes</th>
-                    <th className="pb-1 font-medium"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {candidates.map((c) => {
-                    const step = CANDIDATE_STEPS[c.current_step];
-                    return (
-                      <tr key={c.id} className="border-t border-white/5">
-                        <td className="py-1.5 pr-2 font-medium text-white">{c.name}</td>
-                        <td className="py-1.5 pr-2 text-slate-300">
-                          {c.launched
-                            ? "Launched 🎉"
-                            : c.filtered_out
-                              ? `Filtered Out — ${step.label}`
-                              : `Active — ${step.label}`}
-                        </td>
-                        <td className="max-w-[160px] truncate py-1.5 pr-2 text-slate-400">
-                          {c.notes || "—"}
-                        </td>
-                        <td className="py-1.5">
-                          {(c.launched || c.filtered_out) && (
-                            <button
-                              className="pill"
-                              onClick={() =>
-                                updateCandidate(c.id, { launched: false, filtered_out: false })
-                              }
-                            >
-                              Restore
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
       </main>
     </>
   );
@@ -357,7 +315,7 @@ function CandidateCard({
         <div>
           <p className="font-semibold text-white">{candidate.name}</p>
           <p className="pill-amber mt-1">
-            Step {candidate.current_step + 1}/9: {step.label}
+            Step {candidate.current_step + 1}/{CANDIDATE_STEPS.length}: {step.label}
           </p>
         </div>
         {!isSettled ? (
@@ -389,6 +347,16 @@ function CandidateCard({
         <span className="font-medium text-slate-300">Homework: </span>
         {step.homework}
       </p>
+
+      <label className="flex items-center gap-2 text-xs text-slate-400">
+        <span className="shrink-0 font-medium text-slate-300">Connected:</span>
+        <input
+          type="date"
+          className="input"
+          value={candidate.connected_date}
+          onChange={(e) => onUpdate(candidate.id, { connected_date: e.target.value })}
+        />
+      </label>
 
       <div className="flex items-center gap-2">
         <button
