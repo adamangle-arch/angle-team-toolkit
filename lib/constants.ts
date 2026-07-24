@@ -84,6 +84,65 @@ export const STREAK_MILESTONES = [
   { days: 365, label: "1 Year" },
 ] as const;
 
+// Onboarding: session 1 is unlocked for everyone from signup; each
+// further session requires an explicit grant from an upline or admin
+// (see grant_next_onboarding_session() in supabase/schema.sql). This is
+// placeholder content — swap in your real videos/reading/checklists.
+export type OnboardingResource = {
+  label: string;
+  detail: string;
+};
+
+export type OnboardingSession = {
+  title: string;
+  description: string;
+  resources: OnboardingResource[];
+};
+
+export const ONBOARDING_SESSIONS: OnboardingSession[] = [
+  {
+    title: "Session 1: Welcome & Getting Started",
+    description: "The basics — what to expect, mindset, and your first steps.",
+    resources: [
+      { label: "🎥 Welcome Video", detail: "Replace with your real welcome video link." },
+      { label: "📖 Read", detail: "Replace with your onboarding reading assignment." },
+      { label: "✅ First Steps Checklist", detail: "Replace with your actual first-steps checklist." },
+    ],
+  },
+  {
+    title: "Session 2: Building Your List",
+    description: "How to build and organize your A/B contact list.",
+    resources: [
+      { label: "🎥 Training Video", detail: "Replace with your list-building training link." },
+      { label: "📖 Read", detail: "Replace with your assigned reading." },
+    ],
+  },
+  {
+    title: "Session 3: The Invite",
+    description: "How to invite confidently and handle common responses.",
+    resources: [
+      { label: "🎥 Training Video", detail: "Replace with your invite training link." },
+      { label: "🎧 Audio", detail: "Replace with your invite-scripts audio." },
+    ],
+  },
+  {
+    title: "Session 4: Presenting & Follow-Up",
+    description: "Running QI1/QI2 and following up effectively.",
+    resources: [
+      { label: "🎥 Training Video", detail: "Replace with your presentation training link." },
+      { label: "📖 Read", detail: "Replace with your follow-up reading assignment." },
+    ],
+  },
+  {
+    title: "Session 5: Launch & Beyond",
+    description: "Getting your new team member launched and building momentum.",
+    resources: [
+      { label: "🎥 Training Video", detail: "Replace with your launch training link." },
+      { label: "✅ Launch Checklist", detail: "Replace with your actual launch checklist." },
+    ],
+  },
+];
+
 // A/B Contact List: pipeline status dropdown options
 export const CONTACT_STATUSES = [
   "Not yet asked",

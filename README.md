@@ -332,6 +332,26 @@ like to add/remove, readable by anyone) plus `get_likers()` to resolve
 names, since leaderboard rows themselves are computed on the fly rather
 than stored records.
 
+### Onboarding
+
+A new **Onboarding** tab walks new team members through a series of
+sessions (Welcome, Building Your List, The Invite, Presenting &
+Follow-Up, Launch & Beyond — placeholder titles/resources in
+`lib/constants.ts`'s `ONBOARDING_SESSIONS`, swap in your real
+videos/reading/checklists there). Session 1 is unlocked for everyone from
+signup; unlocking each further session is a manual approval step — an
+upline (any level) or admin taps **Unlock Next** on that person's entry
+on the **Team** tab, calling `grant_next_onboarding_session()`. Locked
+sessions still show their title and description so people know what's
+coming, just not the resources inside.
+
+This is deliberately not automatic (e.g. not tied to completing a
+checklist) — it's an explicit "I'm confirming this person is ready for
+the next session" action by their upline, backed by
+`profiles.onboarding_unlocked_through` (defaults to 1, incremented one at
+a time, same authorization check as account deletion: upline-of or
+admin).
+
 ### Milestone Alerts
 
 Separate from the milestone badges on a public profile, the Leaderboard

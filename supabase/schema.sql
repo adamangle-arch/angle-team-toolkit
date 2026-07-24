@@ -224,6 +224,12 @@ alter table profiles add column if not exists profile_prompted boolean not null 
 -- instead of their own, so the two logins share one set of numbers.
 -- Self-service via link_spouse() below; only one side ever sets this
 -- (the side that "defers" to the other), so there's no cycle to resolve.
+-- Additive: onboarding session gating. Session 1 is available to everyone
+-- from signup; unlocking further sessions requires an explicit grant from
+-- an upline (any level) or admin via grant_next_onboarding_session()
+-- below — it's a manual approval step, not automatic on completion.
+alter table profiles add column if not exists onboarding_unlocked_through int not null default 1;
+
 alter table profiles add column if not exists household_id uuid references auth.users(id);
 alter table profiles drop constraint if exists profiles_household_not_self;
 alter table profiles add constraint profiles_household_not_self check (household_id is null or household_id <> id);
@@ -395,6 +401,31 @@ end;
 $$;
 
 grant execute on function public.delete_downline_account(uuid) to authenticated;
+
+-- Unlocks the next Onboarding session for a downline member. Only their
+-- upline (any level) or an admin can do this — it's a manual approval
+-- step, never automatic. There's no upper bound checked here (the total
+-- session count only lives in the app's ONBOARDING_SESSIONS constant);
+-- the client clamps display so an extra grant past the last session is
+-- harmless.
+create or replace function public.grant_next_onboarding_session(p_user_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not (public.is_app_admin() or public.is_upline_of(auth.uid(), p_user_id)) then
+    raise exception 'Not authorized to grant onboarding access for this account.';
+  end if;
+
+  update profiles
+  set onboarding_unlocked_through = onboarding_unlocked_through + 1
+  where id = p_user_id;
+end;
+$$;
+
+grant execute on function public.grant_next_onboarding_session(uuid) to authenticated;
 
 create or replace function public.handle_new_user()
 returns trigger

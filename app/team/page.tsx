@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
-import { isPrimaryUser, PIPELINE_STAGES, CANDIDATE_STEPS } from "@/lib/constants";
+import { isPrimaryUser, PIPELINE_STAGES, CANDIDATE_STEPS, ONBOARDING_SESSIONS } from "@/lib/constants";
 import { getMonthStart, getWeekStart, formatDateLabel } from "@/lib/dates";
 import type {
   Profile,
@@ -77,6 +77,9 @@ export default function TeamPage() {
   const [confirmEmail, setConfirmEmail] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+
+  const [grantingOnboarding, setGrantingOnboarding] = useState(false);
+  const [grantError, setGrantError] = useState("");
 
   useEffect(() => {
     async function load() {
@@ -193,6 +196,28 @@ export default function TeamPage() {
     setSyncedSelectedId(selectedId);
     setConfirmEmail("");
     setDeleteError("");
+  }
+
+  async function handleGrantOnboarding() {
+    if (!selectedId) return;
+    setGrantingOnboarding(true);
+    setGrantError("");
+    const { error } = await supabase.rpc("grant_next_onboarding_session", {
+      p_user_id: selectedId,
+    });
+    if (error) {
+      setGrantError(error.message);
+      setGrantingOnboarding(false);
+      return;
+    }
+    setProfiles((prev) =>
+      prev.map((p) =>
+        p.id === selectedId
+          ? { ...p, onboarding_unlocked_through: (p.onboarding_unlocked_through ?? 1) + 1 }
+          : p
+      )
+    );
+    setGrantingOnboarding(false);
   }
 
   async function handleDelete() {
@@ -428,6 +453,33 @@ export default function TeamPage() {
                     </div>
                   )}
                 </div>
+
+                {selectedId !== user.id && (
+                  <div className="card flex items-center justify-between gap-2">
+                    <div>
+                      <p className="section-title">🎓 Onboarding</p>
+                      <p className="text-xs text-slate-400">
+                        {Math.min(
+                          selectedProfile?.onboarding_unlocked_through ?? 1,
+                          ONBOARDING_SESSIONS.length
+                        )}
+                        /{ONBOARDING_SESSIONS.length} sessions unlocked
+                      </p>
+                      {grantError && <p className="text-xs text-red-400">{grantError}</p>}
+                    </div>
+                    <button
+                      className="btn-primary shrink-0"
+                      onClick={handleGrantOnboarding}
+                      disabled={
+                        grantingOnboarding ||
+                        (selectedProfile?.onboarding_unlocked_through ?? 1) >=
+                          ONBOARDING_SESSIONS.length
+                      }
+                    >
+                      {grantingOnboarding ? "Unlocking…" : "Unlock Next"}
+                    </button>
+                  </div>
+                )}
 
                 {selectedId !== user.id && (
                   <div className="card space-y-2 !border-red-500/40">

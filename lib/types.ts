@@ -20,6 +20,7 @@ export type Profile = {
   household_id: string | null;
   account_number: string | null;
   upline_id: string | null;
+  onboarding_unlocked_through: number;
   created_at: string;
 };
 
