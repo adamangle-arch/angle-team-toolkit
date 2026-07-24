@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import PageHeader from "@/components/PageHeader";
-import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import {
   getWeekStart,
@@ -34,7 +33,6 @@ function leadingTeams(teams: TeamTotals[], key: PipelineStageKey): TeamTotals[] 
 }
 
 export default function LeaderboardPage() {
-  const { user } = useAuth();
   const [periodType, setPeriodType] = useState<PeriodType>("weekly");
   const [monthsBack, setMonthsBack] = useState(0);
 
@@ -45,9 +43,6 @@ export default function LeaderboardPage() {
   const [individualLeaders, setIndividualLeaders] = useState<IndividualLeaderEntry[]>([]);
   const [streakLeaders, setStreakLeaders] = useState<StreakLeaderboardEntry[]>([]);
   const [core300, setCore300] = useState<Core300Entry[]>([]);
-  const [myPv, setMyPv] = useState(0);
-  const [pvInput, setPvInput] = useState("0");
-  const [savingPv, setSavingPv] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -94,42 +89,17 @@ export default function LeaderboardPage() {
     let cancelled = false;
 
     async function load() {
-      const [{ data: core }, { data: mine }] = await Promise.all([
-        supabase.rpc("get_core300_leaderboard", { p_period_start: periodStart }),
-        supabase
-          .from("monthly_pv")
-          .select("*")
-          .eq("user_id", user.id)
-          .eq("period_start", periodStart)
-          .maybeSingle(),
-      ]);
-
-      if (!cancelled) {
-        setCore300((core as Core300Entry[]) ?? []);
-        const pv = mine?.pv ?? 0;
-        setMyPv(pv);
-        setPvInput(String(pv));
-      }
+      const { data: core } = await supabase.rpc("get_core300_leaderboard", {
+        p_period_start: periodStart,
+      });
+      if (!cancelled) setCore300((core as Core300Entry[]) ?? []);
     }
 
     load();
     return () => {
       cancelled = true;
     };
-  }, [periodType, periodStart, user.id]);
-
-  async function savePv() {
-    const pv = Math.max(0, parseInt(pvInput, 10) || 0);
-    setSavingPv(true);
-    await supabase
-      .from("monthly_pv")
-      .upsert(
-        { user_id: user.id, period_start: periodStart, pv, updated_at: new Date().toISOString() },
-        { onConflict: "user_id,period_start" }
-      );
-    setMyPv(pv);
-    setSavingPv(false);
-  }
+  }, [periodType, periodStart]);
 
   const individualsByCategory = new Map<PipelineStageKey, IndividualLeaderEntry[]>();
   for (const entry of individualLeaders) {
@@ -253,44 +223,22 @@ export default function LeaderboardPage() {
             </div>
 
             {periodType === "monthly" && (
-              <>
-                <div className="card space-y-2">
-                  <p className="section-title">Your Personal Circle PV</p>
-                  {monthsBack === 0 ? (
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        min={0}
-                        className="input"
-                        value={pvInput}
-                        onChange={(e) => setPvInput(e.target.value)}
-                      />
-                      <button className="btn-primary shrink-0" onClick={savePv} disabled={savingPv}>
-                        {savingPv ? "Saving…" : "Save"}
-                      </button>
+              <div className="card space-y-1.5">
+                <p className="section-title">Core 300</p>
+                {core300.length === 0 ? (
+                  <p className="text-sm text-slate-400">No one&apos;s hit Core 300 yet this month.</p>
+                ) : (
+                  core300.map((entry, i) => (
+                    <div key={`${entry.first_name}-${entry.last_name}-${i}`} className="flex items-center justify-between text-sm">
+                      <span className="text-slate-200">
+                        {i + 1}. {personName(entry)}{" "}
+                        <span className="text-xs text-slate-500">({entry.team})</span>
+                      </span>
+                      <span className="pill pill-amber">{entry.pv} PV</span>
                     </div>
-                  ) : (
-                    <p className="text-2xl font-bold text-amber">{myPv} PV</p>
-                  )}
-                </div>
-
-                <div className="card space-y-1.5">
-                  <p className="section-title">Core 300</p>
-                  {core300.length === 0 ? (
-                    <p className="text-sm text-slate-400">No one&apos;s hit Core 300 yet this month.</p>
-                  ) : (
-                    core300.map((entry, i) => (
-                      <div key={`${entry.first_name}-${entry.last_name}-${i}`} className="flex items-center justify-between text-sm">
-                        <span className="text-slate-200">
-                          {i + 1}. {personName(entry)}{" "}
-                          <span className="text-xs text-slate-500">({entry.team})</span>
-                        </span>
-                        <span className="pill pill-amber">{entry.pv} PV</span>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </>
+                  ))
+                )}
+              </div>
             )}
           </>
         )}

@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { href: "/candidates", label: "Roadmap", icon: "🧭" },
   { href: "/contacts", label: "Contacts", icon: "📇" },
   { href: "/streak", label: "Run Streak", icon: "🔥" },
+  { href: "/volume", label: "Volume", icon: "📦" },
   { href: "/leaderboard", label: "Leaderboard", icon: "🏆" },
   { href: "/assistant", label: "Assistant", icon: "🤖" },
   { href: "/library", label: "Resources", icon: "📚" },

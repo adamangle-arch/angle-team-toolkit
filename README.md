@@ -124,12 +124,12 @@ Weeks run Monday–Sunday and months reset on the calendar month, not a
 rolling 30 days; the monthly view can page back up to 12 months to see past
 numbers.
 
-Monthly view also has a **Personal Circle PV** section: each person can
-self-report their own monthly PV (stored in the additive `monthly_pv`
-table, same owner-or-primary-user RLS pattern as everything else), editable
-only for the current month — past months show read-only history. Anyone at
-300+ PV for that month shows up in a **Core 300** ranking underneath,
-sorted by PV.
+Personal Circle PV lives on its own **Volume** tab: each person self-reports
+their own current-month PV there (stored in the additive `monthly_pv`
+table, same owner-or-primary-user RLS pattern as everything else), with
+their last 6 months shown underneath for reference. Anyone at 300+ PV for
+the month shows up in the Leaderboard's **Core 300** ranking, visible to
+everyone and sorted by PV.
 
 By default Supabase requires email confirmation on signup; see step 2 above
 if you want teammates to be able to log in immediately after creating an
