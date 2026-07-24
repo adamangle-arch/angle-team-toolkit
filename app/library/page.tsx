@@ -3,14 +3,88 @@
 import { useMemo, useState } from "react";
 import PageHeader from "@/components/PageHeader";
 import { AUDIOS, FIRST_YEAR_BOOKS, ADVANCED_LIBRARY } from "@/lib/library-data";
+import { LEADERS } from "@/lib/leaders-data";
+import { PRODUCTS, PV_REFERENCE, STARTER_STACKS } from "@/lib/product-data";
+import { SCRIPTS } from "@/lib/scripts-data";
+import { PROCESS_STAGES, QUESTIONNAIRE_QUESTIONS, FIRST_MONTH_TARGETS } from "@/lib/process-data";
+import { SAMPLE_BAG_GUIDE, SURVEY_QUESTIONS, SURVEY_APPOINTMENT_FLOW } from "@/lib/acquisition-data";
 
-type Tab = "audios" | "books";
+type Section = "audios" | "books" | "leaders" | "products" | "scripts" | "process" | "acquisition";
+
+const SECTIONS: { key: Section; label: string }[] = [
+  { key: "audios", label: "Audios" },
+  { key: "books", label: "Books" },
+  { key: "leaders", label: "Leaders" },
+  { key: "products", label: "Products" },
+  { key: "scripts", label: "Scripts & FAQ" },
+  { key: "process", label: "Process" },
+  { key: "acquisition", label: "Acquisition" },
+];
 
 export default function LibraryPage() {
-  const [tab, setTab] = useState<Tab>("audios");
+  const [section, setSection] = useState<Section>("audios");
   const [query, setQuery] = useState("");
 
-  const filteredAudios = useMemo(() => {
+  return (
+    <>
+      <PageHeader title="Resources" subtitle="Everything the team needs to reference" />
+      <main className="page-main">
+        <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+          {SECTIONS.map((s) => (
+            <button
+              key={s.key}
+              onClick={() => {
+                setSection(s.key);
+                setQuery("");
+              }}
+              className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                section === s.key ? "bg-amber text-navy" : "bg-white/10 text-slate-300"
+              }`}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+
+        {section === "audios" && <AudiosSection query={query} setQuery={setQuery} />}
+        {section === "books" && <BooksSection />}
+        {section === "leaders" && <LeadersSection query={query} setQuery={setQuery} />}
+        {section === "products" && <ProductsSection query={query} setQuery={setQuery} />}
+        {section === "scripts" && <ScriptsSection query={query} setQuery={setQuery} />}
+        {section === "process" && <ProcessSection />}
+        {section === "acquisition" && <AcquisitionSection />}
+      </main>
+    </>
+  );
+}
+
+function SearchBox({
+  query,
+  setQuery,
+  placeholder,
+}: {
+  query: string;
+  setQuery: (v: string) => void;
+  placeholder: string;
+}) {
+  return (
+    <input
+      className="input"
+      placeholder={placeholder}
+      value={query}
+      onChange={(e) => setQuery(e.target.value)}
+    />
+  );
+}
+
+function AudiosSection({
+  query,
+  setQuery,
+}: {
+  query: string;
+  setQuery: (v: string) => void;
+}) {
+  const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return AUDIOS;
     return AUDIOS.filter(
@@ -24,97 +98,352 @@ export default function LibraryPage() {
 
   return (
     <>
-      <PageHeader title="Audio & Book Library" subtitle="Search by title, speaker, or topic" />
-      <main className="page-main">
-        <div className="card flex p-1">
-          <button
-            className={tab === "audios" ? "toggle-pill-active" : "toggle-pill-inactive"}
-            onClick={() => setTab("audios")}
-          >
-            Audios
-          </button>
-          <button
-            className={tab === "books" ? "toggle-pill-active" : "toggle-pill-inactive"}
-            onClick={() => setTab("books")}
-          >
-            Books
-          </button>
-        </div>
-
-        {tab === "audios" ? (
-          <>
-            <input
-              className="input"
-              placeholder="Search audios (e.g. 'discouraged', 'posture', 'Winston')…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-            <p className="px-1 text-xs text-slate-500">
-              {filteredAudios.length} audio{filteredAudios.length === 1 ? "" : "s"}
-            </p>
-            <div className="space-y-2">
-              {filteredAudios.map((audio) => (
-                <div key={audio.title} className="card space-y-1.5">
-                  <div>
-                    <p className="font-semibold text-white">{audio.title}</p>
-                    <p className="text-xs text-slate-400">{audio.speaker}</p>
-                  </div>
-                  <p className="text-sm text-slate-300">{audio.summary}</p>
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {audio.tags.map((t) => (
-                      <span key={t} className="pill">
-                        {t}
-                      </span>
-                    ))}
-                  </div>
-                </div>
+      <SearchBox query={query} setQuery={setQuery} placeholder="Search audios (title, speaker, topic)…" />
+      <p className="px-1 text-xs text-slate-500">
+        {filtered.length} audio{filtered.length === 1 ? "" : "s"}
+      </p>
+      <div className="space-y-2">
+        {filtered.map((audio) => (
+          <div key={audio.title} className="card space-y-1.5">
+            <div>
+              <p className="font-semibold text-white">{audio.title}</p>
+              <p className="text-xs text-slate-400">{audio.speaker}</p>
+            </div>
+            <p className="text-sm text-slate-300">{audio.summary}</p>
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {audio.tags.map((t) => (
+                <span key={t} className="pill">
+                  {t}
+                </span>
               ))}
-              {filteredAudios.length === 0 && (
-                <div className="empty-state">No audios match that search.</div>
-              )}
             </div>
-          </>
-        ) : (
-          <>
-            <div className="card space-y-2">
-              <p className="section-title">First Year Reading</p>
-              <p className="text-xs text-slate-400">
-                Complete these before offering a new person a partnership.
-              </p>
-              <div className="space-y-1">
-                {FIRST_YEAR_BOOKS.map((b) => (
-                  <div key={b.title} className="flex items-center justify-between text-sm">
-                    <span className="text-slate-200">{b.title}</span>
-                    <span className="text-xs text-slate-500">{b.author}</span>
-                  </div>
-                ))}
-              </div>
+          </div>
+        ))}
+        {filtered.length === 0 && <div className="empty-state">No audios match that search.</div>}
+      </div>
+    </>
+  );
+}
+
+function BooksSection() {
+  return (
+    <>
+      <div className="card space-y-2">
+        <p className="section-title">First Year Reading</p>
+        <p className="text-xs text-slate-400">Complete these before offering a new person a partnership.</p>
+        <div className="space-y-1">
+          {FIRST_YEAR_BOOKS.map((b) => (
+            <div key={b.title} className="flex items-center justify-between text-sm">
+              <span className="text-slate-200">{b.title}</span>
+              <span className="text-xs text-slate-500">{b.author}</span>
             </div>
+          ))}
+        </div>
+      </div>
 
-            <p className="px-1 text-xs text-slate-500">
-              Advanced Leadership Library — for after the first-year list, matched to what
-              someone needs right now rather than in a fixed order.
-            </p>
+      <p className="px-1 text-xs text-slate-500">
+        Advanced Leadership Library — matched to what someone needs right now rather than a fixed order.
+      </p>
 
-            {ADVANCED_LIBRARY.map((group) => (
-              <div key={group.category} className="card space-y-2">
-                <div>
-                  <p className="section-title">{group.category}</p>
-                  <p className="text-xs text-slate-400">{group.whenToRecommend}</p>
-                </div>
-                <div className="space-y-1">
-                  {group.books.map((b) => (
-                    <div key={b.title} className="flex items-center justify-between text-sm">
-                      <span className="text-slate-200">{b.title}</span>
-                      {b.author && <span className="text-xs text-slate-500">{b.author}</span>}
-                    </div>
-                  ))}
-                </div>
+      {ADVANCED_LIBRARY.map((group) => (
+        <div key={group.category} className="card space-y-2">
+          <div>
+            <p className="section-title">{group.category}</p>
+            <p className="text-xs text-slate-400">{group.whenToRecommend}</p>
+          </div>
+          <div className="space-y-1">
+            {group.books.map((b) => (
+              <div key={b.title} className="flex items-center justify-between text-sm">
+                <span className="text-slate-200">{b.title}</span>
+                {b.author && <span className="text-xs text-slate-500">{b.author}</span>}
               </div>
             ))}
-          </>
-        )}
-      </main>
+          </div>
+        </div>
+      ))}
+    </>
+  );
+}
+
+function LeadersSection({
+  query,
+  setQuery,
+}: {
+  query: string;
+  setQuery: (v: string) => void;
+}) {
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return LEADERS;
+    return LEADERS.filter(
+      (l) =>
+        l.name.toLowerCase().includes(q) ||
+        l.location.toLowerCase().includes(q) ||
+        l.occupations.toLowerCase().includes(q) ||
+        l.themes.some((t) => t.toLowerCase().includes(q))
+    );
+  }, [query]);
+
+  return (
+    <>
+      <SearchBox query={query} setQuery={setQuery} placeholder="Search by name, location, or occupation…" />
+      <p className="px-1 text-xs text-slate-500">
+        Use naturally and sparingly — relatability, not hero worship.
+      </p>
+      <div className="space-y-2">
+        {filtered.map((l) => (
+          <div key={l.name} className="card space-y-1">
+            <div className="flex items-start justify-between gap-2">
+              <p className="font-semibold text-white">{l.name}</p>
+              <span className="pill shrink-0">{l.group}</span>
+            </div>
+            <p className="text-xs text-slate-400">
+              {l.location} · {l.occupations}
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {l.themes.map((t) => (
+                <span key={t} className="pill">
+                  {t}
+                </span>
+              ))}
+            </div>
+            {l.note && <p className="text-xs text-slate-500">{l.note}</p>}
+          </div>
+        ))}
+        {filtered.length === 0 && <div className="empty-state">No leaders match that search.</div>}
+      </div>
+    </>
+  );
+}
+
+function ProductsSection({
+  query,
+  setQuery,
+}: {
+  query: string;
+  setQuery: (v: string) => void;
+}) {
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return PRODUCTS;
+    return PRODUCTS.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        p.brand.toLowerCase().includes(q) ||
+        p.summary.toLowerCase().includes(q) ||
+        p.bestFor.toLowerCase().includes(q)
+    );
+  }, [query]);
+
+  return (
+    <>
+      <SearchBox query={query} setQuery={setQuery} placeholder="Search products (name, brand, concern)…" />
+      <div className="space-y-2">
+        {filtered.map((p) => (
+          <div key={p.name} className="card space-y-1">
+            <div className="flex items-start justify-between gap-2">
+              <p className="font-semibold text-white">{p.name}</p>
+              <span className="pill-amber shrink-0">{p.brand}</span>
+            </div>
+            <p className="text-sm text-slate-300">{p.summary}</p>
+            <p className="text-xs text-slate-400">
+              <span className="font-medium text-slate-300">Best for: </span>
+              {p.bestFor}
+            </p>
+            {p.pv && <p className="text-xs text-amber-light">{p.pv}</p>}
+          </div>
+        ))}
+        {filtered.length === 0 && <div className="empty-state">No products match that search.</div>}
+      </div>
+
+      {!query && (
+        <>
+          <div className="card space-y-1.5">
+            <p className="section-title">PV Quick Reference</p>
+            {PV_REFERENCE.map((r) => (
+              <div key={r.item} className="flex items-center justify-between text-sm">
+                <span className="text-slate-200">{r.item}</span>
+                <span className="text-xs text-amber-light">{r.pv}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="card space-y-1.5">
+            <p className="section-title">Starter Stacks</p>
+            {STARTER_STACKS.map((s) => (
+              <div key={s.name} className="space-y-0.5 border-b border-white/5 pb-1.5 last:border-0">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-200">{s.name}</span>
+                  <span className="text-xs text-slate-500">{s.detail}</span>
+                </div>
+                <p className="text-xs text-slate-400">{s.bestFor}</p>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
+function ScriptsSection({
+  query,
+  setQuery,
+}: {
+  query: string;
+  setQuery: (v: string) => void;
+}) {
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return SCRIPTS;
+    return SCRIPTS.filter(
+      (s) =>
+        s.question.toLowerCase().includes(q) ||
+        s.answer.toLowerCase().includes(q) ||
+        s.category.toLowerCase().includes(q)
+    );
+  }, [query]);
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, typeof filtered>();
+    for (const s of filtered) {
+      const list = map.get(s.category) ?? [];
+      list.push(s);
+      map.set(s.category, list);
+    }
+    return Array.from(map.entries());
+  }, [filtered]);
+
+  return (
+    <>
+      <SearchBox query={query} setQuery={setQuery} placeholder="Search scripts, objections, comp plan…" />
+      {grouped.map(([category, items]) => (
+        <div key={category} className="card space-y-2">
+          <p className="section-title">{category}</p>
+          <div className="space-y-3">
+            {items.map((s) => (
+              <div key={s.question} className="space-y-1">
+                <p className="text-sm font-medium text-white">{s.question}</p>
+                <p className="text-sm text-slate-300">{s.answer}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+      {grouped.length === 0 && <div className="empty-state">Nothing matches that search.</div>}
+    </>
+  );
+}
+
+function ProcessSection() {
+  return (
+    <>
+      {PROCESS_STAGES.map((s) => (
+        <div key={s.stage} className="card space-y-2">
+          <p className="section-title">{s.stage}</p>
+          <p className="text-sm text-slate-300">{s.philosophy}</p>
+          {s.exampleQuestions && (
+            <div className="space-y-1 border-t border-white/10 pt-2">
+              <p className="text-xs font-medium text-slate-400">Example questions</p>
+              {s.exampleQuestions.map((q) => (
+                <p key={q} className="text-xs text-slate-400">
+                  &ldquo;{q}&rdquo;
+                </p>
+              ))}
+            </div>
+          )}
+          {s.homework && (
+            <p className="text-xs text-amber-light">
+              <span className="font-medium">Homework: </span>
+              {s.homework}
+            </p>
+          )}
+        </div>
+      ))}
+
+      <div className="card space-y-1.5">
+        <p className="section-title">Pre-Launch Questionnaire (official — don&apos;t alter)</p>
+        {QUESTIONNAIRE_QUESTIONS.map((q, i) => (
+          <p key={q} className="text-sm text-slate-300">
+            {i + 1}. {q}
+          </p>
+        ))}
+      </div>
+
+      <div className="card space-y-1.5">
+        <p className="section-title">Perfect First Month</p>
+        {FIRST_MONTH_TARGETS.map((t) => (
+          <p key={t} className="text-sm text-slate-300">
+            • {t}
+          </p>
+        ))}
+      </div>
+    </>
+  );
+}
+
+function AcquisitionSection() {
+  const [answers, setAnswers] = useState<Record<number, "yes" | "no" | null>>({});
+
+  return (
+    <>
+      <div className="card space-y-2">
+        <p className="section-title">Sample Bags</p>
+        <div className="space-y-3">
+          {SAMPLE_BAG_GUIDE.map((g) => (
+            <div key={g.title} className="space-y-1">
+              <p className="text-sm font-medium text-white">{g.title}</p>
+              <p className="text-sm text-slate-300">{g.content}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="card space-y-2">
+        <p className="section-title">Customer Survey — tap to check off</p>
+        <p className="text-xs text-slate-400">
+          Use only these 9 official questions, in order — don&apos;t add or improvise others.
+        </p>
+        <div className="space-y-3">
+          {SURVEY_QUESTIONS.map((sq, i) => {
+            const answer = answers[i] ?? null;
+            return (
+              <div key={sq.question} className="space-y-1.5 border-t border-white/10 pt-3 first:border-0 first:pt-0">
+                <p className="text-sm font-medium text-white">
+                  {i + 1}. {sq.question}
+                </p>
+                {sq.followUp && <p className="text-xs text-slate-500">{sq.followUp}</p>}
+                <div className="flex gap-2">
+                  <button
+                    className={answer === "yes" ? "toggle-pill-active flex-none px-4" : "toggle-pill-inactive flex-none bg-white/5 px-4"}
+                    onClick={() => setAnswers((prev) => ({ ...prev, [i]: answer === "yes" ? null : "yes" }))}
+                  >
+                    Yes
+                  </button>
+                  <button
+                    className={answer === "no" ? "toggle-pill-active flex-none px-4" : "toggle-pill-inactive flex-none bg-white/5 px-4"}
+                    onClick={() => setAnswers((prev) => ({ ...prev, [i]: answer === "no" ? null : "no" }))}
+                  >
+                    No
+                  </button>
+                </div>
+                {answer === "yes" && (
+                  <p className="rounded-lg bg-amber/10 p-2 text-xs text-amber-light">{sq.recommendations}</p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="card space-y-1.5">
+        <p className="section-title">Appointment Flow</p>
+        {SURVEY_APPOINTMENT_FLOW.map((step, i) => (
+          <p key={step} className="text-sm text-slate-300">
+            {i + 1}. {step}
+          </p>
+        ))}
+      </div>
     </>
   );
 }

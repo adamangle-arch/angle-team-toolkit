@@ -11,7 +11,7 @@ const NAV_ITEMS = [
   { href: "/contacts", label: "Contacts", icon: "📇" },
   { href: "/streak", label: "Run Streak", icon: "🔥" },
   { href: "/assistant", label: "Assistant", icon: "🤖" },
-  { href: "/library", label: "Library", icon: "📚" },
+  { href: "/library", label: "Resources", icon: "📚" },
 ];
 
 const ADMIN_NAV_ITEM = { href: "/team", label: "Team", icon: "👥" };
