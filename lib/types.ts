@@ -43,12 +43,36 @@ export type ActiveCandidatesEntry = {
   active_count: number;
 };
 
+export type Qi1RhythmEntry = {
+  first_name: string | null;
+  last_name: string | null;
+  team: string | null;
+  qi1: number;
+};
+
+export type DittoEntry = {
+  first_name: string | null;
+  last_name: string | null;
+  team: string | null;
+  day1_ditto_pv: number;
+};
+
 export type MonthlyPv = {
   id: string;
   user_id: string;
   period_start: string;
   pv: number;
+  day1_ditto_pv: number;
   updated_at: string;
+};
+
+export type CustomerSale = {
+  id: string;
+  user_id: string;
+  period_start: string;
+  description: string;
+  notes: string;
+  created_at: string;
 };
 
 export type PipelinePeriod = {

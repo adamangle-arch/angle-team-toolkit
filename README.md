@@ -120,10 +120,12 @@ visible to everyone, not just primary users.
 
 The Leaderboard recognizes every pipeline stage except Questions, for both
 teams and individuals, plus who's currently on a Core Run Streak (all 4
-activities every day — not 3 of 4 — counted back from today or yesterday)
-and who's running 5+ active candidates through the roadmap at once. Weeks
-run Monday–Sunday and months reset on the calendar month, not a rolling 30
-days; the monthly view can page back up to 12 months to see past numbers.
+activities every day — not 3 of 4 — counted back from today or yesterday),
+who's running 5+ active candidates through the roadmap at once, and who's
+hitting the QI1 "rhythm" — 2+ QI1s in the week or 8+ in the month, ranked
+highest to lowest. Weeks run Monday–Sunday and months reset on the calendar
+month, not a rolling 30 days; the monthly view can page back up to 12
+months to see past numbers.
 
 ### Candidate Roadmap
 
@@ -142,6 +144,13 @@ table, same owner-or-primary-user RLS pattern as everything else), with
 their last 6 months shown underneath for reference. Anyone at 300+ PV for
 the month shows up in the Leaderboard's **Core 300** ranking, visible to
 everyone and sorted by PV.
+
+The Volume tab also has a **Day 1 Ditto** field (`day1_ditto_pv` on the same
+`monthly_pv` row) — anyone over 100 PV there shows up in the Leaderboard's
+**Day 1 Ditto 100+** ranking — and a **Customer Sales** log (`customer_sales`
+table) where people can jot down customer sales and notes for the month.
+The sales log isn't scored or shown anywhere else; it's just a personal
+running record.
 
 By default Supabase requires email confirmation on signup; see step 2 above
 if you want teammates to be able to log in immediately after creating an

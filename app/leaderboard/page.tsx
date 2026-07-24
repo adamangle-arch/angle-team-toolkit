@@ -16,6 +16,8 @@ import type {
   StreakLeaderboardEntry,
   Core300Entry,
   ActiveCandidatesEntry,
+  Qi1RhythmEntry,
+  DittoEntry,
 } from "@/lib/types";
 
 type PeriodType = "weekly" | "monthly";
@@ -45,14 +47,18 @@ export default function LeaderboardPage() {
   const [streakLeaders, setStreakLeaders] = useState<StreakLeaderboardEntry[]>([]);
   const [core300, setCore300] = useState<Core300Entry[]>([]);
   const [activeCandidates, setActiveCandidates] = useState<ActiveCandidatesEntry[]>([]);
+  const [qi1Rhythm, setQi1Rhythm] = useState<Qi1RhythmEntry[]>([]);
+  const [ditto, setDitto] = useState<DittoEntry[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const qi1RhythmThreshold = periodType === "weekly" ? 2 : 8;
 
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
       setLoading(true);
-      const [{ data: teams }, { data: individuals }] = await Promise.all([
+      const [{ data: teams }, { data: individuals }, { data: rhythm }] = await Promise.all([
         supabase.rpc("get_team_pipeline_totals", {
           p_period_type: periodType,
           p_period_start: periodStart,
@@ -61,11 +67,17 @@ export default function LeaderboardPage() {
           p_period_type: periodType,
           p_period_start: periodStart,
         }),
+        supabase.rpc("get_qi1_rhythm_leaderboard", {
+          p_period_type: periodType,
+          p_period_start: periodStart,
+          p_min_qi1: qi1RhythmThreshold,
+        }),
       ]);
 
       if (!cancelled) {
         setTeamTotals((teams as TeamTotals[]) ?? []);
         setIndividualLeaders((individuals as IndividualLeaderEntry[]) ?? []);
+        setQi1Rhythm((rhythm as Qi1RhythmEntry[]) ?? []);
         setLoading(false);
       }
     }
@@ -74,7 +86,7 @@ export default function LeaderboardPage() {
     return () => {
       cancelled = true;
     };
-  }, [periodType, periodStart]);
+  }, [periodType, periodStart, qi1RhythmThreshold]);
 
   useEffect(() => {
     let cancelled = false;
@@ -101,10 +113,14 @@ export default function LeaderboardPage() {
     let cancelled = false;
 
     async function load() {
-      const { data: core } = await supabase.rpc("get_core300_leaderboard", {
-        p_period_start: periodStart,
-      });
-      if (!cancelled) setCore300((core as Core300Entry[]) ?? []);
+      const [{ data: core }, { data: dittoData }] = await Promise.all([
+        supabase.rpc("get_core300_leaderboard", { p_period_start: periodStart }),
+        supabase.rpc("get_ditto_leaderboard", { p_period_start: periodStart }),
+      ]);
+      if (!cancelled) {
+        setCore300((core as Core300Entry[]) ?? []);
+        setDitto((dittoData as DittoEntry[]) ?? []);
+      }
     }
 
     load();
@@ -219,6 +235,25 @@ export default function LeaderboardPage() {
             </div>
 
             <div className="card space-y-1.5">
+              <p className="section-title">
+                🔁 {qi1RhythmThreshold}+ QI1s {periodType === "weekly" ? "This Week" : "This Month"}
+              </p>
+              {qi1Rhythm.length === 0 ? (
+                <p className="text-sm text-slate-400">No one&apos;s hit that rhythm yet.</p>
+              ) : (
+                qi1Rhythm.map((entry, i) => (
+                  <div key={`${entry.first_name}-${entry.last_name}-${i}`} className="flex items-center justify-between text-sm">
+                    <span className="text-slate-200">
+                      {i + 1}. {personName(entry)}{" "}
+                      <span className="text-xs text-slate-500">({entry.team})</span>
+                    </span>
+                    <span className="pill pill-amber">{entry.qi1} QI1</span>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="card space-y-1.5">
               <p className="section-title">🔥 Core Run Streaks</p>
               {streakLeaders.length === 0 ? (
                 <p className="text-sm text-slate-400">No one&apos;s on a streak right now.</p>
@@ -251,22 +286,41 @@ export default function LeaderboardPage() {
             </div>
 
             {periodType === "monthly" && (
-              <div className="card space-y-1.5">
-                <p className="section-title">Core 300</p>
-                {core300.length === 0 ? (
-                  <p className="text-sm text-slate-400">No one&apos;s hit Core 300 yet this month.</p>
-                ) : (
-                  core300.map((entry, i) => (
-                    <div key={`${entry.first_name}-${entry.last_name}-${i}`} className="flex items-center justify-between text-sm">
-                      <span className="text-slate-200">
-                        {i + 1}. {personName(entry)}{" "}
-                        <span className="text-xs text-slate-500">({entry.team})</span>
-                      </span>
-                      <span className="pill pill-amber">{entry.pv} PV</span>
-                    </div>
-                  ))
-                )}
-              </div>
+              <>
+                <div className="card space-y-1.5">
+                  <p className="section-title">Core 300</p>
+                  {core300.length === 0 ? (
+                    <p className="text-sm text-slate-400">No one&apos;s hit Core 300 yet this month.</p>
+                  ) : (
+                    core300.map((entry, i) => (
+                      <div key={`${entry.first_name}-${entry.last_name}-${i}`} className="flex items-center justify-between text-sm">
+                        <span className="text-slate-200">
+                          {i + 1}. {personName(entry)}{" "}
+                          <span className="text-xs text-slate-500">({entry.team})</span>
+                        </span>
+                        <span className="pill pill-amber">{entry.pv} PV</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                <div className="card space-y-1.5">
+                  <p className="section-title">📦 Day 1 Ditto 100+</p>
+                  {ditto.length === 0 ? (
+                    <p className="text-sm text-slate-400">No one&apos;s over 100 PV on a day 1 Ditto yet.</p>
+                  ) : (
+                    ditto.map((entry, i) => (
+                      <div key={`${entry.first_name}-${entry.last_name}-${i}`} className="flex items-center justify-between text-sm">
+                        <span className="text-slate-200">
+                          {i + 1}. {personName(entry)}{" "}
+                          <span className="text-xs text-slate-500">({entry.team})</span>
+                        </span>
+                        <span className="pill pill-amber">{entry.day1_ditto_pv} PV</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </>
             )}
           </>
         )}

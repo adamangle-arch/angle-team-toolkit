@@ -124,6 +124,24 @@ create table if not exists monthly_pv (
   unique (user_id, period_start)
 );
 
+-- Additive: how much of that month's PV came through a Ditto order on
+-- day 1 of the month. 100+ gets recognized on the Leaderboard.
+alter table monthly_pv add column if not exists day1_ditto_pv int not null default 0;
+
+-- ============================================================
+-- 4c. CUSTOMER SALES LOG
+-- A running log of customer sales/notes per month, shown on the Volume
+-- tab. Not scored or aggregated anywhere — just a personal record.
+-- ============================================================
+create table if not exists customer_sales (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  period_start date not null,
+  description text not null,
+  notes text not null default '',
+  created_at timestamptz not null default now()
+);
+
 -- ============================================================
 -- 5. PROFILES
 -- A directory of every signed-up account (just id + email), so the
@@ -427,6 +445,61 @@ $$;
 
 grant execute on function public.get_active_candidates_leaderboard() to authenticated;
 
+-- Everyone at or above a QI1 threshold for the period (2+/week, 8+/month
+-- are the rhythms we recognize), ranked highest to lowest.
+create or replace function public.get_qi1_rhythm_leaderboard(
+  p_period_type text,
+  p_period_start date,
+  p_min_qi1 int
+)
+returns table (
+  first_name text,
+  last_name text,
+  team text,
+  qi1 int
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select pr.first_name, pr.last_name, pr.team, pp.qi1
+  from pipeline_periods pp
+  join profiles pr on pr.id = pp.user_id
+  where pp.period_type = p_period_type
+    and pp.period_start = p_period_start
+    and pp.qi1 >= p_min_qi1
+  order by pp.qi1 desc;
+$$;
+
+grant execute on function public.get_qi1_rhythm_leaderboard(text, date, int) to authenticated;
+
+-- Everyone with 100+ PV from a day-1 Ditto order for the given month,
+-- ranked by that amount.
+create or replace function public.get_ditto_leaderboard(
+  p_period_start date
+)
+returns table (
+  first_name text,
+  last_name text,
+  team text,
+  day1_ditto_pv int
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select pr.first_name, pr.last_name, pr.team, mp.day1_ditto_pv
+  from monthly_pv mp
+  join profiles pr on pr.id = mp.user_id
+  where mp.period_start = p_period_start
+    and mp.day1_ditto_pv > 100
+  order by mp.day1_ditto_pv desc;
+$$;
+
+grant execute on function public.get_ditto_leaderboard(date) to authenticated;
+
 -- ============================================================
 -- Row Level Security
 -- Every table: a user can only read/write their own rows. The admin
@@ -441,7 +514,7 @@ begin
   for t in
     select unnest(array[
       'pipeline_periods', 'candidates', 'contacts',
-      'streak_days', 'assistant_messages', 'monthly_pv'
+      'streak_days', 'assistant_messages', 'monthly_pv', 'customer_sales'
     ])
   loop
     execute format('alter table %I enable row level security;', t);
