@@ -23,6 +23,7 @@ import type {
   NewMember,
   Liker,
   MilestoneEntry,
+  GameLeaderEntry,
 } from "@/lib/types";
 
 type PeriodType = "weekly" | "monthly";
@@ -144,6 +145,9 @@ function dittoEntryKey(periodStart: string, userId: string) {
 function milestoneEntryKey(userId: string, milestoneDays: number) {
   return `milestone:${userId}:${milestoneDays}`;
 }
+function gameEntryKey(userId: string) {
+  return `game:${userId}`;
+}
 
 export default function LeaderboardPage() {
   const { user } = useAuth();
@@ -162,6 +166,7 @@ export default function LeaderboardPage() {
   const [ditto, setDitto] = useState<DittoEntry[]>([]);
   const [newMembers, setNewMembers] = useState<NewMember[]>([]);
   const [milestones, setMilestones] = useState<MilestoneEntry[]>([]);
+  const [gameLeaders, setGameLeaders] = useState<GameLeaderEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [myName, setMyName] = useState("You");
@@ -246,6 +251,16 @@ export default function LeaderboardPage() {
 
   useEffect(() => {
     let cancelled = false;
+    supabase.rpc("get_game_leaderboard").then(({ data }) => {
+      if (!cancelled) setGameLeaders((data as GameLeaderEntry[]) ?? []);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
     supabase
       .from("profiles")
       .select("first_name,last_name")
@@ -308,6 +323,7 @@ export default function LeaderboardPage() {
     for (const e of core300) keys.add(core300EntryKey(periodStart, e.user_id));
     for (const e of ditto) keys.add(dittoEntryKey(periodStart, e.user_id));
     for (const m of milestones) keys.add(milestoneEntryKey(m.user_id, m.milestone_days));
+    for (const g of gameLeaders) keys.add(gameEntryKey(g.user_id));
     return Array.from(keys);
   }, [
     teamTotals,
@@ -318,6 +334,7 @@ export default function LeaderboardPage() {
     core300,
     ditto,
     milestones,
+    gameLeaders,
     periodType,
     periodStart,
   ]);
@@ -621,6 +638,36 @@ export default function LeaderboardPage() {
                       </span>
                       <div className="flex shrink-0 items-center gap-2">
                         <span className="pill pill-amber">{entry.active_count}</span>
+                        <LikeButton
+                          entryKey={key}
+                          likes={likesMap.get(key) ?? NO_LIKES}
+                          onToggle={toggleLike}
+                        />
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="card space-y-1.5">
+              <p className="section-title">💎 Diamond Run High Scores</p>
+              {gameLeaders.length === 0 ? (
+                <p className="text-sm text-slate-400">No one&apos;s played Diamond Run yet.</p>
+              ) : (
+                gameLeaders.map((entry, i) => {
+                  const key = gameEntryKey(entry.user_id);
+                  return (
+                    <div
+                      key={`${entry.user_id}-${i}`}
+                      className="flex items-center justify-between gap-2 text-sm"
+                    >
+                      <span className="text-slate-200">
+                        {i === 0 ? "👑 " : `${i + 1}. `}
+                        <PersonLink entry={entry} />
+                      </span>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <span className="pill pill-amber">{entry.best_score}</span>
                         <LikeButton
                           entryKey={key}
                           likes={likesMap.get(key) ?? NO_LIKES}

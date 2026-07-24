@@ -363,6 +363,11 @@ within 2 days of a threshold; there's no separate "reached on" date
 stored anywhere, so the alert just naturally stops appearing a couple of
 days after the fact.
 
+The Leaderboard also has a **💎 Diamond Run High Scores** card (same
+data as the in-game leaderboard, via `get_game_leaderboard()`) so the
+whole team can see who's currently on top — 👑 marks the champion,
+likeable like any other ranking row.
+
 ### Trend charts
 
 Pipeline Tracker (pick any stage from the dropdown) and Volume both show
