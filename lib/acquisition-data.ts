@@ -99,7 +99,7 @@ export const SURVEY_QUESTIONS: SurveyQuestion[] = [
 
 export const SURVEY_APPOINTMENT_FLOW: string[] = [
   "New IBO introduces the upline/helper who's guiding the appointment.",
-  "Register the customer through the MyShop link and make sure they enroll in AmPerks (mention free shipping at $99).",
+  "Register the customer through the MyShop link.",
   "Share screen and pull up the website; ask the 9 questions together, conversationally.",
   "Only review products tied to their \"yes\" answers — don't overeducate or give a general product overview.",
   "Add discussed products to an example cart and review it slowly; ask \"what are you most interested in?\"",

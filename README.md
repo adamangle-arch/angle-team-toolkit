@@ -108,13 +108,28 @@ you're adding this to a project that already ran an earlier version of
 policy use `if not exists` / safe drops-and-recreates that don't touch
 existing table data).
 
-Two SQL functions (`get_team_pipeline_totals`, `get_qi1_leaderboard`) do the
-cross-member aggregation for the Teams view and the Leaderboard. Both are
-`security definer` so they can read every member's `pipeline_periods` row,
-but each only ever returns an aggregate (team totals) or a name + QI1 count
-— never a member's full private stage breakdown — and both are callable by
-any signed-in user (`grant execute ... to authenticated`), since the
-Leaderboard is intentionally visible to everyone, not just primary users.
+Four SQL functions do the cross-member aggregation for the Teams view and
+the Leaderboard — `get_team_pipeline_totals`, `get_individual_leaders`,
+`get_streak_leaderboard`, and `get_core300_leaderboard`. All four are
+`security definer` so they can read every member's private rows, but each
+only ever returns an aggregate or a name + single stat — never a member's
+full private breakdown — and all are callable by any signed-in user (`grant
+execute ... to authenticated`), since the Leaderboard is intentionally
+visible to everyone, not just primary users.
+
+The Leaderboard recognizes every pipeline stage except Questions, for both
+teams and individuals, plus who's currently on a Core Run Streak (all 4
+activities every day — not 3 of 4 — counted back from today or yesterday).
+Weeks run Monday–Sunday and months reset on the calendar month, not a
+rolling 30 days; the monthly view can page back up to 12 months to see past
+numbers.
+
+Monthly view also has a **Personal Circle PV** section: each person can
+self-report their own monthly PV (stored in the additive `monthly_pv`
+table, same owner-or-primary-user RLS pattern as everything else), editable
+only for the current month — past months show read-only history. Anyone at
+300+ PV for that month shows up in a **Core 300** ranking underneath,
+sorted by PV.
 
 By default Supabase requires email confirmation on signup; see step 2 above
 if you want teammates to be able to log in immediately after creating an

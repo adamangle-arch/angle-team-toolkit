@@ -24,9 +24,7 @@ function pct(numerator: number, denominator: number): string {
 }
 
 function qualifies(day: StreakDay): boolean {
-  return (
-    [day.read, day.listen, day.daily_update, day.story_share].filter(Boolean).length >= 3
-  );
+  return day.read && day.listen && day.daily_update && day.story_share;
 }
 
 function addDays(dateStr: string, delta: number): string {

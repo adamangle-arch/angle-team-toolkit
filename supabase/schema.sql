@@ -97,7 +97,7 @@ create table contacts (
 -- ============================================================
 -- 4. CORE RUN STREAK
 -- One row per calendar day per user. Read / Listen / Daily Update /
--- Story Share — 3+ of 4 done counts as a streak day.
+-- Story Share — all 4 done counts as a streak day.
 -- ============================================================
 create table streak_days (
   id uuid primary key default gen_random_uuid(),
@@ -108,6 +108,20 @@ create table streak_days (
   daily_update boolean not null default false,
   story_share boolean not null default false,
   unique (user_id, day)
+);
+
+-- ============================================================
+-- 4b. PERSONAL CIRCLE PV
+-- One row per calendar month per user, self-reported. Core 300 means
+-- 300+ PV for that month.
+-- ============================================================
+create table if not exists monthly_pv (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  period_start date not null,
+  pv int not null default 0,
+  updated_at timestamptz not null default now(),
+  unique (user_id, period_start)
 );
 
 -- ============================================================
@@ -245,33 +259,145 @@ $$;
 
 grant execute on function public.get_team_pipeline_totals(text, date) to authenticated;
 
-create or replace function public.get_qi1_leaderboard(
+-- Superseded by get_individual_leaders below (recognizes every category,
+-- not just QI1).
+drop function if exists public.get_qi1_leaderboard(text, date, int);
+
+-- Individual leader(s) per category (every pipeline stage except
+-- questions), for the given period. Ties are all returned rather than
+-- picking an arbitrary winner.
+create or replace function public.get_individual_leaders(
   p_period_type text,
-  p_period_start date,
-  p_limit int default 3
+  p_period_start date
 )
 returns table (
+  category text,
   first_name text,
   last_name text,
   team text,
-  qi1 int
+  value int
 )
 language sql
 stable
 security definer
 set search_path = public
 as $$
-  select pr.first_name, pr.last_name, pr.team, pp.qi1
-  from pipeline_periods pp
-  join profiles pr on pr.id = pp.user_id
-  where pp.period_type = p_period_type
-    and pp.period_start = p_period_start
-    and pp.qi1 > 0
-  order by pp.qi1 desc
-  limit p_limit;
+  with periods as (
+    select pp.*, pr.first_name, pr.last_name, pr.team
+    from pipeline_periods pp
+    join profiles pr on pr.id = pp.user_id
+    where pp.period_type = p_period_type
+      and pp.period_start = p_period_start
+  ),
+  maxes as (
+    select
+      max(yeses) as yeses,
+      max(qi1) as qi1,
+      max(qi2) as qi2,
+      max(is1) as is1,
+      max(fu1) as fu1,
+      max(is2) as is2,
+      max(fu2) as fu2,
+      max(questionnaire) as questionnaire,
+      max(launches) as launches
+    from periods
+  )
+  select 'yeses', p.first_name, p.last_name, p.team, p.yeses
+  from periods p, maxes m where p.yeses = m.yeses and m.yeses > 0
+  union all
+  select 'qi1', p.first_name, p.last_name, p.team, p.qi1
+  from periods p, maxes m where p.qi1 = m.qi1 and m.qi1 > 0
+  union all
+  select 'qi2', p.first_name, p.last_name, p.team, p.qi2
+  from periods p, maxes m where p.qi2 = m.qi2 and m.qi2 > 0
+  union all
+  select 'is1', p.first_name, p.last_name, p.team, p.is1
+  from periods p, maxes m where p.is1 = m.is1 and m.is1 > 0
+  union all
+  select 'fu1', p.first_name, p.last_name, p.team, p.fu1
+  from periods p, maxes m where p.fu1 = m.fu1 and m.fu1 > 0
+  union all
+  select 'is2', p.first_name, p.last_name, p.team, p.is2
+  from periods p, maxes m where p.is2 = m.is2 and m.is2 > 0
+  union all
+  select 'fu2', p.first_name, p.last_name, p.team, p.fu2
+  from periods p, maxes m where p.fu2 = m.fu2 and m.fu2 > 0
+  union all
+  select 'questionnaire', p.first_name, p.last_name, p.team, p.questionnaire
+  from periods p, maxes m where p.questionnaire = m.questionnaire and m.questionnaire > 0
+  union all
+  select 'launches', p.first_name, p.last_name, p.team, p.launches
+  from periods p, maxes m where p.launches = m.launches and m.launches > 0;
 $$;
 
-grant execute on function public.get_qi1_leaderboard(text, date, int) to authenticated;
+grant execute on function public.get_individual_leaders(text, date) to authenticated;
+
+-- Everyone currently on a Core Run Streak (all 4 activities, every day,
+-- ending today or yesterday) and how many consecutive days it's been.
+create or replace function public.get_streak_leaderboard()
+returns table (
+  first_name text,
+  last_name text,
+  team text,
+  streak_days int
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  with recursive qualifying as (
+    select user_id, day
+    from streak_days
+    where read and listen and daily_update and story_share
+  ),
+  walk(user_id, day, streak_days) as (
+    select q.user_id, q.day, 1
+    from qualifying q
+    where q.day = current_date or q.day = current_date - 1
+    union all
+    select w.user_id, q.day, w.streak_days + 1
+    from walk w
+    join qualifying q on q.user_id = w.user_id and q.day = w.day - 1
+  ),
+  best_per_user as (
+    select user_id, max(streak_days) as streak_days
+    from walk
+    group by user_id
+  )
+  select pr.first_name, pr.last_name, pr.team, b.streak_days::int
+  from best_per_user b
+  join profiles pr on pr.id = b.user_id
+  order by b.streak_days desc;
+$$;
+
+grant execute on function public.get_streak_leaderboard() to authenticated;
+
+-- Everyone at Core 300 (300+ personal circle PV) for the given month,
+-- ranked by PV.
+create or replace function public.get_core300_leaderboard(
+  p_period_start date
+)
+returns table (
+  first_name text,
+  last_name text,
+  team text,
+  pv int
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select pr.first_name, pr.last_name, pr.team, mp.pv
+  from monthly_pv mp
+  join profiles pr on pr.id = mp.user_id
+  where mp.period_start = p_period_start
+    and mp.pv >= 300
+  order by mp.pv desc;
+$$;
+
+grant execute on function public.get_core300_leaderboard(date) to authenticated;
 
 -- ============================================================
 -- Row Level Security
@@ -287,7 +413,7 @@ begin
   for t in
     select unnest(array[
       'pipeline_periods', 'candidates', 'contacts',
-      'streak_days', 'assistant_messages'
+      'streak_days', 'assistant_messages', 'monthly_pv'
     ])
   loop
     execute format('alter table %I enable row level security;', t);

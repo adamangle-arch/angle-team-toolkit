@@ -14,11 +14,34 @@ export type TeamTotals = {
   member_count: number;
 } & Record<PipelineStageKey, number>;
 
-export type Qi1LeaderboardEntry = {
+export type IndividualLeaderEntry = {
+  category: PipelineStageKey;
   first_name: string | null;
   last_name: string | null;
   team: string | null;
-  qi1: number;
+  value: number;
+};
+
+export type StreakLeaderboardEntry = {
+  first_name: string | null;
+  last_name: string | null;
+  team: string | null;
+  streak_days: number;
+};
+
+export type Core300Entry = {
+  first_name: string | null;
+  last_name: string | null;
+  team: string | null;
+  pv: number;
+};
+
+export type MonthlyPv = {
+  id: string;
+  user_id: string;
+  period_start: string;
+  pv: number;
+  updated_at: string;
 };
 
 export type PipelinePeriod = {

@@ -18,6 +18,18 @@ export function getMonthStart(date: Date = new Date()): string {
   return toDateOnly(d);
 }
 
+// monthsBack = 0 is the current month, 1 is last month, etc.
+export function getMonthStartOffset(monthsBack: number): string {
+  const now = new Date();
+  const d = new Date(now.getFullYear(), now.getMonth() - monthsBack, 1);
+  return toDateOnly(d);
+}
+
+export function formatMonthLabel(dateStr: string): string {
+  const d = new Date(`${dateStr}T00:00:00`);
+  return d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+}
+
 export function getToday(): string {
   return toDateOnly(new Date());
 }
