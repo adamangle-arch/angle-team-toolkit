@@ -431,6 +431,20 @@ Run: plain canvas, no library, no gate, best score saved per person
 (`snake_high_scores` table + `get_snake_leaderboard()`) and shown on
 an in-page leaderboard.
 
+### Trivia (mini-game)
+
+A third mini-game: multiple-choice trivia in survival mode — questions
+come one at a time from a shuffled queue (reshuffles once exhausted, so
+there's always a next question regardless of pool size), scoring your
+current correct-in-a-row streak. Get one wrong and the round ends; best
+streak is saved per person (`trivia_high_scores` table +
+`get_trivia_leaderboard()`) and shown on an in-page leaderboard, same
+pattern as the other two mini-games.
+
+Questions live in `lib/trivia-data.ts`'s `TRIVIA_QUESTIONS` and currently
+only have 3 clearly-marked placeholders — swap in real product/process/
+script questions whenever you have them ready.
+
 ### Success quote on open
 
 Every time the app is opened fresh, a dismissible overlay shows a
