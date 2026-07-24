@@ -424,14 +424,20 @@ schema needed. Locked out, the page links straight to Core Run Streak.
 ### Success quote on open
 
 Every time the app is opened fresh, a dismissible overlay shows a
-random success/mindset quote pulled from books on the team's reading
-list (`lib/quotes.ts`'s `BOOK_QUOTES`, sourced from the book list in
+success/mindset quote pulled from books on the team's reading list
+(`lib/quotes.ts`'s `BOOK_QUOTES`, sourced from the book list in
 `lib/library-data.ts`). This is a deliberately curated, non-exhaustive
 set — only quotes we could confirm are accurately attributed are
 included, rather than guessing at exact wording for every book on the
 list. Add more over time as you confirm exact quotes you want in
 rotation. It shows once per app open (tied to `AuthGate` mounting, not
 per internal tab navigation) and dismisses with a tap.
+
+Quotes cycle through the whole list in a shuffled order (stored in
+this device's `localStorage`) before any repeat, rather than picking
+independently at random each time — with a pool this size, pure random
+picks repeated constantly. Once you've seen every quote once, it
+reshuffles and starts a new cycle.
 
 ## Notes on the Role-Play Coach
 
