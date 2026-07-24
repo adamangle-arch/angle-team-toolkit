@@ -446,9 +446,86 @@ drop policy if exists "avatars_delete_own" on storage.objects;
 create policy "avatars_delete_own" on storage.objects for delete
 using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
 
+-- Current Core Run Streak length (consecutive qualifying days, counting
+-- back from today or yesterday if today isn't done yet) — same logic as
+-- the client-side streak calculation, just server-side so it can be
+-- surfaced on a public profile. Security definer since streak_days is
+-- otherwise only visible to the owner, their upline, or an admin.
+create or replace function public.get_current_streak(p_user_id uuid)
+returns int
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  with recursive start_day as (
+    select case when exists (
+      select 1 from streak_days sd
+      where sd.user_id = p_user_id and sd.day = current_date
+        and sd.read and sd.listen and sd.daily_update and sd.story_share
+    ) then current_date else current_date - 1 end as day
+  ),
+  w(day, ok, n) as (
+    select
+      s.day,
+      exists (
+        select 1 from streak_days sd
+        where sd.user_id = p_user_id and sd.day = s.day
+          and sd.read and sd.listen and sd.daily_update and sd.story_share
+      ),
+      0
+    from start_day s
+    union all
+    select
+      w.day - 1,
+      exists (
+        select 1 from streak_days sd
+        where sd.user_id = p_user_id and sd.day = w.day - 1
+          and sd.read and sd.listen and sd.daily_update and sd.story_share
+      ),
+      w.n + 1
+    from w
+    where w.ok and w.n < 3650
+  )
+  select coalesce(count(*) filter (where ok), 0)::int from w;
+$$;
+
+grant execute on function public.get_current_streak(uuid) to authenticated;
+
+-- Longest Core Run Streak ever hit (gaps-and-islands over qualifying
+-- days) — this is what milestone badges (1 week, 30/90 days, etc.) are
+-- based on, so a badge earned once stays earned even after a streak
+-- later resets.
+create or replace function public.get_longest_streak(p_user_id uuid)
+returns int
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  with qualifying as (
+    select day from streak_days
+    where user_id = p_user_id
+      and read and listen and daily_update and story_share
+  ),
+  islands as (
+    select day - (row_number() over (order by day))::int * interval '1 day' as grp
+    from qualifying
+  )
+  select coalesce(max(cnt), 0)::int
+  from (select count(*) as cnt from islands group by grp) t;
+$$;
+
+grant execute on function public.get_longest_streak(uuid) to authenticated;
+
 -- Public-safe profile view for the "tap a name on the Leaderboard" page.
 -- Security definer so it can read any profile row, but only ever returns
 -- the fields meant to be shared — never email or anything private.
+-- Also surfaces what they're currently reading/listening to and their
+-- Core Run Streak, pulled live from streak_days (still never exposes
+-- their full day-by-day history, just the latest entry + two counts).
+drop function if exists public.get_public_profile(uuid);
+
 create or replace function public.get_public_profile(p_user_id uuid)
 returns table (
   first_name text,
@@ -463,21 +540,69 @@ returns table (
   favorite_book_1 text,
   favorite_book_2 text,
   favorite_book_3 text,
-  team_impact text
+  team_impact text,
+  current_streak int,
+  longest_streak int,
+  last_read_what text,
+  last_read_amount text,
+  last_listen_what text,
+  last_listen_count int
 )
 language sql
 stable
 security definer
 set search_path = public
 as $$
-  select first_name, last_name, team, photo_url, hometown, background,
-         favorite_audio_1, favorite_audio_2, favorite_audio_3,
-         favorite_book_1, favorite_book_2, favorite_book_3, team_impact
-  from profiles
-  where id = p_user_id;
+  select
+    pr.first_name, pr.last_name, pr.team, pr.photo_url, pr.hometown, pr.background,
+    pr.favorite_audio_1, pr.favorite_audio_2, pr.favorite_audio_3,
+    pr.favorite_book_1, pr.favorite_book_2, pr.favorite_book_3, pr.team_impact,
+    public.get_current_streak(p_user_id),
+    public.get_longest_streak(p_user_id),
+    (select sd.read_what from streak_days sd
+      where sd.user_id = p_user_id and sd.read_amount <> ''
+      order by sd.day desc limit 1),
+    (select sd.read_amount from streak_days sd
+      where sd.user_id = p_user_id and sd.read_amount <> ''
+      order by sd.day desc limit 1),
+    (select sd.listen_what from streak_days sd
+      where sd.user_id = p_user_id and sd.listen_count > 0
+      order by sd.day desc limit 1),
+    (select sd.listen_count from streak_days sd
+      where sd.user_id = p_user_id and sd.listen_count > 0
+      order by sd.day desc limit 1)
+  from profiles pr
+  where pr.id = p_user_id;
 $$;
 
 grant execute on function public.get_public_profile(uuid) to authenticated;
+
+-- Recently joined members, for a "new to the team" spotlight on the
+-- Leaderboard — visible to everyone (not just admin/upline), same as
+-- everything else there. Only surfaces name + team, and only once
+-- they've completed the name/team profile gate.
+create or replace function public.get_new_members(p_days int default 14)
+returns table (
+  user_id uuid,
+  first_name text,
+  last_name text,
+  team text,
+  created_at timestamptz
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select id, first_name, last_name, team, created_at
+  from profiles
+  where created_at >= now() - (p_days || ' days')::interval
+    and first_name is not null
+    and team is not null
+  order by created_at desc;
+$$;
+
+grant execute on function public.get_new_members(int) to authenticated;
 
 -- ============================================================
 -- 6. ASSISTANT CHAT HISTORY
@@ -898,3 +1023,57 @@ begin
     );
   end loop;
 end $$;
+
+-- ============================================================
+-- 8. LEADERBOARD LIKES
+-- Anyone can "like" a specific leaderboard ranking so the team can cheer
+-- each other on — likes are visible to everyone, same as the Leaderboard
+-- itself. entry_key is a client-built string identifying one specific
+-- ranking row (e.g. "streak:<user_id>" or
+-- "individual:weekly:2026-07-20:yeses"), not a foreign key to anything,
+-- since leaderboard rows are computed on the fly rather than stored.
+-- ============================================================
+create table if not exists leaderboard_likes (
+  id uuid primary key default gen_random_uuid(),
+  entry_key text not null,
+  liker_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  unique (entry_key, liker_id)
+);
+
+alter table leaderboard_likes enable row level security;
+
+drop policy if exists "leaderboard_likes_select_all" on leaderboard_likes;
+create policy "leaderboard_likes_select_all" on leaderboard_likes
+for select using (true);
+
+drop policy if exists "leaderboard_likes_insert_own" on leaderboard_likes;
+create policy "leaderboard_likes_insert_own" on leaderboard_likes
+for insert with check (liker_id = auth.uid());
+
+drop policy if exists "leaderboard_likes_delete_own" on leaderboard_likes;
+create policy "leaderboard_likes_delete_own" on leaderboard_likes
+for delete using (liker_id = auth.uid());
+
+-- Resolves liker_id -> display name for the "who liked this" list, since
+-- ordinary profile RLS wouldn't let a random teammate read someone else's
+-- name directly.
+create or replace function public.get_likers(p_entry_keys text[])
+returns table (
+  entry_key text,
+  user_id uuid,
+  first_name text,
+  last_name text
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select l.entry_key, l.liker_id, p.first_name, p.last_name
+  from leaderboard_likes l
+  join profiles p on p.id = l.liker_id
+  where l.entry_key = any(p_entry_keys);
+$$;
+
+grant execute on function public.get_likers(text[]) to authenticated;

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
+import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import {
   getWeekStart,
@@ -19,9 +20,13 @@ import type {
   ActiveCandidatesEntry,
   Qi1RhythmEntry,
   DittoEntry,
+  NewMember,
+  Liker,
 } from "@/lib/types";
 
 type PeriodType = "weekly" | "monthly";
+type LikeInfo = { count: number; likedByMe: boolean; names: string[] };
+const NO_LIKES: LikeInfo = { count: 0, likedByMe: false, names: [] };
 
 const CATEGORIES = PIPELINE_STAGES.filter((s) => s.key !== "questions");
 
@@ -75,13 +80,69 @@ function CoupleLink({
   );
 }
 
+function LikeButton({
+  entryKey,
+  likes,
+  onToggle,
+}: {
+  entryKey: string;
+  likes: LikeInfo;
+  onToggle: (entryKey: string) => void;
+}) {
+  return (
+    <div className="flex shrink-0 flex-col items-end gap-0.5">
+      <button
+        onClick={() => onToggle(entryKey)}
+        className={`flex items-center gap-1 text-xs transition active:scale-90 ${
+          likes.likedByMe ? "text-amber-light" : "text-slate-500"
+        }`}
+        aria-label={likes.likedByMe ? "Unlike" : "Like"}
+      >
+        <span>{likes.likedByMe ? "❤️" : "🤍"}</span>
+        {likes.count > 0 && <span>{likes.count}</span>}
+      </button>
+      {likes.names.length > 0 && (
+        <p
+          className="max-w-[120px] truncate text-right text-[10px] text-slate-500"
+          title={likes.names.join(", ")}
+        >
+          {likes.names.join(", ")}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function leadingTeams(teams: TeamTotals[], key: PipelineStageKey): TeamTotals[] {
   const max = teams.reduce((best, t) => Math.max(best, t[key]), 0);
   if (max === 0) return [];
   return teams.filter((t) => t[key] === max);
 }
 
+function teamEntryKey(periodType: PeriodType, periodStart: string, stageKey: PipelineStageKey) {
+  return `team:${periodType}:${periodStart}:${stageKey}`;
+}
+function individualEntryKey(periodType: PeriodType, periodStart: string, stageKey: PipelineStageKey) {
+  return `individual:${periodType}:${periodStart}:${stageKey}`;
+}
+function qi1RhythmEntryKey(periodType: PeriodType, periodStart: string, userId: string) {
+  return `qi1_rhythm:${periodType}:${periodStart}:${userId}`;
+}
+function streakEntryKey(userId: string) {
+  return `streak:${userId}`;
+}
+function activeCandidatesEntryKey(userId: string) {
+  return `active_candidates:${userId}`;
+}
+function core300EntryKey(periodStart: string, userId: string) {
+  return `core300:${periodStart}:${userId}`;
+}
+function dittoEntryKey(periodStart: string, userId: string) {
+  return `ditto:${periodStart}:${userId}`;
+}
+
 export default function LeaderboardPage() {
+  const { user } = useAuth();
   const [periodType, setPeriodType] = useState<PeriodType>("weekly");
   const [monthsBack, setMonthsBack] = useState(0);
 
@@ -95,7 +156,11 @@ export default function LeaderboardPage() {
   const [activeCandidates, setActiveCandidates] = useState<ActiveCandidatesEntry[]>([]);
   const [qi1Rhythm, setQi1Rhythm] = useState<Qi1RhythmEntry[]>([]);
   const [ditto, setDitto] = useState<DittoEntry[]>([]);
+  const [newMembers, setNewMembers] = useState<NewMember[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [myName, setMyName] = useState("You");
+  const [likesMap, setLikesMap] = useState<Map<string, LikeInfo>>(new Map());
 
   const qi1RhythmThreshold = periodType === "weekly" ? 2 : 8;
 
@@ -155,6 +220,33 @@ export default function LeaderboardPage() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+    supabase.rpc("get_new_members", { p_days: 14 }).then(({ data }) => {
+      if (!cancelled) setNewMembers((data as NewMember[]) ?? []);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    supabase
+      .from("profiles")
+      .select("first_name,last_name")
+      .eq("id", user.id)
+      .single()
+      .then(({ data }) => {
+        if (cancelled || !data) return;
+        const n = [data.first_name, data.last_name].filter(Boolean).join(" ");
+        if (n) setMyName(n);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user.id]);
+
+  useEffect(() => {
     if (periodType !== "monthly") return;
     let cancelled = false;
 
@@ -175,11 +267,92 @@ export default function LeaderboardPage() {
     };
   }, [periodType, periodStart]);
 
-  const individualsByCategory = new Map<PipelineStageKey, IndividualLeaderEntry[]>();
-  for (const entry of individualLeaders) {
-    const list = individualsByCategory.get(entry.category) ?? [];
-    list.push(entry);
-    individualsByCategory.set(entry.category, list);
+  const individualsByCategory = useMemo(() => {
+    const map = new Map<PipelineStageKey, IndividualLeaderEntry[]>();
+    for (const entry of individualLeaders) {
+      const list = map.get(entry.category) ?? [];
+      list.push(entry);
+      map.set(entry.category, list);
+    }
+    return map;
+  }, [individualLeaders]);
+
+  const allEntryKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (const c of CATEGORIES) {
+      if (leadingTeams(teamTotals, c.key).length > 0) {
+        keys.add(teamEntryKey(periodType, periodStart, c.key));
+      }
+      if ((individualsByCategory.get(c.key) ?? []).length > 0) {
+        keys.add(individualEntryKey(periodType, periodStart, c.key));
+      }
+    }
+    for (const e of qi1Rhythm) keys.add(qi1RhythmEntryKey(periodType, periodStart, e.user_id));
+    for (const s of streakLeaders) keys.add(streakEntryKey(s.user_id));
+    for (const e of activeCandidates) keys.add(activeCandidatesEntryKey(e.user_id));
+    for (const e of core300) keys.add(core300EntryKey(periodStart, e.user_id));
+    for (const e of ditto) keys.add(dittoEntryKey(periodStart, e.user_id));
+    return Array.from(keys);
+  }, [
+    teamTotals,
+    individualsByCategory,
+    qi1Rhythm,
+    streakLeaders,
+    activeCandidates,
+    core300,
+    ditto,
+    periodType,
+    periodStart,
+  ]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      const map = new Map<string, LikeInfo>();
+      if (allEntryKeys.length > 0) {
+        const { data } = await supabase.rpc("get_likers", { p_entry_keys: allEntryKeys });
+        for (const l of (data as Liker[]) ?? []) {
+          const existing = map.get(l.entry_key) ?? { count: 0, likedByMe: false, names: [] };
+          existing.count += 1;
+          if (l.user_id === user.id) existing.likedByMe = true;
+          existing.names.push([l.first_name, l.last_name].filter(Boolean).join(" ") || "Unnamed");
+          map.set(l.entry_key, existing);
+        }
+      }
+      if (!cancelled) setLikesMap(map);
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [allEntryKeys, user.id]);
+
+  async function toggleLike(entryKey: string) {
+    const current = likesMap.get(entryKey) ?? NO_LIKES;
+    const optimistic = new Map(likesMap);
+    if (current.likedByMe) {
+      optimistic.set(entryKey, {
+        count: Math.max(0, current.count - 1),
+        likedByMe: false,
+        names: current.names.filter((n) => n !== myName),
+      });
+      setLikesMap(optimistic);
+      await supabase
+        .from("leaderboard_likes")
+        .delete()
+        .eq("entry_key", entryKey)
+        .eq("liker_id", user.id);
+    } else {
+      optimistic.set(entryKey, {
+        count: current.count + 1,
+        likedByMe: true,
+        names: [...current.names, myName],
+      });
+      setLikesMap(optimistic);
+      await supabase.from("leaderboard_likes").insert({ entry_key: entryKey, liker_id: user.id });
+    }
   }
 
   return (
@@ -230,6 +403,26 @@ export default function LeaderboardPage() {
           </div>
         )}
 
+        {newMembers.length > 0 && (
+          <div className="card space-y-1.5">
+            <p className="section-title">🎉 New to the Team</p>
+            {newMembers.map((m) => (
+              <div key={m.user_id} className="flex items-center justify-between text-sm">
+                <span className="text-slate-200">
+                  <Link
+                    href={`/profile/${m.user_id}`}
+                    className="text-amber-light underline decoration-dotted underline-offset-2"
+                  >
+                    {[m.first_name, m.last_name].filter(Boolean).join(" ") || "Unnamed"}
+                  </Link>{" "}
+                  <span className="text-xs text-slate-500">({m.team})</span>
+                </span>
+                <span className="pill">{formatDateLabel(m.created_at.slice(0, 10))}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
         {loading ? (
           <div className="empty-state">Loading leaderboard…</div>
         ) : (
@@ -242,15 +435,23 @@ export default function LeaderboardPage() {
                 CATEGORIES.map((c) => {
                   const winners = leadingTeams(teamTotals, c.key);
                   if (winners.length === 0) return null;
+                  const key = teamEntryKey(periodType, periodStart, c.key);
                   return (
-                    <div key={c.key} className="flex items-center justify-between text-sm">
+                    <div key={c.key} className="flex items-center justify-between gap-2 text-sm">
                       <span className="text-slate-200">
                         {c.label}:{" "}
                         <span className="text-amber-light">
                           {winners.map((t) => t.team).join(", ")}
                         </span>
                       </span>
-                      <span className="pill pill-amber">{winners[0][c.key]}</span>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <span className="pill pill-amber">{winners[0][c.key]}</span>
+                        <LikeButton
+                          entryKey={key}
+                          likes={likesMap.get(key) ?? NO_LIKES}
+                          onToggle={toggleLike}
+                        />
+                      </div>
                     </div>
                   );
                 })
@@ -265,8 +466,9 @@ export default function LeaderboardPage() {
                 CATEGORIES.map((c) => {
                   const winners = individualsByCategory.get(c.key) ?? [];
                   if (winners.length === 0) return null;
+                  const key = individualEntryKey(periodType, periodStart, c.key);
                   return (
-                    <div key={c.key} className="flex items-center justify-between text-sm">
+                    <div key={c.key} className="flex items-center justify-between gap-2 text-sm">
                       <span className="text-slate-200">
                         {c.label}:{" "}
                         <span className="text-amber-light">
@@ -278,7 +480,14 @@ export default function LeaderboardPage() {
                           ))}
                         </span>
                       </span>
-                      <span className="pill pill-amber">{winners[0].value}</span>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <span className="pill pill-amber">{winners[0].value}</span>
+                        <LikeButton
+                          entryKey={key}
+                          likes={likesMap.get(key) ?? NO_LIKES}
+                          onToggle={toggleLike}
+                        />
+                      </div>
                     </div>
                   );
                 })
@@ -292,15 +501,28 @@ export default function LeaderboardPage() {
               {qi1Rhythm.length === 0 ? (
                 <p className="text-sm text-slate-400">No one&apos;s hit that rhythm yet.</p>
               ) : (
-                qi1Rhythm.map((entry, i) => (
-                  <div key={`${entry.user_id}-${i}`} className="flex items-center justify-between text-sm">
-                    <span className="text-slate-200">
-                      {i + 1}. <CoupleLink entry={entry} />{" "}
-                      <span className="text-xs text-slate-500">({entry.team})</span>
-                    </span>
-                    <span className="pill pill-amber">{entry.qi1} QI1</span>
-                  </div>
-                ))
+                qi1Rhythm.map((entry, i) => {
+                  const key = qi1RhythmEntryKey(periodType, periodStart, entry.user_id);
+                  return (
+                    <div
+                      key={`${entry.user_id}-${i}`}
+                      className="flex items-center justify-between gap-2 text-sm"
+                    >
+                      <span className="text-slate-200">
+                        {i + 1}. <CoupleLink entry={entry} />{" "}
+                        <span className="text-xs text-slate-500">({entry.team})</span>
+                      </span>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <span className="pill pill-amber">{entry.qi1} QI1</span>
+                        <LikeButton
+                          entryKey={key}
+                          likes={likesMap.get(key) ?? NO_LIKES}
+                          onToggle={toggleLike}
+                        />
+                      </div>
+                    </div>
+                  );
+                })
               )}
             </div>
 
@@ -309,14 +531,27 @@ export default function LeaderboardPage() {
               {streakLeaders.length === 0 ? (
                 <p className="text-sm text-slate-400">No one&apos;s on a streak right now.</p>
               ) : (
-                streakLeaders.map((s, i) => (
-                  <div key={`${s.user_id}-${i}`} className="flex items-center justify-between text-sm">
-                    <span className="text-slate-200">
-                      <PersonLink entry={s} /> <span className="text-xs text-slate-500">({s.team})</span>
-                    </span>
-                    <span className="pill pill-amber">{s.streak_days}d</span>
-                  </div>
-                ))
+                streakLeaders.map((s, i) => {
+                  const key = streakEntryKey(s.user_id);
+                  return (
+                    <div
+                      key={`${s.user_id}-${i}`}
+                      className="flex items-center justify-between gap-2 text-sm"
+                    >
+                      <span className="text-slate-200">
+                        <PersonLink entry={s} /> <span className="text-xs text-slate-500">({s.team})</span>
+                      </span>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <span className="pill pill-amber">{s.streak_days}d</span>
+                        <LikeButton
+                          entryKey={key}
+                          likes={likesMap.get(key) ?? NO_LIKES}
+                          onToggle={toggleLike}
+                        />
+                      </div>
+                    </div>
+                  );
+                })
               )}
             </div>
 
@@ -325,14 +560,27 @@ export default function LeaderboardPage() {
               {activeCandidates.length === 0 ? (
                 <p className="text-sm text-slate-400">No one&apos;s running 5+ active candidates right now.</p>
               ) : (
-                activeCandidates.map((entry, i) => (
-                  <div key={`${entry.user_id}-${i}`} className="flex items-center justify-between text-sm">
-                    <span className="text-slate-200">
-                      <CoupleLink entry={entry} /> <span className="text-xs text-slate-500">({entry.team})</span>
-                    </span>
-                    <span className="pill pill-amber">{entry.active_count}</span>
-                  </div>
-                ))
+                activeCandidates.map((entry, i) => {
+                  const key = activeCandidatesEntryKey(entry.user_id);
+                  return (
+                    <div
+                      key={`${entry.user_id}-${i}`}
+                      className="flex items-center justify-between gap-2 text-sm"
+                    >
+                      <span className="text-slate-200">
+                        <CoupleLink entry={entry} /> <span className="text-xs text-slate-500">({entry.team})</span>
+                      </span>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <span className="pill pill-amber">{entry.active_count}</span>
+                        <LikeButton
+                          entryKey={key}
+                          likes={likesMap.get(key) ?? NO_LIKES}
+                          onToggle={toggleLike}
+                        />
+                      </div>
+                    </div>
+                  );
+                })
               )}
             </div>
 
@@ -343,15 +591,28 @@ export default function LeaderboardPage() {
                   {core300.length === 0 ? (
                     <p className="text-sm text-slate-400">No one&apos;s hit Core 300 yet this month.</p>
                   ) : (
-                    core300.map((entry, i) => (
-                      <div key={`${entry.user_id}-${i}`} className="flex items-center justify-between text-sm">
-                        <span className="text-slate-200">
-                          {i + 1}. <CoupleLink entry={entry} />{" "}
-                          <span className="text-xs text-slate-500">({entry.team})</span>
-                        </span>
-                        <span className="pill pill-amber">{entry.pv} PV</span>
-                      </div>
-                    ))
+                    core300.map((entry, i) => {
+                      const key = core300EntryKey(periodStart, entry.user_id);
+                      return (
+                        <div
+                          key={`${entry.user_id}-${i}`}
+                          className="flex items-center justify-between gap-2 text-sm"
+                        >
+                          <span className="text-slate-200">
+                            {i + 1}. <CoupleLink entry={entry} />{" "}
+                            <span className="text-xs text-slate-500">({entry.team})</span>
+                          </span>
+                          <div className="flex shrink-0 items-center gap-2">
+                            <span className="pill pill-amber">{entry.pv} PV</span>
+                            <LikeButton
+                              entryKey={key}
+                              likes={likesMap.get(key) ?? NO_LIKES}
+                              onToggle={toggleLike}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })
                   )}
                 </div>
 
@@ -360,15 +621,28 @@ export default function LeaderboardPage() {
                   {ditto.length === 0 ? (
                     <p className="text-sm text-slate-400">No one&apos;s over 100 PV on a day 1 Ditto yet.</p>
                   ) : (
-                    ditto.map((entry, i) => (
-                      <div key={`${entry.user_id}-${i}`} className="flex items-center justify-between text-sm">
-                        <span className="text-slate-200">
-                          {i + 1}. <CoupleLink entry={entry} />{" "}
-                          <span className="text-xs text-slate-500">({entry.team})</span>
-                        </span>
-                        <span className="pill pill-amber">{entry.day1_ditto_pv} PV</span>
-                      </div>
-                    ))
+                    ditto.map((entry, i) => {
+                      const key = dittoEntryKey(periodStart, entry.user_id);
+                      return (
+                        <div
+                          key={`${entry.user_id}-${i}`}
+                          className="flex items-center justify-between gap-2 text-sm"
+                        >
+                          <span className="text-slate-200">
+                            {i + 1}. <CoupleLink entry={entry} />{" "}
+                            <span className="text-xs text-slate-500">({entry.team})</span>
+                          </span>
+                          <div className="flex shrink-0 items-center gap-2">
+                            <span className="pill pill-amber">{entry.day1_ditto_pv} PV</span>
+                            <LikeButton
+                              entryKey={key}
+                              likes={likesMap.get(key) ?? NO_LIKES}
+                              onToggle={toggleLike}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })
                   )}
                 </div>
               </>

@@ -73,6 +73,17 @@ export const CANDIDATE_STEPS: { label: string; homework: string }[] = [
 // pipeline" — index 1 is QI1, so this is "QI1 booked or beyond."
 export const ACTIVE_PIPELINE_MIN_STEP = 1;
 
+// Core Run Streak milestones — based on the longest streak ever hit
+// (get_longest_streak), so a badge earned once stays earned even after a
+// later streak resets.
+export const STREAK_MILESTONES = [
+  { days: 7, label: "1 Week" },
+  { days: 30, label: "30 Days" },
+  { days: 90, label: "90 Days" },
+  { days: 182, label: "6 Months" },
+  { days: 365, label: "1 Year" },
+] as const;
+
 // A/B Contact List: pipeline status dropdown options
 export const CONTACT_STATUSES = [
   "Not yet asked",

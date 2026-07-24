@@ -293,6 +293,45 @@ Update** to copy it, or select the text manually from the box. It
 regenerates live as you fill in today's Core Run Streak fields, so fill
 those in first.
 
+### New to the Team spotlight
+
+The Leaderboard now has a **🎉 New to the Team** card listing anyone who
+completed their profile (name + team) in the last 14 days, newest first,
+linking to their profile — visible to everyone, not just admin/upline.
+It's backed by `get_new_members(days)`, and just quietly disappears once
+nobody's joined recently (no "no new members" clutter).
+
+### Auto-filled profile: reading, listening, streak, milestones
+
+A public profile (tap anyone's name on the Leaderboard) now automatically
+shows, pulled live from their Core Run Streak entries — nothing to fill
+in separately:
+
+- **Core Run**: their current streak length, what they're currently
+  reading (and how much), and what audio they most recently listened to
+  (and how many)
+- **Milestones**: badges for 1 Week, 30 Days, 90 Days, 6 Months, and 1
+  Year, based on the **longest streak they've ever hit** — once earned, a
+  milestone stays on their profile even after a later streak resets
+
+This is powered by two new functions, `get_current_streak(user_id)` and
+`get_longest_streak(user_id)`, folded into `get_public_profile()`. Same
+privacy model as the rest of the public profile: security definer, so it
+can read anyone's Core Run Streak data, but only ever returns the
+computed streak numbers and the latest reading/listening entry — never
+someone's full day-by-day history.
+
+### Liking a Leaderboard ranking
+
+Every ranking row on the Leaderboard (Team Leaders, Individual Leaders,
+QI1 Rhythm, Core Run Streaks, 5+ Active Candidates, Core 300, Day 1
+Ditto) has a heart button next to it. Tap it to like that ranking —
+everyone on the team can see who's liked it (names show underneath the
+heart). It's just a straightforward `leaderboard_likes` table (your own
+like to add/remove, readable by anyone) plus `get_likers()` to resolve
+names, since leaderboard rows themselves are computed on the fly rather
+than stored records.
+
 ## Notes on the Role-Play Coach
 
 The **Role-Play Coach** tab is strictly a practice simulator for A-list,

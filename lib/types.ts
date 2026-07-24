@@ -39,6 +39,27 @@ export type PublicProfile = {
   favorite_book_2: string | null;
   favorite_book_3: string | null;
   team_impact: string | null;
+  current_streak: number;
+  longest_streak: number;
+  last_read_what: string | null;
+  last_read_amount: string | null;
+  last_listen_what: string | null;
+  last_listen_count: number | null;
+};
+
+export type NewMember = {
+  user_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  team: string | null;
+  created_at: string;
+};
+
+export type Liker = {
+  entry_key: string;
+  user_id: string;
+  first_name: string | null;
+  last_name: string | null;
 };
 
 export type TeamTotals = {

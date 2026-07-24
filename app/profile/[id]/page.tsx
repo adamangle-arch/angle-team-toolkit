@@ -3,6 +3,7 @@
 import { use, useEffect, useState } from "react";
 import PageHeader from "@/components/PageHeader";
 import { supabase } from "@/lib/supabaseClient";
+import { STREAK_MILESTONES } from "@/lib/constants";
 import type { PublicProfile } from "@/lib/types";
 
 export default function PublicProfilePage({
@@ -71,6 +72,47 @@ export default function PublicProfilePage({
                 {profile.team && <p className="pill-amber mt-1">{profile.team}</p>}
               </div>
             </div>
+
+            {(profile.current_streak > 0 ||
+              profile.last_read_what ||
+              profile.last_listen_what) && (
+              <div className="card space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="section-title">🔥 Core Run</p>
+                  <span className={profile.current_streak > 0 ? "pill-amber" : "pill"}>
+                    {profile.current_streak} day{profile.current_streak === 1 ? "" : "s"} streak
+                  </span>
+                </div>
+                {profile.last_read_what && (
+                  <p className="text-sm text-slate-200">
+                    📖 Currently reading <span className="font-medium">{profile.last_read_what}</span>
+                    {profile.last_read_amount ? ` — ${profile.last_read_amount}` : ""}
+                  </p>
+                )}
+                {profile.last_listen_what && (
+                  <p className="text-sm text-slate-200">
+                    🎧 Recently listened to{" "}
+                    <span className="font-medium">{profile.last_listen_what}</span>
+                    {profile.last_listen_count
+                      ? ` — ${profile.last_listen_count} audio(s)`
+                      : ""}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {STREAK_MILESTONES.some((m) => profile.longest_streak >= m.days) && (
+              <div className="card space-y-2">
+                <p className="section-title">🏅 Milestones</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {STREAK_MILESTONES.filter((m) => profile.longest_streak >= m.days).map((m) => (
+                    <span key={m.days} className="pill-amber">
+                      🏅 {m.label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {profile.hometown && (
               <div className="card space-y-1">
