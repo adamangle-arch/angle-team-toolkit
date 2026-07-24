@@ -10,14 +10,14 @@ const WIDTH = 350;
 const HEIGHT = 500;
 const GRAVITY = 0.5;
 const FLAP_VELOCITY = -8;
-const CAN_GAP = 150;
-const CAN_WIDTH = 60;
-const CAN_SPEED = 3;
-const CAN_INTERVAL_MS = 1500;
+const PIPE_GAP = 150;
+const PIPE_WIDTH = 60;
+const PIPE_SPEED = 3;
+const PIPE_INTERVAL_MS = 1500;
 const DIAMOND_SIZE = 24;
 const DIAMOND_X = 70;
 
-type Can = { x: number; gapY: number; passed: boolean };
+type Pipe = { x: number; gapY: number; passed: boolean };
 
 export default function GamePage() {
   const { user } = useAuth();
@@ -31,8 +31,8 @@ export default function GamePage() {
 
   const diamondY = useRef(HEIGHT / 2);
   const velocity = useRef(0);
-  const cans = useRef<Can[]>([]);
-  const lastCanTime = useRef(0);
+  const pipes = useRef<Pipe[]>([]);
+  const lastPipeTime = useRef(0);
   const animFrame = useRef(0);
   const scoreRef = useRef(0);
   const bestScoreRef = useRef(0);
@@ -72,19 +72,76 @@ export default function GamePage() {
   }, []);
 
   function drawDiamond(ctx: CanvasRenderingContext2D, x: number, y: number) {
-    const r = DIAMOND_SIZE / 2;
+    const w = DIAMOND_SIZE;
+    const h = DIAMOND_SIZE;
+    const cx = x + w / 2;
+    const cy = y + h / 2;
+
     ctx.save();
-    ctx.translate(x + r, y + r);
-    ctx.rotate(Math.PI / 4);
-    const grad = ctx.createLinearGradient(-r, -r, r, r);
-    grad.addColorStop(0, "#fbbf24");
-    grad.addColorStop(1, "#f59e0b");
+    ctx.translate(cx, cy);
+
+    const top = -h / 2;
+    const bottom = h / 2;
+    const tableHalf = w * 0.32;
+    const girdleHalf = w * 0.5;
+    const girdleY = -h * 0.12;
+
+    const pTopL = { x: -tableHalf, y: top };
+    const pTopR = { x: tableHalf, y: top };
+    const pGirdleR = { x: girdleHalf, y: girdleY };
+    const pBottom = { x: 0, y: bottom };
+    const pGirdleL = { x: -girdleHalf, y: girdleY };
+
+    function poly(points: { x: number; y: number }[]) {
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, points[0].y);
+      for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+      ctx.closePath();
+    }
+
+    const grad = ctx.createLinearGradient(0, top, 0, bottom);
+    grad.addColorStop(0, "#cdeeff");
+    grad.addColorStop(0.35, "#4fa8e8");
+    grad.addColorStop(0.7, "#1c5fc7");
+    grad.addColorStop(1, "#0b3a8f");
+    poly([pTopL, pTopR, pGirdleR, pBottom, pGirdleL]);
     ctx.fillStyle = grad;
-    ctx.fillRect(-r, -r, r * 2, r * 2);
+    ctx.fill();
+
+    ctx.globalAlpha = 0.22;
+    ctx.fillStyle = "#ffffff";
+    poly([pTopL, pTopR, pGirdleR, pGirdleL]);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    ctx.strokeStyle = "rgba(255,255,255,0.55)";
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(pGirdleL.x, pGirdleL.y);
+    ctx.lineTo(0, top + 1);
+    ctx.moveTo(pGirdleR.x, pGirdleR.y);
+    ctx.lineTo(0, top + 1);
+    ctx.moveTo(0, top);
+    ctx.lineTo(0, bottom);
+    ctx.stroke();
+
+    poly([pTopL, pTopR, pGirdleR, pBottom, pGirdleL]);
+    ctx.strokeStyle = "#08296b";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    ctx.fillStyle = "rgba(255,255,255,0.9)";
+    ctx.beginPath();
+    ctx.moveTo(-tableHalf * 0.4, top + 2);
+    ctx.lineTo(-tableHalf * 0.1, top + 2);
+    ctx.lineTo(-tableHalf * 0.25, girdleY * 0.3);
+    ctx.closePath();
+    ctx.fill();
+
     ctx.restore();
   }
 
-  function drawCan(
+  function drawPipe(
     ctx: CanvasRenderingContext2D,
     x: number,
     y: number,
@@ -92,22 +149,34 @@ export default function GamePage() {
     dir: "down" | "up"
   ) {
     if (height <= 0) return;
-    ctx.fillStyle = "#94a3b8";
-    ctx.fillRect(x, y, CAN_WIDTH, height);
-    ctx.fillStyle = "#f59e0b";
-    const bandY = dir === "down" ? y + height - 28 : y + 6;
-    ctx.fillRect(x, bandY, CAN_WIDTH, 22);
-    ctx.fillStyle = "#0a0f1e";
-    ctx.font = "bold 14px sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText("XS", x + CAN_WIDTH / 2, bandY + 16);
+    const w = PIPE_WIDTH;
+    const capHeight = 26;
+    const capOverhang = 6;
+
+    const bodyGrad = ctx.createLinearGradient(x, 0, x + w, 0);
+    bodyGrad.addColorStop(0, "#1f7a3d");
+    bodyGrad.addColorStop(0.15, "#5bcf82");
+    bodyGrad.addColorStop(0.45, "#2fa855");
+    bodyGrad.addColorStop(0.85, "#1f7a3d");
+    bodyGrad.addColorStop(1, "#0e4a20");
+
+    ctx.fillStyle = bodyGrad;
+    ctx.fillRect(x, y, w, height);
+    ctx.strokeStyle = "#0a3517";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x + 1, y, w - 2, height);
+
+    const capY = dir === "down" ? y + height - capHeight : y;
+    ctx.fillStyle = bodyGrad;
+    ctx.fillRect(x - capOverhang, capY, w + capOverhang * 2, capHeight);
+    ctx.strokeRect(x - capOverhang + 1, capY, w + capOverhang * 2 - 2, capHeight);
   }
 
   function resetGame() {
     diamondY.current = HEIGHT / 2;
     velocity.current = 0;
-    cans.current = [];
-    lastCanTime.current = 0;
+    pipes.current = [];
+    lastPipeTime.current = 0;
     scoreRef.current = 0;
     setScore(0);
     setGameOver(false);
@@ -137,28 +206,28 @@ export default function GamePage() {
     velocity.current += GRAVITY;
     diamondY.current += velocity.current;
 
-    if (lastCanTime.current === 0) lastCanTime.current = time;
-    if (time - lastCanTime.current > CAN_INTERVAL_MS) {
-      lastCanTime.current = time;
-      const gapY = 60 + Math.random() * (HEIGHT - 120 - CAN_GAP);
-      cans.current.push({ x: WIDTH, gapY, passed: false });
+    if (lastPipeTime.current === 0) lastPipeTime.current = time;
+    if (time - lastPipeTime.current > PIPE_INTERVAL_MS) {
+      lastPipeTime.current = time;
+      const gapY = 60 + Math.random() * (HEIGHT - 120 - PIPE_GAP);
+      pipes.current.push({ x: WIDTH, gapY, passed: false });
     }
 
-    for (const c of cans.current) c.x -= CAN_SPEED;
-    cans.current = cans.current.filter((c) => c.x + CAN_WIDTH > 0);
+    for (const p of pipes.current) p.x -= PIPE_SPEED;
+    pipes.current = pipes.current.filter((p) => p.x + PIPE_WIDTH > 0);
 
     let collided = diamondY.current < 0 || diamondY.current > HEIGHT - DIAMOND_SIZE;
 
-    for (const c of cans.current) {
-      if (!c.passed && c.x + CAN_WIDTH < DIAMOND_X) {
-        c.passed = true;
+    for (const p of pipes.current) {
+      if (!p.passed && p.x + PIPE_WIDTH < DIAMOND_X) {
+        p.passed = true;
         scoreRef.current += 1;
         setScore(scoreRef.current);
       }
-      const withinX = DIAMOND_X + DIAMOND_SIZE > c.x && DIAMOND_X < c.x + CAN_WIDTH;
+      const withinX = DIAMOND_X + DIAMOND_SIZE > p.x && DIAMOND_X < p.x + PIPE_WIDTH;
       if (withinX) {
         const withinGap =
-          diamondY.current > c.gapY && diamondY.current + DIAMOND_SIZE < c.gapY + CAN_GAP;
+          diamondY.current > p.gapY && diamondY.current + DIAMOND_SIZE < p.gapY + PIPE_GAP;
         if (!withinGap) collided = true;
       }
     }
@@ -170,9 +239,9 @@ export default function GamePage() {
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-    for (const c of cans.current) {
-      drawCan(ctx, c.x, 0, c.gapY, "down");
-      drawCan(ctx, c.x, c.gapY + CAN_GAP, HEIGHT - (c.gapY + CAN_GAP), "up");
+    for (const p of pipes.current) {
+      drawPipe(ctx, p.x, 0, p.gapY, "down");
+      drawPipe(ctx, p.x, p.gapY + PIPE_GAP, HEIGHT - (p.gapY + PIPE_GAP), "up");
     }
 
     drawDiamond(ctx, DIAMOND_X, diamondY.current);
@@ -217,7 +286,7 @@ export default function GamePage() {
 
   return (
     <>
-      <PageHeader title="Diamond Run" subtitle="Tap to flap — dodge the XS cans" />
+      <PageHeader title="Diamond Run" subtitle="Tap to flap — dodge the pipes" />
       <main className="page-main">
         <div className="card flex items-center justify-between">
           <span className="text-sm text-slate-400">

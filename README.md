@@ -404,7 +404,7 @@ yet. A few things worth knowing:
 ### Diamond Run (mini-game)
 
 A **Diamond Run** tab has a lightweight Flappy Bird-style game — tap to
-keep your diamond airborne and dodge stacks of "XS" cans — built with
+keep your diamond airborne and dodge classic green pipes — built with
 plain HTML5 canvas, no game library. High scores are saved per person
 and shown on an in-page leaderboard (`game_high_scores` table +
 `get_game_leaderboard()`). It's just for fun: the game runs entirely
