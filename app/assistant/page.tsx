@@ -87,14 +87,16 @@ export default function AssistantPage() {
 
   return (
     <>
-      <PageHeader title="Angle Team Assistant" subtitle="Process, scripts, and coaching support" />
+      <PageHeader title="Role-Play Coach" subtitle="Practice A-list, B-list, and C-list conversations" />
       <main className="page-main">
         {loading ? (
           <div className="empty-state">Loading conversation…</div>
         ) : messages.length === 0 ? (
           <div className="empty-state">
-            Ask about process steps, scripts, roleplay, or coaching. This assistant will always
-            point you back to your mentor/upline for the real calls.
+            Tell it which list you want to practice (A, B, or C/marketplace) and who the prospect
+            is. It will play the prospect one message at a time, then score your conversation when
+            you say &quot;end role-play.&quot; For process, scripts, products, or comp plan
+            questions, check the Resources tab instead.
           </div>
         ) : (
           <div className="space-y-3">
@@ -132,7 +134,7 @@ export default function AssistantPage() {
         <div className="card flex items-end gap-2">
           <textarea
             className="textarea min-h-0 flex-1"
-            placeholder="Ask a question…"
+            placeholder="Start a role-play or reply in character…"
             rows={2}
             value={input}
             onChange={(e) => setInput(e.target.value)}
