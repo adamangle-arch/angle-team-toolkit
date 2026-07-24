@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { href: "/leaderboard", label: "Leaderboard", icon: "🏆" },
   { href: "/assistant", label: "Assistant", icon: "🤖" },
   { href: "/onboarding", label: "Onboarding", icon: "🎓" },
+  { href: "/game", label: "Diamond Run", icon: "💎" },
   { href: "/library", label: "Resources", icon: "📚" },
   // Visible to everyone: admins see the whole company, everyone else
   // sees their own downline (RLS scopes it either way).

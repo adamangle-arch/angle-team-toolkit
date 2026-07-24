@@ -1157,6 +1157,54 @@ drop policy if exists "push_subscriptions_delete_own" on push_subscriptions;
 create policy "push_subscriptions_delete_own" on push_subscriptions
 for delete using (user_id = auth.uid());
 
+-- ============================================================
+-- 10. DIAMOND RUN (mini-game)
+-- One row per user tracking their best score. The game itself is
+-- entirely client-side (canvas), so this is purely for the fun
+-- high-score leaderboard — no anti-cheat, same trust level as any other
+-- self-reported number in this app.
+-- ============================================================
+create table if not exists game_high_scores (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  best_score int not null default 0,
+  updated_at timestamptz not null default now()
+);
+
+alter table game_high_scores enable row level security;
+
+drop policy if exists "game_high_scores_select_all" on game_high_scores;
+create policy "game_high_scores_select_all" on game_high_scores
+for select using (true);
+
+drop policy if exists "game_high_scores_insert_own" on game_high_scores;
+create policy "game_high_scores_insert_own" on game_high_scores
+for insert with check (user_id = auth.uid());
+
+drop policy if exists "game_high_scores_update_own" on game_high_scores;
+create policy "game_high_scores_update_own" on game_high_scores
+for update using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+create or replace function public.get_game_leaderboard()
+returns table (
+  user_id uuid,
+  first_name text,
+  last_name text,
+  best_score int
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select g.user_id, p.first_name, p.last_name, g.best_score
+  from game_high_scores g
+  join profiles p on p.id = g.user_id
+  order by g.best_score desc
+  limit 20;
+$$;
+
+grant execute on function public.get_game_leaderboard() to authenticated;
+
 create or replace function public.get_likers(p_entry_keys text[])
 returns table (
   entry_key text,

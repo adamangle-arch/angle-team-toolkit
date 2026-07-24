@@ -401,6 +401,16 @@ yet. A few things worth knowing:
   key in particular bypasses Row Level Security entirely and must never
   be exposed to the browser (no `NEXT_PUBLIC_` prefix, server-only).
 
+### Diamond Run (mini-game)
+
+A **Diamond Run** tab has a lightweight Flappy Bird-style game — tap to
+keep your diamond airborne and dodge stacks of "XS" cans — built with
+plain HTML5 canvas, no game library. High scores are saved per person
+and shown on an in-page leaderboard (`game_high_scores` table +
+`get_game_leaderboard()`). It's just for fun: the game runs entirely
+client-side, so there's no anti-cheat on scores, same trust level as any
+other self-reported number in this app.
+
 ## Notes on the Role-Play Coach
 
 The **Role-Play Coach** tab is strictly a practice simulator for A-list,

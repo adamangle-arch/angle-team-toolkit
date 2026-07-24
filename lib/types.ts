@@ -63,6 +63,13 @@ export type Liker = {
   last_name: string | null;
 };
 
+export type GameLeaderEntry = {
+  user_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  best_score: number;
+};
+
 export type MilestoneEntry = {
   user_id: string;
   first_name: string | null;
