@@ -1,10 +1,26 @@
-// The one account that can see every team member's data. Must match the
-// email hardcoded in is_app_admin() in supabase/schema.sql.
-export const ADMIN_EMAIL = "adamangle@icloud.com";
+// Accounts that can see every team member's data (Team tab: Members +
+// Teams views). Must match the emails hardcoded in is_app_admin() in
+// supabase/schema.sql.
+export const PRIMARY_EMAILS = ["adamangle@icloud.com", "alexangle@me.com"];
 
-export function isAdminEmail(email: string | null | undefined): boolean {
-  return (email ?? "").trim().toLowerCase() === ADMIN_EMAIL.toLowerCase();
+export function isPrimaryUser(email: string | null | undefined): boolean {
+  const normalized = (email ?? "").trim().toLowerCase();
+  return PRIMARY_EMAILS.some((e) => e.toLowerCase() === normalized);
 }
+
+// The fixed list of teams someone can belong to. Must match the check
+// constraint on profiles.team in supabase/schema.sql.
+export const TEAMS = [
+  "Angle Team",
+  "AA2 Team",
+  "Tucker Team",
+  "Scheerer Team",
+  "Abbott Team",
+  "TX Team",
+  "Rodgers Team",
+  "Jones Team",
+  "Koebel Team",
+] as const;
 
 // Pipeline Tracker: ordered stages
 export const PIPELINE_STAGES = [

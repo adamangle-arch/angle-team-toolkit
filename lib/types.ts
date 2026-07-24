@@ -3,7 +3,22 @@ import type { PipelineStageKey } from "./constants";
 export type Profile = {
   id: string;
   email: string;
+  first_name: string | null;
+  last_name: string | null;
+  team: string | null;
   created_at: string;
+};
+
+export type TeamTotals = {
+  team: string;
+  member_count: number;
+} & Record<PipelineStageKey, number>;
+
+export type Qi1LeaderboardEntry = {
+  first_name: string | null;
+  last_name: string | null;
+  team: string | null;
+  qi1: number;
 };
 
 export type PipelinePeriod = {

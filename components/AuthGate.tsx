@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabaseClient";
 import LoginForm from "./LoginForm";
 import BottomNav from "./BottomNav";
 import ConfigWarning from "./ConfigWarning";
+import ProfileGate from "./ProfileGate";
 
 type AuthContextValue = {
   user: User;
@@ -23,6 +24,7 @@ export function useAuth(): AuthContextValue {
 export default function AuthGate({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [profileComplete, setProfileComplete] = useState<boolean | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -34,6 +36,23 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     });
     return () => listener.subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    supabase
+      .from("profiles")
+      .select("first_name, last_name, team")
+      .eq("id", user.id)
+      .single()
+      .then(({ data }) => {
+        if (cancelled) return;
+        setProfileComplete(Boolean(data?.first_name && data?.last_name && data?.team));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   if (loading) {
     return (
@@ -48,6 +67,23 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
       <>
         <ConfigWarning />
         <LoginForm />
+      </>
+    );
+  }
+
+  if (profileComplete === null) {
+    return (
+      <div className="flex flex-1 items-center justify-center text-sm text-slate-400">
+        Loading…
+      </div>
+    );
+  }
+
+  if (!profileComplete) {
+    return (
+      <>
+        <ConfigWarning />
+        <ProfileGate user={user} onComplete={() => setProfileComplete(true)} />
       </>
     );
   }

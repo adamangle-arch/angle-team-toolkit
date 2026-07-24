@@ -3,11 +3,12 @@
 A mobile-friendly activity tracker for a network marketing team, built with
 Next.js (App Router) and Supabase. Tabs for each part of the day-to-day
 workflow: Pipeline Tracker, Candidate Roadmap, Contacts, Core Run Streak, a
-Role-Play Coach for practicing A-list/B-list/C-list conversations, and a
-Resources hub (Products, Scripts & FAQ, Process Guide, Leaders, Acquisition,
-Audio & Book Library). Everyone signs in with their own email/password
-account, and each person's data is private to them. All data is stored in
-Supabase (Postgres), so it persists across sessions and devices.
+Leaderboard, a Role-Play Coach for practicing A-list/B-list/C-list
+conversations, and a Resources hub (Products, Scripts & FAQ, Process Guide,
+Leaders, Acquisition, Audio & Book Library). Everyone signs in with their own
+email/password account, picks their team on first login, and each person's
+individual data is private to them. All data is stored in Supabase
+(Postgres), so it persists across sessions and devices.
 
 ## 1. Set up Supabase
 
@@ -21,8 +22,8 @@ Supabase (Postgres), so it persists across sessions and devices.
    **Re-running this file drops and recreates every app table**, so only run
    it again later if you're OK losing existing data.
 4. Near the top of `supabase/schema.sql`, the `is_app_admin()` function is
-   hardcoded to one email address — change it to whichever account should be
-   able to see/manage everyone's data, then re-run the file.
+   hardcoded to a list of email addresses — change it to whichever accounts
+   should be able to see/manage everyone's data, then re-run the file.
 5. Go to **Project Settings > API** and copy:
    - **Project URL**
    - **anon / public** key
@@ -73,24 +74,47 @@ See the deployment steps the assistant gave you in chat, or in short:
 
 Every table has Row Level Security scoped to `user_id = auth.uid()`, so
 signed-in users only ever see their own rows through the app — Pipeline,
-Candidates, Contacts, Streak, Recognition, and Goals are all private per
-person. The one exception is the admin email hardcoded in
-`is_app_admin()` (see `supabase/schema.sql`): that account gets an extra
-**Team** tab in the app showing every signed-up member and a read-only
-summary of their data across all sections, and can also read, update, or
-delete any row via direct Supabase access (e.g. the dashboard's
-**Table Editor**, which always has full access regardless of RLS since it
-runs as the project owner). New rows are always attributed to whoever is
-actually logged in, admin included — there's no "post as someone else."
-The admin email is duplicated in two places — `is_app_admin()` in
-`supabase/schema.sql` and `ADMIN_EMAIL` in `lib/constants.ts` — change both
-together if it ever needs to be a different account.
+Candidates, Contacts, and Streak are all private per person. The exception is
+the primary-user emails hardcoded in `is_app_admin()` (see
+`supabase/schema.sql`): those accounts get an extra **Team** tab in the app
+with two views — **Members** (every signed-up member's individual data, same
+as before) and **Teams** (each of the 9 teams' pipeline numbers added
+together) — and can also read, update, or delete any row via direct Supabase
+access (e.g. the dashboard's **Table Editor**, which always has full access
+regardless of RLS since it runs as the project owner). New rows are always
+attributed to whoever is actually logged in, primary users included —
+there's no "post as someone else." The primary-user email list is duplicated
+in two places — `is_app_admin()` in `supabase/schema.sql` and
+`PRIMARY_EMAILS` in `lib/constants.ts` — change both together if it ever
+needs to be a different set of accounts.
 
 The **Team** tab depends on a `profiles` table that's populated by a
 database trigger whenever someone signs up (see the "PROFILES" section in
-`supabase/schema.sql`). If you already ran the schema before this was
-added, run just that section again — it's additive and won't touch your
-existing data.
+`supabase/schema.sql`). If you already ran the schema before this was added,
+run just that section again — it's additive and won't touch your existing
+data.
+
+### Names, teams, and the Leaderboard
+
+`profiles` also carries `first_name`, `last_name`, and `team` — the fixed
+list of teams (`TEAMS` in `lib/constants.ts`, matching a check constraint in
+`supabase/schema.sql`) is currently: Angle Team, AA2 Team, Tucker Team,
+Scheerer Team, Abbott Team, TX Team, Rodgers Team, Jones Team, Koebel Team.
+Every user is prompted to fill these in — once, via a blocking "Finish your
+profile" screen — the first time they log in after this feature shipped, and
+new signups get the same prompt right after creating their account. If
+you're adding this to a project that already ran an earlier version of
+`schema.sql`, just re-run the file (it's additive here — the new columns and
+policy use `if not exists` / safe drops-and-recreates that don't touch
+existing table data).
+
+Two SQL functions (`get_team_pipeline_totals`, `get_qi1_leaderboard`) do the
+cross-member aggregation for the Teams view and the Leaderboard. Both are
+`security definer` so they can read every member's `pipeline_periods` row,
+but each only ever returns an aggregate (team totals) or a name + QI1 count
+— never a member's full private stage breakdown — and both are callable by
+any signed-in user (`grant execute ... to authenticated`), since the
+Leaderboard is intentionally visible to everyone, not just primary users.
 
 By default Supabase requires email confirmation on signup; see step 2 above
 if you want teammates to be able to log in immediately after creating an

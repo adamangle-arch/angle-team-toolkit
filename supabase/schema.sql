@@ -9,17 +9,19 @@
 create extension if not exists "pgcrypto";
 
 -- ============================================================
--- Admin override
--- Change the email below to whichever Supabase Auth account should be
--- able to see and manage every team member's data. Everyone else only
--- ever sees their own rows through the app.
+-- Primary users (admin override)
+-- These accounts can see and manage every team member's data, and get
+-- the "Teams" breakdown view. Keep this list in sync with PRIMARY_EMAILS
+-- in lib/constants.ts. Everyone else only ever sees their own rows.
 -- ============================================================
 create or replace function public.is_app_admin()
 returns boolean
 language sql
 stable
 as $$
-  select lower(coalesce(auth.jwt() ->> 'email', '')) = lower('adamangle@icloud.com');
+  select lower(coalesce(auth.jwt() ->> 'email', '')) = any(
+    array['adamangle@icloud.com', 'alexangle@me.com']
+  );
 $$;
 
 -- ============================================================
@@ -121,11 +123,31 @@ create table if not exists profiles (
   created_at timestamptz not null default now()
 );
 
+-- Additive: name + team fields. Existing accounts get prompted to fill
+-- these in the next time they log in (see ProfileGate in the app).
+alter table profiles add column if not exists first_name text;
+alter table profiles add column if not exists last_name text;
+alter table profiles add column if not exists team text;
+
+-- Keep this list in sync with TEAMS in lib/constants.ts.
+alter table profiles drop constraint if exists profiles_team_check;
+alter table profiles add constraint profiles_team_check check (
+  team is null or team in (
+    'Angle Team', 'AA2 Team', 'Tucker Team', 'Scheerer Team', 'Abbott Team',
+    'TX Team', 'Rodgers Team', 'Jones Team', 'Koebel Team'
+  )
+);
+
 alter table profiles enable row level security;
 
 drop policy if exists "select_own_or_admin" on profiles;
 create policy "select_own_or_admin" on profiles for select
 using (id = auth.uid() or public.is_app_admin());
+
+drop policy if exists "update_own" on profiles;
+create policy "update_own" on profiles for update
+using (id = auth.uid())
+with check (id = auth.uid());
 
 create or replace function public.handle_new_user()
 returns trigger
@@ -166,6 +188,90 @@ create table if not exists assistant_messages (
 -- Additive: lets a re-run of this section pick up image_data on a table
 -- that already existed before screenshot support was added.
 alter table assistant_messages add column if not exists image_data text;
+
+-- ============================================================
+-- 7. TEAM PIPELINE TOTALS & LEADERBOARD
+-- Every member's individual pipeline_periods row stays private via RLS
+-- (below). These two functions are the only way to see across members:
+-- both are SECURITY DEFINER so they can read every row, but each only
+-- ever returns an aggregate or a name + QI1 count — never a member's
+-- full private stage breakdown. Both are callable by any signed-in
+-- user, since the Leaderboard is visible to the whole team.
+-- ============================================================
+create or replace function public.get_team_pipeline_totals(
+  p_period_type text,
+  p_period_start date
+)
+returns table (
+  team text,
+  member_count int,
+  questions int,
+  yeses int,
+  qi1 int,
+  qi2 int,
+  is1 int,
+  fu1 int,
+  is2 int,
+  fu2 int,
+  questionnaire int,
+  launches int
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    pr.team,
+    count(distinct pr.id)::int as member_count,
+    coalesce(sum(pp.questions), 0)::int as questions,
+    coalesce(sum(pp.yeses), 0)::int as yeses,
+    coalesce(sum(pp.qi1), 0)::int as qi1,
+    coalesce(sum(pp.qi2), 0)::int as qi2,
+    coalesce(sum(pp.is1), 0)::int as is1,
+    coalesce(sum(pp.fu1), 0)::int as fu1,
+    coalesce(sum(pp.is2), 0)::int as is2,
+    coalesce(sum(pp.fu2), 0)::int as fu2,
+    coalesce(sum(pp.questionnaire), 0)::int as questionnaire,
+    coalesce(sum(pp.launches), 0)::int as launches
+  from profiles pr
+  left join pipeline_periods pp
+    on pp.user_id = pr.id
+   and pp.period_type = p_period_type
+   and pp.period_start = p_period_start
+  where pr.team is not null
+  group by pr.team;
+$$;
+
+grant execute on function public.get_team_pipeline_totals(text, date) to authenticated;
+
+create or replace function public.get_qi1_leaderboard(
+  p_period_type text,
+  p_period_start date,
+  p_limit int default 3
+)
+returns table (
+  first_name text,
+  last_name text,
+  team text,
+  qi1 int
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select pr.first_name, pr.last_name, pr.team, pp.qi1
+  from pipeline_periods pp
+  join profiles pr on pr.id = pp.user_id
+  where pp.period_type = p_period_type
+    and pp.period_start = p_period_start
+    and pp.qi1 > 0
+  order by pp.qi1 desc
+  limit p_limit;
+$$;
+
+grant execute on function public.get_qi1_leaderboard(text, date, int) to authenticated;
 
 -- ============================================================
 -- Row Level Security
