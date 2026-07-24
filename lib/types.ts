@@ -163,6 +163,14 @@ export type StreakDay = {
   listen: boolean;
   daily_update: boolean;
   story_share: boolean;
+  read_what: string;
+  read_amount: string;
+  listen_what: string;
+  listen_count: number;
+  story_shares: number;
+  questions: number;
+  yeses: number;
+  meetings: number;
 };
 
 export type AssistantMessage = {

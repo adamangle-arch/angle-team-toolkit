@@ -74,6 +74,10 @@ export default function TeamPage() {
   const [teamTotals, setTeamTotals] = useState<TeamTotals[]>([]);
   const [loadingTeams, setLoadingTeams] = useState(true);
 
+  const [confirmEmail, setConfirmEmail] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+
   useEffect(() => {
     async function load() {
       setLoadingProfiles(true);
@@ -181,6 +185,33 @@ export default function TeamPage() {
   }, [selectedId, profiles]);
 
   const selectedProfile = profiles.find((p) => p.id === selectedId) ?? null;
+
+  // Reset the delete-confirmation fields whenever the selected member
+  // changes, adjusted during render rather than in an effect.
+  const [syncedSelectedId, setSyncedSelectedId] = useState<string | null>(selectedId);
+  if (syncedSelectedId !== selectedId) {
+    setSyncedSelectedId(selectedId);
+    setConfirmEmail("");
+    setDeleteError("");
+  }
+
+  async function handleDelete() {
+    if (!selectedId) return;
+    setDeleting(true);
+    setDeleteError("");
+    const { error } = await supabase.rpc("delete_downline_account", {
+      p_user_id: selectedId,
+    });
+    if (error) {
+      setDeleteError(error.message);
+      setDeleting(false);
+      return;
+    }
+    setProfiles((prev) => prev.filter((p) => p.id !== selectedId));
+    setSelectedId(null);
+    setMemberData(null);
+    setDeleting(false);
+  }
 
   return (
     <>
@@ -397,6 +428,36 @@ export default function TeamPage() {
                     </div>
                   )}
                 </div>
+
+                {selectedId !== user.id && (
+                  <div className="card space-y-2 !border-red-500/40">
+                    <p className="section-title text-red-400">Danger Zone</p>
+                    <p className="text-xs text-slate-400">
+                      Permanently deletes this person&apos;s account and all of their data
+                      (pipeline, candidates, contacts, Core Run Streak, PV, sales, Assistant
+                      history). This cannot be undone. Only use this if they&apos;ve left the
+                      business.
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      Type <span className="font-semibold text-slate-200">{selectedProfile?.email}</span>{" "}
+                      to confirm.
+                    </p>
+                    <input
+                      className="input"
+                      placeholder="Confirm email"
+                      value={confirmEmail}
+                      onChange={(e) => setConfirmEmail(e.target.value)}
+                    />
+                    {deleteError && <p className="text-xs text-red-400">{deleteError}</p>}
+                    <button
+                      className="btn-danger w-full"
+                      disabled={confirmEmail !== selectedProfile?.email || deleting}
+                      onClick={handleDelete}
+                    >
+                      {deleting ? "Deleting…" : "Permanently Delete Account"}
+                    </button>
+                  </div>
+                )}
               </>
             )}
           </>

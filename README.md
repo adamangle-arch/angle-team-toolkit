@@ -249,6 +249,50 @@ This is the only case in the app where reading someone's Assistant chat
 history is possible by anyone other than that person themselves — worth
 knowing if a downline ever asks who can see their role-play conversations.
 
+### Deleting a downline's account
+
+An admin, or an upline at any level, can permanently delete a downline
+member's account from their entry on the **Team** tab — for when someone
+quits the business. It's under a "Danger Zone" card and requires typing
+the member's exact email to confirm before the delete button enables.
+
+This calls the `delete_downline_account(user_id)` function, which checks
+the caller is an admin or upline of that person, then deletes their row
+from `auth.users`. Every other table (profiles, pipeline, candidates,
+contacts, streak, PV, sales, Assistant history) references `auth.users`
+with `on delete cascade`, so everything belonging to that person is wiped
+in one shot. **This is irreversible** — there's no undo and no soft
+delete. You can't use this on your own account (that still needs to go
+through Supabase directly).
+
+### Core Run Streak detail (what/how much)
+
+Beyond the 4 qualifying checks (Read / Listen / Daily Update / Story
+Share), each day's Core Run Streak entry now also captures:
+
+- **Read** — what you're reading, and how much today (free text, e.g. "20 pages")
+- **Listen** — what audio(s), and how many you listened to (a counter)
+- **Today's Activity** — counters for Story Shares, Questions, Yeses, and Meetings
+
+The 4 boolean flags that actually determine your streak are unchanged
+and still the only thing `qualifies()` looks at — they're just now set
+automatically from the detail fields (read counts once you type an
+amount, listen/story share count once their counter is above 0) instead
+of being separate manual toggles. This was a deliberate choice so adding
+these fields couldn't retroactively break anyone's existing streak
+history; `daily_update` stays a plain manual toggle either way.
+
+### Daily Update summary (copy/paste for LTD)
+
+The bottom of the Core Run Streak page has a **Daily Update Summary**
+card: a read-only, pre-formatted block of text built from today's Read/
+Listen/activity detail, your current streak, this week's and this
+month's pipeline numbers, and your current PV — meant to be copied
+straight into your nightly LTD update to your upline. Tap **Copy Daily
+Update** to copy it, or select the text manually from the box. It
+regenerates live as you fill in today's Core Run Streak fields, so fill
+those in first.
+
 ## Notes on the Role-Play Coach
 
 The **Role-Play Coach** tab is strictly a practice simulator for A-list,

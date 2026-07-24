@@ -115,8 +115,31 @@ create table streak_days (
   listen boolean not null default false,
   daily_update boolean not null default false,
   story_share boolean not null default false,
+  read_what text not null default '',
+  read_amount text not null default '',
+  listen_what text not null default '',
+  listen_count int not null default 0,
+  story_shares int not null default 0,
+  questions int not null default 0,
+  yeses int not null default 0,
+  meetings int not null default 0,
   unique (user_id, day)
 );
+
+-- Additive: richer detail behind the same 4 qualifying flags above. The
+-- app sets read/listen/story_share from these (non-empty amount, count
+-- > 0) instead of a manual toggle — the booleans stay the actual streak
+-- source of truth, so this doesn't touch qualifying logic or historical
+-- streak continuity. questions/yeses/meetings are pure daily activity
+-- counts with no bearing on the streak itself.
+alter table streak_days add column if not exists read_what text not null default '';
+alter table streak_days add column if not exists read_amount text not null default '';
+alter table streak_days add column if not exists listen_what text not null default '';
+alter table streak_days add column if not exists listen_count int not null default 0;
+alter table streak_days add column if not exists story_shares int not null default 0;
+alter table streak_days add column if not exists questions int not null default 0;
+alter table streak_days add column if not exists yeses int not null default 0;
+alter table streak_days add column if not exists meetings int not null default 0;
 
 -- ============================================================
 -- 4b. PERSONAL CIRCLE PV
@@ -346,6 +369,32 @@ end;
 $$;
 
 grant execute on function public.link_upline(text) to authenticated;
+
+-- Admin or upline (any level) can permanently delete a downline's entire
+-- account — for when someone quits the business. Deletes from
+-- auth.users, which cascades to profiles and every table that
+-- references it (pipeline, candidates, contacts, streak, PV, sales,
+-- assistant messages) via "on delete cascade". Irreversible.
+create or replace function public.delete_downline_account(p_user_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if p_user_id = auth.uid() then
+    raise exception 'Use account settings to delete your own account.';
+  end if;
+
+  if not (public.is_app_admin() or public.is_upline_of(auth.uid(), p_user_id)) then
+    raise exception 'Not authorized to delete this account.';
+  end if;
+
+  delete from auth.users where id = p_user_id;
+end;
+$$;
+
+grant execute on function public.delete_downline_account(uuid) to authenticated;
 
 create or replace function public.handle_new_user()
 returns trigger
