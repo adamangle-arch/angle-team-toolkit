@@ -111,6 +111,16 @@ export const ONBOARDING_SESSIONS: OnboardingSession[] = [
           "Listen to the audio explaining how to fill out the budget, then bring your completed budget to your next meeting with your coach.",
         url: "https://www.dropbox.com/scl/fo/9provgioq5ijeudeaebt1/ACExQWjHLo9nFbsXm8gUBYE?rlkey=k2kadsk4wmc9h0am8nn13lxl1&st=8u9146yf&dl=0",
       },
+      {
+        label: "🎧 Welcome to the Success Journey",
+        detail:
+          "Audio by Andrew Tidwell — your coach will send this to you on the LTD app. Listen before your next meeting.",
+      },
+      {
+        label: "🎧 Getting Through the First Year",
+        detail:
+          "Audio by Toby Ayers — your coach will send this to you on the LTD app. Listen before your next meeting.",
+      },
     ],
   },
   {
