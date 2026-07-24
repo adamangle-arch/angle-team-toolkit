@@ -416,6 +416,18 @@ day's Core Run (Read, Listen, Daily Update, Story Share), reading the
 same `streak_days` row that page already writes to — no separate
 schema needed. Locked out, the page links straight to Core Run Streak.
 
+### Success quote on open
+
+Every time the app is opened fresh, a dismissible overlay shows a
+random success/mindset quote pulled from books on the team's reading
+list (`lib/quotes.ts`'s `BOOK_QUOTES`, sourced from the book list in
+`lib/library-data.ts`). This is a deliberately curated, non-exhaustive
+set — only quotes we could confirm are accurately attributed are
+included, rather than guessing at exact wording for every book on the
+list. Add more over time as you confirm exact quotes you want in
+rotation. It shows once per app open (tied to `AuthGate` mounting, not
+per internal tab navigation) and dismisses with a tap.
+
 ## Notes on the Role-Play Coach
 
 The **Role-Play Coach** tab is strictly a practice simulator for A-list,

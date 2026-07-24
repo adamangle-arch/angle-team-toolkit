@@ -8,6 +8,7 @@ import BottomNav from "./BottomNav";
 import ConfigWarning from "./ConfigWarning";
 import ProfileGate from "./ProfileGate";
 import ProfileDetailsGate from "./ProfileDetailsGate";
+import QuoteOverlay from "./QuoteOverlay";
 import type { Profile } from "@/lib/types";
 
 type AuthContextValue = {
@@ -121,6 +122,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
       }}
     >
       <ConfigWarning />
+      <QuoteOverlay />
       {children}
       <BottomNav />
     </AuthContext.Provider>
