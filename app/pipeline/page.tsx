@@ -343,11 +343,6 @@ function CandidateCard({
         )}
       </div>
 
-      <p className="text-xs text-slate-400">
-        <span className="font-medium text-slate-300">Homework: </span>
-        {step.homework}
-      </p>
-
       <label className="flex items-center gap-2 text-xs text-slate-400">
         <span className="shrink-0 font-medium text-slate-300">Connected:</span>
         <input
