@@ -5,7 +5,12 @@ export type TriviaQuestion = {
 };
 
 // Real team trivia questions. Send more anytime and they'll be added
-// here. correctIndex is 0-based into options.
+// here. correctIndex is 0-based into options. Convention: when a
+// question asks about a specific diamond/platinum on the team, the
+// wrong-answer options should be other real leader names pulled from
+// lib/leaders-data.ts (not made-up names) - but leave book/audio
+// questions (Go-Giver, Think and Grow Rich, etc.) as-is, since their
+// wrong answers are about the book's own content, not our team.
 export const TRIVIA_QUESTIONS: TriviaQuestion[] = [
   {
     question: "What is the main message of The Go-Giver?",
@@ -43,10 +48,10 @@ export const TRIVIA_QUESTIONS: TriviaQuestion[] = [
     question:
       "Which diamond had to dig through dumpsters to find aluminum cans to pay for their conference tickets when they first got started?",
     options: [
-      "Tom and Linda Reyes",
+      "Mike and Susan Bundy",
       "Larry and Pam Winters",
-      "The Andersons",
-      "Mike and Sarah Douglas",
+      "Derrick and Kaprice Tucker",
+      "Kent and Jenna Scheerer",
     ],
     correctIndex: 1,
   },
