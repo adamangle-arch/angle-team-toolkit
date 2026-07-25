@@ -434,8 +434,10 @@ initial tab can be deep-linked via `?tab=diamond-run|diamond-chase|trivia`
   Safari and wasn't showing up there). Controls: arrow keys/WASD,
   swipe, or the on-screen D-pad (large 56px buttons for easier
   tapping). Speed ramps up slightly with every book eaten, starting a
-  bit slower than the first version for easier control. No play gate.
-  High scores: `snake_high_scores` + `get_snake_leaderboard()`.
+  bit slower than the first version for easier control. Gated the same
+  way as Diamond Run — locked until that day's Core Run is complete,
+  linking to Core Run Streak while locked out. High scores:
+  `snake_high_scores` + `get_snake_leaderboard()`.
 - **Trivia** — a daily 5-question challenge, not a survival mode.
   Every user gets the same 5 questions on a given calendar day, picked
   deterministically from `lib/trivia-data.ts`'s `TRIVIA_QUESTIONS` pool

@@ -1,9 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
+import { getToday } from "@/lib/dates";
 import type { GameLeaderEntry } from "@/lib/types";
+
+type UnlockStatus = {
+  coreRunDone: boolean;
+};
 
 const COLS = 15;
 const ROWS = 20;
@@ -40,6 +46,8 @@ export default function DiamondChaseGame() {
   const [running, setRunning] = useState(false);
   const [gameOver, setGameOver] = useState(false);
   const [leaders, setLeaders] = useState<GameLeaderEntry[]>([]);
+  const [unlockStatus, setUnlockStatus] = useState<UnlockStatus | null>(null);
+  const [loadingUnlock, setLoadingUnlock] = useState(true);
 
   const snake = useRef<Point[]>([]);
   const direction = useRef<Direction>("right");
@@ -69,6 +77,32 @@ export default function DiamondChaseGame() {
     }
 
     loadBest();
+    return () => {
+      cancelled = true;
+    };
+  }, [user.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadUnlockStatus() {
+      setLoadingUnlock(true);
+      const { data } = await supabase
+        .from("streak_days")
+        .select("read,listen,daily_update,story_share")
+        .eq("user_id", user.id)
+        .eq("day", getToday())
+        .maybeSingle();
+      if (cancelled) return;
+      setUnlockStatus({
+        coreRunDone: Boolean(
+          data?.read && data?.listen && data?.daily_update && data?.story_share
+        ),
+      });
+      setLoadingUnlock(false);
+    }
+
+    loadUnlockStatus();
     return () => {
       cancelled = true;
     };
@@ -302,82 +336,106 @@ export default function DiamondChaseGame() {
     return () => cancelAnimationFrame(animFrame.current);
   }, []);
 
+  const unlocked = Boolean(unlockStatus?.coreRunDone);
+
   return (
     <>
-      <div className="card flex items-center justify-between">
-        <span className="text-sm text-slate-400">
-          Score: <span className="font-bold text-white">{score}</span>
-        </span>
-        <span className="text-sm text-slate-400">
-          Best: <span className="font-bold text-amber-light">{bestScore}</span>
-        </span>
-      </div>
-
-      <div
-        className="relative mx-auto overflow-hidden rounded-2xl border border-white/10"
-        style={{ width: WIDTH, height: HEIGHT }}
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-      >
-        <canvas ref={canvasRef} width={WIDTH} height={HEIGHT} />
-        {!running && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-navy/70 px-4 text-center">
-            {gameOver ? (
-              <>
-                <p className="text-lg font-bold text-white">Game Over</p>
-                <p className="text-sm text-slate-300">Score: {score}</p>
-              </>
-            ) : (
-              <p className="text-lg font-bold text-white">💎 Tap to Start</p>
-            )}
-            <button
-              className="btn-primary mt-2"
-              onClick={(e) => {
-                e.stopPropagation();
-                startGame();
-              }}
-            >
-              {gameOver ? "Play Again" : "Start"}
-            </button>
+      {loadingUnlock ? (
+        <div className="empty-state">Loading…</div>
+      ) : !unlocked ? (
+        <div className="card space-y-2">
+          <p className="section-title">🔒 Locked for Today</p>
+          <p className="text-sm text-slate-400">
+            Complete today&apos;s Core Run to unlock Diamond Chase.
+          </p>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-slate-200">Core Run complete</span>
+            <span className={unlockStatus?.coreRunDone ? "pill-amber" : "pill"}>
+              {unlockStatus?.coreRunDone ? "Done" : "Not yet"}
+            </span>
           </div>
-        )}
-      </div>
+          <Link href="/streak" className="btn-primary block w-full text-center">
+            Go to Core Run Streak
+          </Link>
+        </div>
+      ) : (
+        <>
+          <div className="card flex items-center justify-between">
+            <span className="text-sm text-slate-400">
+              Score: <span className="font-bold text-white">{score}</span>
+            </span>
+            <span className="text-sm text-slate-400">
+              Best: <span className="font-bold text-amber-light">{bestScore}</span>
+            </span>
+          </div>
 
-      <div className="mx-auto grid w-48 grid-cols-3 grid-rows-3 gap-2">
-        <div />
-        <button
-          className="btn-icon !h-14 !w-14 text-2xl"
-          onClick={() => setDirection("up")}
-          aria-label="Up"
-        >
-          ▲
-        </button>
-        <div />
-        <button
-          className="btn-icon !h-14 !w-14 text-2xl"
-          onClick={() => setDirection("left")}
-          aria-label="Left"
-        >
-          ◀
-        </button>
-        <div />
-        <button
-          className="btn-icon !h-14 !w-14 text-2xl"
-          onClick={() => setDirection("right")}
-          aria-label="Right"
-        >
-          ▶
-        </button>
-        <div />
-        <button
-          className="btn-icon !h-14 !w-14 text-2xl"
-          onClick={() => setDirection("down")}
-          aria-label="Down"
-        >
-          ▼
-        </button>
-        <div />
-      </div>
+          <div
+            className="relative mx-auto overflow-hidden rounded-2xl border border-white/10"
+            style={{ width: WIDTH, height: HEIGHT }}
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+          >
+            <canvas ref={canvasRef} width={WIDTH} height={HEIGHT} />
+            {!running && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-navy/70 px-4 text-center">
+                {gameOver ? (
+                  <>
+                    <p className="text-lg font-bold text-white">Game Over</p>
+                    <p className="text-sm text-slate-300">Score: {score}</p>
+                  </>
+                ) : (
+                  <p className="text-lg font-bold text-white">💎 Tap to Start</p>
+                )}
+                <button
+                  className="btn-primary mt-2"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    startGame();
+                  }}
+                >
+                  {gameOver ? "Play Again" : "Start"}
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="mx-auto grid w-48 grid-cols-3 grid-rows-3 gap-2">
+            <div />
+            <button
+              className="btn-icon !h-14 !w-14 text-2xl"
+              onClick={() => setDirection("up")}
+              aria-label="Up"
+            >
+              ▲
+            </button>
+            <div />
+            <button
+              className="btn-icon !h-14 !w-14 text-2xl"
+              onClick={() => setDirection("left")}
+              aria-label="Left"
+            >
+              ◀
+            </button>
+            <div />
+            <button
+              className="btn-icon !h-14 !w-14 text-2xl"
+              onClick={() => setDirection("right")}
+              aria-label="Right"
+            >
+              ▶
+            </button>
+            <div />
+            <button
+              className="btn-icon !h-14 !w-14 text-2xl"
+              onClick={() => setDirection("down")}
+              aria-label="Down"
+            >
+              ▼
+            </button>
+            <div />
+          </div>
+        </>
+      )}
 
       <div className="card space-y-1.5">
         <p className="section-title">💎 High Scores</p>
