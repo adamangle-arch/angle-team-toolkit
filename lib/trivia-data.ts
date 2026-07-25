@@ -4,24 +4,83 @@ export type TriviaQuestion = {
   correctIndex: number;
 };
 
-// Placeholder questions demonstrating the format the Trivia game
-// (app/trivia/page.tsx) expects. Swap these out for real questions
-// about products, process, or scripts whenever you're ready — send them
-// over and they'll be added here. correctIndex is 0-based into options.
+// Real team trivia questions. Send more anytime and they'll be added
+// here. correctIndex is 0-based into options.
 export const TRIVIA_QUESTIONS: TriviaQuestion[] = [
   {
-    question: "PLACEHOLDER — replace with a real question, e.g. about a product line.",
-    options: ["Option A", "Option B (replace me)", "Option C", "Option D"],
-    correctIndex: 0,
+    question: "What is the main message of The Go-Giver?",
+    options: [
+      "Compete aggressively to win every deal",
+      "Focus on adding value to others leads to greater success",
+      "Success is only measured by income",
+      "Sell as much as possible to as many people as possible",
+    ],
+    correctIndex: 1,
   },
   {
-    question: "PLACEHOLDER — replace with a real question about the QI1/QI2 process.",
-    options: ["Option A", "Option B", "Option C (replace me)", "Option D"],
+    question:
+      'What did Paul Kopecky say to his professor after he was giving him a hard time about building the business in the audio "New Emeralds - Kopecky"?',
+    options: ["Thanks, Professor!", "I quit!", "Oh Harry!", "That's alright!"],
     correctIndex: 2,
   },
   {
-    question: "PLACEHOLDER — replace with a real question from Scripts & FAQ.",
-    options: ["Option A (replace me)", "Option B", "Option C", "Option D"],
-    correctIndex: 0,
+    question:
+      'In the audio "Dissatisfied," what does Manny Winston call people that play Pokémon?',
+    options: ["Pokénomo", "Brokemon", "Brokéman", "Pokéboke"],
+    correctIndex: 1,
+  },
+  {
+    question: "What is ditto?",
+    options: [
+      "A referral bonus program",
+      "A type of sample bag",
+      "A reoccurring monthly subscription",
+      "A one-time product discount",
+    ],
+    correctIndex: 2,
+  },
+  {
+    question:
+      "Which diamond had to dig through dumpsters to find aluminum cans to pay for their conference tickets when they first got started?",
+    options: [
+      "Tom and Linda Reyes",
+      "Larry and Pam Winters",
+      "The Andersons",
+      "Mike and Sarah Douglas",
+    ],
+    correctIndex: 1,
+  },
+  {
+    question: 'What is the "failure disease" in chapter 2 of The Magic of Thinking Big?',
+    options: ["Analysis Paralysis", "Procrastination", "Excusitis", "Perfectionism"],
+    correctIndex: 2,
+  },
+  {
+    question: "Which Amway product line has been around longer than Amway?",
+    options: ["Artistry", "eSpring", "Nutrilite", "XS Energy"],
+    correctIndex: 2,
+  },
+  {
+    question:
+      "What is the name of the audio where Kent and Jenna Scheerer share their journey of beating breast cancer and winning in their business at the same time?",
+    options: [
+      "Stronger Together",
+      "The Comeback",
+      "Get Through It or Win Through It",
+      "Faith Over Fear",
+    ],
+    correctIndex: 2,
+  },
+  {
+    question:
+      "In Chapter 2 of Think and Grow Rich, Napoleon Hill talks about having a burning desire. He uses an example of a man pursuing Thomas Edison with the intention of one day becoming his business associate. What is that man's name?",
+    options: ["Henry Ford", "Charles Schwab", "Edwin Barnes", "Andrew Carnegie"],
+    correctIndex: 2,
+  },
+  {
+    question:
+      'In Chapter 1 of Atomic Habits, James Clear says "you do not rise to the level of your goals, you fall to the level of your ____."',
+    options: ["Habits", "Environment", "Systems", "Discipline"],
+    correctIndex: 2,
   },
 ];
