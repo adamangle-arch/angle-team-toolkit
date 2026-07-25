@@ -1254,31 +1254,89 @@ grant execute on function public.get_snake_leaderboard() to authenticated;
 
 -- ============================================================
 -- 12. TRIVIA (mini-game)
--- Same shape/pattern as game_high_scores / snake_high_scores above - a
--- third independent mini-game's best-score table (best_score here is
--- the longest correct-answer streak in one round).
+-- Redesigned as a daily challenge rather than unlimited-play survival
+-- mode: everyone gets the same 5 questions on a given calendar day
+-- (picked deterministically from TRIVIA_QUESTIONS by lib/trivia-data.ts
+-- using the date as a seed, so no server-side "today's questions"
+-- state is needed). Gated behind completing that day's Core Run (same
+-- streak_days check as Diamond Run). One attempt per day - getting a
+-- question wrong or finishing all 5 both end the attempt; the
+-- (user_id, day) primary key below is what actually enforces "no
+-- do-overs" even if a client tried to bypass the UI. The streak is
+-- consecutive calendar days with a perfect 5/5, computed the same way
+-- as Core Run Streak (get_current_streak) rather than stored, so it
+-- can never drift out of sync with the underlying rows.
 -- ============================================================
-create table if not exists trivia_high_scores (
-  user_id uuid primary key references auth.users(id) on delete cascade,
-  best_score int not null default 0,
-  updated_at timestamptz not null default now()
+drop table if exists trivia_high_scores cascade;
+
+create table if not exists trivia_daily_results (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  day date not null,
+  correct_count int not null default 0,
+  total_count int not null default 5,
+  created_at timestamptz not null default now(),
+  primary key (user_id, day)
 );
 
-alter table trivia_high_scores enable row level security;
+alter table trivia_daily_results enable row level security;
 
-drop policy if exists "trivia_high_scores_select_all" on trivia_high_scores;
-create policy "trivia_high_scores_select_all" on trivia_high_scores
-for select using (true);
+drop policy if exists "trivia_daily_results_select_own_or_admin" on trivia_daily_results;
+create policy "trivia_daily_results_select_own_or_admin" on trivia_daily_results
+for select using (
+  user_id = auth.uid()
+  or public.is_upline_of(auth.uid(), user_id)
+  or public.is_app_admin()
+);
 
-drop policy if exists "trivia_high_scores_insert_own" on trivia_high_scores;
-create policy "trivia_high_scores_insert_own" on trivia_high_scores
+drop policy if exists "trivia_daily_results_insert_own" on trivia_daily_results;
+create policy "trivia_daily_results_insert_own" on trivia_daily_results
 for insert with check (user_id = auth.uid());
 
-drop policy if exists "trivia_high_scores_update_own" on trivia_high_scores;
-create policy "trivia_high_scores_update_own" on trivia_high_scores
-for update using (user_id = auth.uid()) with check (user_id = auth.uid());
+-- Consecutive perfect (correct_count = total_count) days, counting back
+-- from today (or yesterday if today isn't a perfect result yet) - same
+-- recursive-CTE shape as get_current_streak for Core Run Streak.
+create or replace function public.get_trivia_streak(p_user_id uuid)
+returns int
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  with recursive start_day as (
+    select case when exists (
+      select 1 from trivia_daily_results t
+      where t.user_id = p_user_id and t.day = current_date
+        and t.total_count > 0 and t.correct_count = t.total_count
+    ) then current_date else current_date - 1 end as day
+  ),
+  w(day, ok, n) as (
+    select
+      s.day,
+      exists (
+        select 1 from trivia_daily_results t
+        where t.user_id = p_user_id and t.day = s.day
+          and t.total_count > 0 and t.correct_count = t.total_count
+      ),
+      0
+    from start_day s
+    union all
+    select
+      w.day - 1,
+      exists (
+        select 1 from trivia_daily_results t
+        where t.user_id = p_user_id and t.day = w.day - 1
+          and t.total_count > 0 and t.correct_count = t.total_count
+      ),
+      w.n + 1
+    from w
+    where w.ok and w.n < 3650
+  )
+  select coalesce(count(*) filter (where ok), 0)::int from w;
+$$;
 
-create or replace function public.get_trivia_leaderboard()
+grant execute on function public.get_trivia_streak(uuid) to authenticated;
+
+create or replace function public.get_trivia_streak_leaderboard()
 returns table (
   user_id uuid,
   first_name text,
@@ -1290,14 +1348,15 @@ stable
 security definer
 set search_path = public
 as $$
-  select t.user_id, p.first_name, p.last_name, t.best_score
-  from trivia_high_scores t
-  join profiles p on p.id = t.user_id
-  order by t.best_score desc
+  select p.id, p.first_name, p.last_name, public.get_trivia_streak(p.id) as streak
+  from profiles p
+  where p.team is not null
+    and public.get_trivia_streak(p.id) > 0
+  order by streak desc
   limit 20;
 $$;
 
-grant execute on function public.get_trivia_leaderboard() to authenticated;
+grant execute on function public.get_trivia_streak_leaderboard() to authenticated;
 
 create or replace function public.get_likers(p_entry_keys text[])
 returns table (

@@ -411,7 +411,10 @@ yet. A few things worth knowing:
 A single **Games** tab holds three mini-games behind a pill-tab
 switcher (`app/games/page.tsx`, same pattern as the Resources hub's
 section tabs) — each game is its own component under
-`components/games/` and only mounts while its tab is active.
+`components/games/` and only mounts while its tab is active. The
+initial tab can be deep-linked via `?tab=diamond-run|diamond-chase|trivia`
+(e.g. `/games?tab=trivia`), read with `useSearchParams()` inside a
+`<Suspense>` boundary per Next's docs.
 
 - **Diamond Run** — a lightweight Flappy Bird-style game: tap to keep
   your diamond airborne and dodge classic green pipes. Playing is
@@ -429,14 +432,33 @@ section tabs) — each game is its own component under
   tapping). Speed ramps up slightly with every book eaten, starting a
   bit slower than the first version for easier control. No play gate.
   High scores: `snake_high_scores` + `get_snake_leaderboard()`.
-- **Trivia** — multiple-choice trivia in survival mode: questions come
-  one at a time from a shuffled queue (reshuffles once exhausted, so
-  there's always a next question regardless of pool size), scoring
-  your current correct-in-a-row streak. Get one wrong and the round
-  ends. High scores: `trivia_high_scores` + `get_trivia_leaderboard()`.
-  Questions live in `lib/trivia-data.ts`'s `TRIVIA_QUESTIONS` and
-  currently only have 3 clearly-marked placeholders — swap in real
-  product/process/script questions whenever you have them ready.
+- **Trivia** — a daily 5-question challenge, not a survival mode.
+  Every user gets the same 5 questions on a given calendar day, picked
+  deterministically from `lib/trivia-data.ts`'s `TRIVIA_QUESTIONS` pool
+  by a seeded shuffle keyed off the date string (`components/games/
+  TriviaGame.tsx`'s `dailyQuestionIndices`) — no server-side "today's
+  questions" state needed, it's just computed the same way on every
+  device. Honor system: books, audios, and Amway/LTD materials only, no
+  internet lookups. Playing is gated the same way as Diamond Run —
+  unlocks once that day's Core Run (Read, Listen, Daily Update, Story
+  Share) is complete. One attempt per day: answering a question wrong
+  ends the attempt immediately (no retries, no seeing the remaining
+  questions), and finishing all 5 also ends it — either way you wait
+  until the next calendar day for a new set. Results are stored in
+  `trivia_daily_results` with a `(user_id, day)` primary key, which is
+  what actually enforces "no do-overs" even if a client tried to bypass
+  the UI, not just the app's own logic. A streak (consecutive calendar
+  days scoring 5/5) is computed on the fly by `get_trivia_streak()` —
+  same recursive-CTE approach as Core Run Streak — and surfaced on a
+  `get_trivia_streak_leaderboard()`-powered leaderboard.
+  - **Trivia Unlocked alert** — the moment your Core Run for the day
+    flips from incomplete to complete, the Core Run Streak page
+    (`app/streak/page.tsx`) shows a dismissible "🎉 Trivia Unlocked!"
+    banner linking straight to `/games?tab=trivia`, and — if you've
+    already granted notification permission via the Daily Reminders
+    opt-in — fires a local `ServiceWorkerRegistration.showNotification()`
+    call too (no server round-trip, reuses the same service worker
+    registered for the existing push-reminder feature).
 
 All three: plain HTML5 canvas (or plain DOM for Trivia), no game
 library, and no anti-cheat on scores — same trust level as any other

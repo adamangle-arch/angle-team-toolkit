@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import NotificationOptIn from "@/components/NotificationOptIn";
 import { useAuth } from "@/components/AuthGate";
@@ -11,6 +12,22 @@ import type { StreakDay, PipelinePeriod, MonthlyPv } from "@/lib/types";
 
 function qualifies(day: StreakDay): boolean {
   return day.read && day.listen && day.daily_update && day.story_share;
+}
+
+// Best-effort local notification reusing the permission/service worker
+// already set up by NotificationOptIn - no server round-trip needed.
+async function notifyTriviaUnlocked() {
+  try {
+    if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+    if (!("serviceWorker" in navigator)) return;
+    const registration = await navigator.serviceWorker.ready;
+    await registration.showNotification("Trivia Unlocked! 🎉", {
+      body: "You completed today's Core Run - go answer today's 5 trivia questions.",
+      icon: "/icon-192.png",
+    });
+  } catch {
+    // Notifications are a nice-to-have; ignore failures.
+  }
 }
 
 function addDays(dateStr: string, delta: number): string {
@@ -96,6 +113,7 @@ export default function StreakPage() {
   const [monthly, setMonthly] = useState<PipelinePeriod | null>(null);
   const [pv, setPv] = useState<MonthlyPv | null>(null);
   const [copied, setCopied] = useState(false);
+  const [showTriviaUnlocked, setShowTriviaUnlocked] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -166,7 +184,12 @@ export default function StreakPage() {
 
   async function saveToday(patch: Partial<StreakDay>) {
     const merged = withDerived({ ...todayRow, ...patch });
+    const justUnlockedTrivia = !qualifies(todayRow) && qualifies(merged);
     setHistory((prev) => ({ ...prev, [today]: merged }));
+    if (justUnlockedTrivia) {
+      setShowTriviaUnlocked(true);
+      notifyTriviaUnlocked();
+    }
     const { data } = await supabase
       .from("streak_days")
       .upsert(
@@ -262,6 +285,29 @@ export default function StreakPage() {
       />
       <main className="page-main">
         <NotificationOptIn />
+
+        {showTriviaUnlocked && (
+          <div className="card flex items-center justify-between gap-2 !border-amber bg-amber/10">
+            <div>
+              <p className="section-title">🎉 Trivia Unlocked!</p>
+              <p className="text-xs text-slate-300">
+                Today&apos;s Core Run is done — go answer today&apos;s 5 trivia questions.
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <Link href="/games?tab=trivia" className="btn-primary">
+                Play
+              </Link>
+              <button
+                className="btn-icon"
+                onClick={() => setShowTriviaUnlocked(false)}
+                aria-label="Dismiss"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="card flex items-center justify-between">
           <div>

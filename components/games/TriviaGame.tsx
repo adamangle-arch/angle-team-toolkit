@@ -1,163 +1,252 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
+import { getToday } from "@/lib/dates";
 import { TRIVIA_QUESTIONS } from "@/lib/trivia-data";
 import type { GameLeaderEntry } from "@/lib/types";
 
-function shuffledIndices(length: number): number[] {
-  const arr = Array.from({ length }, (_, i) => i);
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
+const QUESTIONS_PER_DAY = 5;
+
+// Deterministic per-day shuffle so every user gets the same set of
+// questions on a given calendar day (fair for the streak/leaderboard),
+// without needing any server-side "today's questions" state.
+function hashString(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = (h << 5) - h + s.charCodeAt(i);
+    h |= 0;
   }
-  return arr;
+  return h >>> 0;
 }
+
+function mulberry32(seed: number) {
+  let s = seed;
+  return function random() {
+    s |= 0;
+    s = (s + 0x6d2b79f5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function dailyQuestionIndices(day: string, poolSize: number, count: number): number[] {
+  const random = mulberry32(hashString(day));
+  const indices = Array.from({ length: poolSize }, (_, i) => i);
+  for (let i = indices.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [indices[i], indices[j]] = [indices[j], indices[i]];
+  }
+  return indices.slice(0, Math.min(count, poolSize));
+}
+
+type UnlockStatus = { coreRunDone: boolean };
+type DailyResult = { correct_count: number; total_count: number };
 
 export default function TriviaGame() {
   const { user } = useAuth();
+  const today = getToday();
 
-  const [score, setScore] = useState(0);
-  const [bestScore, setBestScore] = useState(0);
-  const [running, setRunning] = useState(false);
-  const [roundOver, setRoundOver] = useState(false);
+  const [unlockStatus, setUnlockStatus] = useState<UnlockStatus | null>(null);
+  const [loadingUnlock, setLoadingUnlock] = useState(true);
+
+  const [todayResult, setTodayResult] = useState<DailyResult | null>(null);
+  const [loadingResult, setLoadingResult] = useState(true);
+
+  const [streak, setStreak] = useState(0);
   const [leaders, setLeaders] = useState<GameLeaderEntry[]>([]);
 
-  const [currentIndex, setCurrentIndex] = useState<number | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const [questionOrder] = useState(() =>
+    dailyQuestionIndices(today, TRIVIA_QUESTIONS.length, QUESTIONS_PER_DAY)
+  );
+  const [step, setStep] = useState(0);
+  const [correctCount, setCorrectCount] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
   const [revealed, setRevealed] = useState(false);
-
-  const queue = useRef<number[]>([]);
-  const bestScoreRef = useRef(0);
-  const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
 
-    async function loadBest() {
+    async function loadUnlock() {
       const { data } = await supabase
-        .from("trivia_high_scores")
-        .select("best_score")
+        .from("streak_days")
+        .select("read,listen,daily_update,story_share")
         .eq("user_id", user.id)
+        .eq("day", today)
         .maybeSingle();
       if (cancelled) return;
-      const best = data?.best_score ?? 0;
-      bestScoreRef.current = best;
-      setBestScore(best);
+      setUnlockStatus({
+        coreRunDone: Boolean(
+          data?.read && data?.listen && data?.daily_update && data?.story_share
+        ),
+      });
+      setLoadingUnlock(false);
     }
 
-    loadBest();
+    loadUnlock();
     return () => {
       cancelled = true;
     };
-  }, [user.id]);
+  }, [user.id, today]);
 
-  async function loadLeaders() {
-    const { data } = await supabase.rpc("get_trivia_leaderboard");
-    setLeaders((data as GameLeaderEntry[]) ?? []);
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadResult() {
+      const { data } = await supabase
+        .from("trivia_daily_results")
+        .select("correct_count,total_count")
+        .eq("user_id", user.id)
+        .eq("day", today)
+        .maybeSingle();
+      if (cancelled) return;
+      setTodayResult(data ?? null);
+      setLoadingResult(false);
+    }
+
+    loadResult();
+    return () => {
+      cancelled = true;
+    };
+  }, [user.id, today]);
+
+  async function loadStreakAndLeaders() {
+    const [{ data: streakData }, { data: leaderData }] = await Promise.all([
+      supabase.rpc("get_trivia_streak", { p_user_id: user.id }),
+      supabase.rpc("get_trivia_streak_leaderboard"),
+    ]);
+    setStreak((streakData as number) ?? 0);
+    setLeaders((leaderData as GameLeaderEntry[]) ?? []);
   }
 
   useEffect(() => {
     async function load() {
-      await loadLeaders();
+      await loadStreakAndLeaders();
     }
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    return () => {
-      if (advanceTimer.current) clearTimeout(advanceTimer.current);
-    };
-  }, []);
-
-  function nextQuestion() {
-    if (queue.current.length === 0) {
-      queue.current = shuffledIndices(TRIVIA_QUESTIONS.length);
-    }
-    const index = queue.current.shift();
-    if (index === undefined) return;
-    setCurrentIndex(index);
+  function startQuiz() {
+    setPlaying(true);
+    setStep(0);
+    setCorrectCount(0);
     setSelected(null);
     setRevealed(false);
+    setFailed(false);
   }
 
-  function startGame() {
-    setScore(0);
-    setRoundOver(false);
-    setRunning(true);
-    queue.current = shuffledIndices(TRIVIA_QUESTIONS.length);
-    nextQuestion();
-  }
-
-  async function endRound(finalScore: number) {
-    setRunning(false);
-    setRoundOver(true);
-    if (finalScore > bestScoreRef.current) {
-      bestScoreRef.current = finalScore;
-      setBestScore(finalScore);
-      await supabase.from("trivia_high_scores").upsert(
-        { user_id: user.id, best_score: finalScore, updated_at: new Date().toISOString() },
-        { onConflict: "user_id" }
-      );
-      loadLeaders();
-    }
+  async function finishAttempt(finalCorrect: number) {
+    setPlaying(false);
+    const result = { correct_count: finalCorrect, total_count: questionOrder.length };
+    setTodayResult(result);
+    await supabase.from("trivia_daily_results").insert({
+      user_id: user.id,
+      day: today,
+      correct_count: result.correct_count,
+      total_count: result.total_count,
+    });
+    loadStreakAndLeaders();
   }
 
   function selectAnswer(optionIndex: number) {
-    if (revealed || currentIndex === null) return;
+    if (revealed) return;
     setSelected(optionIndex);
     setRevealed(true);
 
-    const question = TRIVIA_QUESTIONS[currentIndex];
-    const correct = optionIndex === question.correctIndex;
+    const q = TRIVIA_QUESTIONS[questionOrder[step]];
+    const correct = optionIndex === q.correctIndex;
 
     if (correct) {
-      const nextScore = score + 1;
-      setScore(nextScore);
-      advanceTimer.current = setTimeout(() => {
-        nextQuestion();
+      const nextCorrect = correctCount + 1;
+      setCorrectCount(nextCorrect);
+      setTimeout(() => {
+        if (step + 1 >= questionOrder.length) {
+          finishAttempt(nextCorrect);
+        } else {
+          setStep((s) => s + 1);
+          setSelected(null);
+          setRevealed(false);
+        }
       }, 900);
     } else {
-      advanceTimer.current = setTimeout(() => {
-        endRound(score);
-      }, 1400);
+      setFailed(true);
+      setTimeout(() => {
+        finishAttempt(correctCount);
+      }, 1600);
     }
   }
 
-  const question = currentIndex !== null ? TRIVIA_QUESTIONS[currentIndex] : null;
-  const noQuestions = TRIVIA_QUESTIONS.length === 0;
+  const unlocked = Boolean(unlockStatus?.coreRunDone);
+  const loading = loadingUnlock || loadingResult;
+  const alreadyPlayedToday = todayResult !== null;
+  const question = playing ? TRIVIA_QUESTIONS[questionOrder[step]] : null;
 
   return (
     <>
       <div className="card flex items-center justify-between">
         <span className="text-sm text-slate-400">
-          Streak: <span className="font-bold text-white">{score}</span>
+          Today:{" "}
+          <span className="font-bold text-white">
+            {todayResult
+              ? `${todayResult.correct_count}/${todayResult.total_count}`
+              : playing
+                ? `${correctCount}/${questionOrder.length}`
+                : "—"}
+          </span>
         </span>
         <span className="text-sm text-slate-400">
-          Best: <span className="font-bold text-amber-light">{bestScore}</span>
+          Streak: <span className="font-bold text-amber-light">🔥 {streak}</span>
         </span>
       </div>
 
-      {!running ? (
+      {loading ? (
+        <div className="empty-state">Loading…</div>
+      ) : !unlocked ? (
+        <div className="card space-y-2">
+          <p className="section-title">🔒 Locked for Today</p>
+          <p className="text-sm text-slate-400">
+            Complete today&apos;s Core Run to unlock today&apos;s 5 trivia questions.
+          </p>
+          <Link href="/streak" className="btn-primary block w-full text-center">
+            Go to Core Run Streak
+          </Link>
+        </div>
+      ) : alreadyPlayedToday && !playing ? (
+        <div className="card space-y-2 text-center">
+          <p className="text-lg font-bold text-white">
+            {todayResult!.correct_count === todayResult!.total_count
+              ? "🎉 Perfect!"
+              : "Come back tomorrow"}
+          </p>
+          <p className="text-sm text-slate-300">
+            You got {todayResult!.correct_count}/{todayResult!.total_count} today.
+          </p>
+          <p className="text-xs text-slate-500">
+            A new set unlocks after you complete tomorrow&apos;s Core Run.
+          </p>
+        </div>
+      ) : !playing ? (
         <div className="card space-y-3 text-center">
-          {roundOver ? (
-            <>
-              <p className="text-lg font-bold text-white">Round Over</p>
-              <p className="text-sm text-slate-300">You got {score} in a row.</p>
-            </>
-          ) : (
-            <p className="text-lg font-bold text-white">🧠 Ready?</p>
-          )}
-          <button className="btn-primary w-full" onClick={startGame} disabled={noQuestions}>
-            {roundOver ? "Play Again" : "Start"}
+          <p className="text-lg font-bold text-white">🧠 Today&apos;s 5 Questions</p>
+          <p className="text-xs text-slate-400">
+            Honor system — books, audios, and Amway/LTD materials only, no internet lookups.
+            One attempt per day: get a question wrong and you&apos;ll try again tomorrow.
+          </p>
+          <button className="btn-primary w-full" onClick={startQuiz}>
+            Start
           </button>
-          {noQuestions && (
-            <p className="text-xs text-slate-500">No trivia questions loaded yet.</p>
-          )}
         </div>
       ) : question ? (
         <div className="card space-y-2">
+          <p className="text-xs text-slate-500">
+            Question {step + 1} of {questionOrder.length}
+          </p>
           <p className="text-base font-medium text-white">{question.question}</p>
           <div className="space-y-1.5">
             {question.options.map((option, i) => {
@@ -178,20 +267,25 @@ export default function TriviaGame() {
               );
             })}
           </div>
+          {revealed && failed && (
+            <p className="text-sm text-red-300">
+              Not quite — that&apos;s it for today. Come back tomorrow for a new set.
+            </p>
+          )}
         </div>
       ) : null}
 
       <div className="card space-y-1.5">
-        <p className="section-title">🧠 High Scores</p>
+        <p className="section-title">🔥 Trivia Streak Leaderboard</p>
         {leaders.length === 0 ? (
-          <p className="text-sm text-slate-400">No scores yet — be the first!</p>
+          <p className="text-sm text-slate-400">No one&apos;s gone 5/5 yet — be the first!</p>
         ) : (
           leaders.map((l, i) => (
             <div key={l.user_id} className="flex items-center justify-between text-sm">
               <span className="text-slate-200">
                 {i + 1}. {[l.first_name, l.last_name].filter(Boolean).join(" ") || "Unnamed"}
               </span>
-              <span className="pill pill-amber">{l.best_score}</span>
+              <span className="pill pill-amber">🔥 {l.best_score}d</span>
             </div>
           ))
         )}
