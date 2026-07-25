@@ -119,6 +119,7 @@ create table streak_days (
   read_amount text not null default '',
   listen_what text not null default '',
   listen_count int not null default 0,
+  listen_items text[] not null default '{}'::text[],
   story_shares int not null default 0,
   questions int not null default 0,
   yeses int not null default 0,
@@ -136,6 +137,12 @@ alter table streak_days add column if not exists read_what text not null default
 alter table streak_days add column if not exists read_amount text not null default '';
 alter table streak_days add column if not exists listen_what text not null default '';
 alter table streak_days add column if not exists listen_count int not null default 0;
+-- Individual audios logged for the day, added/removed one at a time in
+-- the UI instead of one messy free-text field. listen_what/listen_count
+-- are kept in sync (joined text / array length) purely so existing
+-- readers (get_public_profile, the daily update summary) keep working
+-- unchanged.
+alter table streak_days add column if not exists listen_items text[] not null default '{}'::text[];
 alter table streak_days add column if not exists story_shares int not null default 0;
 alter table streak_days add column if not exists questions int not null default 0;
 alter table streak_days add column if not exists yeses int not null default 0;

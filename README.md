@@ -271,7 +271,11 @@ Beyond the 4 qualifying checks (Read / Listen / Daily Update / Story
 Share), each day's Core Run Streak entry now also captures:
 
 - **Read** — what you're reading, and how much today (free text, e.g. "20 pages")
-- **Listen** — what audio(s), and how many you listened to (a counter)
+- **Listen** — add each audio you listened to today one at a time (type
+  a name, hit Add or Enter), with a ✕ to remove any of them — instead of
+  cramming them all into one text field. `listen_what`/`listen_count`
+  are still derived from the list (joined text / item count) so nothing
+  downstream (public profile, Daily Update summary) needed to change
 - **Today's Activity** — counters for Story Shares, Questions, Yeses, and Meetings
 
 The 4 boolean flags that actually determine your streak are unchanged

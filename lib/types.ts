@@ -205,6 +205,7 @@ export type StreakDay = {
   read_amount: string;
   listen_what: string;
   listen_count: number;
+  listen_items: string[];
   story_shares: number;
   questions: number;
   yeses: number;

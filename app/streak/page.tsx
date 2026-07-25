@@ -49,6 +49,7 @@ function emptyDay(userId: string, day: string): StreakDay {
     read_amount: "",
     listen_what: "",
     listen_count: 0,
+    listen_items: [],
     story_shares: 0,
     questions: 0,
     yeses: 0,
@@ -107,7 +108,7 @@ export default function StreakPage() {
 
   const [readWhat, setReadWhat] = useState("");
   const [readAmount, setReadAmount] = useState("");
-  const [listenWhat, setListenWhat] = useState("");
+  const [newAudio, setNewAudio] = useState("");
 
   const [weekly, setWeekly] = useState<PipelinePeriod | null>(null);
   const [monthly, setMonthly] = useState<PipelinePeriod | null>(null);
@@ -146,7 +147,7 @@ export default function StreakPage() {
     setSyncedId(todayRow.id);
     setReadWhat(todayRow.read_what);
     setReadAmount(todayRow.read_amount);
-    setListenWhat(todayRow.listen_what);
+    setNewAudio("");
   }
 
   useEffect(() => {
@@ -204,6 +205,7 @@ export default function StreakPage() {
           read_amount: merged.read_amount,
           listen_what: merged.listen_what,
           listen_count: merged.listen_count,
+          listen_items: merged.listen_items,
           story_shares: merged.story_shares,
           questions: merged.questions,
           yeses: merged.yeses,
@@ -214,6 +216,25 @@ export default function StreakPage() {
       .select("*")
       .single();
     if (data) setHistory((prev) => ({ ...prev, [today]: data as StreakDay }));
+  }
+
+  function saveAudios(items: string[]) {
+    saveToday({
+      listen_items: items,
+      listen_what: items.join(", "),
+      listen_count: items.length,
+    });
+  }
+
+  function addAudio() {
+    const trimmed = newAudio.trim();
+    if (!trimmed) return;
+    saveAudios([...todayRow.listen_items, trimmed]);
+    setNewAudio("");
+  }
+
+  function removeAudio(index: number) {
+    saveAudios(todayRow.listen_items.filter((_, i) => i !== index));
   }
 
   const streak = useMemo(() => {
@@ -350,20 +371,42 @@ export default function StreakPage() {
 
             <div className="card space-y-2">
               <p className="section-title">🎧 Listen</p>
-              <input
-                className="input"
-                placeholder="What audio(s)?"
-                value={listenWhat}
-                onChange={(e) => setListenWhat(e.target.value)}
-                onBlur={() => {
-                  if (listenWhat !== todayRow.listen_what) saveToday({ listen_what: listenWhat });
-                }}
-              />
-              <Counter
-                label="How many audios?"
-                value={todayRow.listen_count}
-                onChange={(next) => saveToday({ listen_count: next })}
-              />
+              {todayRow.listen_items.length > 0 && (
+                <div className="space-y-1.5">
+                  {todayRow.listen_items.map((item, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center justify-between rounded-lg bg-navy px-2 py-1.5"
+                    >
+                      <span className="text-sm text-white">{item}</span>
+                      <button
+                        className="btn-icon !h-6 !w-6 text-xs"
+                        onClick={() => removeAudio(i)}
+                        aria-label={`Remove ${item}`}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-2">
+                <input
+                  className="input flex-1"
+                  placeholder="Add an audio…"
+                  value={newAudio}
+                  onChange={(e) => setNewAudio(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addAudio();
+                    }
+                  }}
+                />
+                <button className="btn-primary shrink-0 px-4" onClick={addAudio}>
+                  Add
+                </button>
+              </div>
             </div>
 
             <button
