@@ -6,7 +6,7 @@ workflow: Pipeline Tracker (which also holds the active Candidate Roadmap),
 a separate Candidate History tab, Contacts, Core Run Streak, Volume, a
 Leaderboard, a Role-Play Coach for practicing A-list/B-list/C-list
 conversations, and a Resources hub (Products, Scripts & FAQ, Process Guide,
-Leaders, Acquisition, Audio & Book Library). Everyone signs in with their own
+Leaders, Customers, Audio & Book Library). Everyone signs in with their own
 email/password account, picks their team on first login, and each person's
 individual data is private to them. Tapping a name anywhere on the
 Leaderboard opens that person's public profile (photo, hometown,
@@ -728,7 +728,7 @@ schema — this is purely additive gating on top of it):
 | --- | --- |
 | 1 (signup) | Today, Calendar, Leaderboard, Onboarding, Resources, My Profile, Search, More |
 | 2 (List Building done) | + Contacts, Volume |
-| 3 (Customer Acquisition done) | *(nothing new)* |
+| 3 (Customers done) | *(nothing new)* |
 | 4 (Sharing Your Story done) | + Pipeline, History |
 | 5 (30-Day Core Run done) | + Run Streak, Goals, Team, Games, Assistant |
 

@@ -222,7 +222,7 @@ export const ONBOARDING_SESSIONS: OnboardingSession[] = [
     ],
   },
   {
-    title: "Session 3: Customer Acquisition",
+    title: "Session 3: Customers",
     description: "Learn to create value through products.",
     resources: [
       { label: "🎥 Customer Acquisition Training", detail: "Replace with your training video link." },

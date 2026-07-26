@@ -88,13 +88,13 @@ function fromAcquisition(): SearchResult[] {
     title: g.title,
     snippet: g.content,
     href: "/library?tab=acquisition",
-    source: "Acquisition",
+    source: "Customers",
   }));
   const survey: SearchResult[] = SURVEY_QUESTIONS.map((q) => ({
     title: q.question,
     snippet: q.recommendations,
     href: "/library?tab=acquisition",
-    source: "Acquisition",
+    source: "Customers",
   }));
   return [...guide, ...survey];
 }

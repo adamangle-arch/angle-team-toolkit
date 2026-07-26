@@ -34,7 +34,7 @@ const SECTIONS: { key: Section; label: string }[] = [
   { key: "leaders", label: "Leaders" },
   { key: "products", label: "Products" },
   { key: "scripts", label: "Scripts & FAQ" },
-  { key: "acquisition", label: "Acquisition" },
+  { key: "acquisition", label: "Customers" },
 ];
 
 function isSection(value: string | null): value is Section {
