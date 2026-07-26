@@ -131,7 +131,7 @@ export default function AssistantPage() {
 
   return (
     <FeatureGate minSession={5}>
-      <PageHeader title="Assistant" subtitle="Role-play conversations, and rate your QI1 calls" />
+      <PageHeader title="Assistant" subtitle="Role-play conversations, and rate your meetings" />
       <main className="page-main">
         <div className="card flex p-1">
           <button
