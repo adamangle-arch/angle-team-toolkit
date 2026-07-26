@@ -241,7 +241,7 @@ export default function LeaderboardPage() {
 
   useEffect(() => {
     let cancelled = false;
-    supabase.rpc("get_new_members", { p_days: 14 }).then(({ data }) => {
+    supabase.rpc("get_new_members").then(({ data }) => {
       if (!cancelled) setNewMembers((data as NewMember[]) ?? []);
     });
     return () => {
@@ -467,7 +467,7 @@ export default function LeaderboardPage() {
           </div>
         )}
 
-        {newMembers.length > 0 && (
+        {periodType === "daily" && newMembers.length > 0 && (
           <div className="card space-y-1.5">
             <p className="section-title">🎉 New to the Team</p>
             {newMembers.map((m) => (

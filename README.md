@@ -472,11 +472,13 @@ Team tab already uses, to avoid double-counting a linked pair.
 
 ### New to the Team spotlight
 
-The Leaderboard now has a **🎉 New to the Team** card listing anyone who
-completed their profile (name + team) in the last 14 days, newest first,
+The Leaderboard's **Daily** tab has a **🎉 New to the Team** card listing
+anyone who signed up *today* and completed their profile (name + team),
 linking to their profile — visible to everyone, not just admin/upline.
-It's backed by `get_new_members(days)`, and just quietly disappears once
-nobody's joined recently (no "no new members" clutter).
+It's backed by `get_new_members()` (was a rolling 14-day window, now just
+their signup day, and only shown while on the Daily tab), and just
+quietly disappears once nobody's joined today (no "no new members"
+clutter) — or the moment you switch off Daily.
 
 ### Auto-filled profile: reading, listening, streak, milestones
 

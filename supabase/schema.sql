@@ -696,11 +696,15 @@ $$;
 
 grant execute on function public.get_public_profile(uuid) to authenticated;
 
--- Recently joined members, for a "new to the team" spotlight on the
--- Leaderboard — visible to everyone (not just admin/upline), same as
--- everything else there. Only surfaces name + team, and only once
--- they've completed the name/team profile gate.
-create or replace function public.get_new_members(p_days int default 14)
+-- Members who signed up today, for a "new to the team" spotlight on the
+-- Leaderboard's Daily tab only - visible to everyone (not just
+-- admin/upline), same as everything else there. Only surfaces name +
+-- team, and only once they've completed the name/team profile gate.
+-- Was a rolling 14-day window; narrowed to just their signup day so the
+-- spotlight naturally disappears the next day instead of lingering.
+drop function if exists public.get_new_members(int);
+
+create function public.get_new_members()
 returns table (
   user_id uuid,
   first_name text,
@@ -715,13 +719,13 @@ set search_path = public
 as $$
   select id, first_name, last_name, team, created_at
   from profiles
-  where created_at >= now() - (p_days || ' days')::interval
+  where created_at::date = current_date
     and first_name is not null
     and team is not null
   order by created_at desc;
 $$;
 
-grant execute on function public.get_new_members(int) to authenticated;
+grant execute on function public.get_new_members() to authenticated;
 
 -- Recent Core Run Streak milestone hits (1 week, 30/90 days, 6 months, 1
 -- year — must match STREAK_MILESTONES in lib/constants.ts), for a
