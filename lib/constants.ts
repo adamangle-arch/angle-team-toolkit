@@ -180,12 +180,12 @@ export const ONBOARDING_SESSIONS: OnboardingSession[] = [
       {
         label: "🎧 Welcome to the Success Journey",
         detail:
-          "Audio by Andrew Tidwell — your coach will send this to you on the LTD app. Listen before your next meeting.",
+          "Audio by Andrew Tidwell — your coach will send this to you on the LTD media app. Listen before your next meeting.",
       },
       {
         label: "🎧 Getting Through the First Year",
         detail:
-          "Audio by Toby Ayers — your coach will send this to you on the LTD app. Listen before your next meeting.",
+          "Audio by Toby Ayers — your coach will send this to you on the LTD media app. Listen before your next meeting.",
       },
     ],
   },
@@ -212,12 +212,12 @@ export const ONBOARDING_SESSIONS: OnboardingSession[] = [
       {
         label: "🎧 Normalize the Work",
         detail:
-          "Audio by Kyle and Austin Brown, and Hunter and Vanessa Lindsay — your coach will send this to you on the LTD app. Listen before your next meeting.",
+          "Audio by Kyle and Austin Brown, and Hunter and Vanessa Lindsay — your coach will send this to you on the LTD media app. Listen before your next meeting.",
       },
       {
         label: "🎧 Networking is Normal",
         detail:
-          "Audio by Derrick and Jill Kosek — your coach will send this to you on the LTD app. Listen before your next meeting.",
+          "Audio by Derrick and Jill Kosek — your coach will send this to you on the LTD media app. Listen before your next meeting.",
       },
     ],
   },
