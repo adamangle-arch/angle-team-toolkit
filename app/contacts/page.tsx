@@ -5,7 +5,7 @@ import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import { CONTACT_STATUSES, CUSTOMER_STATUSES, CONNECTION_TAGS } from "@/lib/constants";
-import { CONTACT_MEMORY_PROMPTS } from "@/lib/contact-questions-data";
+import { NETWORKING_MEMORY_PROMPTS, CUSTOMER_MEMORY_PROMPTS } from "@/lib/contact-questions-data";
 import type { Contact } from "@/lib/types";
 
 const LIST_TARGET = 100;
@@ -31,6 +31,7 @@ export default function ContactsPage() {
   const [adding, setAdding] = useState(false);
 
   const [promptIndex, setPromptIndex] = useState(0);
+  const activePrompts = viewMode === "customer" ? CUSTOMER_MEMORY_PROMPTS : NETWORKING_MEMORY_PROMPTS;
 
   useEffect(() => {
     async function load() {
@@ -48,10 +49,10 @@ export default function ContactsPage() {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setPromptIndex((i) => (i + 1) % CONTACT_MEMORY_PROMPTS.length);
+      setPromptIndex((i) => (i + 1) % activePrompts.length);
     }, 4000);
     return () => clearInterval(interval);
-  }, []);
+  }, [activePrompts]);
 
   function toggleTag(tag: string) {
     setNewTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]));
@@ -236,7 +237,7 @@ export default function ContactsPage() {
             Add Contact
           </button>
           <p key={promptIndex} className="animate-fade-in text-center text-xs italic text-slate-500">
-            💡 {CONTACT_MEMORY_PROMPTS[promptIndex]}
+            💡 {activePrompts[promptIndex % activePrompts.length]}
           </p>
         </div>
 

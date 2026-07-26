@@ -240,10 +240,15 @@ Adding a contact also has an optional "How do you know them?" quick-pick —
 Family, Friend, Coworkers, Gym, Church, Neighbor, College, High School,
 Social Media (`contacts.connection_tags`, a `text[]`, additive) — shown as
 pills on the contact card once set. Underneath the Add Contact button, a
-rotating memory-jogger prompt ("Who cuts your hair?", "Who was in your
-wedding?", etc. — the full list is in `lib/contact-questions-data.ts`)
-cycles every few seconds to help surface names that don't come to mind
-right away, purely a display prompt with nothing stored.
+rotating memory-jogger prompt cycles every few seconds to help surface
+names that don't come to mind right away — purely a display prompt with
+nothing stored. The two lists get different prompts, matching their
+different typical demographic (see the tip above): Networking gets
+relationship-based prompts ("Who cuts your hair?", "Who was in your
+wedding?"), Customer List gets prompts aimed at people likely to actually
+buy products ("Who values organic or natural ingredients?", "Who's
+willing to spend more for quality over quantity?") — both full lists are
+in `lib/contact-questions-data.ts`.
 
 Personal Circle PV lives on its own **Volume** tab: each person self-reports
 their own current-month PV there (stored in the additive `monthly_pv`

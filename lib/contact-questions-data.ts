@@ -1,7 +1,10 @@
 // Rotating memory-jogger prompts shown in the Add Contact section of
 // Contact Builder, to help someone think of names for their list beyond
 // the obvious first few. Purely for display - not stored anywhere.
-export const CONTACT_MEMORY_PROMPTS: string[] = [
+// Networking and Customer lists get different prompts, since the two
+// lists skew toward different kinds of people (see the demographic tip
+// on the Contacts page itself).
+export const NETWORKING_MEMORY_PROMPTS: string[] = [
   "Who did you eat lunch with in high school?",
   "Who cuts your hair?",
   "Who lives on your street?",
@@ -32,4 +35,32 @@ export const CONTACT_MEMORY_PROMPTS: string[] = [
   "Who do you see at the gym regularly?",
   "Who was your favorite teacher growing up?",
   "Who do you know from your kids' sports team?",
+];
+
+export const CUSTOMER_MEMORY_PROMPTS: string[] = [
+  "Who would support you no matter what?",
+  "Who bought you a wedding gift?",
+  "Who bought you a graduation gift?",
+  "Who's really into fitness or working out?",
+  "What about your friends' parents?",
+  "Who was your old coach?",
+  "Who's your pastor or someone from your church?",
+  "What about your mom's aunts or grandmas?",
+  "Who's willing to spend more for quality over quantity?",
+  "Who values organic or natural ingredients?",
+  "Who's always trying the latest health trend?",
+  "Who spoils their grandkids?",
+  "Who's redoing their kitchen or bathroom?",
+  "Who takes supplements or vitamins every day?",
+  "Who's particular about their skincare routine?",
+  "Who hosts the holidays for the whole family?",
+  "Who's always the one buying nice gifts for everyone?",
+  "Who just became a grandparent?",
+  "Who's running a household and doing most of the shopping?",
+  "Who's into clean eating or meal prepping?",
+  "Who's already loyal to one premium brand for everything they buy?",
+  "Who complains about how expensive good products are, but buys them anyway?",
+  "Who's the one everyone goes to for advice?",
+  "Who just retired or is easing into retirement?",
+  "Who's always asking what products or supplements you use?",
 ];
