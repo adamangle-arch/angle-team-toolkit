@@ -1056,6 +1056,18 @@ touch existing data.
 
 ## Notes on Rate a Call
 
+`CallRatingPanel.tsx`'s save step used to silently swallow a failed
+`call_ratings` insert — if that table (or a column/constraint on it)
+didn't exist yet in a given Supabase project, the rating would still
+"work" from the user's point of view (Claude scored it, the form cleared),
+but nothing was actually saved, and no error appeared anywhere. Now the
+insert's `error` is checked and thrown, which surfaces as "Rated it, but
+couldn't save it: ..." with the real Postgres error, and the form no
+longer clears on that path so the transcript isn't lost. If you ever see
+that message, it means `supabase/schema.sql`'s `call_ratings` section
+(table + `candidate_id` column + widened `call_type` check + RLS) hasn't
+fully been run against that database yet.
+
 The **Assistant** tab now has a second panel, **Rate a Call**, alongside
 the Role-Play Coach. A rep pastes the text transcript of a recorded
 meeting and gets it scored against that stage's vetting rubric — overall

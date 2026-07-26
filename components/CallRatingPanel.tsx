@@ -108,7 +108,7 @@ export default function CallRatingPanel() {
         throw new Error(json.error || "Something went wrong.");
       }
 
-      const { data: row } = await supabase
+      const { data: row, error: insertError } = await supabase
         .from("call_ratings")
         .insert({
           user_id: user.id,
@@ -122,11 +122,13 @@ export default function CallRatingPanel() {
         .select("*")
         .single();
 
-      if (row) {
-        const inserted = row as CallRating;
-        setHistory((prev) => [inserted, ...prev]);
-        setExpandedId(inserted.id);
+      if (insertError) {
+        throw new Error(`Rated it, but couldn't save it: ${insertError.message}`);
       }
+
+      const inserted = row as CallRating;
+      setHistory((prev) => [inserted, ...prev]);
+      setExpandedId(inserted.id);
       setTranscript("");
       setCandidateName("");
       setCallType("");
