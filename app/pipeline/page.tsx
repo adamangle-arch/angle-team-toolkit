@@ -39,6 +39,7 @@ export default function PipelinePage() {
   const [periodType, setPeriodType] = useState<PeriodType>("weekly");
   const [period, setPeriod] = useState<PipelinePeriod | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loadingCandidates, setLoadingCandidates] = useState(true);
@@ -54,15 +55,24 @@ export default function PipelinePage() {
 
     async function load() {
       setLoading(true);
+      setLoadError(null);
       const periodStart = periodStartFor(periodType);
 
-      const { data: existing } = await supabase
+      const { data: existing, error: selectError } = await supabase
         .from("pipeline_periods")
         .select("*")
         .eq("user_id", ownerId)
         .eq("period_type", periodType)
         .eq("period_start", periodStart)
         .maybeSingle();
+
+      if (selectError) {
+        if (!cancelled) {
+          setLoadError(selectError.message);
+          setLoading(false);
+        }
+        return;
+      }
 
       if (existing) {
         if (!cancelled) {
@@ -72,14 +82,18 @@ export default function PipelinePage() {
         return;
       }
 
-      const { data: created } = await supabase
+      const { data: created, error: insertError } = await supabase
         .from("pipeline_periods")
         .insert({ user_id: ownerId, period_type: periodType, period_start: periodStart })
         .select("*")
         .single();
 
       if (!cancelled) {
-        setPeriod(created as PipelinePeriod);
+        if (insertError) {
+          setLoadError(insertError.message);
+        } else {
+          setPeriod(created as PipelinePeriod);
+        }
         setLoading(false);
       }
     }
@@ -246,7 +260,9 @@ export default function PipelinePage() {
           <p className="text-3xl font-bold text-amber">{pct(launches, questions)}</p>
         </div>
 
-        {loading || !period ? (
+        {loadError ? (
+          <div className="empty-state">Couldn&apos;t load this period: {loadError}</div>
+        ) : loading || !period ? (
           <div className="empty-state">Loading pipeline…</div>
         ) : (
           <div className="space-y-2">
