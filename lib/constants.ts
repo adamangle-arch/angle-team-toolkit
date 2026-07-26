@@ -258,7 +258,11 @@ export const ONBOARDING_SESSIONS: OnboardingSession[] = [
         detail: "The Customer Survey questions and Sample Bag guide both live here — come back anytime.",
         url: "/library?tab=acquisition",
       },
-      { label: "📖 Product Value Guide", detail: "Replace with your product/value reading." },
+      {
+        label: "📚 Resources: Products Tab",
+        detail: "PV for every product lives here — come back anytime.",
+        url: "/library?tab=products",
+      },
     ],
   },
   {
