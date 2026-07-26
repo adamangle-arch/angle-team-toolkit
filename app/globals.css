@@ -30,8 +30,19 @@ body {
 }
 
 @layer components {
+  /* Fixed height (not min-height) is load-bearing here: page-main below
+     is "flex-1 overflow-y-auto" and depends on app-shell being a bounded
+     box so flexbox actually clips it to the remaining space, making
+     page-main itself the scrolling element. With min-height, app-shell
+     just grows to fit its content once that content exceeds one screen,
+     so page-main's overflow-y-auto never engages and scrolling silently
+     falls back to the whole document scrolling instead - which works in
+     an ordinary browser tab but not reliably in iOS's standalone
+     (home-screen / "Add to Home Screen") display mode, which is how this
+     app is normally used. That mismatch was why some pages appeared to
+     not scroll at all, or only sometimes, in the installed app. */
   .app-shell {
-    @apply relative mx-auto flex min-h-dvh w-full max-w-md flex-col;
+    @apply relative mx-auto flex h-dvh w-full max-w-md flex-col;
   }
 
   .app-header {

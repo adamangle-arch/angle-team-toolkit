@@ -1077,17 +1077,33 @@ with no error ever shown. Two contributing gaps, both fixed:
 The Role-Play / Rate a Call toggle-pill row on the Assistant page used to
 scroll away with the rest of the chat — once a Role-Play conversation got
 long, switching to Rate a Call meant scrolling all the way back to the top
-first. The first fix for this used `position: sticky` nested inside
-`page-main` (the `overflow-y-auto` scrolling container) — that broke
-scrolling entirely on iOS Safari (a known WebKit issue: `position: sticky`
-combined with `backdrop-filter` inside a scrolling flex child can freeze
-the whole container's touch scrolling). The real fix is structural instead
-of a CSS trick: the tab bar (`.tab-bar` in `app/globals.css`) is now a
-plain, non-scrolling sibling of `<main className="page-main">`, rendered
-between `PageHeader` and `<main>` — the same position in the layout that
-the header itself already occupies, which is why the header never needed
-this workaround either. `page-main` gets `!pt-0` on this page since the
-tab bar now supplies its own top padding.
+first. The tab bar (`.tab-bar` in `app/globals.css`) is now a plain,
+non-scrolling sibling of `<main className="page-main">`, rendered between
+`PageHeader` and `<main>` — the same layout position the header itself
+already occupies. `page-main` gets `!pt-0` on this page since the tab bar
+now supplies its own top padding.
+
+**The actual root cause of "can't scroll" (app-wide, not just this page):**
+`.app-shell` used `min-h-dvh` (a *minimum* height) instead of a fixed
+`h-dvh`. `page-main` below it is `flex-1 overflow-y-auto`, which only
+becomes a genuinely scrollable region if its flex parent is height-bounded
+— with only a minimum height, `app-shell` just grows to fit however tall
+its content gets, so `page-main` never actually clips its content and
+`overflow-y-auto` never engages. Confirmed by rendering the exact layout
+in a headless browser and comparing `scrollHeight` vs `clientHeight`:
+under `min-h-dvh`, `page-main`'s `clientHeight` always equals its
+`scrollHeight` (nothing to scroll internally) and the whole *document*
+scrolls instead. That fallback happens to work in an ordinary browser tab,
+but not reliably in iOS's standalone/"Add to Home Screen" display mode
+(`display: "standalone"` in `app/manifest.ts`), which is how this app is
+normally used — standalone mode doesn't give the same free rubber-band
+document scroll a Safari tab does, so anything relying on it can appear
+to not scroll at all, or only sometimes. Changing `.app-shell` to `h-dvh`
+(a fixed height) makes flexbox actually bound `page-main`, so its own
+`overflow-y-auto` becomes the real, working scroll container on every
+page — re-running the same headless comparison after the fix shows
+`page-main`'s `scrollHeight` exceeding its `clientHeight` and wheel/touch
+scrolling correctly moving its `scrollTop`.
 
 `CallRatingPanel.tsx`'s save step used to silently swallow a failed
 `call_ratings` insert — if that table (or a column/constraint on it)
