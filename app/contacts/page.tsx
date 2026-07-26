@@ -123,6 +123,14 @@ export default function ContactsPage() {
           </button>
         </div>
 
+        <p className="px-1 text-xs text-slate-500">
+          💡{" "}
+          {viewMode === "networking"
+            ? "Networking prospects are typically in their 20s–30s."
+            : "Customers are typically 35+, already spending money on a household."}{" "}
+          Not a rigid rule — there are always exceptions, just the typical demographic.
+        </p>
+
         {viewMode === "networking" && (
           <div className="card space-y-2">
             <p className="section-title">List Builder</p>

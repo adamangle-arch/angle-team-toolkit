@@ -40,6 +40,14 @@ Every card is read-only and links to the real page to make changes — the
 dashboard doesn't duplicate any editing logic, it just surfaces what's
 already there.
 
+**Opening the app always lands on Today**, regardless of whatever URL the
+browser/PWA happens to resume at (a bookmark, an iOS home-screen launch
+resuming its last page, a stale tab) — not just when the URL is literally
+`/`. `AuthGate` redirects to `/dashboard` the first time the fully
+authenticated app shell mounts in a given tab session (tracked via a
+`sessionStorage` flag, so it fires once per app open, not on every
+in-app navigation or manual reload of the same tab).
+
 ### Bottom nav cleanup
 
 The bottom nav had grown to 14 tabs (13 plus Today), which meant scrolling
@@ -212,6 +220,11 @@ the same `contacts` table (new `'Customer'` value alongside `'A'`/`'B'` on
   two-status field (Not yet asked / Contacted) instead of the full
   networking pipeline (Asked → QI1 → ... → Launched), since a customer
   isn't walking through the business pipeline.
+
+A short tip under the toggle reminds people of the typical (not rigid —
+always exceptions) demographic split: networking prospects tend to be in
+their 20s–30s, while customers tend to be 35+ and already spending money
+on a household.
 
 Both lists show **Contacted** and **Left to Contact** counts, derived live
 from each contact's status (`"Not yet asked"` = not yet contacted, anything

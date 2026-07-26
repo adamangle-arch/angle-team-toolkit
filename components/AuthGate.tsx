@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabaseClient";
 import LoginForm from "./LoginForm";
@@ -32,6 +33,8 @@ export function useAuth(): AuthContextValue {
 }
 
 export default function AuthGate({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -65,6 +68,25 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     load();
   }, [user]);
 
+  const nameTeamComplete = Boolean(profile?.first_name && profile?.last_name && profile?.team);
+  const fullyAuthed = Boolean(user && !profileLoading && profile && nameTeamComplete && profile.profile_prompted);
+
+  // Whatever URL the browser/PWA happens to resume at (a bookmark, an
+  // iOS home-screen launch resuming its last page, a stale tab), the
+  // first time the fully-authenticated app shell mounts in a given tab
+  // session, send them to the Today dashboard instead of wherever that
+  // URL points. sessionStorage (not localStorage) is what makes this
+  // "once per app open" rather than "once ever" or "on every reload."
+  useEffect(() => {
+    if (!fullyAuthed) return;
+    if (typeof window === "undefined") return;
+    if (sessionStorage.getItem("atk_app_opened")) return;
+    sessionStorage.setItem("atk_app_opened", "1");
+    if (pathname !== "/dashboard") {
+      router.replace("/dashboard");
+    }
+  }, [fullyAuthed, pathname, router]);
+
   if (loading) {
     return (
       <div className="flex flex-1 items-center justify-center text-sm text-slate-400">
@@ -89,8 +111,6 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-
-  const nameTeamComplete = Boolean(profile.first_name && profile.last_name && profile.team);
 
   if (!nameTeamComplete) {
     return (
