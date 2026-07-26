@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import { CALL_RATING_TYPES, type CallRatingType } from "@/lib/constants";
+import { groupCallRatingsByType } from "@/lib/call-ratings";
 import type { CallRating } from "@/lib/types";
 
 type CandidateOption = {
@@ -203,31 +204,44 @@ export default function CallRatingPanel() {
         </button>
       </div>
 
-      <div className="card space-y-1.5">
+      <div className="card space-y-3">
         <p className="section-title">Your Ratings ({history.length})</p>
         {loadingHistory ? (
           <p className="text-sm text-slate-400">Loading…</p>
         ) : history.length === 0 ? (
           <p className="text-sm text-slate-400">No calls rated yet.</p>
         ) : (
-          history.map((h) => (
-            <div key={h.id} className="rounded-lg bg-navy p-2.5">
-              <button
-                className="flex w-full items-center justify-between gap-2 text-left"
-                onClick={() => setExpandedId(expandedId === h.id ? null : h.id)}
-              >
-                <span className="truncate text-sm text-slate-200">
-                  {h.call_type}
-                  {h.candidate_name ? ` · ${h.candidate_name}` : ""}
-                </span>
-                <span className="flex shrink-0 items-center gap-2 text-xs text-slate-500">
-                  {h.overall_score !== null && <span className="pill">{h.overall_score}/10</span>}
-                  {new Date(h.created_at).toLocaleDateString()}
-                </span>
-              </button>
-              {expandedId === h.id && (
-                <p className="mt-2 whitespace-pre-wrap text-xs text-slate-300">{h.analysis}</p>
-              )}
+          groupCallRatingsByType(history).map((group) => (
+            <div key={group.type} className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                  {group.type} ({group.items.length})
+                </p>
+                {group.avgScore !== null && (
+                  <span className="pill">avg {group.avgScore.toFixed(1)}/10</span>
+                )}
+              </div>
+              {group.items.map((h) => (
+                <div key={h.id} className="rounded-lg bg-navy p-2.5">
+                  <button
+                    className="flex w-full items-center justify-between gap-2 text-left"
+                    onClick={() => setExpandedId(expandedId === h.id ? null : h.id)}
+                  >
+                    <span className="truncate text-sm text-slate-200">
+                      {h.candidate_name || "Untitled"}
+                    </span>
+                    <span className="flex shrink-0 items-center gap-2 text-xs text-slate-500">
+                      {h.overall_score !== null && (
+                        <span className="pill">{h.overall_score}/10</span>
+                      )}
+                      {new Date(h.created_at).toLocaleDateString()}
+                    </span>
+                  </button>
+                  {expandedId === h.id && (
+                    <p className="mt-2 whitespace-pre-wrap text-xs text-slate-300">{h.analysis}</p>
+                  )}
+                </div>
+              ))}
             </div>
           ))
         )}

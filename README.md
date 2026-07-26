@@ -1110,6 +1110,15 @@ same list as a **Call Ratings** folder on that rep's page under the
 **Team** tab, so an upline can see how their downline's calls (across every
 stage) are trending without asking for a screen-share.
 
+Both of those lists are grouped into a heading per meeting type (QI1, QI2,
+FU1, FU2, Questionnaire — in that process order, not alphabetical or
+by-recency) via `groupCallRatingsByType()` in `lib/call-ratings.ts`, with
+an "avg X.X/10" pill next to any type that has more than one scored
+rating. The point is spotting a stage-specific pattern (e.g. this rep's
+FU2 calls are consistently weak) at a glance instead of it getting lost in
+one mixed, chronological feed. A type with zero ratings yet is omitted
+rather than shown as an empty section.
+
 **Cross-meeting memory:** the "Candidate name" field is a dropdown of the
 rep's own `candidates` (Candidate Roadmap) rows, with a fallback text
 input for someone not added there yet. Picking a candidate links the

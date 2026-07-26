@@ -7,6 +7,7 @@ import { useAuth } from "@/components/AuthGate";
 import FeatureGate from "@/components/FeatureGate";
 import { supabase } from "@/lib/supabaseClient";
 import { isPrimaryUser, PIPELINE_STAGES, CANDIDATE_STEPS, ONBOARDING_SESSIONS } from "@/lib/constants";
+import { groupCallRatingsByType } from "@/lib/call-ratings";
 import { getMonthStart, getWeekStart, formatDateLabel } from "@/lib/dates";
 import type {
   Profile,
@@ -532,37 +533,48 @@ export default function TeamPage() {
                   )}
                 </div>
 
-                <div className="card space-y-1.5">
+                <div className="card space-y-3">
                   <p className="section-title">
                     Call Ratings ({memberData.callRatings.length})
                   </p>
                   {memberData.callRatings.length === 0 ? (
                     <p className="text-sm text-slate-400">No calls rated yet.</p>
                   ) : (
-                    memberData.callRatings.map((r) => (
-                      <div key={r.id} className="rounded-lg bg-navy p-2.5">
-                        <button
-                          className="flex w-full items-center justify-between gap-2 text-left"
-                          onClick={() =>
-                            setExpandedRatingId(expandedRatingId === r.id ? null : r.id)
-                          }
-                        >
-                          <span className="truncate text-sm text-slate-200">
-                            {r.call_type}
-                            {r.candidate_name ? ` · ${r.candidate_name}` : ""}
-                          </span>
-                          <span className="flex shrink-0 items-center gap-2 text-xs text-slate-500">
-                            {r.overall_score !== null && (
-                              <span className="pill">{r.overall_score}/10</span>
-                            )}
-                            {new Date(r.created_at).toLocaleDateString()}
-                          </span>
-                        </button>
-                        {expandedRatingId === r.id && (
-                          <p className="mt-2 whitespace-pre-wrap text-xs text-slate-300">
-                            {r.analysis}
+                    groupCallRatingsByType(memberData.callRatings).map((group) => (
+                      <div key={group.type} className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                            {group.type} ({group.items.length})
                           </p>
-                        )}
+                          {group.avgScore !== null && (
+                            <span className="pill">avg {group.avgScore.toFixed(1)}/10</span>
+                          )}
+                        </div>
+                        {group.items.map((r) => (
+                          <div key={r.id} className="rounded-lg bg-navy p-2.5">
+                            <button
+                              className="flex w-full items-center justify-between gap-2 text-left"
+                              onClick={() =>
+                                setExpandedRatingId(expandedRatingId === r.id ? null : r.id)
+                              }
+                            >
+                              <span className="truncate text-sm text-slate-200">
+                                {r.candidate_name || "Untitled"}
+                              </span>
+                              <span className="flex shrink-0 items-center gap-2 text-xs text-slate-500">
+                                {r.overall_score !== null && (
+                                  <span className="pill">{r.overall_score}/10</span>
+                                )}
+                                {new Date(r.created_at).toLocaleDateString()}
+                              </span>
+                            </button>
+                            {expandedRatingId === r.id && (
+                              <p className="mt-2 whitespace-pre-wrap text-xs text-slate-300">
+                                {r.analysis}
+                              </p>
+                            )}
+                          </div>
+                        ))}
                       </div>
                     ))
                   )}
