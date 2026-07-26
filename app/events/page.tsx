@@ -233,20 +233,39 @@ export default function EventsPage() {
 
                 {isAdmin && (
                   <div className="space-y-1.5 pt-1">
-                    <label className="btn-secondary block w-full cursor-pointer text-center">
-                      {uploadingFor === album.id ? "Uploading…" : "📷 Add Photos/Videos"}
-                      <input
-                        type="file"
-                        accept="image/*,video/*"
-                        multiple
-                        className="hidden"
-                        disabled={uploadingFor === album.id}
-                        onChange={(e) => {
-                          uploadMedia(album.id, e.target.files);
-                          e.target.value = "";
-                        }}
-                      />
-                    </label>
+                    {/* Separate photo/video pickers - mixing both in one
+                        picker (accept="image/*,video/*") makes the iOS
+                        Photos picker choke on large multi-selections. */}
+                    <div className="flex gap-2">
+                      <label className="btn-secondary flex-1 cursor-pointer text-center">
+                        {uploadingFor === album.id ? "Uploading…" : "📷 Add Photos"}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          className="hidden"
+                          disabled={uploadingFor === album.id}
+                          onChange={(e) => {
+                            uploadMedia(album.id, e.target.files);
+                            e.target.value = "";
+                          }}
+                        />
+                      </label>
+                      <label className="btn-secondary flex-1 cursor-pointer text-center">
+                        {uploadingFor === album.id ? "Uploading…" : "🎥 Add Videos"}
+                        <input
+                          type="file"
+                          accept="video/*"
+                          multiple
+                          className="hidden"
+                          disabled={uploadingFor === album.id}
+                          onChange={(e) => {
+                            uploadMedia(album.id, e.target.files);
+                            e.target.value = "";
+                          }}
+                        />
+                      </label>
+                    </div>
                     {uploadError && <p className="text-xs text-red-400">{uploadError}</p>}
                   </div>
                 )}
