@@ -125,6 +125,7 @@ create table streak_days (
   yeses int not null default 0,
   meetings int not null default 0,
   meeting_items text[] not null default '{}'::text[],
+  read_pages int not null default 0,
   unique (user_id, day)
 );
 
@@ -153,6 +154,10 @@ alter table streak_days add column if not exists meetings int not null default 0
 -- summary can show more than a bare count. meetings stays in sync as
 -- the array length.
 alter table streak_days add column if not exists meeting_items text[] not null default '{}'::text[];
+-- Numeric pages-read counter alongside the existing free-text read_what/
+-- read_amount, so "20 pages" can be a real trackable number for Goals
+-- instead of unparseable free text.
+alter table streak_days add column if not exists read_pages int not null default 0;
 
 -- ============================================================
 -- 4b. PERSONAL CIRCLE PV
@@ -1390,3 +1395,45 @@ as $$
 $$;
 
 grant execute on function public.get_likers(text[]) to authenticated;
+
+-- ============================================================
+-- 13. GOALS (Today's Goal / Weekly Goal / Monthly Goal)
+-- Individual, same as Core Run Streak (not household-shared) - a target
+-- number per metric per period. Progress is never stored here; it's
+-- always derived live by summing streak_days over the period (same
+-- pattern as pipeline_periods totals elsewhere), so it can't drift out
+-- of sync with real logged activity.
+-- ============================================================
+create table if not exists goals (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  metric text not null check (
+    metric in ('questions', 'story_shares', 'yeses', 'meetings', 'audios', 'read_pages')
+  ),
+  period text not null check (period in ('daily', 'weekly', 'monthly')),
+  target int not null default 0,
+  updated_at timestamptz not null default now(),
+  unique (user_id, metric, period)
+);
+
+alter table goals enable row level security;
+
+drop policy if exists "goals_select_own_or_upline_or_admin" on goals;
+create policy "goals_select_own_or_upline_or_admin" on goals
+for select using (
+  user_id = auth.uid()
+  or public.is_upline_of(auth.uid(), user_id)
+  or public.is_app_admin()
+);
+
+drop policy if exists "goals_insert_own" on goals;
+create policy "goals_insert_own" on goals
+for insert with check (user_id = auth.uid());
+
+drop policy if exists "goals_update_own" on goals;
+create policy "goals_update_own" on goals
+for update using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+drop policy if exists "goals_delete_own" on goals;
+create policy "goals_delete_own" on goals
+for delete using (user_id = auth.uid());

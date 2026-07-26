@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { href: "/history", label: "History", icon: "🗂️" },
   { href: "/contacts", label: "Contacts", icon: "📇" },
   { href: "/streak", label: "Run Streak", icon: "🔥" },
+  { href: "/goals", label: "Goals", icon: "🎯" },
   { href: "/volume", label: "Volume", icon: "📦" },
   { href: "/leaderboard", label: "Leaderboard", icon: "🏆" },
   { href: "/assistant", label: "Assistant", icon: "🤖" },

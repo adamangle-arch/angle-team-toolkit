@@ -1,4 +1,4 @@
-import type { PipelineStageKey } from "./constants";
+import type { PipelineStageKey, GoalMetric, GoalPeriod } from "./constants";
 
 export type Profile = {
   id: string;
@@ -211,6 +211,16 @@ export type StreakDay = {
   yeses: number;
   meetings: number;
   meeting_items: string[];
+  read_pages: number;
+};
+
+export type Goal = {
+  id: string;
+  user_id: string;
+  metric: GoalMetric;
+  period: GoalPeriod;
+  target: number;
+  updated_at: string;
 };
 
 export type AssistantMessage = {

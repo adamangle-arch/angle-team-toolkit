@@ -307,6 +307,26 @@ that day's data once the calendar flips.
 The "Trivia Unlocked" alert only ever fires while editing today — going
 back and completing a past day's Core Run doesn't re-trigger it.
 
+### Goals (Today / This Week / This Month)
+
+A new **Goals** tab (`app/goals/page.tsx`) breaks down what it actually
+takes daily/weekly/monthly to hit your numbers: for six metrics —
+Conversations, Story Shares, Yeses, Meetings, Audios, and Pages Read —
+set a target for Today, This Week, and This Month, and see actual
+progress (with a fill bar, lighting up amber once you hit the target)
+right next to it. Every metric maps to something already tracked daily
+on Core Run Streak, so **progress is never stored separately** — it's
+summed live from `streak_days` (Questions → "Conversations" since
+that's the closest existing daily counter to what people asked for;
+Meetings/Audios count `meeting_items`/`listen_items` length; Pages Read
+is a new `read_pages` counter added alongside Read's existing free-text
+fields specifically so page counts are a real trackable number). This
+mirrors the same "never a separate source of truth that can drift"
+principle the rest of Core Run Streak already follows. Targets are
+individual (not shared with a linked spouse), stored in a new `goals`
+table, one row per metric+period, editable inline by tapping the number
+next to your progress.
+
 ### Daily Update summary (copy/paste for LTD)
 
 The bottom of the Core Run Streak page has a **Daily Update Summary**

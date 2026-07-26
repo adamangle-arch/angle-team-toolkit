@@ -73,6 +73,30 @@ export const CANDIDATE_STEPS: { label: string; homework: string }[] = [
 // pipeline" — index 1 is QI1, so this is "QI1 booked or beyond."
 export const ACTIVE_PIPELINE_MIN_STEP = 1;
 
+// Goals: a target number per metric per period. Every metric here maps
+// to something already tracked daily on streak_days, so actual progress
+// is always derived live (summed per day/week/month) rather than stored
+// separately - "questions" is labeled "Conversations" since that's the
+// closest existing daily counter to the freeform "conversations" example
+// people gave when asking for this feature.
+export type GoalMetric = "questions" | "story_shares" | "yeses" | "meetings" | "audios" | "read_pages";
+export type GoalPeriod = "daily" | "weekly" | "monthly";
+
+export const GOAL_METRICS: { key: GoalMetric; label: string; emoji: string }[] = [
+  { key: "questions", label: "Conversations", emoji: "💬" },
+  { key: "story_shares", label: "Story Shares", emoji: "📖" },
+  { key: "yeses", label: "Yeses", emoji: "✅" },
+  { key: "meetings", label: "Meetings", emoji: "🤝" },
+  { key: "audios", label: "Audios", emoji: "🎧" },
+  { key: "read_pages", label: "Pages Read", emoji: "📚" },
+];
+
+export const GOAL_PERIODS: { key: GoalPeriod; label: string }[] = [
+  { key: "daily", label: "Today" },
+  { key: "weekly", label: "This Week" },
+  { key: "monthly", label: "This Month" },
+];
+
 // Short canonical labels for each CANDIDATE_STEPS index, for places (like
 // the Daily Update summary) that want the next actual process milestone
 // rather than the internal step label. "Yes" and the two "Audio & Reading"

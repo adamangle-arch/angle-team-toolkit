@@ -84,6 +84,7 @@ function normalizeRow(row: StreakDay): StreakDay {
     ...row,
     listen_items: row.listen_items ?? [],
     meeting_items: row.meeting_items ?? [],
+    read_pages: row.read_pages ?? 0,
   };
 }
 
@@ -106,6 +107,7 @@ function emptyDay(userId: string, day: string): StreakDay {
     yeses: 0,
     meetings: 0,
     meeting_items: [],
+    read_pages: 0,
   };
 }
 
@@ -403,6 +405,7 @@ export default function StreakPage() {
           story_share: merged.story_share,
           read_what: merged.read_what,
           read_amount: merged.read_amount,
+          read_pages: merged.read_pages,
           listen_what: merged.listen_what,
           listen_count: merged.listen_count,
           listen_items: merged.listen_items,
@@ -702,6 +705,11 @@ export default function StreakPage() {
                 onBlur={() => {
                   if (readAmount !== selectedRow.read_amount) saveToday({ read_amount: readAmount });
                 }}
+              />
+              <Counter
+                label="Pages read"
+                value={selectedRow.read_pages}
+                onChange={(next) => saveToday({ read_pages: next })}
               />
             </div>
 
