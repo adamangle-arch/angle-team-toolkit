@@ -310,6 +310,18 @@ to your upline. Tap **Copy Daily Update** to copy it, or select the text
 manually from the box. It regenerates live as you fill in today's Core
 Run Streak fields, so fill those in first.
 
+The summary also has a separate **Downline** section, clearly split from
+your own numbers above it: combined weekly/monthly pipeline totals
+across everyone in your downline, and who's currently active in their
+pipelines (candidate name, next process milestone, and which downline
+member it belongs to). It relies entirely on RLS already scoping
+`profiles`/`pipeline_periods`/`candidates` reads to "yours + your
+downline" (`is_upline_of()` in `supabase/schema.sql`) — no new tables or
+functions needed. A linked couple's shared data lives under whichever
+partner is the household owner (`profiles.household_id`), so downline
+members are deduped to that owner before summing, same resolution the
+Team tab already uses, to avoid double-counting a linked pair.
+
 ### New to the Team spotlight
 
 The Leaderboard now has a **🎉 New to the Team** card listing anyone who

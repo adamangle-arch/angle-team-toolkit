@@ -7,8 +7,28 @@ import NotificationOptIn from "@/components/NotificationOptIn";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import { getToday, getWeekStart, getMonthStart, formatDateLabel } from "@/lib/dates";
-import { PIPELINE_STAGES, CANDIDATE_STEP_SHORT_LABELS } from "@/lib/constants";
-import type { StreakDay, PipelinePeriod, MonthlyPv, Candidate, Contact } from "@/lib/types";
+import { PIPELINE_STAGES, CANDIDATE_STEP_SHORT_LABELS, type PipelineStageKey } from "@/lib/constants";
+import type { StreakDay, PipelinePeriod, MonthlyPv, Candidate, Contact, Profile } from "@/lib/types";
+
+type StageTotals = Record<PipelineStageKey, number>;
+
+function emptyStageTotals(): StageTotals {
+  return Object.fromEntries(PIPELINE_STAGES.map((s) => [s.key, 0])) as StageTotals;
+}
+
+function sumStages(rows: PipelinePeriod[]): StageTotals {
+  const totals = emptyStageTotals();
+  for (const row of rows) {
+    for (const s of PIPELINE_STAGES) {
+      totals[s.key] += row[s.key] ?? 0;
+    }
+  }
+  return totals;
+}
+
+function fullName(p: { first_name: string | null; last_name: string | null }): string {
+  return [p.first_name, p.last_name].filter(Boolean).join(" ") || "Unnamed";
+}
 
 function qualifies(day: StreakDay): boolean {
   return day.read && day.listen && day.daily_update && day.story_share;
@@ -120,6 +140,13 @@ export default function StreakPage() {
   const [copied, setCopied] = useState(false);
   const [showTriviaUnlocked, setShowTriviaUnlocked] = useState(false);
 
+  const [downlineMemberCount, setDownlineMemberCount] = useState(0);
+  const [downlineWeekly, setDownlineWeekly] = useState<StageTotals>(emptyStageTotals());
+  const [downlineMonthly, setDownlineMonthly] = useState<StageTotals>(emptyStageTotals());
+  const [downlineActive, setDownlineActive] = useState<
+    { candidate: Candidate; ownerName: string }[]
+  >([]);
+
   useEffect(() => {
     async function load() {
       setLoading(true);
@@ -139,6 +166,86 @@ export default function StreakPage() {
     }
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user.id]);
+
+  // Downline totals/pipeline, kept separate from the personal numbers
+  // above. RLS on `profiles` already scopes this select to "me + my
+  // downline" (see is_upline_of in supabase/schema.sql), so excluding my
+  // own row here is enough to get exactly my downline. A linked spouse's
+  // real pipeline/candidate rows live under their partner's id
+  // (household_id), same resolution the Team tab uses, so downline
+  // members are deduped to their household owner before summing to
+  // avoid double-counting a linked pair.
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      const { data } = await supabase
+        .from("profiles")
+        .select("id,first_name,last_name,household_id")
+        .neq("id", user.id);
+      if (cancelled) return;
+      const downlineProfiles =
+        (data as Pick<Profile, "id" | "first_name" | "last_name" | "household_id">[]) ?? [];
+      setDownlineMemberCount(downlineProfiles.length);
+
+      if (downlineProfiles.length === 0) {
+        setDownlineWeekly(emptyStageTotals());
+        setDownlineMonthly(emptyStageTotals());
+        setDownlineActive([]);
+        return;
+      }
+
+      const ownerIds = Array.from(
+        new Set(downlineProfiles.map((p) => p.household_id ?? p.id))
+      );
+      const ownerNameMap = new Map<string, string>();
+      for (const p of downlineProfiles) {
+        const ownerId = p.household_id ?? p.id;
+        if (p.id === ownerId) ownerNameMap.set(ownerId, fullName(p));
+      }
+      for (const p of downlineProfiles) {
+        const ownerId = p.household_id ?? p.id;
+        if (!ownerNameMap.has(ownerId)) ownerNameMap.set(ownerId, fullName(p));
+      }
+
+      const weekStart = getWeekStart();
+      const monthStart = getMonthStart();
+      const [{ data: w }, { data: m }, { data: c }] = await Promise.all([
+        supabase
+          .from("pipeline_periods")
+          .select("*")
+          .eq("period_type", "weekly")
+          .eq("period_start", weekStart)
+          .in("user_id", ownerIds),
+        supabase
+          .from("pipeline_periods")
+          .select("*")
+          .eq("period_type", "monthly")
+          .eq("period_start", monthStart)
+          .in("user_id", ownerIds),
+        supabase
+          .from("candidates")
+          .select("*")
+          .eq("launched", false)
+          .eq("filtered_out", false)
+          .in("user_id", ownerIds),
+      ]);
+      if (cancelled) return;
+      setDownlineWeekly(sumStages((w as PipelinePeriod[]) ?? []));
+      setDownlineMonthly(sumStages((m as PipelinePeriod[]) ?? []));
+      setDownlineActive(
+        ((c as Candidate[]) ?? []).map((candidate) => ({
+          candidate,
+          ownerName: ownerNameMap.get(candidate.user_id) ?? "Unnamed",
+        }))
+      );
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
   }, [user.id]);
 
   const todayRow: StreakDay = history[today] ?? emptyDay(user.id, today);
@@ -321,14 +428,14 @@ export default function StreakPage() {
     );
     lines.push(`🔥 Current Streak: ${streak} day(s)`);
     lines.push("");
-    lines.push("This Week:");
+    lines.push("My Pipeline — This Week:");
     lines.push(
       weekly
         ? PIPELINE_STAGES.map((s) => `${s.label}: ${weekly[s.key]}`).join(" | ")
         : "No pipeline activity logged yet."
     );
     lines.push("");
-    lines.push("This Month:");
+    lines.push("My Pipeline — This Month:");
     lines.push(
       monthly
         ? PIPELINE_STAGES.map((s) => `${s.label}: ${monthly[s.key]}`).join(" | ")
@@ -337,7 +444,7 @@ export default function StreakPage() {
     lines.push("");
     lines.push(`💰 Current PV: ${pv?.pv ?? 0}`);
     lines.push("");
-    lines.push(`Active in Pipeline (${activeCandidates.length}):`);
+    lines.push(`My Active Pipeline (${activeCandidates.length}):`);
     lines.push(
       activeCandidates.length > 0
         ? activeCandidates
@@ -345,8 +452,45 @@ export default function StreakPage() {
             .join("\n")
         : "No active candidates right now."
     );
+    lines.push("");
+    lines.push(`— Downline (${downlineMemberCount} member(s)) —`);
+    if (downlineMemberCount === 0) {
+      lines.push("No downline yet.");
+    } else {
+      lines.push("");
+      lines.push("Downline — This Week:");
+      lines.push(PIPELINE_STAGES.map((s) => `${s.label}: ${downlineWeekly[s.key]}`).join(" | "));
+      lines.push("");
+      lines.push("Downline — This Month:");
+      lines.push(PIPELINE_STAGES.map((s) => `${s.label}: ${downlineMonthly[s.key]}`).join(" | "));
+      lines.push("");
+      lines.push(`Downline Active in Pipeline (${downlineActive.length}):`);
+      lines.push(
+        downlineActive.length > 0
+          ? downlineActive
+              .map(
+                ({ candidate, ownerName }) =>
+                  `${candidate.name} — ${CANDIDATE_STEP_SHORT_LABELS[candidate.current_step] ?? "QI1"} (${ownerName})`
+              )
+              .join("\n")
+          : "No active downline candidates right now."
+      );
+    }
     return lines.join("\n");
-  }, [today, todayRow, streak, weekly, monthly, pv, activeCandidates, newContactsToday]);
+  }, [
+    today,
+    todayRow,
+    streak,
+    weekly,
+    monthly,
+    pv,
+    activeCandidates,
+    newContactsToday,
+    downlineMemberCount,
+    downlineWeekly,
+    downlineMonthly,
+    downlineActive,
+  ]);
 
   async function copySummary() {
     try {
