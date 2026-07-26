@@ -709,8 +709,10 @@ JPG) — the real sheet with the Start Here checklist, the "Who do you know
 named..." first-name prompts, "Who do you know that is a(n)..."
 occupations, "Who is your..." professionals, and "Who do you know
 who..." lifestyle prompts, rather than that content retyped into the
-app — and the **Crush Your List** audio by Jim Mueller and John Resch to
-listen to before working through it.
+app — the **Crush Your List** audio by Jim Mueller and John Resch to
+listen to before working through it — and **Normalize the Work** by Kyle
+and Austin Brown, and Hunter and Vanessa Lindsay, which has no link since
+their coach sends it directly through the LTD media app.
 
 ### Milestone Alerts
 

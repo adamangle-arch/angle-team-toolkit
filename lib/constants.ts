@@ -209,6 +209,11 @@ export const ONBOARDING_SESSIONS: OnboardingSession[] = [
         detail: "Audio by Jim Mueller and John Resch — listen before working through your worksheet.",
         url: "https://www.dropbox.com/scl/fi/u0882axmar8z7hqasf110/Crudh-your-List.m4a?rlkey=rjqmmqtn30vqpkwi1liyjosgk&st=ikn3lgnt&dl=0",
       },
+      {
+        label: "🎧 Normalize the Work",
+        detail:
+          "Audio by Kyle and Austin Brown, and Hunter and Vanessa Lindsay — your coach will send this to you on the LTD app. Listen before your next meeting.",
+      },
     ],
   },
   {
