@@ -1078,6 +1078,10 @@ $$;
 
 grant execute on function public.get_ditto_leaderboard(date) to authenticated;
 
+-- Superseded by get_daily_sales_feed below (per-sale feed with category,
+-- instead of one aggregated total per person).
+drop function if exists public.get_daily_sales_leaderboard();
+
 -- Every individual customer sale logged today, newest first - each sale
 -- is its own "posted" row (name, category, PV), not aggregated per
 -- person, so the category is actually meaningful per row. No
