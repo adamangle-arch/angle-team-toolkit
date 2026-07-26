@@ -86,8 +86,8 @@ export type GoalMetric =
   | "yeses";
 
 export const GOAL_ITEMS: { key: GoalMetric; prefix: string; suffix: string }[] = [
-  { key: "read_minutes", prefix: "Reading", suffix: "minutes+" },
-  { key: "audios", prefix: "Listen to", suffix: "+ Audio" },
+  { key: "read_minutes", prefix: "Reading", suffix: "minutes" },
+  { key: "audios", prefix: "Listen to", suffix: "Audio" },
   { key: "conversations", prefix: "", suffix: "Conversations" },
   { key: "story_shares", prefix: "", suffix: "Story shares" },
   { key: "questions", prefix: "", suffix: "Questions" },

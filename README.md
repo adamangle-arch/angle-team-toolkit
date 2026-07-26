@@ -318,8 +318,8 @@ The **Goals** tab (`app/goals/page.tsx`) is a single, simple box: "Your
 goal today is:" followed by one line per target, each with an inline
 number field —
 
-- Reading `[__]` minutes+
-- Listen to `[__]`+ Audio
+- Reading `[__]` minutes
+- Listen to `[__]` Audio
 - `[__]` Conversations
 - `[__]` Story shares
 - `[__]` Questions
