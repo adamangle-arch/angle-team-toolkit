@@ -226,7 +226,7 @@ export default function ContactsPage() {
               </button>
             </div>
           )}
-          <p className="text-xs text-slate-500">How do you know them? (optional, tap any that fit)</p>
+          <p className="text-xs text-slate-500">How do you know them?</p>
           <div className="flex flex-wrap gap-2">
             {CONNECTION_TAGS.map((tag) => (
               <button
@@ -242,7 +242,7 @@ export default function ContactsPage() {
               </button>
             ))}
           </div>
-          <p className="text-xs text-slate-500">Best way to reconnect? (optional)</p>
+          <p className="text-xs text-slate-500">Best way to reconnect?</p>
           <div className="flex flex-wrap gap-2">
             {RECONNECT_METHODS.map((method) => (
               <button
