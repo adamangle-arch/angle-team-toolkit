@@ -110,12 +110,26 @@ create table if not exists contacts (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
   name text not null,
-  category text not null check (category in ('A', 'B')),
+  category text not null,
   status text not null default 'Not yet asked',
   notes text not null default '',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- Same pattern as profiles_team_check: re-runnable so 'Customer' (the
+-- separate customer list, alongside the A/B networking list) can be
+-- added without dropping (and wiping) this table.
+alter table contacts drop constraint if exists contacts_category_check;
+alter table contacts add constraint contacts_category_check check (
+  category in ('A', 'B', 'Customer')
+);
+
+-- Additive: optional "how do you know them" memory-jogger tags (Family,
+-- Friend, Coworkers, Gym, Church, Neighbor, College, High School, Social
+-- Media), picked when adding a contact - purely descriptive, no bearing
+-- on category/status.
+alter table contacts add column if not exists connection_tags text[] not null default '{}'::text[];
 
 -- ============================================================
 -- 4. CORE RUN STREAK

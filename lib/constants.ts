@@ -241,3 +241,22 @@ export const CONTACT_STATUSES = [
   "Launched",
   "Not interested",
 ] as const;
+
+// Contact Builder: simpler two-state status shown for the Customer List
+// instead of the full networking pipeline above (a customer isn't
+// walking through QI1/QI2/etc).
+export const CUSTOMER_STATUSES = ["Not yet asked", "Contacted"] as const;
+
+// Contact Builder: optional "how do you know them" memory-jogger tags,
+// shown as quick-pick chips in Add Contact.
+export const CONNECTION_TAGS = [
+  "Family",
+  "Friend",
+  "Coworkers",
+  "Gym",
+  "Church",
+  "Neighbor",
+  "College",
+  "High School",
+  "Social Media",
+] as const;

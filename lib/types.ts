@@ -210,9 +210,10 @@ export type Contact = {
   id: string;
   user_id: string;
   name: string;
-  category: "A" | "B";
+  category: "A" | "B" | "Customer";
   status: string;
   notes: string;
+  connection_tags: string[];
   created_at: string;
   updated_at: string;
 };

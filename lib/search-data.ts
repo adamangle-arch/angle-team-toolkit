@@ -18,7 +18,7 @@ const PAGE_SHORTCUTS: SearchResult[] = [
   { title: "Today", snippet: "Your streak, goals, calendar, and pipeline activity for today, in one place.", href: "/dashboard", source: "Pages" },
   { title: "Pipeline Tracker", snippet: "Daily/weekly/monthly funnel counters and the Candidate Roadmap.", href: "/pipeline", source: "Pages" },
   { title: "Candidate History", snippet: "Every candidate you've ever added, active or not.", href: "/history", source: "Pages" },
-  { title: "Contacts", snippet: "Your A/B list.", href: "/contacts", source: "Pages" },
+  { title: "Contact Builder", snippet: "Your A/B networking list and customer list.", href: "/contacts", source: "Pages" },
   { title: "Core Run Streak", snippet: "Read, Listen, Daily Update, Story Share, and your streak.", href: "/streak", source: "Pages" },
   { title: "Goals", snippet: "Your daily/weekly/monthly targets.", href: "/goals", source: "Pages" },
   { title: "Calendar", snippet: "Meetings, reminders, and team events.", href: "/calendar", source: "Pages" },

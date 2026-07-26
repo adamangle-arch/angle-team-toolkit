@@ -196,6 +196,37 @@ pointing at the same step they were actually on:
 update candidates set current_step = current_step + 1;
 ```
 
+### Contact Builder (was "A/B Contact List")
+
+The **Contacts** tab (`app/contacts/page.tsx`) is now **Contact Builder**,
+with a toggle at the top separating two genuinely different lists sharing
+the same `contacts` table (new `'Customer'` value alongside `'A'`/`'B'` on
+`category`):
+
+- **Networking List** — your prospecting list, split into **🟢 A-List
+  Connections** and **🔵 B-List Connections**. A **List Builder** meter
+  tracks total names toward a goal of 100, with milestone marks at 🟢20,
+  🟡40, 🔴60, 🔵80, and 🏆100 — the classic "build a list of 100" exercise,
+  not to be confused with the Volume tab's Core 300 PV meter.
+- **Customer List** — a separate list of actual customers, with a simpler
+  two-status field (Not yet asked / Contacted) instead of the full
+  networking pipeline (Asked → QI1 → ... → Launched), since a customer
+  isn't walking through the business pipeline.
+
+Both lists show **Contacted** and **Left to Contact** counts, derived live
+from each contact's status (`"Not yet asked"` = not yet contacted, anything
+else = contacted) — not a separately-tracked number, so it can't drift out
+of sync with the actual list.
+
+Adding a contact also has an optional "How do you know them?" quick-pick —
+Family, Friend, Coworkers, Gym, Church, Neighbor, College, High School,
+Social Media (`contacts.connection_tags`, a `text[]`, additive) — shown as
+pills on the contact card once set. Underneath the Add Contact button, a
+rotating memory-jogger prompt ("Who cuts your hair?", "Who was in your
+wedding?", etc. — the full list is in `lib/contact-questions-data.ts`)
+cycles every few seconds to help surface names that don't come to mind
+right away, purely a display prompt with nothing stored.
+
 Personal Circle PV lives on its own **Volume** tab: each person self-reports
 their own current-month PV there (stored in the additive `monthly_pv`
 table, same owner-or-primary-user RLS pattern as everything else), with
