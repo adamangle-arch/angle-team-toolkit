@@ -88,6 +88,10 @@ export default function VolumePage() {
     };
   }, [ownerId, periodStart]);
 
+  const corePv = Math.max(0, parseInt(pvInput, 10) || 0);
+  const CORE_300_TARGET = 300;
+  const corePct = Math.min(100, (corePv / CORE_300_TARGET) * 100);
+
   const chartData = useMemo(() => {
     const past = history
       .slice()
@@ -177,6 +181,30 @@ export default function VolumePage() {
             </button>
           </div>
           {savedPv && <p className="text-xs text-amber-light">Saved.</p>}
+        </div>
+
+        <div className="card space-y-2">
+          <p className="section-title">Core 300 Meter</p>
+          <p className="text-xs text-slate-400">
+            Our team standard is 300 PV — the halfway mark is 150 PV.
+          </p>
+          <div className="pt-1">
+            <div className="relative h-4 w-full rounded-full bg-white/10">
+              <div
+                className="h-4 rounded-full transition-all duration-300"
+                style={{
+                  width: `${corePct}%`,
+                  background: "linear-gradient(135deg, var(--color-amber-light), var(--color-amber))",
+                }}
+              />
+              <div className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-white/50" />
+            </div>
+            <div className="relative mt-1 h-4 text-[10px] text-slate-400">
+              <span className="absolute left-1/2 -translate-x-1/2">150 PV</span>
+              <span className="absolute right-0">300 PV</span>
+            </div>
+          </div>
+          <p className="text-sm text-amber-light">{corePv} / {CORE_300_TARGET} PV</p>
         </div>
 
         <div className="card space-y-2">

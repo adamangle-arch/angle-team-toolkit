@@ -581,6 +581,14 @@ weeks/months/periods, instead of only ever showing the current one — a
 lightweight custom SVG chart (`components/TrendChart.tsx`), no charting
 library needed.
 
+### Core 300 Meter (Volume tab)
+
+A progress bar on the **Volume** tab (`app/volume/page.tsx`) fills in
+live against the team's 300 PV standard as you type into the Personal
+Circle PV field above it — no separate save step, it just tracks
+whatever's in that input. A tick mark at the halfway point is labeled
+150 PV.
+
 ### Duplication Calculator (Volume tab)
 
 A calculator card on the **Volume** tab (`app/volume/page.tsx`) lets you
