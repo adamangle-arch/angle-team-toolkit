@@ -14,6 +14,32 @@ background, favorite audios/books, and how the team has impacted them) —
 see "Public profiles" below. All data is stored in Supabase (Postgres), so
 it persists across sessions and devices.
 
+### Today (dashboard / landing page)
+
+The app now opens straight to a **Today** dashboard (`app/dashboard/page.tsx`,
+`/dashboard` — the root `/` redirects here, and it's the first item in the
+bottom nav) instead of dropping you into Pipeline Tracker or Goals. It pulls
+together everything that's scoped to "today" but previously lived in
+separate tabs, so logging in tells you what actually needs attention without
+checking five different places:
+
+- **🔥 Core Run Streak** — current streak length (`get_current_streak()`,
+  the same function the Leaderboard and public profiles use) plus
+  checkmarks for whether Read/Listen/Daily Update/Story Share are done yet
+  today, from today's `streak_days` row.
+- **🎯 Today's Goals** — whatever daily targets are set on the Goals page,
+  read straight from `goals` where `period = 'daily'`. Only shows metrics
+  that actually have a target set; if none are set yet, it says so and
+  links to Goals.
+- **📅 Today's Calendar** — anything on your personal calendar with an
+  `event_at` today, from `calendar_events`.
+- **📊 Today's Pipeline** — non-zero stage counts from today's
+  `pipeline_periods` row (`period_type = 'daily'`).
+
+Every card is read-only and links to the real page to make changes — the
+dashboard doesn't duplicate any editing logic, it just surfaces what's
+already there.
+
 ## 1. Set up Supabase
 
 1. Create a free project at [supabase.com](https://supabase.com).
