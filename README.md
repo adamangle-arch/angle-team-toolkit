@@ -239,7 +239,10 @@ of sync with the actual list.
 Adding a contact also has an optional "How do you know them?" quick-pick —
 Family, Friend, Coworkers, Gym, Church, Neighbor, College, High School,
 Social Media (`contacts.connection_tags`, a `text[]`, additive) — shown as
-pills on the contact card once set. Underneath the Add Contact button, a
+pills on the contact card once set, plus a single-pick "Best way to
+reconnect?" — Text, Instagram, Facebook, Snapchat, Other
+(`contacts.reconnect_method`, a plain `text`, additive) — editable later
+from a dropdown on the contact card itself. Underneath the Add Contact button, a
 rotating memory-jogger prompt cycles every few seconds to help surface
 names that don't come to mind right away — purely a display prompt with
 nothing stored. The two lists get different prompts, matching their
