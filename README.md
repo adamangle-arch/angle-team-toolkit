@@ -561,6 +561,13 @@ for a full-screen lightbox (video plays with controls); only an admin
 sees the **Add Event** form, the **📷 Add Photos/Videos** upload
 control, and the ✕/× delete buttons on media and events.
 
+The lightbox tracks the tapped photo's position within its album, not
+just the photo itself, so it can page through the rest of that album:
+swipe left/right on the image (a touchstart/touchend delta past 50px
+counts as a swipe), or tap the ‹ / › arrows, to move to the next/previous
+item — wrapping from the last item back to the first. A "3 / 15" counter
+in the top center only shows up when the album has more than one item.
+
 Backed by two new tables: `team_event_albums` (one row per named past
 event) and `event_media` (one row per photo or video, tied to an album,
 with a `media_type` of `'photo'` or `'video'`), plus a public-read

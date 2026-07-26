@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
@@ -40,7 +40,38 @@ export default function EventsPage() {
 
   const [uploadingFor, setUploadingFor] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [lightbox, setLightbox] = useState<EventMedia | null>(null);
+  const [lightbox, setLightbox] = useState<{ albumId: string; index: number } | null>(null);
+  const touchStartX = useRef<number | null>(null);
+
+  const lightboxItems = lightbox ? (mediaByAlbum[lightbox.albumId] ?? []) : [];
+  const lightboxMedia = lightbox ? lightboxItems[lightbox.index] : null;
+
+  // Wraps around both ends so a swipe/tap past the last photo loops back
+  // to the first instead of doing nothing.
+  function showRelative(delta: number) {
+    setLightbox((prev) => {
+      if (!prev) return prev;
+      const items = mediaByAlbum[prev.albumId] ?? [];
+      if (items.length === 0) return prev;
+      const nextIndex = (prev.index + delta + items.length) % items.length;
+      return { albumId: prev.albumId, index: nextIndex };
+    });
+  }
+
+  const SWIPE_THRESHOLD_PX = 50;
+
+  function handleLightboxTouchStart(e: React.TouchEvent) {
+    touchStartX.current = e.touches[0].clientX;
+  }
+
+  function handleLightboxTouchEnd(e: React.TouchEvent) {
+    const startX = touchStartX.current;
+    touchStartX.current = null;
+    if (startX === null) return;
+    const deltaX = e.changedTouches[0].clientX - startX;
+    if (deltaX > SWIPE_THRESHOLD_PX) showRelative(-1);
+    else if (deltaX < -SWIPE_THRESHOLD_PX) showRelative(1);
+  }
 
   useEffect(() => {
     async function load() {
@@ -212,10 +243,10 @@ export default function EventsPage() {
                   <p className="text-sm text-slate-400">No photos or videos yet.</p>
                 ) : (
                   <div className="grid grid-cols-3 gap-1.5">
-                    {media.map((item) => (
+                    {media.map((item, index) => (
                       <div key={item.id} className="group relative aspect-square">
                         <button
-                          onClick={() => setLightbox(item)}
+                          onClick={() => setLightbox({ albumId: album.id, index })}
                           className="h-full w-full overflow-hidden rounded-lg bg-navy"
                         >
                           {item.media_type === "video" ? (
@@ -295,10 +326,12 @@ export default function EventsPage() {
         )}
       </main>
 
-      {lightbox && (
+      {lightboxMedia && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
           onClick={() => setLightbox(null)}
+          onTouchStart={handleLightboxTouchStart}
+          onTouchEnd={handleLightboxTouchEnd}
         >
           <button
             className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-lg text-white"
@@ -307,9 +340,39 @@ export default function EventsPage() {
           >
             ✕
           </button>
-          {lightbox.media_type === "video" ? (
+
+          {lightboxItems.length > 1 && (
+            <>
+              <span className="absolute top-4 left-1/2 -translate-x-1/2 rounded-full bg-white/10 px-3 py-1 text-xs text-white">
+                {lightbox!.index + 1} / {lightboxItems.length}
+              </span>
+              <button
+                className="absolute left-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-xl text-white"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  showRelative(-1);
+                }}
+                aria-label="Previous"
+              >
+                ‹
+              </button>
+              <button
+                className="absolute right-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-xl text-white"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  showRelative(1);
+                }}
+                aria-label="Next"
+              >
+                ›
+              </button>
+            </>
+          )}
+
+          {lightboxMedia.media_type === "video" ? (
             <video
-              src={lightbox.media_url}
+              key={lightboxMedia.id}
+              src={lightboxMedia.media_url}
               className="max-h-full max-w-full rounded-lg"
               controls
               autoPlay
@@ -318,7 +381,8 @@ export default function EventsPage() {
           ) : (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={lightbox.media_url}
+              key={lightboxMedia.id}
+              src={lightboxMedia.media_url}
               alt="Event media"
               className="max-h-full max-w-full rounded-lg object-contain"
               onClick={(e) => e.stopPropagation()}
