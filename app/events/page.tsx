@@ -12,6 +12,11 @@ import type { TeamEventAlbum, EventMedia } from "@/lib/types";
 // every mobile browser/in-app webview - falling back avoids a thrown
 // exception mid-upload leaving the "Uploading..." button stuck forever
 // with no error shown.
+// Selecting a big batch at once (especially with videos) is what makes
+// the iOS Photos picker hang - capping it here keeps each upload quick
+// and gives a clear message instead of a slow, uncertain wait.
+const MAX_FILES_PER_UPLOAD = 5;
+
 function uniqueId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return crypto.randomUUID();
@@ -78,6 +83,12 @@ export default function EventsPage() {
 
   async function uploadMedia(albumId: string, files: FileList | null) {
     if (!files || files.length === 0) return;
+    if (files.length > MAX_FILES_PER_UPLOAD) {
+      setUploadError(
+        `Select ${MAX_FILES_PER_UPLOAD} or fewer at a time (you picked ${files.length}) — large batches can make the picker hang.`
+      );
+      return;
+    }
     setUploadingFor(albumId);
     setUploadError(null);
 
@@ -236,6 +247,9 @@ export default function EventsPage() {
                     {/* Separate photo/video pickers - mixing both in one
                         picker (accept="image/*,video/*") makes the iOS
                         Photos picker choke on large multi-selections. */}
+                    <p className="text-xs text-slate-500">
+                      Up to {MAX_FILES_PER_UPLOAD} at a time.
+                    </p>
                     <div className="flex gap-2">
                       <label className="btn-secondary flex-1 cursor-pointer text-center">
                         {uploadingFor === album.id ? "Uploading…" : "📷 Add Photos"}
