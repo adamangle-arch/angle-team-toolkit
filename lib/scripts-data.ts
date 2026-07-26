@@ -117,4 +117,46 @@ export const SCRIPTS: ScriptEntry[] = [
     answer:
       "Don't lead with \"I have a business\" or \"are you interested in making money.\" Lead with mentorship: \"I got connected to mentors who have built more options in their life,\" then check appreciation for a conversation.",
   },
+  // A/B/C list
+  {
+    category: "A/B/C List",
+    question: "What is the difference between A, B, and C list?",
+    answer:
+      "A-list: people you already have strong trust and credibility with — close friends, family, people who'd take your call anytime. B-list: people you know, but the relationship is newer or less deep — coworkers, acquaintances, people you're still building trust with. C-list: people you don't know personally yet — strangers, marketplace contacts, warm-ish referrals. The approach shifts by list: A/B-list conversations can be more direct since trust already exists; C-list needs relationship first — lead with who you are and what you're learning, not what the business is.",
+  },
+  // Story sharing
+  {
+    category: "Story Sharing",
+    question: "How do I share my story?",
+    answer:
+      "Keep it short and honest: what your life looked like before, what got your attention, and what's actually changed (mindset, income, relationships, direction) — not a highlight reel. Story is about relatability and credibility, not convincing — you're not proving the business works, you're just being real about your own experience so far. If you're newer, that's fine to say: \"I'm still early in this myself, but here's what's already changed for me...\" is a completely credible story.",
+  },
+  // Core run
+  {
+    category: "Core Run",
+    question: "What is a core run?",
+    answer:
+      "Committing to the 4 daily activities that actually move the business: Read, Listen, a Daily Update to your upline, and a Story Share — do all 4 in a day and it counts as a streak day (tracked on the Run Streak tab). The \"30 Day Core Run\" after launch also includes reading 20+ minutes, listening to 1+ audio, reaching out to 2 potential IBOs, and building toward 150 PV. It's the daily rhythm everything else — QI1s, story shares, customers — gets built on top of.",
+  },
+  // Team events
+  {
+    category: "Team Events",
+    question: "What are the different team events and what is the value of them?",
+    answer:
+      "Info Sessions (IS1/IS2) happen early in someone's interview process — community and leadership exposure, seeing the team environment instead of just hearing about it one-on-one. Weekly team events/trainings keep everyone plugged into ongoing coaching and vision. Apprenticeship Workshops, Masterclasses, and Major Conferences are bigger, less frequent events that go deeper on skill-building and expose people to leadership at scale — often the moment belief and vision actually click in a way a one-on-one conversation can't replicate. Attending consistently, not just when convenient, is part of what a real 30 Day Core Run and the Perfect First Month both expect.",
+  },
+  // Objections & posture (continued)
+  {
+    category: "Objections & Posture",
+    question: "How do I respond to family negativity?",
+    answer:
+      "Don't get defensive or try to convince them — that usually backfires and makes them dig in harder. Acknowledge it calmly (\"I get why it might look that way\"), don't argue the merits over text or in the moment, and let your results and consistency do more talking than any explanation could. You don't need their permission or approval to build — you need your own posture. Most family skepticism softens over time once they see real behavior change (a budget, reading, discipline) rather than a sales pitch.",
+  },
+  // Mindset & philosophy
+  {
+    category: "Mindset & Philosophy",
+    question: "Why do we have a selection mindset over a convincing mindset?",
+    answer:
+      "Convincing attracts people who needed convincing — low commitment, high attrition, and a business that depends entirely on your own salesmanship. Selection (curiosity over convincing, both sides evaluating fit) attracts people who are actually looking, which is the only kind of person who duplicates: an average person can teach someone else curiosity and honest conversation, but almost no one can teach someone else how to convince skeptical people to join something they weren't looking for. Selection is also just more honest — the business isn't for everyone, and pretending otherwise erodes trust fast.",
+  },
 ];
