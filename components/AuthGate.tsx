@@ -80,7 +80,20 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   // Admins always see the whole app - onboarding gating is for brand-new
   // signups, not for the people running the team.
   const isAdmin = Boolean(user && isPrimaryUser(user.email));
-  const unlockedThrough = isAdmin ? Infinity : (profile?.onboarding_unlocked_through ?? 1);
+
+  // TEMPORARY: lets an admin preview a locked-down tier without touching
+  // their real onboarding_unlocked_through row. From the browser console:
+  //   sessionStorage.setItem("atk_debug_unlock", "2"); location.reload();
+  // and to go back to normal:
+  //   sessionStorage.removeItem("atk_debug_unlock"); location.reload();
+  // Session-only (clears on tab close) and admin-only - remove this block
+  // once testing is done.
+  const debugUnlock =
+    typeof window !== "undefined" && isAdmin
+      ? Number(sessionStorage.getItem("atk_debug_unlock") ?? "") || null
+      : null;
+
+  const unlockedThrough = debugUnlock ?? (isAdmin ? Infinity : (profile?.onboarding_unlocked_through ?? 1));
   const onboardingComplete = unlockedThrough >= ONBOARDING_SESSIONS.length;
 
   // Whatever URL the browser/PWA happens to resume at (a bookmark, an
