@@ -6,23 +6,26 @@ import { AUDIOS, FIRST_YEAR_BOOKS, ADVANCED_LIBRARY } from "@/lib/library-data";
 import { LEADERS } from "@/lib/leaders-data";
 import { PRODUCTS, PV_REFERENCE, STARTER_STACKS } from "@/lib/product-data";
 import { SCRIPTS } from "@/lib/scripts-data";
-import { PROCESS_STAGES, QUESTIONNAIRE_QUESTIONS, FIRST_MONTH_TARGETS } from "@/lib/process-data";
+import { PROCESS_STAGES, QUESTIONNAIRE_QUESTIONS, FIRST_MONTH_STEPS } from "@/lib/process-data";
 import { SAMPLE_BAG_GUIDE, SURVEY_QUESTIONS, SURVEY_APPOINTMENT_FLOW } from "@/lib/acquisition-data";
 
 type Section = "audios" | "books" | "leaders" | "products" | "scripts" | "process" | "acquisition";
 
+// "Process" leads the list (and is the default tab) so it's the first
+// thing a new person sees on Resources - what to actually do, not
+// buried behind Audios/Leaders/Products.
 const SECTIONS: { key: Section; label: string }[] = [
+  { key: "process", label: "Process" },
   { key: "audios", label: "Audios" },
   { key: "books", label: "Books" },
   { key: "leaders", label: "Leaders" },
   { key: "products", label: "Products" },
   { key: "scripts", label: "Scripts & FAQ" },
-  { key: "process", label: "Process" },
   { key: "acquisition", label: "Acquisition" },
 ];
 
 export default function LibraryPage() {
-  const [section, setSection] = useState<Section>("audios");
+  const [section, setSection] = useState<Section>("process");
   const [query, setQuery] = useState("");
 
   return (
@@ -370,12 +373,26 @@ function ProcessSection() {
         ))}
       </div>
 
-      <div className="card space-y-1.5">
-        <p className="section-title">Perfect First Month</p>
-        {FIRST_MONTH_TARGETS.map((t) => (
-          <p key={t} className="text-sm text-slate-300">
-            • {t}
-          </p>
+      <div className="card space-y-2">
+        <p className="section-title">🚀 Perfect First Month (New Launch)</p>
+        <p className="text-xs text-slate-400">
+          Step by step, in order, for someone who just launched.
+        </p>
+        {FIRST_MONTH_STEPS.map((s, i) => (
+          <div key={s.step} className="space-y-1">
+            <p className="text-sm font-medium text-white">
+              {i + 1}. {s.step}
+            </p>
+            {s.substeps && (
+              <div className="space-y-0.5 pl-4">
+                {s.substeps.map((sub) => (
+                  <p key={sub} className="text-xs text-slate-400">
+                    • {sub}
+                  </p>
+                ))}
+              </div>
+            )}
+          </div>
         ))}
       </div>
     </>

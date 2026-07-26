@@ -81,15 +81,28 @@ export const QUESTIONNAIRE_QUESTIONS: string[] = [
   "Are there any other questions or concerns that you would like to address with us prior to moving forward?",
 ];
 
-export const FIRST_MONTH_TARGETS: string[] = [
-  "8-10 QI1s",
-  "3-5 customer surveys",
-  "150 PV personal circle",
-  "Communicating with upline",
-  "Budget session complete",
-  "Attending all events",
-  "Plugged into audios/reading",
-  "On a core run",
-  "Built a list of 100+ people",
-  "Competent at sharing story",
+export type FirstMonthStep = {
+  step: string;
+  substeps?: string[];
+};
+
+// Step-by-step for someone who just launched - what to actually do,
+// in order, not just a loose bag of targets.
+export const FIRST_MONTH_STEPS: FirstMonthStep[] = [
+  { step: "Budget Session" },
+  { step: "Create your A/B List" },
+  { step: "Create your Customer List" },
+  { step: "Book your first QI1s" },
+  { step: "Create Sample Bags" },
+  {
+    step: "Commit to a 30 Day Core Run",
+    substeps: [
+      "Daily communication with your upline",
+      "Reading 20+ minutes",
+      "Listening to 1+ audio",
+      "Reaching out to 2 potential IBOs",
+      "Building towards 150 PV",
+    ],
+  },
+  { step: "Attend weekly events" },
 ];

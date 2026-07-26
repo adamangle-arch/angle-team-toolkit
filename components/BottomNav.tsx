@@ -14,8 +14,11 @@ const NAV_ITEMS = [
   { href: "/leaderboard", label: "Leaderboard", icon: "🏆" },
   { href: "/assistant", label: "Assistant", icon: "🤖" },
   { href: "/onboarding", label: "Onboarding", icon: "🎓" },
-  { href: "/games", label: "Games", icon: "🎮" },
+  // Resources opens straight to the Process tab (what to actually do),
+  // so it sits right after Onboarding in the new-person's path instead
+  // of all the way at the back.
   { href: "/library", label: "Resources", icon: "📚" },
+  { href: "/games", label: "Games", icon: "🎮" },
   // Visible to everyone: admins see the whole company, everyone else
   // sees their own downline (RLS scopes it either way).
   { href: "/team", label: "Team", icon: "👥" },

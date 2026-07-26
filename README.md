@@ -488,6 +488,31 @@ like to add/remove, readable by anyone) plus `get_likers()` to resolve
 names, since leaderboard rows themselves are computed on the fly rather
 than stored records.
 
+### Process tab leads Resources, with a real Perfect First Month
+
+The Resources hub (`app/library/page.tsx`) now opens straight to
+**Process** by default — it's the first pill in the tab row instead of
+the last, and the **Resources** nav item itself moved up to sit right
+after **Onboarding** in the bottom nav instead of near the back — so a
+new person's path is Onboarding → Resources (Process) rather than
+Process being buried behind Audios/Leaders/Products/Scripts.
+
+The Process tab's **🚀 Perfect First Month (New Launch)** card (still
+in the same tab as the pre-launch interview process/questionnaire —
+nothing moved out of Process, this only reordered where the tab sits)
+is now an actual numbered step-by-step instead of a loose bag of
+targets (`FIRST_MONTH_STEPS` in `lib/process-data.ts`):
+
+1. Budget Session
+2. Create your A/B List
+3. Create your Customer List
+4. Book your first QI1s
+5. Create Sample Bags
+6. Commit to a 30 Day Core Run — daily communication with your upline,
+   reading 20+ minutes, listening to 1+ audio, reaching out to 2
+   potential IBOs, building towards 150 PV
+7. Attend weekly events
+
 ### Onboarding
 
 A new **Onboarding** tab walks new team members through a series of
