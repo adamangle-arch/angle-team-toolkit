@@ -73,6 +73,20 @@ function computeStreakAsOf(history: Record<string, StreakDay>, day: string): num
   return count;
 }
 
+// Rows fetched straight from Supabase can be missing listen_items/
+// meeting_items if the SQL migration adding those columns hasn't been
+// run yet on this database - accessing .length/.join on `undefined`
+// then crashes the render (this is what broke tapping a previous day
+// before the migration had been applied). Normalize on every read so
+// the app degrades to an empty list instead of throwing.
+function normalizeRow(row: StreakDay): StreakDay {
+  return {
+    ...row,
+    listen_items: row.listen_items ?? [],
+    meeting_items: row.meeting_items ?? [],
+  };
+}
+
 function emptyDay(userId: string, day: string): StreakDay {
   return {
     id: "",
@@ -183,7 +197,7 @@ export default function StreakPage() {
         .order("day", { ascending: false });
       const map: Record<string, StreakDay> = {};
       for (const row of (data as StreakDay[]) ?? []) {
-        map[row.day] = row;
+        map[row.day] = normalizeRow(row);
       }
       setHistory(map);
       setLoading(false);
@@ -392,7 +406,7 @@ export default function StreakPage() {
       )
       .select("*")
       .single();
-    if (data) setHistory((prev) => ({ ...prev, [today]: data as StreakDay }));
+    if (data) setHistory((prev) => ({ ...prev, [today]: normalizeRow(data as StreakDay) }));
   }
 
   function saveAudios(items: string[]) {
