@@ -225,7 +225,11 @@ export const ONBOARDING_SESSIONS: OnboardingSession[] = [
     title: "Session 3: Customers",
     description: "Learn to create value through products.",
     resources: [
-      { label: "🎥 Customer Acquisition Training", detail: "Replace with your training video link." },
+      {
+        label: "🎥 Customer Survey Training",
+        detail: "Video by Laura Angle — watch before doing customer surveys.",
+        url: "https://www.youtube.com/watch?v=-4e9twlrGDk",
+      },
       { label: "📖 Product Value Guide", detail: "Replace with your product/value reading." },
     ],
   },
