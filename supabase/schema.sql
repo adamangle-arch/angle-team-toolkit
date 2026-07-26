@@ -548,6 +548,29 @@ $$;
 
 grant execute on function public.grant_all_onboarding_sessions(uuid) to authenticated;
 
+-- Same authorization as grant_next_onboarding_session, but walks back
+-- down a session instead of up - for when an upline/admin changes their
+-- mind about having unlocked something. Floored at 1: Session 1 is
+-- always available from signup, never lockable.
+create or replace function public.lock_previous_onboarding_session(p_user_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not (public.is_app_admin() or public.is_upline_of(auth.uid(), p_user_id)) then
+    raise exception 'Not authorized to change onboarding access for this account.';
+  end if;
+
+  update profiles
+  set onboarding_unlocked_through = greatest(1, onboarding_unlocked_through - 1)
+  where id = p_user_id;
+end;
+$$;
+
+grant execute on function public.lock_previous_onboarding_session(uuid) to authenticated;
+
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql

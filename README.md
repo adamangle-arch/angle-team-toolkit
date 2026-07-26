@@ -699,6 +699,11 @@ admin), but jumps straight to all 5 sessions unlocked in one tap. Meant
 for someone who isn't actually new to the business (already experienced
 elsewhere) rather than clicking "Unlock Next" four times in a row.
 
+A third button, **🔒 Lock Previous**, calls `lock_previous_onboarding_session()`
+to walk back down a session — for when an upline/admin changes their
+mind about an unlock. Floored at 1 (Session 1 is always available from
+signup, so it can't be locked).
+
 This is deliberately not automatic (e.g. not tied to completing a
 checklist) — it's an explicit "I'm confirming this person is ready for
 the next session" action by their upline, backed by

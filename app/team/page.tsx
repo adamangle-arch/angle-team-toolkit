@@ -254,6 +254,30 @@ export default function TeamPage() {
     setGrantingOnboarding(false);
   }
 
+  // Changed your mind about an unlock? Walks back down a session
+  // (floored at 1 - Session 1 is always available from signup).
+  async function handleLockPreviousOnboarding() {
+    if (!selectedId) return;
+    setGrantingOnboarding(true);
+    setGrantError("");
+    const { error } = await supabase.rpc("lock_previous_onboarding_session", {
+      p_user_id: selectedId,
+    });
+    if (error) {
+      setGrantError(error.message);
+      setGrantingOnboarding(false);
+      return;
+    }
+    setProfiles((prev) =>
+      prev.map((p) =>
+        p.id === selectedId
+          ? { ...p, onboarding_unlocked_through: Math.max(1, (p.onboarding_unlocked_through ?? 1) - 1) }
+          : p
+      )
+    );
+    setGrantingOnboarding(false);
+  }
+
   async function handleDelete() {
     if (!selectedId) return;
     setDeleting(true);
@@ -526,7 +550,7 @@ export default function TeamPage() {
                 </div>
 
                 {selectedId !== user.id && (
-                  <div className="card flex items-center justify-between gap-2">
+                  <div className="card space-y-2">
                     <div>
                       <p className="section-title">🎓 Onboarding</p>
                       <p className="text-xs text-slate-400">
@@ -538,9 +562,18 @@ export default function TeamPage() {
                       </p>
                       {grantError && <p className="text-xs text-red-400">{grantError}</p>}
                     </div>
-                    <div className="flex shrink-0 gap-2">
+                    <div className="flex gap-2">
                       <button
-                        className="btn-secondary"
+                        className="btn-secondary flex-1 whitespace-nowrap px-2 text-xs"
+                        onClick={handleLockPreviousOnboarding}
+                        disabled={
+                          grantingOnboarding || (selectedProfile?.onboarding_unlocked_through ?? 1) <= 1
+                        }
+                      >
+                        {grantingOnboarding ? "…" : "🔒 Lock Previous"}
+                      </button>
+                      <button
+                        className="btn-secondary flex-1 whitespace-nowrap px-2 text-xs"
                         onClick={handleGrantAllOnboarding}
                         disabled={
                           grantingOnboarding ||
@@ -548,10 +581,10 @@ export default function TeamPage() {
                             ONBOARDING_SESSIONS.length
                         }
                       >
-                        {grantingOnboarding ? "Unlocking…" : "Unlock All"}
+                        {grantingOnboarding ? "…" : "Unlock All"}
                       </button>
                       <button
-                        className="btn-primary"
+                        className="btn-primary flex-1 whitespace-nowrap px-2 text-xs"
                         onClick={handleGrantOnboarding}
                         disabled={
                           grantingOnboarding ||
@@ -559,7 +592,7 @@ export default function TeamPage() {
                             ONBOARDING_SESSIONS.length
                         }
                       >
-                        {grantingOnboarding ? "Unlocking…" : "Unlock Next"}
+                        {grantingOnboarding ? "…" : "Unlock Next"}
                       </button>
                     </div>
                   </div>
