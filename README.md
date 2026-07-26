@@ -703,13 +703,14 @@ session unlocked on their own Onboarding tab, regardless of their own
 (`isPrimaryUser`), not a schema change, so admins can review the full
 content without needing anyone to "unlock" it for them.
 
-**Session 2: List Building** has the "why a list of 100+ names" intro
-plus a direct link to the actual LTD "Building Your List" worksheet
-(Dropbox JPG) — the real sheet with the Start Here checklist, the "Who
-do you know named..." first-name prompts, "Who do you know that is
-a(n)..." occupations, "Who is your..." professionals, and "Who do you
-know who..." lifestyle prompts, rather than that content retyped into
-the app.
+**Session 2: List Building** has the "why a list of 100+ names" intro, a
+direct link to the actual LTD "Building Your List" worksheet (Dropbox
+JPG) — the real sheet with the Start Here checklist, the "Who do you know
+named..." first-name prompts, "Who do you know that is a(n)..."
+occupations, "Who is your..." professionals, and "Who do you know
+who..." lifestyle prompts, rather than that content retyped into the
+app — and the **Crush Your List** audio by Jim Mueller and John Resch to
+listen to before working through it.
 
 ### Milestone Alerts
 

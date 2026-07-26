@@ -204,6 +204,11 @@ export const ONBOARDING_SESSIONS: OnboardingSession[] = [
           "The official worksheet — work through it name by name: sources to start with, first names, occupations, professionals you rely on, and lifestyle prompts.",
         url: "https://www.dropbox.com/scl/fi/uk77jor2r0zbqjqewy81c/List-Builder.jpg?rlkey=5ddroczo5hp2mhzlqdb9mbzsz&st=vel3s2wu&dl=0",
       },
+      {
+        label: "🎧 Crush Your List",
+        detail: "Audio by Jim Mueller and John Resch — listen before working through your worksheet.",
+        url: "https://www.dropbox.com/scl/fi/u0882axmar8z7hqasf110/Crudh-your-List.m4a?rlkey=rjqmmqtn30vqpkwi1liyjosgk&st=ikn3lgnt&dl=0",
+      },
     ],
   },
   {
