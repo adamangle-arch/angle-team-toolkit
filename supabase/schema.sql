@@ -1,10 +1,13 @@
 -- Angle Team Toolkit — Supabase schema
 -- Run this whole file in the Supabase SQL Editor (Project > SQL Editor > New query).
 --
--- This version adds email/password accounts: every team member's data is
--- private to them. Re-running this file DROPS AND RECREATES every app
--- table (any test data you already entered will be cleared) so the new
--- per-user shape and permissions are applied cleanly.
+-- Safe to re-run in full any time (e.g. to pick up a new feature) -
+-- every table uses `create table if not exists` and every column/policy
+-- change is additive (`add column if not exists`, `drop/create policy`,
+-- `drop/add constraint`), so existing rows are never touched. The only
+-- `drop table` statements left are for features that were fully removed
+-- from the app (see the block right below) - nothing with live data is
+-- ever dropped.
 
 create extension if not exists "pgcrypto";
 
@@ -25,24 +28,29 @@ as $$
 $$;
 
 -- ============================================================
--- Drop sections that are no longer part of the app, and drop the old
--- table shapes so they can be recreated with user_id ownership below.
+-- Drop sections that are no longer part of the app at all (never
+-- recreated below, so there's nothing live left referencing them).
+--
+-- IMPORTANT: pipeline_periods, candidates, contacts, streak_days, and
+-- goals used to be dropped-and-recreated here too, back when this file
+-- was only ever run against empty/test data. Once real teams had real
+-- data in those tables, every full re-run of this file was silently
+-- wiping Pipeline Tracker, Candidate History, Contacts, Core Run Streak,
+-- and Goals for every user. They're never dropped here anymore -
+-- `create table if not exists` further down is what makes it safe to
+-- re-run this whole file for future features without touching existing
+-- rows.
 -- ============================================================
 drop table if exists call_log cascade;
 drop table if exists checklist_tasks cascade;
 drop table if exists checklist_settings cascade;
 drop table if exists quarterly_goals cascade;
-drop table if exists goals cascade;
-drop table if exists streak_days cascade;
 drop table if exists recognition_log cascade;
-drop table if exists contacts cascade;
-drop table if exists candidates cascade;
-drop table if exists pipeline_periods cascade;
 
 -- ============================================================
 -- 1. PIPELINE TRACKER (one set of buckets per user)
 -- ============================================================
-create table pipeline_periods (
+create table if not exists pipeline_periods (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
   period_type text not null check (period_type in ('weekly', 'monthly')),
@@ -71,7 +79,7 @@ create table pipeline_periods (
 -- can end up Launched or Filtered Out; both are independent flags so
 -- either can be reversed later.
 -- ============================================================
-create table candidates (
+create table if not exists candidates (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
   name text not null,
@@ -91,7 +99,7 @@ alter table candidates add column if not exists connected_date date not null def
 -- ============================================================
 -- 3. A/B CONTACT LIST
 -- ============================================================
-create table contacts (
+create table if not exists contacts (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
   name text not null,
@@ -107,7 +115,7 @@ create table contacts (
 -- One row per calendar day per user. Read / Listen / Daily Update /
 -- Story Share — all 4 done counts as a streak day.
 -- ============================================================
-create table streak_days (
+create table if not exists streak_days (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
   day date not null,
@@ -1453,21 +1461,25 @@ grant execute on function public.get_likers(text[]) to authenticated;
 -- still tracked as its own counter on Core Run Streak, just not
 -- goal-settable).
 -- ============================================================
-drop table if exists goals cascade;
-
-create table goals (
+create table if not exists goals (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
-  metric text not null check (
-    metric in (
-      'read_minutes', 'audios', 'conversations', 'story_shares', 'questions', 'yeses', 'qi1s'
-    )
-  ),
-  period text not null check (period in ('daily', 'weekly', 'monthly')),
+  metric text not null,
+  period text not null,
   target int not null default 0,
   updated_at timestamptz not null default now(),
   unique (user_id, metric, period)
 );
+
+-- Same pattern as profiles_team_check: a re-runnable constraint instead
+-- of baked into the create table, so a future metric can be added
+-- without dropping (and wiping) this table.
+alter table goals drop constraint if exists goals_metric_check;
+alter table goals add constraint goals_metric_check check (
+  metric in ('read_minutes', 'audios', 'conversations', 'story_shares', 'questions', 'yeses', 'qi1s')
+);
+alter table goals drop constraint if exists goals_period_check;
+alter table goals add constraint goals_period_check check (period in ('daily', 'weekly', 'monthly'));
 
 alter table goals enable row level security;
 
