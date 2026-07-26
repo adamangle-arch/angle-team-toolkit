@@ -317,6 +317,11 @@ export const ONBOARDING_SESSIONS: OnboardingSession[] = [
     description: "Establish the daily habits that create long-term momentum.",
     resources: [
       {
+        label: "🎧 Homework: First Round Draft Pick",
+        detail: "Audio by Mark and Meredith Nathan — listen to this for your Session 5 homework.",
+        url: "https://www.dropbox.com/scl/fi/217gvovuxyyui3zpcl8gl/First-Round-Draft-Pick-S11-0054-AUD.mp3?rlkey=nr7rv7u9iunt9itl4obilhpy6&st=8h9cka6w&dl=0",
+      },
+      {
         label: "🔥 Core Run Streak",
         detail: "Head to the Run Streak tab to start your daily Read/Listen/Daily Update/Story Share habit.",
       },
