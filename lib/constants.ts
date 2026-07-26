@@ -239,7 +239,7 @@ export const ONBOARDING_SESSIONS: OnboardingSession[] = [
         detail: "Audio by Adam Ladenburger — your mentor will gift this to you on the LTD Media app.",
       },
       {
-        label: "🎧 Crush VCS",
+        label: "🎧 Crushing VCS",
         detail:
           "Audio by Derrick and Jill Kosek — available on the Sales and Profitability Hub in the LTD Media app.",
       },
