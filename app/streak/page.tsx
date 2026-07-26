@@ -84,7 +84,8 @@ function normalizeRow(row: StreakDay): StreakDay {
     ...row,
     listen_items: row.listen_items ?? [],
     meeting_items: row.meeting_items ?? [],
-    read_pages: row.read_pages ?? 0,
+    read_minutes: row.read_minutes ?? 0,
+    depth_texts: row.depth_texts ?? 0,
   };
 }
 
@@ -107,7 +108,8 @@ function emptyDay(userId: string, day: string): StreakDay {
     yeses: 0,
     meetings: 0,
     meeting_items: [],
-    read_pages: 0,
+    read_minutes: 0,
+    depth_texts: 0,
   };
 }
 
@@ -414,7 +416,7 @@ export default function StreakPage() {
           story_share: merged.story_share,
           read_what: merged.read_what,
           read_amount: merged.read_amount,
-          read_pages: merged.read_pages,
+          read_minutes: merged.read_minutes,
           listen_what: merged.listen_what,
           listen_count: merged.listen_count,
           listen_items: merged.listen_items,
@@ -423,6 +425,7 @@ export default function StreakPage() {
           yeses: merged.yeses,
           meetings: merged.meetings,
           meeting_items: merged.meeting_items,
+          depth_texts: merged.depth_texts,
         },
         { onConflict: "user_id,day" }
       )
@@ -716,9 +719,9 @@ export default function StreakPage() {
                 }}
               />
               <Counter
-                label="Pages read"
-                value={selectedRow.read_pages}
-                onChange={(next) => saveToday({ read_pages: next })}
+                label="Minutes read"
+                value={selectedRow.read_minutes}
+                onChange={(next) => saveToday({ read_minutes: next })}
               />
             </div>
 
@@ -792,6 +795,11 @@ export default function StreakPage() {
                 label="Yeses"
                 value={selectedRow.yeses}
                 onChange={(next) => saveToday({ yeses: next })}
+              />
+              <Counter
+                label="Depth Texts"
+                value={selectedRow.depth_texts}
+                onChange={(next) => saveToday({ depth_texts: next })}
               />
             </div>
 

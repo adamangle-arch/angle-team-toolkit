@@ -125,7 +125,8 @@ create table streak_days (
   yeses int not null default 0,
   meetings int not null default 0,
   meeting_items text[] not null default '{}'::text[],
-  read_pages int not null default 0,
+  read_minutes int not null default 0,
+  depth_texts int not null default 0,
   unique (user_id, day)
 );
 
@@ -154,10 +155,30 @@ alter table streak_days add column if not exists meetings int not null default 0
 -- summary can show more than a bare count. meetings stays in sync as
 -- the array length.
 alter table streak_days add column if not exists meeting_items text[] not null default '{}'::text[];
--- Numeric pages-read counter alongside the existing free-text read_what/
--- read_amount, so "20 pages" can be a real trackable number for Goals
--- instead of unparseable free text.
-alter table streak_days add column if not exists read_pages int not null default 0;
+-- Numeric minutes-read counter alongside the existing free-text
+-- read_what/read_amount, so a reading goal can be a real trackable
+-- number instead of unparseable free text. Superseded read_pages
+-- (never widely used) with read_minutes to match how the Goals feature
+-- actually phrases the reading goal ("Reading 20 minutes+").
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_name = 'streak_days' and column_name = 'read_pages'
+  ) and not exists (
+    select 1 from information_schema.columns
+    where table_name = 'streak_days' and column_name = 'read_minutes'
+  ) then
+    alter table streak_days rename column read_pages to read_minutes;
+  elsif not exists (
+    select 1 from information_schema.columns
+    where table_name = 'streak_days' and column_name = 'read_minutes'
+  ) then
+    alter table streak_days add column read_minutes int not null default 0;
+  end if;
+end $$;
+-- Free-standing counter with no other existing analog in the app.
+alter table streak_days add column if not exists depth_texts int not null default 0;
 
 -- ============================================================
 -- 4b. PERSONAL CIRCLE PV
@@ -1400,23 +1421,26 @@ $$;
 grant execute on function public.get_likers(text[]) to authenticated;
 
 -- ============================================================
--- 13. GOALS (Today's Goal / Weekly Goal / Monthly Goal)
--- Individual, same as Core Run Streak (not household-shared) - a target
--- number per metric per period. Progress is never stored here; it's
--- always derived live by summing streak_days over the period (same
--- pattern as pipeline_periods totals elsewhere), so it can't drift out
--- of sync with real logged activity.
+-- 13. GOALS ("Your goal today is...")
+-- Individual, same as Core Run Streak (not household-shared) - one
+-- target number per metric, no separate daily/weekly/monthly period:
+-- the same goal applies every day until manually changed. Superseded
+-- the earlier per-period design (dropped entirely, including the old
+-- Meetings/Pages Read metrics) in favor of a flat list matching exactly
+-- what was asked for: Reading minutes, Audios, Depth Texts,
+-- Conversations, Story Shares, Yeses.
 -- ============================================================
-create table if not exists goals (
+drop table if exists goals cascade;
+
+create table goals (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
   metric text not null check (
-    metric in ('questions', 'story_shares', 'yeses', 'meetings', 'audios', 'read_pages')
+    metric in ('read_minutes', 'audios', 'depth_texts', 'questions', 'story_shares', 'yeses')
   ),
-  period text not null check (period in ('daily', 'weekly', 'monthly')),
   target int not null default 0,
   updated_at timestamptz not null default now(),
-  unique (user_id, metric, period)
+  unique (user_id, metric)
 );
 
 alter table goals enable row level security;

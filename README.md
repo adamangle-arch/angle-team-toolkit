@@ -270,13 +270,16 @@ through Supabase directly).
 Beyond the 4 qualifying checks (Read / Listen / Daily Update / Story
 Share), each day's Core Run Streak entry now also captures:
 
-- **Read** — what you're reading, and how much today (free text, e.g. "20 pages")
+- **Read** — what you're reading (free text) plus a numeric Minutes
+  Read counter (`read_minutes`) so a reading goal is a real trackable
+  number, not just free text like "20 pages"
 - **Listen** — add each audio you listened to today one at a time (type
   a name, hit Add or Enter), with a ✕ to remove any of them — instead of
   cramming them all into one text field. `listen_what`/`listen_count`
   are still derived from the list (joined text / item count) so nothing
   downstream (public profile, Daily Update summary) needed to change
-- **Today's Activity** — counters for Story Shares, Questions, Yeses, and Meetings
+- **Today's Activity** — counters for Story Shares, Questions, Yeses, and Depth Texts
+- **Meetings** — its own add-one-at-a-time list (who/what), same pattern as Listen
 
 The 4 boolean flags that actually determine your streak are unchanged
 and still the only thing `qualifies()` looks at — they're just now set
@@ -307,38 +310,39 @@ that day's data once the calendar flips.
 The "Trivia Unlocked" alert only ever fires while editing today — going
 back and completing a past day's Core Run doesn't re-trigger it.
 
-### Goals (Today / This Week / This Month)
+### Goals ("Your goal today is...")
 
-A new **Goals** tab (`app/goals/page.tsx`) breaks down what it actually
-takes daily/weekly/monthly to hit your numbers: for six metrics —
-Conversations, Story Shares, Yeses, Meetings, Audios, and Pages Read —
-set a target for Today, This Week, and This Month, and see actual
-progress (with a fill bar, lighting up amber once you hit the target)
-right next to it. Every metric maps to something already tracked daily
-on Core Run Streak, so **progress is never stored separately** — it's
-summed live from `streak_days` (Questions → "Conversations" since
-that's the closest existing daily counter to what people asked for;
-Meetings/Audios count `meeting_items`/`listen_items` length; Pages Read
-is a new `read_pages` counter added alongside Read's existing free-text
-fields specifically so page counts are a real trackable number). This
-mirrors the same "never a separate source of truth that can drift"
-principle the rest of Core Run Streak already follows. Targets are
-individual (not shared with a linked spouse), stored in a new `goals`
-table, one row per metric+period. Until a target is set for a given
-period, that cell just shows the plain logged count and a "Set goal"
-input — no confusing bare "4 /" next to an empty box; the `X / target`
-form and progress bar only appear once a real target exists. Every
-number cell has a small caption under it ("logged so far", "toward
-goal", or "🎉 goal hit") so it's never ambiguous that the big number is
-literally what you've logged for that period, not a placeholder or the
-goal itself.
+The **Goals** tab (`app/goals/page.tsx`) is a single, simple box: "Your
+goal today is:" followed by one line per target, each with an inline
+number field —
+
+- Reading `[__]` minutes+
+- Listen to `[__]`+ Audio
+- `[__]` Depth Texts
+- `[__]` Conversations
+- `[__]` Story shares
+- `[__]` Yeses
+
+There's no separate daily/weekly/monthly split (an earlier version of
+this feature had one, plus a live actual-vs-target progress display —
+both were dropped after repeated confusion about what the numbers
+meant). **The same goal applies every day until you manually change
+it** — nothing resets it automatically. A note at the bottom reads "📋
+Check Upline on what your daily goal should be." Targets are individual
+(not shared with a linked spouse), stored in a `goals` table — one row
+per metric, no period column at all. "Depth Texts" has no other analog
+elsewhere in the app, so it's tracked with its own new `depth_texts`
+counter next to Story Shares/Questions/Yeses on the Core Run Streak
+page's Today's Activity card; "Reading minutes" replaced the earlier
+"Pages Read" counter (`read_minutes` on `streak_days`, superseding
+`read_pages`) to match how the goal is actually phrased.
 
 There's no way to build a real iOS Home Screen widget without a native
 app (WidgetKit requires a Swift app extension, out of reach for a web
 app installed via "Add to Home Screen"). Goals is the closest
-substitute: it's now the **landing page** (`app/page.tsx` redirects to
-`/goals` instead of `/pipeline`), so opening the app puts today's
-targets vs. actual in front of you immediately, no navigating required.
+substitute: it's the **landing page** (`app/page.tsx` redirects to
+`/goals` instead of `/pipeline`), so opening the app puts today's goals
+in front of you immediately, no navigating required.
 
 ### Calendar (meetings, reminders, team events)
 
