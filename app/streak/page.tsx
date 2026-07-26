@@ -7,8 +7,8 @@ import NotificationOptIn from "@/components/NotificationOptIn";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import { getToday, getWeekStart, getMonthStart, formatDateLabel } from "@/lib/dates";
-import { PIPELINE_STAGES, CANDIDATE_STEPS } from "@/lib/constants";
-import type { StreakDay, PipelinePeriod, MonthlyPv, Candidate } from "@/lib/types";
+import { PIPELINE_STAGES, CANDIDATE_STEP_SHORT_LABELS } from "@/lib/constants";
+import type { StreakDay, PipelinePeriod, MonthlyPv, Candidate, Contact } from "@/lib/types";
 
 function qualifies(day: StreakDay): boolean {
   return day.read && day.listen && day.daily_update && day.story_share;
@@ -114,6 +114,7 @@ export default function StreakPage() {
   const [monthly, setMonthly] = useState<PipelinePeriod | null>(null);
   const [pv, setPv] = useState<MonthlyPv | null>(null);
   const [activeCandidates, setActiveCandidates] = useState<Candidate[]>([]);
+  const [newContactsToday, setNewContactsToday] = useState<Contact[]>([]);
   const [copied, setCopied] = useState(false);
   const [showTriviaUnlocked, setShowTriviaUnlocked] = useState(false);
 
@@ -155,7 +156,9 @@ export default function StreakPage() {
     async function load() {
       const weekStart = getWeekStart();
       const monthStart = getMonthStart();
-      const [{ data: w }, { data: m }, { data: p }, { data: c }] = await Promise.all([
+      const dayStart = `${today}T00:00:00`;
+      const dayEnd = `${addDays(today, 1)}T00:00:00`;
+      const [{ data: w }, { data: m }, { data: p }, { data: c }, { data: nc }] = await Promise.all([
         supabase
           .from("pipeline_periods")
           .select("*")
@@ -183,14 +186,22 @@ export default function StreakPage() {
           .eq("launched", false)
           .eq("filtered_out", false)
           .order("current_step", { ascending: false }),
+        supabase
+          .from("contacts")
+          .select("*")
+          .eq("user_id", ownerId)
+          .gte("created_at", dayStart)
+          .lt("created_at", dayEnd)
+          .order("created_at", { ascending: true }),
       ]);
       setWeekly((w as PipelinePeriod) ?? null);
       setMonthly((m as PipelinePeriod) ?? null);
       setPv((p as MonthlyPv) ?? null);
       setActiveCandidates((c as Candidate[]) ?? []);
+      setNewContactsToday((nc as Contact[]) ?? []);
     }
     load();
-  }, [ownerId]);
+  }, [ownerId, today]);
 
   async function saveToday(patch: Partial<StreakDay>) {
     const merged = withDerived({ ...todayRow, ...patch });
@@ -275,7 +286,14 @@ export default function StreakPage() {
     );
     lines.push(`📝 Daily Update: ${todayRow.daily_update ? "Done" : "Not yet"}`);
     lines.push(
-      `💬 Story Shares: ${todayRow.story_shares} | Questions: ${todayRow.questions} | Yeses: ${todayRow.yeses} | Meetings: ${todayRow.meetings}`
+      `💬 Story Shares: ${todayRow.story_shares} | Questions: ${todayRow.questions} | Yeses: ${todayRow.yeses}`
+    );
+    lines.push(`🤝 Meetings Today: ${todayRow.meetings}`);
+    lines.push(`👋 New Contacts Today (${newContactsToday.length}):`);
+    lines.push(
+      newContactsToday.length > 0
+        ? newContactsToday.map((c) => `${c.name} (${c.category})`).join(", ")
+        : "None today."
     );
     lines.push(`🔥 Current Streak: ${streak} day(s)`);
     lines.push("");
@@ -299,12 +317,12 @@ export default function StreakPage() {
     lines.push(
       activeCandidates.length > 0
         ? activeCandidates
-            .map((c) => `${c.name} — ${CANDIDATE_STEPS[c.current_step]?.label ?? "Yes"}`)
+            .map((c) => `${c.name} — ${CANDIDATE_STEP_SHORT_LABELS[c.current_step] ?? "QI1"}`)
             .join("\n")
         : "No active candidates right now."
     );
     return lines.join("\n");
-  }, [today, todayRow, streak, weekly, monthly, pv, activeCandidates]);
+  }, [today, todayRow, streak, weekly, monthly, pv, activeCandidates, newContactsToday]);
 
   async function copySummary() {
     try {

@@ -73,6 +73,24 @@ export const CANDIDATE_STEPS: { label: string; homework: string }[] = [
 // pipeline" — index 1 is QI1, so this is "QI1 booked or beyond."
 export const ACTIVE_PIPELINE_MIN_STEP = 1;
 
+// Short canonical labels for each CANDIDATE_STEPS index, for places (like
+// the Daily Update summary) that want the next actual process milestone
+// rather than the internal step label. "Yes" and the two "Audio & Reading"
+// homework steps aren't real milestones in the process, so they roll
+// forward to whichever named step comes next (QI1, IS1, IS2).
+export const CANDIDATE_STEP_SHORT_LABELS = [
+  "QI1",
+  "QI1",
+  "QI2",
+  "IS1",
+  "IS1",
+  "FU1",
+  "IS2",
+  "IS2",
+  "FU2",
+  "Offer Call",
+] as const;
+
 // Core Run Streak milestones — based on the longest streak ever hit
 // (get_longest_streak), so a badge earned once stays earned even after a
 // later streak resets.
