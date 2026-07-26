@@ -159,10 +159,12 @@ export default function StreakPage() {
   const today = getToday();
   const since = addDays(today, -120);
 
-  // The Daily Update summary can be generated for any previously-logged
-  // day (someone filing after midnight for "yesterday"), completely
-  // separate from the live edit fields below, which always stay bound
-  // to the actual current day.
+  // Which day the edit fields below (Read/Listen/Daily Update/Meetings)
+  // and the Daily Update summary both target - defaults to today, but
+  // can be switched to any previously-logged day (via the date picker or
+  // tapping a day in the Last 30 Days grid) so someone can back-fill
+  // something they missed, or file after midnight for the day that just
+  // ended, without disturbing any other day's entries.
   const [selectedDay, setSelectedDay] = useState(today);
 
   const [readWhat, setReadWhat] = useState("");
@@ -177,7 +179,6 @@ export default function StreakPage() {
   const [newCandidatesForDay, setNewCandidatesForDay] = useState<Candidate[]>([]);
   const [copied, setCopied] = useState(false);
   const [showTriviaUnlocked, setShowTriviaUnlocked] = useState(false);
-  const [inspectedDay, setInspectedDay] = useState<string | null>(null);
 
   const [downlineMemberCount, setDownlineMemberCount] = useState(0);
   const [downlineWeekly, setDownlineWeekly] = useState<StageTotals>(emptyStageTotals());
@@ -286,16 +287,21 @@ export default function StreakPage() {
     };
   }, [user.id]);
 
-  const todayRow: StreakDay = history[today] ?? emptyDay(user.id, today);
+  const selectedRow: StreakDay = history[selectedDay] ?? emptyDay(user.id, selectedDay);
 
   // Adjust local input state during render (React's recommended pattern)
-  // instead of in an effect, so it stays in sync whenever a fresh
-  // todayRow loads without triggering an extra render pass.
-  const [syncedId, setSyncedId] = useState(todayRow.id);
-  if (syncedId !== todayRow.id) {
-    setSyncedId(todayRow.id);
-    setReadWhat(todayRow.read_what);
-    setReadAmount(todayRow.read_amount);
+  // instead of in an effect, so it stays in sync whenever a fresh row
+  // loads without triggering an extra render pass. Keyed on both the day
+  // and the row id: the day alone catches switching between two days
+  // that both happen to have no saved row yet (id "" both times, which
+  // an id-only key would miss), and the id alone catches history finishing
+  // its initial load or a fresh save creating a row for the same day.
+  const rowSyncKey = `${selectedDay}:${selectedRow.id}`;
+  const [syncedKey, setSyncedKey] = useState(rowSyncKey);
+  if (syncedKey !== rowSyncKey) {
+    setSyncedKey(rowSyncKey);
+    setReadWhat(selectedRow.read_what);
+    setReadAmount(selectedRow.read_amount);
     setNewAudio("");
     setNewMeeting("");
   }
@@ -373,10 +379,14 @@ export default function StreakPage() {
     load();
   }, [ownerId, selectedDay]);
 
+  // Saves to whichever day is currently selected - defaults to today, but
+  // picking a previous day (date picker or the Last 30 Days grid) lets
+  // you fill in something you missed without disturbing any other day.
   async function saveToday(patch: Partial<StreakDay>) {
-    const merged = withDerived({ ...todayRow, ...patch });
-    const justUnlockedTrivia = !qualifies(todayRow) && qualifies(merged);
-    setHistory((prev) => ({ ...prev, [today]: merged }));
+    const merged = withDerived({ ...selectedRow, ...patch });
+    const isToday = selectedDay === today;
+    const justUnlockedTrivia = isToday && !qualifies(selectedRow) && qualifies(merged);
+    setHistory((prev) => ({ ...prev, [selectedDay]: merged }));
     if (justUnlockedTrivia) {
       setShowTriviaUnlocked(true);
       notifyTriviaUnlocked();
@@ -386,7 +396,7 @@ export default function StreakPage() {
       .upsert(
         {
           user_id: user.id,
-          day: today,
+          day: selectedDay,
           read: merged.read,
           listen: merged.listen,
           daily_update: merged.daily_update,
@@ -406,7 +416,7 @@ export default function StreakPage() {
       )
       .select("*")
       .single();
-    if (data) setHistory((prev) => ({ ...prev, [today]: normalizeRow(data as StreakDay) }));
+    if (data) setHistory((prev) => ({ ...prev, [selectedDay]: normalizeRow(data as StreakDay) }));
   }
 
   function saveAudios(items: string[]) {
@@ -420,12 +430,12 @@ export default function StreakPage() {
   function addAudio() {
     const trimmed = newAudio.trim();
     if (!trimmed) return;
-    saveAudios([...todayRow.listen_items, trimmed]);
+    saveAudios([...selectedRow.listen_items, trimmed]);
     setNewAudio("");
   }
 
   function removeAudio(index: number) {
-    saveAudios(todayRow.listen_items.filter((_, i) => i !== index));
+    saveAudios(selectedRow.listen_items.filter((_, i) => i !== index));
   }
 
   function saveMeetings(items: string[]) {
@@ -435,26 +445,28 @@ export default function StreakPage() {
   function addMeeting() {
     const trimmed = newMeeting.trim();
     if (!trimmed) return;
-    saveMeetings([...todayRow.meeting_items, trimmed]);
+    saveMeetings([...selectedRow.meeting_items, trimmed]);
     setNewMeeting("");
   }
 
   function removeMeeting(index: number) {
-    saveMeetings(todayRow.meeting_items.filter((_, i) => i !== index));
+    saveMeetings(selectedRow.meeting_items.filter((_, i) => i !== index));
   }
 
   const streak = useMemo(() => computeStreakAsOf(history, today), [history, today]);
 
-  const selectedRow: StreakDay = history[selectedDay] ?? emptyDay(user.id, selectedDay);
   const streakAsOfSelectedDay = useMemo(
     () => computeStreakAsOf(history, selectedDay),
     [history, selectedDay]
   );
 
-  const todayQualifies = qualifies(todayRow);
-  const doneCount = [todayRow.read, todayRow.listen, todayRow.daily_update, todayRow.story_share].filter(
-    Boolean
-  ).length;
+  const selectedQualifies = qualifies(selectedRow);
+  const selectedDoneCount = [
+    selectedRow.read,
+    selectedRow.listen,
+    selectedRow.daily_update,
+    selectedRow.story_share,
+  ].filter(Boolean).length;
 
   const summaryText = useMemo(() => {
     const lines: string[] = [];
@@ -599,10 +611,73 @@ export default function StreakPage() {
           <p className="text-3xl font-bold text-amber">🔥 {streak}</p>
         </div>
 
-        <div className="card flex items-center justify-between">
-          <p className="section-title">Today</p>
-          <span className={todayQualifies ? "pill-amber" : "pill"}>{doneCount}/4 done</span>
+        <div className="card space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="section-title">
+              {selectedDay === today ? "Today" : formatDateLabel(selectedDay)}
+            </p>
+            <span className={selectedQualifies ? "pill-amber" : "pill"}>
+              {selectedDoneCount}/4 done
+            </span>
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="date"
+              className="input flex-1"
+              value={selectedDay}
+              min={since}
+              max={today}
+              onChange={(e) => setSelectedDay(e.target.value || today)}
+            />
+            {selectedDay !== today && (
+              <button
+                className="btn-icon shrink-0 px-3 text-xs"
+                onClick={() => setSelectedDay(today)}
+              >
+                Today
+              </button>
+            )}
+          </div>
+          <p className="text-xs text-slate-400">
+            Missed logging a day, or filing after midnight? Pick that date — the
+            fields below and the Daily Update Summary will edit/show that day
+            instead, without touching any other day&apos;s entries.
+          </p>
         </div>
+
+        <div className="card space-y-2">
+          <p className="section-title">Last 30 Days</p>
+          <p className="text-xs text-slate-400">Tap a day to view or edit it.</p>
+          <div className="flex flex-wrap gap-1.5">
+            {Array.from({ length: 30 }, (_, i) => addDays(today, -29 + i)).map((day) => {
+              const row = history[day];
+              const done = row ? qualifies(row) : false;
+              return (
+                <button
+                  key={day}
+                  title={day}
+                  onClick={() => setSelectedDay(day)}
+                  className={`h-7 w-7 rounded-md text-center text-[10px] leading-7 transition ${
+                    done ? "bg-amber text-navy font-bold" : "bg-white/10 text-slate-500"
+                  } ${selectedDay === day ? "ring-2 ring-white" : ""}`}
+                >
+                  {Number(day.slice(8, 10))}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {selectedDay !== today && (
+          <div className="card flex items-center justify-between gap-2 !border-amber bg-amber/10">
+            <p className="text-sm text-amber-light">
+              ✏️ Editing {formatDateLabel(selectedDay)}
+            </p>
+            <button className="btn-primary shrink-0" onClick={() => setSelectedDay(today)}>
+              Back to Today
+            </button>
+          </div>
+        )}
 
         {loading ? (
           <div className="empty-state">Loading…</div>
@@ -616,7 +691,7 @@ export default function StreakPage() {
                 value={readWhat}
                 onChange={(e) => setReadWhat(e.target.value)}
                 onBlur={() => {
-                  if (readWhat !== todayRow.read_what) saveToday({ read_what: readWhat });
+                  if (readWhat !== selectedRow.read_what) saveToday({ read_what: readWhat });
                 }}
               />
               <input
@@ -625,16 +700,16 @@ export default function StreakPage() {
                 value={readAmount}
                 onChange={(e) => setReadAmount(e.target.value)}
                 onBlur={() => {
-                  if (readAmount !== todayRow.read_amount) saveToday({ read_amount: readAmount });
+                  if (readAmount !== selectedRow.read_amount) saveToday({ read_amount: readAmount });
                 }}
               />
             </div>
 
             <div className="card space-y-2">
               <p className="section-title">🎧 Listen</p>
-              {todayRow.listen_items.length > 0 && (
+              {selectedRow.listen_items.length > 0 && (
                 <div className="space-y-1.5">
-                  {todayRow.listen_items.map((item, i) => (
+                  {selectedRow.listen_items.map((item, i) => (
                     <div
                       key={i}
                       className="flex items-center justify-between rounded-lg bg-navy px-2 py-1.5"
@@ -671,41 +746,43 @@ export default function StreakPage() {
             </div>
 
             <button
-              onClick={() => saveToday({ daily_update: !todayRow.daily_update })}
+              onClick={() => saveToday({ daily_update: !selectedRow.daily_update })}
               className={`card flex items-center justify-between transition active:scale-95 ${
-                todayRow.daily_update ? "!border-amber" : ""
+                selectedRow.daily_update ? "!border-amber" : ""
               }`}
             >
               <span className="section-title">📝 Daily Update</span>
-              <span className={todayRow.daily_update ? "pill-amber" : "pill"}>
-                {todayRow.daily_update ? "Done" : "Not yet"}
+              <span className={selectedRow.daily_update ? "pill-amber" : "pill"}>
+                {selectedRow.daily_update ? "Done" : "Not yet"}
               </span>
             </button>
 
             <div className="card space-y-1.5">
-              <p className="section-title">Today&apos;s Activity</p>
+              <p className="section-title">
+                {selectedDay === today ? "Today's" : formatDateLabel(selectedDay)} Activity
+              </p>
               <Counter
                 label="Story Shares"
-                value={todayRow.story_shares}
+                value={selectedRow.story_shares}
                 onChange={(next) => saveToday({ story_shares: next })}
               />
               <Counter
                 label="Questions"
-                value={todayRow.questions}
+                value={selectedRow.questions}
                 onChange={(next) => saveToday({ questions: next })}
               />
               <Counter
                 label="Yeses"
-                value={todayRow.yeses}
+                value={selectedRow.yeses}
                 onChange={(next) => saveToday({ yeses: next })}
               />
             </div>
 
             <div className="card space-y-2">
               <p className="section-title">🤝 Meetings</p>
-              {todayRow.meeting_items.length > 0 && (
+              {selectedRow.meeting_items.length > 0 && (
                 <div className="space-y-1.5">
-                  {todayRow.meeting_items.map((item, i) => (
+                  {selectedRow.meeting_items.map((item, i) => (
                     <div
                       key={i}
                       className="flex items-center justify-between rounded-lg bg-navy px-2 py-1.5"
@@ -744,106 +821,11 @@ export default function StreakPage() {
         )}
 
         <div className="card space-y-2">
-          <p className="section-title">Last 30 Days</p>
-          <p className="text-xs text-slate-400">Tap a day to see how it went.</p>
-          <div className="flex flex-wrap gap-1.5">
-            {Array.from({ length: 30 }, (_, i) => addDays(today, -29 + i)).map((day) => {
-              const row = history[day];
-              const done = row ? qualifies(row) : false;
-              return (
-                <button
-                  key={day}
-                  title={day}
-                  onClick={() => setInspectedDay(day)}
-                  className={`h-7 w-7 rounded-md text-center text-[10px] leading-7 transition ${
-                    done ? "bg-amber text-navy font-bold" : "bg-white/10 text-slate-500"
-                  } ${inspectedDay === day ? "ring-2 ring-white" : ""}`}
-                >
-                  {Number(day.slice(8, 10))}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {inspectedDay && (
-          <div className="card space-y-2">
-            <div className="flex items-center justify-between">
-              <p className="section-title">{formatDateLabel(inspectedDay)}</p>
-              <button
-                className="btn-icon !h-6 !w-6 text-xs"
-                onClick={() => setInspectedDay(null)}
-                aria-label="Close"
-              >
-                ✕
-              </button>
-            </div>
-            {(() => {
-              const row = history[inspectedDay] ?? emptyDay(user.id, inspectedDay);
-              const done = qualifies(row);
-              return (
-                <>
-                  <span className={done ? "pill-amber" : "pill"}>
-                    {done ? "Streak day ✅" : "Not a streak day"}
-                  </span>
-                  <p className="text-sm text-slate-300">
-                    📖 Read: {row.read_what || "—"}
-                    {row.read_amount ? ` — ${row.read_amount}` : ""}
-                  </p>
-                  <p className="text-sm text-slate-300">
-                    🎧 Listened ({row.listen_items.length}):{" "}
-                    {row.listen_items.length > 0 ? row.listen_items.join(", ") : "—"}
-                  </p>
-                  <p className="text-sm text-slate-300">
-                    📝 Daily Update: {row.daily_update ? "Done" : "Not yet"}
-                  </p>
-                  <p className="text-sm text-slate-300">
-                    💬 Story Shares: {row.story_shares} | Questions: {row.questions} | Yeses:{" "}
-                    {row.yeses}
-                  </p>
-                  <p className="text-sm text-slate-300">
-                    🤝 Meetings ({row.meeting_items.length}):{" "}
-                    {row.meeting_items.length > 0 ? row.meeting_items.join(", ") : "—"}
-                  </p>
-                  {inspectedDay !== selectedDay && (
-                    <button
-                      className="btn-primary w-full"
-                      onClick={() => setSelectedDay(inspectedDay)}
-                    >
-                      Load into Daily Update Summary
-                    </button>
-                  )}
-                </>
-              );
-            })()}
-          </div>
-        )}
-
-        <div className="card space-y-2">
           <p className="section-title">Daily Update Summary</p>
           <p className="text-xs text-slate-400">
-            Copy/paste this into your LTD daily update to your upline. Filing a
-            previous day&apos;s update after midnight? Pick that date below —
-            it only changes what this box shows, not your live entries above.
+            Copy/paste this into your LTD daily update to your upline. Reflects
+            whichever day is selected above — {formatDateLabel(selectedDay)}.
           </p>
-          <div className="flex gap-2">
-            <input
-              type="date"
-              className="input flex-1"
-              value={selectedDay}
-              min={since}
-              max={today}
-              onChange={(e) => setSelectedDay(e.target.value || today)}
-            />
-            {selectedDay !== today && (
-              <button
-                className="btn-icon shrink-0 px-3 text-xs"
-                onClick={() => setSelectedDay(today)}
-              >
-                Today
-              </button>
-            )}
-          </div>
           <textarea
             readOnly
             className="textarea min-h-[220px] font-mono text-xs"

@@ -286,17 +286,26 @@ of being separate manual toggles. This was a deliberate choice so adding
 these fields couldn't retroactively break anyone's existing streak
 history; `daily_update` stays a plain manual toggle either way.
 
-### Last 30 Days (tap a day to inspect it)
+### Editing a previous day (backfilling / filing after midnight)
 
-The Core Run Streak page's day grid now covers the **last 30 days**
-(previously 14), and each day is tappable. Tapping one opens a detail
-card showing exactly how that day went — Read, Listen (with every
-audio logged), Daily Update, Story Shares/Questions/Yeses, and Meetings
-(with every meeting logged) — pulled straight from the already-loaded
-`history` map, no extra query needed. A "Load into Daily Update
-Summary" button sets that day as the summary's selected date (see
-below), so inspecting a day and generating its copy/paste report is a
-single tap away.
+Every field on the Core Run Streak page — Read, Listen, Daily Update,
+Today's Activity, Meetings — edits whichever day is currently
+**selected**, not always "today." A card near the top shows the
+selected day (defaulting to today) with a date picker and a "Today"
+quick-jump button, plus the **Last 30 Days** grid (previously 14 days)
+right below it — tap any day to switch to it. Switching days loads that
+day's actual saved values into the fields (never blank unless the day
+truly has nothing logged), and a "✏️ Editing {date}" banner stays
+visible while you're on a day other than today so it's never ambiguous
+which day you're filling in. Saving always upserts to the selected
+day's row specifically — editing yesterday can't touch today's entry or
+vice versa. This is the fix for two related requests: being able to go
+back and add something you forgot ("don't want it to go away"), and
+being able to file the report for a day *after* midnight without losing
+that day's data once the calendar flips.
+
+The "Trivia Unlocked" alert only ever fires while editing today — going
+back and completing a past day's Core Run doesn't re-trigger it.
 
 ### Daily Update summary (copy/paste for LTD)
 
@@ -321,20 +330,15 @@ with the candidate's notes included verbatim (the same "met at X, works
 at Y" detail visible on their roadmap card), not the separate A/B
 Contact List. Meant to be copied straight into your nightly LTD update
 to your upline. Tap **Copy Daily Update** to copy it, or select the text
-manually from the box. It regenerates live as you fill in today's Core
-Run Streak fields, so fill those in first.
-
-Since people sometimes file after midnight for the day that just ended,
-the summary has its own date picker (defaulting to today, capped to the
-last 120 days of loaded history) that only changes what the summary
-block shows — it's completely separate from the live Read/Listen/Daily
-Update/Meetings fields above, which always stay bound to the actual
-current day, so picking a previous date can't corrupt today's in-progress
-entries. Picking a previous day also re-derives that day's actual
-week/month boundaries (via `getWeekStart`/`getMonthStart`) rather than
-reusing today's, so the pipeline totals shown are correct even right at
-a week or month boundary, and the streak line reports the streak as of
-that day rather than today's live streak.
+manually from the box. It regenerates live as you edit the selected
+day's Core Run Streak fields (see above) and always reflects that same
+day — there's no separate date picker in this card anymore, it just
+follows whichever day is selected up top. Picking a previous day also
+re-derives that day's actual week/month boundaries (via
+`getWeekStart`/`getMonthStart`) rather than reusing today's, so the
+pipeline totals shown are correct even right at a week or month
+boundary, and the streak line reports the streak as of that day rather
+than today's live streak.
 
 The summary also has a separate **Downline** section, clearly split from
 your own numbers above it: combined weekly/monthly pipeline totals
