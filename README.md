@@ -327,7 +327,11 @@ individual (not shared with a linked spouse), stored in a new `goals`
 table, one row per metric+period. Until a target is set for a given
 period, that cell just shows the plain logged count and a "Set goal"
 input — no confusing bare "4 /" next to an empty box; the `X / target`
-form and progress bar only appear once a real target exists.
+form and progress bar only appear once a real target exists. Every
+number cell has a small caption under it ("logged so far", "toward
+goal", or "🎉 goal hit") so it's never ambiguous that the big number is
+literally what you've logged for that period, not a placeholder or the
+goal itself.
 
 There's no way to build a real iOS Home Screen widget without a native
 app (WidgetKit requires a Swift app extension, out of reach for a web

@@ -129,7 +129,10 @@ export default function GoalsPage() {
 
   return (
     <>
-      <PageHeader title="Goals" subtitle="What it actually takes today, this week, this month" />
+      <PageHeader
+        title="Goals"
+        subtitle="The big number is what you've actually logged so far — set a target to see how you're tracking against it"
+      />
       <main className="page-main">
         {loading ? (
           <div className="empty-state">Loading…</div>
@@ -155,6 +158,9 @@ export default function GoalsPage() {
                         {target > 0 && (
                           <span className="text-xs font-normal text-slate-500"> / {target}</span>
                         )}
+                      </p>
+                      <p className="text-[9px] uppercase tracking-wide text-slate-500">
+                        {target > 0 ? (hit ? "🎉 goal hit" : "toward goal") : "logged so far"}
                       </p>
                       <input
                         type="number"
