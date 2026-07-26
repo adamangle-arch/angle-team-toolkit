@@ -7,8 +7,8 @@ import NotificationOptIn from "@/components/NotificationOptIn";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import { getToday, getWeekStart, getMonthStart, formatDateLabel } from "@/lib/dates";
-import { PIPELINE_STAGES } from "@/lib/constants";
-import type { StreakDay, PipelinePeriod, MonthlyPv } from "@/lib/types";
+import { PIPELINE_STAGES, CANDIDATE_STEPS } from "@/lib/constants";
+import type { StreakDay, PipelinePeriod, MonthlyPv, Candidate } from "@/lib/types";
 
 function qualifies(day: StreakDay): boolean {
   return day.read && day.listen && day.daily_update && day.story_share;
@@ -113,6 +113,7 @@ export default function StreakPage() {
   const [weekly, setWeekly] = useState<PipelinePeriod | null>(null);
   const [monthly, setMonthly] = useState<PipelinePeriod | null>(null);
   const [pv, setPv] = useState<MonthlyPv | null>(null);
+  const [activeCandidates, setActiveCandidates] = useState<Candidate[]>([]);
   const [copied, setCopied] = useState(false);
   const [showTriviaUnlocked, setShowTriviaUnlocked] = useState(false);
 
@@ -154,7 +155,7 @@ export default function StreakPage() {
     async function load() {
       const weekStart = getWeekStart();
       const monthStart = getMonthStart();
-      const [{ data: w }, { data: m }, { data: p }] = await Promise.all([
+      const [{ data: w }, { data: m }, { data: p }, { data: c }] = await Promise.all([
         supabase
           .from("pipeline_periods")
           .select("*")
@@ -175,10 +176,18 @@ export default function StreakPage() {
           .eq("user_id", ownerId)
           .eq("period_start", monthStart)
           .maybeSingle(),
+        supabase
+          .from("candidates")
+          .select("*")
+          .eq("user_id", ownerId)
+          .eq("launched", false)
+          .eq("filtered_out", false)
+          .order("current_step", { ascending: false }),
       ]);
       setWeekly((w as PipelinePeriod) ?? null);
       setMonthly((m as PipelinePeriod) ?? null);
       setPv((p as MonthlyPv) ?? null);
+      setActiveCandidates((c as Candidate[]) ?? []);
     }
     load();
   }, [ownerId]);
@@ -285,8 +294,17 @@ export default function StreakPage() {
     );
     lines.push("");
     lines.push(`💰 Current PV: ${pv?.pv ?? 0}`);
+    lines.push("");
+    lines.push(`Active in Pipeline (${activeCandidates.length}):`);
+    lines.push(
+      activeCandidates.length > 0
+        ? activeCandidates
+            .map((c) => `${c.name} — ${CANDIDATE_STEPS[c.current_step]?.label ?? "Yes"}`)
+            .join("\n")
+        : "No active candidates right now."
+    );
     return lines.join("\n");
-  }, [today, todayRow, streak, weekly, monthly, pv]);
+  }, [today, todayRow, streak, weekly, monthly, pv, activeCandidates]);
 
   async function copySummary() {
     try {

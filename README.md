@@ -291,9 +291,12 @@ history; `daily_update` stays a plain manual toggle either way.
 The bottom of the Core Run Streak page has a **Daily Update Summary**
 card: a read-only, pre-formatted block of text built from today's Read/
 Listen/activity detail, your current streak, this week's and this
-month's pipeline numbers, and your current PV — meant to be copied
-straight into your nightly LTD update to your upline. Tap **Copy Daily
-Update** to copy it, or select the text manually from the box. It
+month's pipeline numbers, your current PV, and a list of everyone
+currently active in your Candidate Roadmap (name + their current step,
+e.g. "Jane Doe — QI1") — pulled the same way the Pipeline Tracker
+defines "active" (not yet launched, not filtered out). Meant to be
+copied straight into your nightly LTD update to your upline. Tap **Copy
+Daily Update** to copy it, or select the text manually from the box. It
 regenerates live as you fill in today's Core Run Streak fields, so fill
 those in first.
 
