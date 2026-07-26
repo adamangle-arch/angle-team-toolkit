@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
-import type { CalendarEvent, Candidate, Profile } from "@/lib/types";
+import { isPrimaryUser } from "@/lib/constants";
+import type { CalendarEvent, CompanyEvent, Candidate, Profile } from "@/lib/types";
 
 function formatEventLabel(iso: string): string {
   const d = new Date(iso);
@@ -42,6 +43,25 @@ export default function CalendarPage() {
   const [candidateId, setCandidateId] = useState("");
   const [broadcast, setBroadcast] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const isAdmin = isPrimaryUser(user.email);
+  const [companyEvents, setCompanyEvents] = useState<CompanyEvent[]>([]);
+  const [ceTitle, setCeTitle] = useState("");
+  const [ceNotes, setCeNotes] = useState("");
+  const [ceEventAt, setCeEventAt] = useState(() => {
+    const d = new Date();
+    d.setHours(d.getHours() + 1, 0, 0, 0);
+    return toLocalInputValue(d);
+  });
+  const [ceSaving, setCeSaving] = useState(false);
+
+  async function loadCompanyEvents() {
+    const { data } = await supabase
+      .from("company_events")
+      .select("*")
+      .order("event_at", { ascending: true });
+    setCompanyEvents((data as CompanyEvent[]) ?? []);
+  }
 
   async function loadEvents() {
     const { data } = await supabase
@@ -107,6 +127,35 @@ export default function CalendarPage() {
     }
     load();
   }, [user.id, ownerId]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    async function load() {
+      await loadCompanyEvents();
+    }
+    load();
+  }, [isAdmin]);
+
+  async function addCompanyEvent() {
+    const trimmedTitle = ceTitle.trim();
+    if (!trimmedTitle || !ceEventAt) return;
+    setCeSaving(true);
+    await supabase.rpc("add_company_event", {
+      p_title: trimmedTitle,
+      p_notes: ceNotes,
+      p_event_at: new Date(ceEventAt).toISOString(),
+    });
+    setCeTitle("");
+    setCeNotes("");
+    setCeSaving(false);
+    await loadCompanyEvents();
+    await loadEvents();
+  }
+
+  async function removeCompanyEvent(id: string) {
+    setCompanyEvents((prev) => prev.filter((e) => e.id !== id));
+    await supabase.rpc("remove_company_event", { p_id: id });
+  }
 
   async function addEvent() {
     const trimmedTitle = title.trim();
@@ -213,6 +262,61 @@ export default function CalendarPage() {
             {saving ? "Saving…" : "Add Event"}
           </button>
         </div>
+
+        {isAdmin && (
+          <div className="card space-y-2">
+            <p className="section-title">Team Events (recurring)</p>
+            <p className="text-xs text-slate-400">
+              Goes out to every current member right away, and automatically to anyone who
+              signs up later too — a standing rule, not a one-time send.
+            </p>
+            <input
+              className="input"
+              placeholder="Title (e.g. Masterclass)"
+              value={ceTitle}
+              onChange={(e) => setCeTitle(e.target.value)}
+            />
+            <input
+              type="datetime-local"
+              className="input"
+              value={ceEventAt}
+              onChange={(e) => setCeEventAt(e.target.value)}
+            />
+            <textarea
+              className="textarea"
+              placeholder="Notes (e.g. 4 PM – 7 PM)"
+              value={ceNotes}
+              onChange={(e) => setCeNotes(e.target.value)}
+            />
+            <button
+              className="btn-primary w-full"
+              onClick={addCompanyEvent}
+              disabled={ceSaving || !ceTitle.trim()}
+            >
+              {ceSaving ? "Saving…" : "Add Recurring Event"}
+            </button>
+
+            {companyEvents.length > 0 && (
+              <div className="space-y-1.5 pt-1">
+                {companyEvents.map((e) => (
+                  <div key={e.id} className="flex items-center justify-between gap-2 rounded-lg bg-navy p-2">
+                    <div>
+                      <p className="text-sm text-slate-200">{e.title}</p>
+                      <p className="text-xs text-slate-500">{formatEventLabel(e.event_at)}</p>
+                    </div>
+                    <button
+                      className="btn-icon !h-6 !w-6 text-xs shrink-0"
+                      onClick={() => removeCompanyEvent(e.id)}
+                      aria-label={`Remove recurring event ${e.title}`}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {loading ? (
           <div className="empty-state">Loading…</div>

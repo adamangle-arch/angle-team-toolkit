@@ -476,6 +476,16 @@ begin
   insert into public.profiles (id, email, account_number)
   values (new.id, new.email, public.generate_account_number())
   on conflict (id) do nothing;
+
+  -- Standing company-wide events (see section 15, COMPANY EVENTS) are a
+  -- recurring rule, not a one-time backfill - anyone who signs up after
+  -- an event was added still gets it on their calendar automatically, as
+  -- long as it hasn't already passed.
+  insert into public.calendar_events (user_id, creator_id, title, notes, event_at, scope)
+  select new.id, coalesce(ce.created_by, new.id), ce.title, ce.notes, ce.event_at, 'downline'
+  from public.company_events ce
+  where ce.event_at >= now();
+
   return new;
 end;
 $$;
@@ -1568,3 +1578,100 @@ end;
 $$;
 
 grant execute on function public.broadcast_event_to_downline(text, text, timestamptz, uuid) to authenticated;
+
+-- ============================================================
+-- 15. COMPANY EVENTS (standing, recurring team events)
+--
+-- Unlike broadcast_event_to_downline (a one-time push to whoever is
+-- currently in your downline), a company event is a standing rule: it
+-- goes out to every current member right away, AND handle_new_user()
+-- above copies every still-upcoming company event onto any new
+-- signup's calendar automatically, from here on.
+-- ============================================================
+create table if not exists company_events (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  notes text not null default '',
+  event_at timestamptz not null,
+  created_by uuid references auth.users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  unique (title, event_at)
+);
+
+alter table company_events enable row level security;
+
+drop policy if exists "company_events_select_all" on company_events;
+create policy "company_events_select_all" on company_events
+for select using (true);
+
+drop policy if exists "company_events_insert_admin" on company_events;
+create policy "company_events_insert_admin" on company_events
+for insert with check (public.is_app_admin());
+
+drop policy if exists "company_events_update_admin" on company_events;
+create policy "company_events_update_admin" on company_events
+for update using (public.is_app_admin()) with check (public.is_app_admin());
+
+drop policy if exists "company_events_delete_admin" on company_events;
+create policy "company_events_delete_admin" on company_events
+for delete using (public.is_app_admin());
+
+-- Admin-only: records the standing rule (company_events, for future
+-- signups) AND immediately broadcasts it to every current member's
+-- calendar (on conflict do nothing, so re-running with the same
+-- title+time never double-books anyone).
+create or replace function public.add_company_event(
+  p_title text,
+  p_notes text,
+  p_event_at timestamptz
+)
+returns int
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_count int;
+begin
+  if not public.is_app_admin() then
+    raise exception 'Only an admin can add a company event.';
+  end if;
+
+  insert into company_events (title, notes, event_at, created_by)
+  values (p_title, p_notes, p_event_at, auth.uid())
+  on conflict (title, event_at) do update set notes = excluded.notes;
+
+  insert into calendar_events (user_id, creator_id, title, notes, event_at, scope)
+  select p.id, auth.uid(), p_title, p_notes, p_event_at, 'downline'
+  from profiles p
+  where not exists (
+    select 1 from calendar_events e
+    where e.user_id = p.id and e.title = p_title and e.event_at = p_event_at
+  );
+  get diagnostics v_count = row_count;
+  return v_count;
+end;
+$$;
+
+grant execute on function public.add_company_event(text, text, timestamptz) to authenticated;
+
+-- Admin-only: removes the standing rule so future signups stop getting
+-- it. Does not retroactively pull it off anyone's calendar who already
+-- has it (they can remove their own copy the same way as any other
+-- event, via the existing delete button).
+create or replace function public.remove_company_event(p_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_app_admin() then
+    raise exception 'Only an admin can remove a company event.';
+  end if;
+
+  delete from company_events where id = p_id;
+end;
+$$;
+
+grant execute on function public.remove_company_event(uuid) to authenticated;

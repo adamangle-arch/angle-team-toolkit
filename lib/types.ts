@@ -236,6 +236,15 @@ export type CalendarEvent = {
   created_at: string;
 };
 
+export type CompanyEvent = {
+  id: string;
+  title: string;
+  notes: string;
+  event_at: string;
+  created_by: string | null;
+  created_at: string;
+};
+
 export type AssistantMessage = {
   id: string;
   user_id: string;

@@ -406,6 +406,25 @@ a broadcast row can show who sent it even though it's now "owned" by
 the recipient (they can delete their own copy without affecting anyone
 else's).
 
+**Team Events (recurring)** — an admin-only card at the top of the
+Calendar tab for standing, company-wide events (Masterclasses, Summit,
+Major Conferences, etc.) that are meant for literally everyone, not just
+an admin's own downline. Unlike the broadcast checkbox above (a one-time
+push to whoever is currently downline), adding a recurring event here:
+
+- Immediately puts a copy on every **current** member's calendar
+  (`add_company_event()`, security definer, admin-only).
+- Automatically puts a copy on every **future** signup's calendar too,
+  for as long as the event hasn't already passed — `handle_new_user()`
+  now copies every still-upcoming row from the new `company_events`
+  table onto a new profile's calendar the moment they sign up. That's
+  the actual "recurring rule": add it once, it keeps applying to new
+  people without anyone having to remember to re-broadcast it.
+- Removing a recurring event (`remove_company_event()`) only stops it
+  from going out to *future* signups — it doesn't retroactively pull it
+  off anyone's calendar who already has it (they can remove their own
+  copy the normal way).
+
 ### Daily Update summary (copy/paste for LTD)
 
 The bottom of the Core Run Streak page has a **Daily Update Summary**
