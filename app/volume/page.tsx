@@ -130,13 +130,7 @@ export default function VolumePage() {
     return [...past, { label: formatShortMonthLabel(periodStart), value: dittoPv }];
   }, [history, dittoPv, periodStart]);
 
-  const salesStats = useMemo(() => {
-    const names = new Set(
-      sales.map((s) => s.description.trim().toLowerCase()).filter((n) => n.length > 0)
-    );
-    const largestOrder = sales.reduce((max, s) => Math.max(max, s.amount), 0);
-    return { totalCustomers: names.size, orders: sales.length, largestOrder };
-  }, [sales]);
+  const highestPv = useMemo(() => sales.reduce((max, s) => Math.max(max, s.amount), 0), [sales]);
 
   async function savePv() {
     const pv = Math.max(0, parseInt(pvInput, 10) || 0);
@@ -353,24 +347,13 @@ export default function VolumePage() {
 
         <div className="card space-y-2">
           <p className="section-title">🛍️ Customer Sales</p>
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="rounded-lg bg-navy p-2">
-              <p className="text-lg font-bold text-amber-light">{salesStats.totalCustomers}</p>
-              <p className="text-[10px] text-slate-400">Customers</p>
-            </div>
-            <div className="rounded-lg bg-navy p-2">
-              <p className="text-lg font-bold text-amber-light">{salesStats.orders}</p>
-              <p className="text-[10px] text-slate-400">Orders</p>
-            </div>
-            <div className="rounded-lg bg-navy p-2">
-              <p className="text-lg font-bold text-amber-light">{salesStats.largestOrder} PV</p>
-              <p className="text-[10px] text-slate-400">Largest Order</p>
-            </div>
+          <div className="rounded-lg bg-navy p-2 text-center">
+            <p className="text-lg font-bold text-amber-light">{highestPv} PV</p>
           </div>
 
           <input
             className="input"
-            placeholder="Customer name"
+            placeholder="Customer details"
             value={saleDescription}
             onChange={(e) => setSaleDescription(e.target.value)}
           />
