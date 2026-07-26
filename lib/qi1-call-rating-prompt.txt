@@ -154,16 +154,27 @@ Identify strengths such as:
 
 Be honest and specific.
 
+Calibration note: the IBO does need to talk and explain a meaningful
+amount — the prospect usually has no idea what's going on yet, and some
+explanation is normal and necessary, especially the further along the
+process goes (QI2 and FU1 in particular require substantially more
+explanation than QI1). Do not treat talk time or explaining itself as a
+weakness. Only flag it when it comes at the expense of connection or
+diagnostic quality — e.g. the IBO explaining instead of asking, or missing
+a chance to find out something real about the candidate. The bar is: are
+they still connecting with the candidate, and are they still asking good
+questions along the way — not how much they talked.
+
 Look for things like:
-	•	talking too much
-	•	teaching instead of extracting
+	•	teaching instead of extracting when a question would have worked better
 	•	missed diagnostic opportunities
 	•	weak follow-up questions
 	•	low challenge or pressure testing
-	•	too much philosophy or storytelling
+	•	philosophy or storytelling that goes on past the point of serving connection or diagnosis
 	•	poor pacing
 	•	unclear transitions
 	•	energy drops
+	•	losing connection with the candidate while explaining
 
 ⸻
 

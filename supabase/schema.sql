@@ -855,12 +855,18 @@ create table if not exists call_ratings (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
   call_type text not null default 'QI1' check (call_type in ('QI1', 'QI2')),
+  candidate_id uuid references candidates(id) on delete set null,
   candidate_name text not null default '',
   transcript text not null,
   analysis text not null,
   overall_score numeric,
   created_at timestamptz not null default now()
 );
+
+-- Additive: lets a re-run of this section pick up candidate_id on a
+-- call_ratings table that already existed before candidate linking (and
+-- therefore cross-meeting memory) was added.
+alter table call_ratings add column if not exists candidate_id uuid references candidates(id) on delete set null;
 
 -- ============================================================
 -- 7. TEAM PIPELINE TOTALS & LEADERBOARD

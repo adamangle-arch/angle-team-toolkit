@@ -1076,6 +1076,32 @@ same list as a **QI1 Call Ratings** folder on that rep's page under the
 **Team** tab, so an upline can see how their downline's calls are trending
 without asking for a screen-share.
 
+**Calibration:** the rubric explicitly does not treat talk time or
+explaining as a weakness on its own — a prospect usually doesn't know
+what's going on yet, and later steps in the process (QI2, FU1) genuinely
+require a lot more explanation than QI1 does. The model is only supposed
+to flag "teaching instead of extracting" when it comes at the expense of
+connection or a missed diagnostic question, not just because the IBO
+talked. This lives in the "3. What weakened the call" section of
+`lib/qi1-call-rating-prompt.txt` — adjust it there if it needs to be
+tuned further once QI2/FU1 rubrics exist.
+
+**Cross-meeting memory:** the "Candidate name" field is now a dropdown of
+the rep's own `candidates` (Candidate Roadmap) rows, with a fallback text
+input for someone not added there yet. Picking a candidate links the
+rating via `call_ratings.candidate_id`. When rating a call for a linked
+candidate, the app pulls that candidate's rep notes plus their last 3
+prior ratings (any call type) and passes them to Claude as context ahead
+of the new transcript — so a QI2 (once supported) or a re-rated QI1 for
+the same person is judged with the model already "remembering" what came
+up before, not from a blank slate every time. This context is built
+client-side from the rep's own rows (respecting the same RLS as
+everything else) and sent to the API route per-request; it isn't stored
+separately, since it's cheap to regenerate from `call_ratings` and
+`candidates` each time. Prior analyses are capped at 3,000 characters each
+in this context to keep cost bounded for a candidate who's been rated many
+times.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

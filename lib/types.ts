@@ -303,6 +303,7 @@ export type CallRating = {
   id: string;
   user_id: string;
   call_type: "QI1" | "QI2";
+  candidate_id: string | null;
   candidate_name: string;
   transcript: string;
   analysis: string;

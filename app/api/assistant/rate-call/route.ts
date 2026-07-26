@@ -40,7 +40,7 @@ export async function POST(request: Request) {
     );
   }
 
-  let body: { call_type?: string; transcript?: string };
+  let body: { call_type?: string; transcript?: string; candidate_context?: string };
   try {
     body = await request.json();
   } catch {
@@ -65,6 +65,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "QI2 rating isn't available yet." }, { status: 400 });
   }
 
+  // If this candidate has been rated before (or has rep notes on file), that
+  // context is passed along so the model "remembers" what came up in earlier
+  // meetings with them instead of judging this call in isolation.
+  const candidateContext = body.candidate_context?.trim();
+  const userContent = candidateContext
+    ? `Context on this candidate from prior meetings and the rep's notes:\n${candidateContext}\n\n---\n\nNew call transcript to analyze:\n\n${transcript}`
+    : transcript;
+
   try {
     const response = await anthropic.messages.create({
       model: "claude-sonnet-5",
@@ -76,7 +84,7 @@ export async function POST(request: Request) {
           cache_control: { type: "ephemeral" },
         },
       ],
-      messages: [{ role: "user", content: transcript }],
+      messages: [{ role: "user", content: userContent }],
     });
 
     const textBlock = response.content.find(

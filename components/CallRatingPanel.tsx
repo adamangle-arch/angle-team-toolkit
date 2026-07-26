@@ -5,8 +5,22 @@ import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import type { CallRating } from "@/lib/types";
 
+type CandidateOption = {
+  id: string;
+  name: string;
+  notes: string;
+};
+
+// Bounds how much prior-meeting context gets fed back in for a repeat
+// candidate — enough for the model to remember them without letting cost
+// grow unbounded the more times a candidate gets rated.
+const MAX_PRIOR_RATINGS = 3;
+const MAX_PRIOR_ANALYSIS_CHARS = 3000;
+
 export default function CallRatingPanel() {
   const { user } = useAuth();
+  const [candidates, setCandidates] = useState<CandidateOption[]>([]);
+  const [selectedCandidateId, setSelectedCandidateId] = useState("");
   const [candidateName, setCandidateName] = useState("");
   const [transcript, setTranscript] = useState("");
   const [rating, setRating] = useState(false);
@@ -18,13 +32,20 @@ export default function CallRatingPanel() {
 
   useEffect(() => {
     async function load() {
-      setLoadingHistory(true);
-      const { data } = await supabase
-        .from("call_ratings")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
-      setHistory((data as CallRating[]) ?? []);
+      const [{ data: candidateRows }, { data: ratingRows }] = await Promise.all([
+        supabase
+          .from("candidates")
+          .select("id,name,notes")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("call_ratings")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false }),
+      ]);
+      setCandidates((candidateRows as CandidateOption[]) ?? []);
+      setHistory((ratingRows as CallRating[]) ?? []);
       setLoadingHistory(false);
     }
     load();
@@ -36,6 +57,36 @@ export default function CallRatingPanel() {
     setError(null);
     setRating(true);
 
+    const candidate = candidates.find((c) => c.id === selectedCandidateId) ?? null;
+    const finalCandidateName = candidate ? candidate.name : candidateName.trim();
+
+    let candidateContext = "";
+    if (candidate) {
+      const { data: priorRows } = await supabase
+        .from("call_ratings")
+        .select("call_type,analysis,created_at")
+        .eq("candidate_id", candidate.id)
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(MAX_PRIOR_RATINGS);
+      const prior = (
+        (priorRows as { call_type: string; analysis: string; created_at: string }[]) ?? []
+      )
+        .slice()
+        .reverse();
+
+      const notesPart = candidate.notes.trim()
+        ? `Rep's notes on this candidate:\n${candidate.notes.trim()}\n\n`
+        : "";
+      const priorPart = prior
+        .map(
+          (r) =>
+            `--- ${r.call_type} on ${new Date(r.created_at).toLocaleDateString()} ---\n${r.analysis.slice(0, MAX_PRIOR_ANALYSIS_CHARS)}`
+        )
+        .join("\n\n");
+      candidateContext = `${notesPart}${priorPart}`.trim();
+    }
+
     const { data: sessionData } = await supabase.auth.getSession();
     const accessToken = sessionData.session?.access_token;
 
@@ -46,7 +97,7 @@ export default function CallRatingPanel() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${accessToken}`,
         },
-        body: JSON.stringify({ call_type: "QI1", transcript: text }),
+        body: JSON.stringify({ call_type: "QI1", transcript: text, candidate_context: candidateContext }),
       });
 
       const json = await res.json();
@@ -59,7 +110,8 @@ export default function CallRatingPanel() {
         .insert({
           user_id: user.id,
           call_type: "QI1",
-          candidate_name: candidateName.trim(),
+          candidate_id: candidate?.id ?? null,
+          candidate_name: finalCandidateName,
           transcript: text,
           analysis: json.analysis,
           overall_score: json.overall_score,
@@ -90,12 +142,32 @@ export default function CallRatingPanel() {
           vetting rubric. Your upline can see your ratings on the Team tab so they know how to
           help you. QI2 rating is coming soon.
         </p>
-        <input
+        <select
           className="input"
-          placeholder="Candidate name (optional)"
-          value={candidateName}
-          onChange={(e) => setCandidateName(e.target.value)}
-        />
+          value={selectedCandidateId}
+          onChange={(e) => setSelectedCandidateId(e.target.value)}
+        >
+          <option value="">Not on my Candidate list (type name below)</option>
+          {candidates.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+        {!selectedCandidateId && (
+          <input
+            className="input"
+            placeholder="Candidate name (optional)"
+            value={candidateName}
+            onChange={(e) => setCandidateName(e.target.value)}
+          />
+        )}
+        {selectedCandidateId && (
+          <p className="text-xs text-slate-500">
+            Linked to your Candidate list — prior ratings and notes for this person will be
+            passed along so QI2 and later ratings remember what came up in QI1.
+          </p>
+        )}
         <textarea
           className="textarea"
           rows={8}
