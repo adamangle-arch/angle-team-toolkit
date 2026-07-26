@@ -19,9 +19,11 @@ import {
   formatShortDateLabel,
   formatShortMonthLabel,
 } from "@/lib/dates";
-import type { PipelinePeriod, Candidate } from "@/lib/types";
+import type { PipelinePeriod, Candidate, Profile } from "@/lib/types";
 
 type PeriodType = "daily" | "weekly" | "monthly";
+
+type DownlineOption = { id: string; ownerId: string; name: string };
 
 function periodStartFor(periodType: PeriodType): string {
   if (periodType === "daily") return getToday();
@@ -35,7 +37,7 @@ function pct(numerator: number, denominator: number): string {
 }
 
 export default function PipelinePage() {
-  const { ownerId } = useAuth();
+  const { user, ownerId } = useAuth();
   const [periodType, setPeriodType] = useState<PeriodType>("weekly");
   const [period, setPeriod] = useState<PipelinePeriod | null>(null);
   const [loading, setLoading] = useState(true);
@@ -50,6 +52,48 @@ export default function PipelinePage() {
   const [trendHistory, setTrendHistory] = useState<PipelinePeriod[]>([]);
   const [showActiveSummary, setShowActiveSummary] = useState(false);
 
+  // "Fill in for downline": an upline (any level) can log a downline
+  // member's pipeline numbers on their behalf, in case they forget -
+  // RLS on pipeline_periods now allows it. Empty for anyone with no
+  // downline, which is most people, so the picker only shows up when
+  // it's actually useful.
+  const [downlineOptions, setDownlineOptions] = useState<DownlineOption[]>([]);
+  const [actingForId, setActingForId] = useState<string>("");
+  const actingFor = downlineOptions.find((d) => d.id === actingForId) ?? null;
+  const effectiveOwnerId = actingFor ? actingFor.ownerId : ownerId;
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const { data: ids } = await supabase.rpc("get_downline_user_ids", { p_user_id: user.id });
+      const downlineIds = ((ids as { user_id: string }[]) ?? []).map((r) => r.user_id);
+      if (downlineIds.length === 0) {
+        if (!cancelled) setDownlineOptions([]);
+        return;
+      }
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id,first_name,last_name,household_id")
+        .in("id", downlineIds);
+      if (!cancelled) {
+        const options = (
+          (profiles as Pick<Profile, "id" | "first_name" | "last_name" | "household_id">[]) ?? []
+        )
+          .map((p) => ({
+            id: p.id,
+            ownerId: p.household_id ?? p.id,
+            name: [p.first_name, p.last_name].filter(Boolean).join(" ") || "Unnamed",
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name));
+        setDownlineOptions(options);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [user.id]);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -61,7 +105,7 @@ export default function PipelinePage() {
       const { data: existing, error: selectError } = await supabase
         .from("pipeline_periods")
         .select("*")
-        .eq("user_id", ownerId)
+        .eq("user_id", effectiveOwnerId)
         .eq("period_type", periodType)
         .eq("period_start", periodStart)
         .maybeSingle();
@@ -84,7 +128,7 @@ export default function PipelinePage() {
 
       const { data: created, error: insertError } = await supabase
         .from("pipeline_periods")
-        .insert({ user_id: ownerId, period_type: periodType, period_start: periodStart })
+        .insert({ user_id: effectiveOwnerId, period_type: periodType, period_start: periodStart })
         .select("*")
         .single();
 
@@ -102,9 +146,10 @@ export default function PipelinePage() {
     return () => {
       cancelled = true;
     };
-  }, [periodType, ownerId]);
+  }, [periodType, effectiveOwnerId]);
 
   useEffect(() => {
+    if (actingForId) return;
     async function load() {
       setLoadingCandidates(true);
       const { data } = await supabase
@@ -116,7 +161,7 @@ export default function PipelinePage() {
       setLoadingCandidates(false);
     }
     load();
-  }, [ownerId]);
+  }, [ownerId, actingForId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -126,7 +171,7 @@ export default function PipelinePage() {
       const { data } = await supabase
         .from("pipeline_periods")
         .select("*")
-        .eq("user_id", ownerId)
+        .eq("user_id", effectiveOwnerId)
         .eq("period_type", periodType)
         .order("period_start", { ascending: false })
         .limit(limit);
@@ -137,7 +182,7 @@ export default function PipelinePage() {
     return () => {
       cancelled = true;
     };
-  }, [periodType, ownerId]);
+  }, [periodType, effectiveOwnerId]);
 
   const chartData = useMemo(() => {
     const merged = [...trendHistory];
@@ -220,7 +265,7 @@ export default function PipelinePage() {
           period
             ? `${
                 periodType === "daily" ? "Day of" : periodType === "weekly" ? "Week of" : "Month of"
-              } ${formatDateLabel(period.period_start)}`
+              } ${formatDateLabel(period.period_start)}${actingFor ? ` — ${actingFor.name}` : ""}`
             : undefined
         }
       />
@@ -251,6 +296,29 @@ export default function PipelinePage() {
             Monthly
           </button>
         </div>
+
+        {downlineOptions.length > 0 && (
+          <div className="card space-y-2">
+            <p className="section-title">Filling In For</p>
+            <select
+              className="select"
+              value={actingForId}
+              onChange={(e) => setActingForId(e.target.value)}
+            >
+              <option value="">Me</option>
+              {downlineOptions.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </select>
+            {actingFor && (
+              <p className="text-xs text-amber-light">
+                ✏️ You&apos;re editing {actingFor.name}&apos;s pipeline numbers, not your own.
+              </p>
+            )}
+          </div>
+        )}
 
         <div className="card flex items-center justify-between">
           <div>
@@ -330,75 +398,67 @@ export default function PipelinePage() {
           <TrendChart data={chartData} />
         </div>
 
-        <div className="flex items-center justify-between px-1 pt-2">
-          <p className="section-title">Candidate Roadmap</p>
-          <button
-            className="pill pill-amber"
-            onClick={() => setShowActiveSummary((s) => !s)}
-          >
-            {activeInPipelineCount} active in pipeline
-          </button>
-        </div>
-
-        {showActiveSummary && (
-          <div className="card space-y-1.5">
-            <p className="section-title">Who&apos;s Active</p>
-            {activeInPipeline.length === 0 ? (
-              <p className="text-sm text-slate-400">No one active in the pipeline right now.</p>
-            ) : (
-              activeInPipeline.map((c) => (
-                <div key={c.id} className="flex items-center justify-between text-sm">
-                  <span className="text-slate-200">{c.name}</span>
-                  <span className="pill">{CANDIDATE_STEPS[c.current_step].label}</span>
-                </div>
-              ))
-            )}
+        {actingFor ? (
+          <div className="empty-state">
+            Switch back to &quot;Me&quot; to see the Candidate Roadmap — filling in only covers
+            {" "}
+            {actingFor.name}&apos;s pipeline numbers above, not their individual candidates.
           </div>
-        )}
-
-        <div className="card space-y-2">
-          <p className="section-title">Add Candidate</p>
-          <div className="flex gap-2">
-            <input
-              className="input"
-              placeholder="Candidate name"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && addCandidate()}
-            />
-            <button
-              className="btn-primary"
-              onClick={addCandidate}
-              disabled={adding || !newName.trim()}
-            >
-              Add
-            </button>
-          </div>
-        </div>
-
-        {loadingCandidates ? (
-          <div className="empty-state">Loading candidates…</div>
-        ) : candidates.length === 0 ? (
-          <div className="empty-state">No candidates yet. Add your first one above.</div>
         ) : (
           <>
-            {active.map((candidate) => (
-              <CandidateCard
-                key={candidate.id}
-                candidate={candidate}
-                onMoveStep={moveStep}
-                onUpdate={updateCandidate}
-              />
-            ))}
+            <div className="flex items-center justify-between px-1 pt-2">
+              <p className="section-title">Candidate Roadmap</p>
+              <button
+                className="pill pill-amber"
+                onClick={() => setShowActiveSummary((s) => !s)}
+              >
+                {activeInPipelineCount} active in pipeline
+              </button>
+            </div>
 
-            {active.length === 0 && (
-              <p className="empty-state">No active candidates right now.</p>
+            {showActiveSummary && (
+              <div className="card space-y-1.5">
+                <p className="section-title">Who&apos;s Active</p>
+                {activeInPipeline.length === 0 ? (
+                  <p className="text-sm text-slate-400">No one active in the pipeline right now.</p>
+                ) : (
+                  activeInPipeline.map((c) => (
+                    <div key={c.id} className="flex items-center justify-between text-sm">
+                      <span className="text-slate-200">{c.name}</span>
+                      <span className="pill">{CANDIDATE_STEPS[c.current_step].label}</span>
+                    </div>
+                  ))
+                )}
+              </div>
             )}
 
-            {launched.length > 0 && (
-              <div className="space-y-2">
-                <p className="section-title px-1">Launched 🎉</p>
-                {launched.map((candidate) => (
+            <div className="card space-y-2">
+              <p className="section-title">Add Candidate</p>
+              <div className="flex gap-2">
+                <input
+                  className="input"
+                  placeholder="Candidate name"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && addCandidate()}
+                />
+                <button
+                  className="btn-primary"
+                  onClick={addCandidate}
+                  disabled={adding || !newName.trim()}
+                >
+                  Add
+                </button>
+              </div>
+            </div>
+
+            {loadingCandidates ? (
+              <div className="empty-state">Loading candidates…</div>
+            ) : candidates.length === 0 ? (
+              <div className="empty-state">No candidates yet. Add your first one above.</div>
+            ) : (
+              <>
+                {active.map((candidate) => (
                   <CandidateCard
                     key={candidate.id}
                     candidate={candidate}
@@ -406,7 +466,25 @@ export default function PipelinePage() {
                     onUpdate={updateCandidate}
                   />
                 ))}
-              </div>
+
+                {active.length === 0 && (
+                  <p className="empty-state">No active candidates right now.</p>
+                )}
+
+                {launched.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="section-title px-1">Launched 🎉</p>
+                    {launched.map((candidate) => (
+                      <CandidateCard
+                        key={candidate.id}
+                        candidate={candidate}
+                        onMoveStep={moveStep}
+                        onUpdate={updateCandidate}
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </>
         )}

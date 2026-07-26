@@ -1195,12 +1195,14 @@ begin
 end $$;
 
 -- ============================================================
--- Household-shareable tables: pipeline, candidates, contacts, PV, and
--- customer sales are the "same business" data — a user_id here can be
--- either the caller's own id OR the id they've linked to via
--- link_spouse() (household_id), so a linked pair reads/writes one
--- shared set of rows instead of two separate ones. Also readable
--- (read-only) by an upline at any level, or admin.
+-- Household-shareable tables: candidates, contacts, PV, and customer
+-- sales are the "same business" data — a user_id here can be either the
+-- caller's own id OR the id they've linked to via link_spouse()
+-- (household_id), so a linked pair reads/writes one shared set of rows
+-- instead of two separate ones. Also readable (read-only) by an upline
+-- at any level, or admin. (pipeline_periods used to be in this loop too
+-- - it now gets its own explicit block below, since an upline can WRITE
+-- it, not just read it - see "Pipeline Tracker: upline fill-in".)
 -- ============================================================
 do $$
 declare
@@ -1208,7 +1210,7 @@ declare
 begin
   for t in
     select unnest(array[
-      'pipeline_periods', 'candidates', 'contacts', 'monthly_pv', 'customer_sales'
+      'candidates', 'contacts', 'monthly_pv', 'customer_sales'
     ])
   loop
     execute format('alter table %I enable row level security;', t);
@@ -1238,6 +1240,54 @@ begin
     );
   end loop;
 end $$;
+
+-- ============================================================
+-- Pipeline Tracker: upline fill-in
+-- pipeline_periods is household-shareable like the tables above, but an
+-- upline (any level) can also INSERT/UPDATE a downline member's rows
+-- directly, not just read them - "an upline should be able to fill in
+-- for their downline" (e.g. the downline forgot to log their numbers).
+-- Delete stays owner/household/admin only - filling in isn't deleting.
+-- ============================================================
+alter table pipeline_periods enable row level security;
+
+drop policy if exists "select_own_or_admin" on pipeline_periods;
+create policy "select_own_or_admin" on pipeline_periods for select using (
+  user_id = auth.uid()
+  or user_id = (select household_id from profiles where id = auth.uid())
+  or public.is_upline_of(auth.uid(), user_id)
+  or public.is_app_admin()
+);
+
+drop policy if exists "insert_own" on pipeline_periods;
+drop policy if exists "insert_own_or_upline" on pipeline_periods;
+create policy "insert_own_or_upline" on pipeline_periods for insert with check (
+  user_id = auth.uid()
+  or user_id = (select household_id from profiles where id = auth.uid())
+  or public.is_upline_of(auth.uid(), user_id)
+  or public.is_app_admin()
+);
+
+drop policy if exists "update_own_or_admin" on pipeline_periods;
+drop policy if exists "update_own_or_upline_or_admin" on pipeline_periods;
+create policy "update_own_or_upline_or_admin" on pipeline_periods for update using (
+  user_id = auth.uid()
+  or user_id = (select household_id from profiles where id = auth.uid())
+  or public.is_upline_of(auth.uid(), user_id)
+  or public.is_app_admin()
+) with check (
+  user_id = auth.uid()
+  or user_id = (select household_id from profiles where id = auth.uid())
+  or public.is_upline_of(auth.uid(), user_id)
+  or public.is_app_admin()
+);
+
+drop policy if exists "delete_own_or_admin" on pipeline_periods;
+create policy "delete_own_or_admin" on pipeline_periods for delete using (
+  user_id = auth.uid()
+  or user_id = (select household_id from profiles where id = auth.uid())
+  or public.is_app_admin()
+);
 
 -- ============================================================
 -- 8. LEADERBOARD LIKES

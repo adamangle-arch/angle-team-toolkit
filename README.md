@@ -346,6 +346,31 @@ display addition (`isAdmin &&` guards, no schema change). Useful for
 helping someone link up without needing to ask them to read their own
 number off My Profile.
 
+### Pipeline Tracker: upline fill-in
+
+Any upline (any level, not just admins) can log a downline member's
+Pipeline Tracker numbers on their behalf — in case that person forgets or
+just isn't logging it, the upline can still keep the team's numbers
+accurate. A **Filling In For** card appears at the top of the Pipeline
+Tracker tab (only if you actually have downline — hidden for everyone
+else), defaulting to "Me." Pick someone else and the whole page — Daily/
+Weekly/Monthly counters, the conversion stat, and the Trend chart — switch
+to editing *their* numbers instead of yours, with an amber "You're editing
+{name}'s pipeline numbers, not your own" reminder so it's never ambiguous
+whose numbers are on screen. The Candidate Roadmap section (individual
+candidate names/notes, a more personal record than the funnel counts)
+isn't part of this — it's hidden while filling in for someone else, with a
+note pointing back to "Me."
+
+`pipeline_periods` got pulled out of the shared household-tables RLS loop
+into its own explicit block so its `insert`/`update` policies could allow
+`is_upline_of(auth.uid(), user_id)` in addition to the owner/household/
+admin checks the other household tables (candidates, contacts, monthly_pv,
+customer_sales) still use — those are unchanged, an upline still can't
+write to a downline's contacts or candidates, only read them. `delete`
+stays owner/household/admin only on `pipeline_periods` too — filling in
+isn't deleting.
+
 ### Deleting a downline's account
 
 An admin, or an upline at any level, can permanently delete a downline
