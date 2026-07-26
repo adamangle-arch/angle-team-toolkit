@@ -8,6 +8,12 @@ export function isPrimaryUser(email: string | null | undefined): boolean {
   return PRIMARY_EMAILS.some((e) => e.toLowerCase() === normalized);
 }
 
+// Meeting types the Rate a Call feature can score, each against its own
+// rubric (lib/<type>-call-rating-prompt.txt) — must match the
+// call_ratings.call_type check constraint in supabase/schema.sql.
+export const CALL_RATING_TYPES = ["QI1", "QI2", "FU1", "FU2", "Questionnaire"] as const;
+export type CallRatingType = (typeof CALL_RATING_TYPES)[number];
+
 // The fixed list of teams someone can belong to. Must match the check
 // constraint on profiles.team in supabase/schema.sql.
 export const TEAMS = [

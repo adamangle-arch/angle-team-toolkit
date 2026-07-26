@@ -3,11 +3,23 @@ import { readFileSync } from "fs";
 import path from "path";
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
+import { CALL_RATING_TYPES, type CallRatingType } from "@/lib/constants";
 
-const QI1_RATING_PROMPT = readFileSync(
-  path.join(process.cwd(), "lib/qi1-call-rating-prompt.txt"),
-  "utf-8"
-);
+type CallType = CallRatingType;
+
+// Read with literal paths (not a computed lookup) so Next's file tracer can
+// see each one individually instead of falling back to tracing the whole
+// project into the deployed function bundle.
+const RATING_PROMPTS: Record<CallType, string> = {
+  QI1: readFileSync(path.join(process.cwd(), "lib/qi1-call-rating-prompt.txt"), "utf-8"),
+  QI2: readFileSync(path.join(process.cwd(), "lib/qi2-call-rating-prompt.txt"), "utf-8"),
+  FU1: readFileSync(path.join(process.cwd(), "lib/fu1-call-rating-prompt.txt"), "utf-8"),
+  FU2: readFileSync(path.join(process.cwd(), "lib/fu2-call-rating-prompt.txt"), "utf-8"),
+  Questionnaire: readFileSync(
+    path.join(process.cwd(), "lib/questionnaire-call-rating-prompt.txt"),
+    "utf-8"
+  ),
+};
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -60,9 +72,16 @@ export async function POST(request: Request) {
     );
   }
 
-  // Only QI1 has a rubric so far — QI2 needs its own before it can be rated.
-  if (body.call_type !== "QI1") {
-    return NextResponse.json({ error: "QI2 rating isn't available yet." }, { status: 400 });
+  // The client must say which meeting this is before it gets rated — each
+  // stage has a different rubric, since what's covered (and how much
+  // explaining is normal) is different at QI1 vs QI2 vs FU1 vs FU2 vs the
+  // Questionnaire call.
+  const callType = CALL_RATING_TYPES.find((type) => type === body.call_type);
+  if (!callType) {
+    return NextResponse.json(
+      { error: `call_type must be one of: ${CALL_RATING_TYPES.join(", ")}` },
+      { status: 400 }
+    );
   }
 
   // If this candidate has been rated before (or has rep notes on file), that
@@ -80,7 +99,7 @@ export async function POST(request: Request) {
       system: [
         {
           type: "text",
-          text: QI1_RATING_PROMPT,
+          text: RATING_PROMPTS[callType],
           cache_control: { type: "ephemeral" },
         },
       ],

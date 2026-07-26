@@ -1046,23 +1046,50 @@ touch existing data.
 ## Notes on Rate a Call
 
 The **Assistant** tab now has a second panel, **Rate a Call**, alongside
-the Role-Play Coach. A rep pastes the text transcript of a recorded QI1
-call and gets it scored against the team's QI1 vetting rubric — overall
+the Role-Play Coach. A rep pastes the text transcript of a recorded
+meeting and gets it scored against that stage's vetting rubric — overall
 score, what the call did well/weakened, a candidate scorecard, yellow
 flags, sharper follow-up questions, and a blunt verdict. This is a single
 one-shot API call, not a multi-turn conversation — it's a separate route
-(`app/api/assistant/rate-call/route.ts`) from the Role-Play Coach, with its
-own system prompt (`lib/qi1-call-rating-prompt.txt`) loaded with prompt
-caching (`cache_control: ephemeral`), since that fixed rubric text is
-identical on every request regardless of who's submitting.
+(`app/api/assistant/rate-call/route.ts`) from the Role-Play Coach.
 
-Only **QI1** is supported for now — the rubric is specific to what a QI1
-call is supposed to accomplish (diagnostic/trust-building, not a pitch or
-close), and scoring a QI2 call (book review, macro business run-through)
-against QI1 criteria would penalize it for doing exactly what a QI2 is
-supposed to do. QI2 rating needs its own rubric before it can be added; the
-`call_type` column and UI are already set up to support it once that
-exists.
+**Five meeting types are supported: QI1, QI2, FU1, FU2, and
+Questionnaire** — each with its own system prompt
+(`lib/qi1-call-rating-prompt.txt`, `qi2-...`, `fu1-...`, `fu2-...`,
+`questionnaire-...`), loaded with prompt caching (`cache_control:
+ephemeral`) since each one's rubric text is fixed and identical across
+every request for that type. The **Meeting Type** dropdown on the form has
+no default — the rep must pick one before the "Rate This Call" button
+enables, since each stage covers different ground and grading a QI2 call
+against QI1 criteria (or vice versa) would be wrong. `CALL_RATING_TYPES` in
+`lib/constants.ts` is the single source of truth for the five valid types,
+shared by the UI dropdown, the API route's validation, and the
+`call_ratings.call_type` check constraint in `supabase/schema.sql`.
+
+Each rubric reflects what that call is actually supposed to cover in this
+process (see the "Process Context" section repeated near the top of every
+rubric file):
+- **QI1** — diagnostic/trust-building only; not meant to explain the
+  business or go deep on compensation.
+- **QI2** — book review + macro business run-through, building the context
+  needed before the Webinar.
+- **FU1** — confirming what landed from the Webinar/audios and locking in
+  specific commitments (PV, habits, expectations).
+- **FU2** — the full compensation-plan walkthrough, tied back to the
+  candidate's own financial goals.
+- **Questionnaire** — the 18-part questionnaire review right before the
+  Final call; mostly listening/extracting rather than teaching, since the
+  candidate should already understand the business by this point.
+
+**Calibration:** none of the rubrics treat talk time or explaining as an
+automatic weakness — a prospect usually doesn't know what's going on yet,
+and QI2/FU2 in particular are supposed to be explanation-heavy. Each
+rubric's "3. What weakened the call" section only flags teaching/talking
+when it comes at the expense of connection or a missed diagnostic
+question — except the Questionnaire rubric, which calibrates the other
+way: by that stage the candidate should already understand the business,
+so heavy re-teaching there is treated as a bigger red flag than earlier in
+the process, since it suggests something didn't land before.
 
 Recorded meetings themselves aren't accepted — only pasted/typed
 transcripts. Claude can't process raw audio/video, so audio input would
@@ -1079,28 +1106,18 @@ Ratings are stored per-rep in the `call_ratings` table (transcript,
 full write-up, and a parsed `overall_score`) with the same RLS as
 `assistant_messages` — a rep sees their own ratings under **Your Ratings**
 on the Rate a Call tab, and their upline (any level) or an admin sees the
-same list as a **QI1 Call Ratings** folder on that rep's page under the
-**Team** tab, so an upline can see how their downline's calls are trending
-without asking for a screen-share.
+same list as a **Call Ratings** folder on that rep's page under the
+**Team** tab, so an upline can see how their downline's calls (across every
+stage) are trending without asking for a screen-share.
 
-**Calibration:** the rubric explicitly does not treat talk time or
-explaining as a weakness on its own — a prospect usually doesn't know
-what's going on yet, and later steps in the process (QI2, FU1) genuinely
-require a lot more explanation than QI1 does. The model is only supposed
-to flag "teaching instead of extracting" when it comes at the expense of
-connection or a missed diagnostic question, not just because the IBO
-talked. This lives in the "3. What weakened the call" section of
-`lib/qi1-call-rating-prompt.txt` — adjust it there if it needs to be
-tuned further once QI2/FU1 rubrics exist.
-
-**Cross-meeting memory:** the "Candidate name" field is now a dropdown of
-the rep's own `candidates` (Candidate Roadmap) rows, with a fallback text
+**Cross-meeting memory:** the "Candidate name" field is a dropdown of the
+rep's own `candidates` (Candidate Roadmap) rows, with a fallback text
 input for someone not added there yet. Picking a candidate links the
 rating via `call_ratings.candidate_id`. When rating a call for a linked
 candidate, the app pulls that candidate's rep notes plus their last 3
 prior ratings (any call type) and passes them to Claude as context ahead
-of the new transcript — so a QI2 (once supported) or a re-rated QI1 for
-the same person is judged with the model already "remembering" what came
+of the new transcript — so a QI2 or FU1 rating for a candidate who already
+has a QI1 on file is judged with the model already "remembering" what came
 up before, not from a blank slate every time. This context is built
 client-side from the rep's own rows (respecting the same RLS as
 everything else) and sent to the API route per-request; it isn't stored

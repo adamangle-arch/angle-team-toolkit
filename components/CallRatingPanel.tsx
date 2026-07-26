@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
+import { CALL_RATING_TYPES, type CallRatingType } from "@/lib/constants";
 import type { CallRating } from "@/lib/types";
 
 type CandidateOption = {
@@ -19,6 +20,7 @@ const MAX_PRIOR_ANALYSIS_CHARS = 3000;
 
 export default function CallRatingPanel() {
   const { user } = useAuth();
+  const [callType, setCallType] = useState<CallRatingType | "">("");
   const [candidates, setCandidates] = useState<CandidateOption[]>([]);
   const [selectedCandidateId, setSelectedCandidateId] = useState("");
   const [candidateName, setCandidateName] = useState("");
@@ -53,7 +55,7 @@ export default function CallRatingPanel() {
 
   async function handleRate() {
     const text = transcript.trim();
-    if (!text || rating) return;
+    if (!text || !callType || rating) return;
     setError(null);
     setRating(true);
 
@@ -97,7 +99,7 @@ export default function CallRatingPanel() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${accessToken}`,
         },
-        body: JSON.stringify({ call_type: "QI1", transcript: text, candidate_context: candidateContext }),
+        body: JSON.stringify({ call_type: callType, transcript: text, candidate_context: candidateContext }),
       });
 
       const json = await res.json();
@@ -109,7 +111,7 @@ export default function CallRatingPanel() {
         .from("call_ratings")
         .insert({
           user_id: user.id,
-          call_type: "QI1",
+          call_type: callType,
           candidate_id: candidate?.id ?? null,
           candidate_name: finalCandidateName,
           transcript: text,
@@ -126,6 +128,7 @@ export default function CallRatingPanel() {
       }
       setTranscript("");
       setCandidateName("");
+      setCallType("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -136,12 +139,27 @@ export default function CallRatingPanel() {
   return (
     <>
       <div className="card space-y-2">
-        <p className="section-title">Rate a QI1 Call</p>
+        <p className="section-title">Rate a Call</p>
         <p className="text-xs text-slate-400">
-          Paste the transcript of a recorded QI1 call and it&apos;ll be scored against the QI1
-          vetting rubric. Your upline can see your ratings on the Team tab so they know how to
-          help you. QI2 rating is coming soon.
+          Paste the transcript of a recorded QI1, QI2, FU1, FU2, or Questionnaire call and
+          it&apos;ll be scored against that meeting&apos;s vetting rubric — each stage covers
+          different ground, so pick which one this is before rating. Your upline can see your
+          ratings on the Team tab so they know how to help you.
         </p>
+        <select
+          className="input"
+          value={callType}
+          onChange={(e) => setCallType(e.target.value as CallRatingType | "")}
+        >
+          <option value="" disabled>
+            Which meeting is this? (required)
+          </option>
+          {CALL_RATING_TYPES.map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
+        </select>
         <select
           className="input"
           value={selectedCandidateId}
@@ -165,13 +183,13 @@ export default function CallRatingPanel() {
         {selectedCandidateId && (
           <p className="text-xs text-slate-500">
             Linked to your Candidate list — prior ratings and notes for this person will be
-            passed along so QI2 and later ratings remember what came up in QI1.
+            passed along so this and later ratings remember what came up in earlier meetings.
           </p>
         )}
         <textarea
           className="textarea"
           rows={8}
-          placeholder="Paste the QI1 call transcript here…"
+          placeholder="Paste the call transcript here…"
           value={transcript}
           onChange={(e) => setTranscript(e.target.value)}
         />
@@ -179,9 +197,9 @@ export default function CallRatingPanel() {
         <button
           className="btn-primary w-full"
           onClick={handleRate}
-          disabled={rating || !transcript.trim()}
+          disabled={rating || !transcript.trim() || !callType}
         >
-          {rating ? "Rating…" : "Rate This Call"}
+          {rating ? "Rating…" : !callType ? "Select a meeting type first" : "Rate This Call"}
         </button>
       </div>
 

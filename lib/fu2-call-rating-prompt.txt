@@ -1,0 +1,244 @@
+I want you to analyze an FU2 call transcript inside the context of a very specific multi-step vetting and education process for a mentorship-led business partnership model.
+
+Do not analyse this like a generic sales call, recruiting call, or coaching call.
+
+Do not judge it by whether the person was "closed".
+
+FU2 is the compensation-plan deep-dive call, not a closing conversation.
+
+Be direct, practical, and honest in your analysis.
+
+⸻
+
+Process Context
+
+The FU2 call sits inside a structured multi-step process:
+
+1. Pre-filter
+
+Short call used to:
+	•	establish basic interest
+	•	check if the person is open to creating income outside what they currently do
+	•	begin building trust and positioning
+
+2. QI1
+
+First substantial vetting conversation — diagnostic and trust-building. Compensation is deliberately avoided here.
+
+3. QI2
+	•	Book review
+	•	Macro run-through of the business model
+	•	Context is built before introducing the network marketing structure
+
+4. Webinar
+
+Deep dive into:
+	•	business model
+	•	mentorship system
+
+5. Audios before FU1
+
+Prospect listens to 4–5 audios.
+
+6. FU1
+
+Focus on:
+	•	commitments
+	•	habits
+	•	expectations
+	•	PV commitment
+
+7. More education
+	•	additional audios
+	•	another webinar
+
+8. FU2 (this call)
+
+Compensation plan run-through.
+
+Goals of FU2:
+	•	walk through the actual compensation plan in real detail
+	•	tie the numbers back to the candidate's own stated financial goals from QI1 — the gap between where they are and where they want to be
+	•	answer detailed questions about how income is actually earned
+	•	check genuine understanding of the key mechanics, not just deliver the plan
+
+FU2 is not meant to:
+	•	be the first time compensation has ever come up — by design QI1 and QI2 avoided it, so this should land as the natural payoff of that build-up, not an out-of-nowhere info dump
+	•	replace the financial operating blueprint (that's FU3, later)
+
+9. Ideally attend an in-person event
+
+10. More learning
+	•	more audios
+	•	another book
+	•	another webinar
+
+11. FU3
+
+Financial operating blueprint:
+	•	costs
+	•	operating structure
+	•	launch fees
+
+12. 18-part questionnaire
+
+13. Final call
+
+Short call to:
+	•	answer final questions
+	•	formally extend a partnership offer
+
+⸻
+
+Funnel Context
+
+This is a long vetting process designed to prioritize quality over quantity.
+
+Key points:
+	•	Pre-filtering should already create trust and positioning
+	•	Most people who reach QI1 will normally continue forward
+	•	The more important metric is who launches and builds
+
+Typical results:
+	•	About 3–3.5 out of 10 prospects launch
+	•	Of those who launch:
+	•	one becomes a strong builder
+	•	one incubates and builds later
+	•	one mainly engages in personal development
+	•	one likely does not continue
+
+Retention is high because expectations are set progressively throughout the process.
+
+⸻
+
+What I want you to do
+
+You will be given an FU2 transcript as the next message. Analyze it through this exact funnel context.
+
+⸻
+
+Your Analysis Should Include
+
+1. Overall FU2 score
+
+Score the call out of 10 as an FU2 inside this process.
+
+⸻
+
+2. What the call did well
+
+Identify strengths such as:
+	•	clarity of the compensation-plan explanation
+	•	tying the numbers back to the candidate's own goals from earlier calls
+	•	checking for real understanding of the mechanics, not just reciting numbers
+	•	quality of questions used to gauge genuine engagement with the math
+	•	whether the call naturally progressed toward attending an event / FU3
+
+⸻
+
+3. What weakened the call
+
+Be honest and specific.
+
+Calibration note: FU2 is meant to be detailed and explanation-heavy — a
+real compensation plan walkthrough requires real teaching, and that is
+not a weakness here. Do not penalize thoroughness or talk time. The signal
+to watch for is whether the explanation ever connects back to the
+candidate as a person (their own numbers, their own goals) versus reciting
+the plan the same way to everyone, and whether the candidate's actual
+understanding is checked along the way rather than assumed.
+
+Look for things like:
+	•	reciting the comp plan generically without tying it to this candidate's goals
+	•	no check for understanding of key mechanics
+	•	missing signs of confusion or overwhelm with the numbers
+	•	no diagnostic questions about how the numbers land with them
+	•	poor pacing or unclear transitions
+	•	energy drops
+
+⸻
+
+4. Candidate scorecard
+
+Score the candidate (0–10) on:
+	•	engagement with the financial detail
+	•	understanding of how income is actually earned
+	•	alignment between the numbers and their stated goals
+	•	genuine excitement vs polite nodding
+	•	quality of questions asked
+	•	discipline / standards
+	•	independent thinking
+	•	likely retention
+	•	builder potential
+
+⸻
+
+5. What the call actually revealed about the candidate
+
+Separate:
+
+Clear strengths
+
+Still unproven
+
+Potential yellow flags
+
+Do not overrate someone simply because they were pleasant or agreeable.
+
+⸻
+
+6. Distinguish between
+	•	genuine excitement about the opportunity
+	•	social agreeableness
+	•	compliance (nodding along without really following the math)
+	•	real financial motivation vs borrowed enthusiasm
+
+⸻
+
+7. Biggest thing the call failed to uncover
+
+Identify the single most important insight about the candidate's real reaction to the compensation plan that the call didn't reveal but should have.
+
+⸻
+
+8. Better follow-up questions
+
+Based on the transcript, suggest 5 sharper follow-up questions that would have improved the diagnostic quality of the call.
+
+⸻
+
+9. Final blunt verdict
+
+Give a clear practical verdict such as:
+	•	strong candidate, genuinely energized by the numbers — worth progressing
+	•	worth progressing but understanding of the plan is still shaky
+	•	polite interest but no real reaction to the numbers — needs pressure testing
+	•	overwhelmed by the detail — needs reinforcement before FU3
+	•	high potential but needs sharper follow-up on their real reaction
+
+Keep this concise and direct.
+
+⸻
+
+Style Instructions
+
+Your feedback must be:
+	•	honest
+	•	practical
+	•	direct
+	•	non-generic
+	•	focused on improving call quality and candidate selection
+
+Avoid generic praise or fluff.
+
+Evaluate this as a compensation-plan deep-dive designed to connect the numbers to this specific candidate's goals.
+
+⸻
+
+Output Format
+
+Begin your reply with exactly one line in this format, with no other text before it:
+
+OVERALL_SCORE: X/10
+
+Then a blank line, then the full write-up using the 9 numbered sections above (with their headings) in order.

@@ -1,4 +1,4 @@
-import type { PipelineStageKey, GoalMetric, GoalPeriod } from "./constants";
+import type { PipelineStageKey, GoalMetric, GoalPeriod, CallRatingType } from "./constants";
 
 export type Profile = {
   id: string;
@@ -302,7 +302,7 @@ export type AssistantMessage = {
 export type CallRating = {
   id: string;
   user_id: string;
-  call_type: "QI1" | "QI2";
+  call_type: CallRatingType;
   candidate_id: string | null;
   candidate_name: string;
   transcript: string;

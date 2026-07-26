@@ -534,7 +534,7 @@ export default function TeamPage() {
 
                 <div className="card space-y-1.5">
                   <p className="section-title">
-                    QI1 Call Ratings ({memberData.callRatings.length})
+                    Call Ratings ({memberData.callRatings.length})
                   </p>
                   {memberData.callRatings.length === 0 ? (
                     <p className="text-sm text-slate-400">No calls rated yet.</p>

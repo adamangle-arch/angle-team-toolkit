@@ -1,0 +1,247 @@
+I want you to analyze an FU1 call transcript inside the context of a very specific multi-step vetting and education process for a mentorship-led business partnership model.
+
+Do not analyse this like a generic sales call, recruiting call, or coaching call.
+
+Do not judge it by whether the person was "closed".
+
+FU1 is a commitment and expectation-setting call, not a closing conversation.
+
+Be direct, practical, and honest in your analysis.
+
+⸻
+
+Process Context
+
+The FU1 call sits inside a structured multi-step process:
+
+1. Pre-filter
+
+Short call used to:
+	•	establish basic interest
+	•	check if the person is open to creating income outside what they currently do
+	•	begin building trust and positioning
+
+2. QI1
+
+First substantial vetting conversation — diagnostic and trust-building.
+
+3. QI2
+	•	Book review
+	•	Macro run-through of the business model
+	•	Context is built before introducing the network marketing structure
+
+4. Webinar
+
+Deep dive into:
+	•	business model
+	•	mentorship system
+
+5. Audios before FU1
+
+Prospect listens to 4–5 audios.
+
+6. FU1 (this call)
+
+Focus on:
+	•	commitments
+	•	habits
+	•	expectations
+	•	PV commitment
+
+Goals of FU1:
+	•	confirm what the candidate actually took away from the Webinar and audios
+	•	address remaining questions or hesitations from that material
+	•	lock in specific, real commitments — a PV number, a reading/listening habit, a meeting cadence
+	•	set clear expectations for what's ahead (more audios, another webinar, then FU2's compensation deep dive)
+	•	continue reading whether this candidate is building real conviction or just being agreeable
+
+FU1 is not meant to:
+	•	re-teach the whole business model from scratch
+	•	go deep into compensation (that's still FU2, ahead)
+	•	close the person
+
+7. More education
+	•	additional audios
+	•	another webinar
+
+8. FU2
+
+Compensation plan run-through.
+
+9. Ideally attend an in-person event
+
+10. More learning
+	•	more audios
+	•	another book
+	•	another webinar
+
+11. FU3
+
+Financial operating blueprint:
+	•	costs
+	•	operating structure
+	•	launch fees
+
+12. 18-part questionnaire
+
+13. Final call
+
+Short call to:
+	•	answer final questions
+	•	formally extend a partnership offer
+
+⸻
+
+Funnel Context
+
+This is a long vetting process designed to prioritize quality over quantity.
+
+Key points:
+	•	Pre-filtering should already create trust and positioning
+	•	Most people who reach QI1 will normally continue forward
+	•	The more important metric is who launches and builds
+
+Typical results:
+	•	About 3–3.5 out of 10 prospects launch
+	•	Of those who launch:
+	•	one becomes a strong builder
+	•	one incubates and builds later
+	•	one mainly engages in personal development
+	•	one likely does not continue
+
+Retention is high because expectations are set progressively throughout the process.
+
+⸻
+
+What I want you to do
+
+You will be given an FU1 transcript as the next message. Analyze it through this exact funnel context.
+
+⸻
+
+Your Analysis Should Include
+
+1. Overall FU1 score
+
+Score the call out of 10 as an FU1 inside this process.
+
+⸻
+
+2. What the call did well
+
+Identify strengths such as:
+	•	rapport and trust continuity from QI1/QI2/Webinar
+	•	clarity in confirming what the candidate absorbed from the Webinar/audios
+	•	specificity of the commitments actually obtained
+	•	clarity of expectations set for what's ahead
+	•	quality of questions used to gauge real buy-in
+	•	whether the call naturally progressed toward more education and FU2
+
+⸻
+
+3. What weakened the call
+
+Be honest and specific.
+
+Calibration note: some explanation is still fine here — reinforcing or
+clarifying webinar/audio content is a normal part of FU1. But this call
+should lean more toward extracting real commitments and gauging genuine
+expectations than teaching. Do not penalize necessary clarification, but
+do flag it when the call stays in teaching mode instead of shifting into
+locking in specifics.
+
+Look for things like:
+	•	vague, non-committal commitments accepted at face value ("yeah I'll try" instead of a real number or habit)
+	•	expectations left unclear about what's coming next
+	•	no real check on whether the candidate actually understood the Webinar
+	•	missed diagnostic opportunities to gauge real buy-in vs politeness
+	•	weak follow-up questions
+	•	poor pacing or unclear transitions
+	•	energy drops
+
+⸻
+
+4. Candidate scorecard
+
+Score the candidate (0–10) on:
+	•	follow-through on anything committed to since QI1/QI2
+	•	clarity and specificity of new commitments made
+	•	genuine enthusiasm vs polite compliance
+	•	coachability
+	•	discipline / standards
+	•	emotional maturity
+	•	independent thinking
+	•	likely retention
+	•	builder potential
+
+⸻
+
+5. What the call actually revealed about the candidate
+
+Separate:
+
+Clear strengths
+
+Still unproven
+
+Potential yellow flags
+
+Do not overrate someone simply because they were pleasant or agreeable.
+
+⸻
+
+6. Distinguish between
+	•	genuine commitment
+	•	social agreeableness
+	•	compliance
+	•	real conviction vs borrowed enthusiasm from the Webinar
+
+⸻
+
+7. Biggest thing the call failed to uncover
+
+Identify the single most important insight about the candidate's real level of commitment that the call didn't reveal but should have.
+
+⸻
+
+8. Better follow-up questions
+
+Based on the transcript, suggest 5 sharper follow-up questions that would have improved the diagnostic quality of the call.
+
+⸻
+
+9. Final blunt verdict
+
+Give a clear practical verdict such as:
+	•	strong, specific commitments — worth progressing
+	•	worth progressing but commitments are still vague
+	•	engaged but not yet converting understanding into real commitment
+	•	polite compliance more than genuine buy-in — needs pressure testing
+	•	high potential but needs sharper commitment extraction next time
+
+Keep this concise and direct.
+
+⸻
+
+Style Instructions
+
+Your feedback must be:
+	•	honest
+	•	practical
+	•	direct
+	•	non-generic
+	•	focused on improving call quality and candidate selection
+
+Avoid generic praise or fluff.
+
+Evaluate this as a commitment and expectation-setting conversation designed to confirm real buy-in before more education and FU2.
+
+⸻
+
+Output Format
+
+Begin your reply with exactly one line in this format, with no other text before it:
+
+OVERALL_SCORE: X/10
+
+Then a blank line, then the full write-up using the 9 numbered sections above (with their headings) in order.
