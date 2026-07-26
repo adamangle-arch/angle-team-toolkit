@@ -17,6 +17,7 @@ import type {
   TeamTotals,
   AssistantMessage,
   CalendarEvent,
+  CallRating,
 } from "@/lib/types";
 
 type ViewMode = "members" | "teams";
@@ -59,6 +60,7 @@ type MemberData = {
   streakDays: StreakDay[];
   assistantMessages: AssistantMessage[];
   calendarEvents: CalendarEvent[];
+  callRatings: CallRating[];
 };
 
 export default function TeamPage() {
@@ -84,6 +86,8 @@ export default function TeamPage() {
 
   const [grantingOnboarding, setGrantingOnboarding] = useState(false);
   const [grantError, setGrantError] = useState("");
+
+  const [expandedRatingId, setExpandedRatingId] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -143,6 +147,7 @@ export default function TeamPage() {
         { data: streakDays },
         { data: assistantMessages },
         { data: calendarEvents },
+        { data: callRatings },
       ] = await Promise.all([
         supabase
           .from("pipeline_periods")
@@ -178,6 +183,11 @@ export default function TeamPage() {
           .eq("user_id", selectedId)
           .gte("event_at", new Date().toISOString())
           .order("event_at", { ascending: true }),
+        supabase
+          .from("call_ratings")
+          .select("*")
+          .eq("user_id", selectedId)
+          .order("created_at", { ascending: false }),
       ]);
 
       if (!cancelled) {
@@ -188,6 +198,7 @@ export default function TeamPage() {
           streakDays: (streakDays as StreakDay[]) ?? [],
           assistantMessages: (assistantMessages as AssistantMessage[]) ?? [],
           calendarEvents: (calendarEvents as CalendarEvent[]) ?? [],
+          callRatings: (callRatings as CallRating[]) ?? [],
         });
         setLoadingMember(false);
       }
@@ -516,6 +527,42 @@ export default function TeamPage() {
                           })}
                         </p>
                         {e.notes && <p className="text-xs text-slate-400">{e.notes}</p>}
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                <div className="card space-y-1.5">
+                  <p className="section-title">
+                    QI1 Call Ratings ({memberData.callRatings.length})
+                  </p>
+                  {memberData.callRatings.length === 0 ? (
+                    <p className="text-sm text-slate-400">No calls rated yet.</p>
+                  ) : (
+                    memberData.callRatings.map((r) => (
+                      <div key={r.id} className="rounded-lg bg-navy p-2.5">
+                        <button
+                          className="flex w-full items-center justify-between gap-2 text-left"
+                          onClick={() =>
+                            setExpandedRatingId(expandedRatingId === r.id ? null : r.id)
+                          }
+                        >
+                          <span className="truncate text-sm text-slate-200">
+                            {r.call_type}
+                            {r.candidate_name ? ` · ${r.candidate_name}` : ""}
+                          </span>
+                          <span className="flex shrink-0 items-center gap-2 text-xs text-slate-500">
+                            {r.overall_score !== null && (
+                              <span className="pill">{r.overall_score}/10</span>
+                            )}
+                            {new Date(r.created_at).toLocaleDateString()}
+                          </span>
+                        </button>
+                        {expandedRatingId === r.id && (
+                          <p className="mt-2 whitespace-pre-wrap text-xs text-slate-300">
+                            {r.analysis}
+                          </p>
+                        )}
                       </div>
                     ))
                   )}

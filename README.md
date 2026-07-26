@@ -1036,6 +1036,46 @@ before this was added, just run the `alter table assistant_messages add
 column if not exists image_data text;` line again — it's additive and won't
 touch existing data.
 
+## Notes on Rate a Call
+
+The **Assistant** tab now has a second panel, **Rate a Call**, alongside
+the Role-Play Coach. A rep pastes the text transcript of a recorded QI1
+call and gets it scored against the team's QI1 vetting rubric — overall
+score, what the call did well/weakened, a candidate scorecard, yellow
+flags, sharper follow-up questions, and a blunt verdict. This is a single
+one-shot API call, not a multi-turn conversation — it's a separate route
+(`app/api/assistant/rate-call/route.ts`) from the Role-Play Coach, with its
+own system prompt (`lib/qi1-call-rating-prompt.txt`) loaded with prompt
+caching (`cache_control: ephemeral`), since that fixed rubric text is
+identical on every request regardless of who's submitting.
+
+Only **QI1** is supported for now — the rubric is specific to what a QI1
+call is supposed to accomplish (diagnostic/trust-building, not a pitch or
+close), and scoring a QI2 call (book review, macro business run-through)
+against QI1 criteria would penalize it for doing exactly what a QI2 is
+supposed to do. QI2 rating needs its own rubric before it can be added; the
+`call_type` column and UI are already set up to support it once that
+exists.
+
+Recorded meetings themselves aren't accepted — only pasted/typed
+transcripts. Claude can't process raw audio/video, so audio input would
+require adding a separate transcription service (e.g. Whisper), a new API
+key, and per-minute transcription cost/storage — out of scope for now.
+Transcripts are capped at 60,000 characters (roughly a 45+ minute call with
+headroom) to keep any single request bounded. Cost is dominated by the
+transcript's length rather than the (cached) rubric — a typical 15–45
+minute call transcript runs roughly 1–3 cents per rating at current Claude
+Sonnet 5 pricing, versus a fraction of a cent for a normal Role-Play Coach
+message.
+
+Ratings are stored per-rep in the `call_ratings` table (transcript,
+full write-up, and a parsed `overall_score`) with the same RLS as
+`assistant_messages` — a rep sees their own ratings under **Your Ratings**
+on the Rate a Call tab, and their upline (any level) or an admin sees the
+same list as a **QI1 Call Ratings** folder on that rep's page under the
+**Team** tab, so an upline can see how their downline's calls are trending
+without asking for a screen-share.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

@@ -4,8 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
 import FeatureGate from "@/components/FeatureGate";
+import CallRatingPanel from "@/components/CallRatingPanel";
 import { supabase } from "@/lib/supabaseClient";
 import type { AssistantMessage } from "@/lib/types";
+
+type Tab = "roleplay" | "rate";
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
@@ -20,6 +23,7 @@ function readFileAsDataUrl(file: File): Promise<string> {
 
 export default function AssistantPage() {
   const { user } = useAuth();
+  const [tab, setTab] = useState<Tab>("roleplay");
   const [messages, setMessages] = useState<AssistantMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [input, setInput] = useState("");
@@ -127,8 +131,27 @@ export default function AssistantPage() {
 
   return (
     <FeatureGate minSession={5}>
-      <PageHeader title="Role-Play Coach" subtitle="Practice A-list, B-list, and C-list conversations" />
+      <PageHeader title="Assistant" subtitle="Role-play conversations, and rate your QI1 calls" />
       <main className="page-main">
+        <div className="card flex p-1">
+          <button
+            className={tab === "roleplay" ? "toggle-pill-active" : "toggle-pill-inactive"}
+            onClick={() => setTab("roleplay")}
+          >
+            Role-Play
+          </button>
+          <button
+            className={tab === "rate" ? "toggle-pill-active" : "toggle-pill-inactive"}
+            onClick={() => setTab("rate")}
+          >
+            Rate a Call
+          </button>
+        </div>
+
+        {tab === "rate" && <CallRatingPanel />}
+
+        {tab === "roleplay" && (
+          <>
         {loading ? (
           <div className="empty-state">Loading conversation…</div>
         ) : messages.length === 0 ? (
@@ -233,6 +256,8 @@ export default function AssistantPage() {
             Send
           </button>
         </div>
+          </>
+        )}
       </main>
     </FeatureGate>
   );

@@ -298,3 +298,14 @@ export type AssistantMessage = {
   image_data?: string | null;
   created_at: string;
 };
+
+export type CallRating = {
+  id: string;
+  user_id: string;
+  call_type: "QI1" | "QI2";
+  candidate_name: string;
+  transcript: string;
+  analysis: string;
+  overall_score: number | null;
+  created_at: string;
+};

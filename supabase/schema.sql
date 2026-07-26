@@ -845,6 +845,24 @@ create table if not exists assistant_messages (
 alter table assistant_messages add column if not exists image_data text;
 
 -- ============================================================
+-- 6b. CALL RATINGS
+-- A rep pastes a QI1/QI2 call transcript and the Assistant rates it
+-- against the team's vetting rubric. Readable by the rep's upline (any
+-- level) or admin, same as assistant_messages above, so an upline gets
+-- a "folder" of their downline's ratings on the Team page.
+-- ============================================================
+create table if not exists call_ratings (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  call_type text not null default 'QI1' check (call_type in ('QI1', 'QI2')),
+  candidate_name text not null default '',
+  transcript text not null,
+  analysis text not null,
+  overall_score numeric,
+  created_at timestamptz not null default now()
+);
+
+-- ============================================================
 -- 7. TEAM PIPELINE TOTALS & LEADERBOARD
 -- Every member's individual pipeline_periods row stays private via RLS
 -- (below). These two functions are the only way to see across members:
@@ -1216,7 +1234,7 @@ declare
   t text;
 begin
   for t in
-    select unnest(array['streak_days', 'assistant_messages'])
+    select unnest(array['streak_days', 'assistant_messages', 'call_ratings'])
   loop
     execute format('alter table %I enable row level security;', t);
 
