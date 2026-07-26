@@ -326,6 +326,12 @@ alter table profiles add column if not exists profile_prompted boolean not null 
 -- below — it's a manual approval step, not automatic on completion.
 alter table profiles add column if not exists onboarding_unlocked_through int not null default 1;
 
+-- Additive: self-reported reading checkbox required (alongside the 50+
+-- A/B contact requirement) before Session 4 unlocks. Self-service — the
+-- existing "update_own" policy below already covers this, no new RLS
+-- needed.
+alter table profiles add column if not exists thinking_big_chapters_confirmed boolean not null default false;
+
 alter table profiles add column if not exists household_id uuid references auth.users(id);
 alter table profiles drop constraint if exists profiles_household_not_self;
 alter table profiles add constraint profiles_household_not_self check (household_id is null or household_id <> id);

@@ -807,6 +807,20 @@ auto-unlock anything (onboarding has always been upline-granted, not
 self-serve), it only unblocks the upline's button once they're ready to
 grant it.
 
+**Session 4 also requires a reading confirmation** —
+`SESSION_4_READING_REQUIREMENT` in `lib/constants.ts` currently reads
+"chapters 2, 12, and 13 of The Magic of Thinking Big" (the Session 2
+First Year Books pick — see `FIRST_YEAR_BOOKS` in `lib/library-data.ts`).
+Unlike the contact count, there's no way to actually verify someone read
+specific chapters, so this is self-reported: a checkbox on the mentee's
+own locked Session 4 card writes straight to a new
+`profiles.thinking_big_chapters_confirmed` boolean (self-service — the
+existing `update_own` RLS policy on `profiles` already covers it, no new
+policy needed). The Team tab's "Unlock Next" for the 3→4 transition now
+requires *both* the contact count **and** this checkbox, each shown as
+its own line with a ✓/○ so the upline can see which one is still
+outstanding.
+
 **Onboarding is the home screen until it's done.** The "resume where you
 left off" behavior that sends people to the Today dashboard on app open
 now checks completion first: anyone who hasn't unlocked all 5 sessions

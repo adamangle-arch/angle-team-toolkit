@@ -12,6 +12,7 @@ import {
   CANDIDATE_STEPS,
   ONBOARDING_SESSIONS,
   SESSION_4_CONTACT_MINIMUM,
+  SESSION_4_READING_REQUIREMENT,
 } from "@/lib/constants";
 import { groupCallRatingsByType } from "@/lib/call-ratings";
 import { getMonthStart, getWeekStart, formatDateLabel } from "@/lib/dates";
@@ -220,13 +221,15 @@ export default function TeamPage() {
   const selectedProfile = profiles.find((p) => p.id === selectedId) ?? null;
 
   // Session 4 ("Sharing Your Story") shouldn't unlock until this person
-  // has put real work into their A/B list - not the Customer list, which
-  // is a separate thing. Only relevant for the 3 -> 4 transition; every
-  // other "Unlock Next" step is ungated.
+  // has put real work into their A/B list (not the Customer list) and
+  // confirmed they've done the assigned reading. Only relevant for the
+  // 3 -> 4 transition; every other "Unlock Next" step is ungated.
   const networkContactCount =
     memberData?.contacts.filter((c) => c.category === "A" || c.category === "B").length ?? 0;
   const unlockingSession4 = (selectedProfile?.onboarding_unlocked_through ?? 1) === 3;
-  const session4Gated = unlockingSession4 && networkContactCount < SESSION_4_CONTACT_MINIMUM;
+  const contactRequirementMet = networkContactCount >= SESSION_4_CONTACT_MINIMUM;
+  const readingRequirementMet = Boolean(selectedProfile?.thinking_big_chapters_confirmed);
+  const session4Gated = unlockingSession4 && (!contactRequirementMet || !readingRequirementMet);
 
   // Reset the delete-confirmation fields whenever the selected member
   // changes, adjusted during render rather than in an effect.
@@ -636,11 +639,17 @@ export default function TeamPage() {
                       </p>
                       {grantError && <p className="text-xs text-red-400">{grantError}</p>}
                       {unlockingSession4 && (
-                        <p className={`text-xs ${session4Gated ? "text-amber-light" : "text-slate-500"}`}>
-                          Session 4 needs {SESSION_4_CONTACT_MINIMUM}+ names in the Contact
-                          Builder&apos;s A/B list — currently {networkContactCount}/
-                          {SESSION_4_CONTACT_MINIMUM}.
-                        </p>
+                        <div className="space-y-0.5">
+                          <p className={`text-xs ${contactRequirementMet ? "text-slate-500" : "text-amber-light"}`}>
+                            {contactRequirementMet ? "✓" : "○"} {SESSION_4_CONTACT_MINIMUM}+ names in
+                            the Contact Builder&apos;s A/B list — currently {networkContactCount}/
+                            {SESSION_4_CONTACT_MINIMUM}.
+                          </p>
+                          <p className={`text-xs ${readingRequirementMet ? "text-slate-500" : "text-amber-light"}`}>
+                            {readingRequirementMet ? "✓" : "○"} Read {SESSION_4_READING_REQUIREMENT}{" "}
+                            (self-reported on their Onboarding page).
+                          </p>
+                        </div>
                       )}
                     </div>
                     <div className="flex gap-2">

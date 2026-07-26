@@ -5,7 +5,12 @@ import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
-import { ONBOARDING_SESSIONS, SESSION_4_CONTACT_MINIMUM, isPrimaryUser } from "@/lib/constants";
+import {
+  ONBOARDING_SESSIONS,
+  SESSION_4_CONTACT_MINIMUM,
+  SESSION_4_READING_REQUIREMENT,
+  isPrimaryUser,
+} from "@/lib/constants";
 
 // A resource url starting with "/" is a link to somewhere else in the
 // app (e.g. a Resources tab) rather than an external video/doc link -
@@ -20,6 +25,8 @@ export default function OnboardingPage() {
   const isAdmin = isPrimaryUser(user.email);
   const [unlockedThrough, setUnlockedThrough] = useState(1);
   const [networkContactCount, setNetworkContactCount] = useState(0);
+  const [chaptersConfirmed, setChaptersConfirmed] = useState(false);
+  const [confirmingChapters, setConfirmingChapters] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -27,7 +34,11 @@ export default function OnboardingPage() {
 
     async function load() {
       const [{ data: profileData }, { count }] = await Promise.all([
-        supabase.from("profiles").select("onboarding_unlocked_through").eq("id", user.id).single(),
+        supabase
+          .from("profiles")
+          .select("onboarding_unlocked_through,thinking_big_chapters_confirmed")
+          .eq("id", user.id)
+          .single(),
         supabase
           .from("contacts")
           .select("id", { count: "exact", head: true })
@@ -36,6 +47,7 @@ export default function OnboardingPage() {
       ]);
       if (!cancelled) {
         setUnlockedThrough(profileData?.onboarding_unlocked_through ?? 1);
+        setChaptersConfirmed(profileData?.thinking_big_chapters_confirmed ?? false);
         setNetworkContactCount(count ?? 0);
         setLoading(false);
       }
@@ -46,6 +58,17 @@ export default function OnboardingPage() {
       cancelled = true;
     };
   }, [user.id, ownerId]);
+
+  async function toggleChaptersConfirmed() {
+    const next = !chaptersConfirmed;
+    setChaptersConfirmed(next);
+    setConfirmingChapters(true);
+    await supabase
+      .from("profiles")
+      .update({ thinking_big_chapters_confirmed: next })
+      .eq("id", user.id);
+    setConfirmingChapters(false);
+  }
 
   const unlockedCount = isAdmin
     ? ONBOARDING_SESSIONS.length
@@ -157,11 +180,23 @@ export default function OnboardingPage() {
                 ) : (
                   <>
                     {sessionNumber === 4 && (
-                      <p className="text-xs text-amber-light">
-                        This one needs {SESSION_4_CONTACT_MINIMUM}+ names in your Contact
-                        Builder&apos;s A/B list first — you have {networkContactCount}/
-                        {SESSION_4_CONTACT_MINIMUM}.
-                      </p>
+                      <div className="space-y-1.5">
+                        <p className="text-xs text-amber-light">
+                          {networkContactCount >= SESSION_4_CONTACT_MINIMUM ? "✓" : "○"}{" "}
+                          {SESSION_4_CONTACT_MINIMUM}+ names in your Contact Builder&apos;s A/B
+                          list — you have {networkContactCount}/{SESSION_4_CONTACT_MINIMUM}.
+                        </p>
+                        <label className="flex items-start gap-2 text-xs text-amber-light">
+                          <input
+                            type="checkbox"
+                            className="mt-0.5"
+                            checked={chaptersConfirmed}
+                            disabled={confirmingChapters}
+                            onChange={toggleChaptersConfirmed}
+                          />
+                          <span>I&apos;ve read {SESSION_4_READING_REQUIREMENT}.</span>
+                        </label>
+                      </div>
                     )}
                     <p className="text-xs text-slate-500">
                       Ask your upline to unlock this session once you&apos;re ready.

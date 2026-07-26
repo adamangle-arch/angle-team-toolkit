@@ -21,6 +21,7 @@ export type Profile = {
   account_number: string | null;
   upline_id: string | null;
   onboarding_unlocked_through: number;
+  thinking_big_chapters_confirmed: boolean;
   created_at: string;
 };
 

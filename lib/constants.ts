@@ -175,6 +175,12 @@ export type OnboardingSession = {
 // progress readout.
 export const SESSION_4_CONTACT_MINIMUM = 50;
 
+// Session 4 also requires having read specific chapters of the Session 2
+// "First Year Books" pick (see FIRST_YEAR_BOOKS in library-data.ts) -
+// self-reported via profiles.thinking_big_chapters_confirmed, since
+// there's no way to verify reading the way contact count can be counted.
+export const SESSION_4_READING_REQUIREMENT = "chapters 2, 12, and 13 of The Magic of Thinking Big";
+
 export const ONBOARDING_SESSIONS: OnboardingSession[] = [
   {
     title: "Session 1: Budget Session",
