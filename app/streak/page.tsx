@@ -163,6 +163,7 @@ export default function StreakPage() {
   const [newCandidatesForDay, setNewCandidatesForDay] = useState<Candidate[]>([]);
   const [copied, setCopied] = useState(false);
   const [showTriviaUnlocked, setShowTriviaUnlocked] = useState(false);
+  const [inspectedDay, setInspectedDay] = useState<string | null>(null);
 
   const [downlineMemberCount, setDownlineMemberCount] = useState(0);
   const [downlineWeekly, setDownlineWeekly] = useState<StageTotals>(emptyStageTotals());
@@ -729,25 +730,80 @@ export default function StreakPage() {
         )}
 
         <div className="card space-y-2">
-          <p className="section-title">Last 14 Days</p>
+          <p className="section-title">Last 30 Days</p>
+          <p className="text-xs text-slate-400">Tap a day to see how it went.</p>
           <div className="flex flex-wrap gap-1.5">
-            {Array.from({ length: 14 }, (_, i) => addDays(today, -13 + i)).map((day) => {
+            {Array.from({ length: 30 }, (_, i) => addDays(today, -29 + i)).map((day) => {
               const row = history[day];
               const done = row ? qualifies(row) : false;
               return (
-                <div
+                <button
                   key={day}
                   title={day}
-                  className={`h-7 w-7 rounded-md text-center text-[10px] leading-7 ${
+                  onClick={() => setInspectedDay(day)}
+                  className={`h-7 w-7 rounded-md text-center text-[10px] leading-7 transition ${
                     done ? "bg-amber text-navy font-bold" : "bg-white/10 text-slate-500"
-                  }`}
+                  } ${inspectedDay === day ? "ring-2 ring-white" : ""}`}
                 >
                   {Number(day.slice(8, 10))}
-                </div>
+                </button>
               );
             })}
           </div>
         </div>
+
+        {inspectedDay && (
+          <div className="card space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="section-title">{formatDateLabel(inspectedDay)}</p>
+              <button
+                className="btn-icon !h-6 !w-6 text-xs"
+                onClick={() => setInspectedDay(null)}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+            {(() => {
+              const row = history[inspectedDay] ?? emptyDay(user.id, inspectedDay);
+              const done = qualifies(row);
+              return (
+                <>
+                  <span className={done ? "pill-amber" : "pill"}>
+                    {done ? "Streak day ✅" : "Not a streak day"}
+                  </span>
+                  <p className="text-sm text-slate-300">
+                    📖 Read: {row.read_what || "—"}
+                    {row.read_amount ? ` — ${row.read_amount}` : ""}
+                  </p>
+                  <p className="text-sm text-slate-300">
+                    🎧 Listened ({row.listen_items.length}):{" "}
+                    {row.listen_items.length > 0 ? row.listen_items.join(", ") : "—"}
+                  </p>
+                  <p className="text-sm text-slate-300">
+                    📝 Daily Update: {row.daily_update ? "Done" : "Not yet"}
+                  </p>
+                  <p className="text-sm text-slate-300">
+                    💬 Story Shares: {row.story_shares} | Questions: {row.questions} | Yeses:{" "}
+                    {row.yeses}
+                  </p>
+                  <p className="text-sm text-slate-300">
+                    🤝 Meetings ({row.meeting_items.length}):{" "}
+                    {row.meeting_items.length > 0 ? row.meeting_items.join(", ") : "—"}
+                  </p>
+                  {inspectedDay !== selectedDay && (
+                    <button
+                      className="btn-primary w-full"
+                      onClick={() => setSelectedDay(inspectedDay)}
+                    >
+                      Load into Daily Update Summary
+                    </button>
+                  )}
+                </>
+              );
+            })()}
+          </div>
+        )}
 
         <div className="card space-y-2">
           <p className="section-title">Daily Update Summary</p>

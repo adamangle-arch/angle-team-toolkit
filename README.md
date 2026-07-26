@@ -286,6 +286,18 @@ of being separate manual toggles. This was a deliberate choice so adding
 these fields couldn't retroactively break anyone's existing streak
 history; `daily_update` stays a plain manual toggle either way.
 
+### Last 30 Days (tap a day to inspect it)
+
+The Core Run Streak page's day grid now covers the **last 30 days**
+(previously 14), and each day is tappable. Tapping one opens a detail
+card showing exactly how that day went — Read, Listen (with every
+audio logged), Daily Update, Story Shares/Questions/Yeses, and Meetings
+(with every meeting logged) — pulled straight from the already-loaded
+`history` map, no extra query needed. A "Load into Daily Update
+Summary" button sets that day as the summary's selected date (see
+below), so inspecting a day and generating its copy/paste report is a
+single tap away.
+
 ### Daily Update summary (copy/paste for LTD)
 
 The bottom of the Core Run Streak page has a **Daily Update Summary**
