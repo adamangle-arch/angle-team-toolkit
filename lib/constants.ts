@@ -316,7 +316,6 @@ export const ONBOARDING_SESSIONS: OnboardingSession[] = [
     title: "Session 5: 30-Day Core Run",
     description: "Establish the daily habits that create long-term momentum.",
     resources: [
-      { label: "🎥 Core Run Training Video", detail: "Replace with your Core Run training video link." },
       {
         label: "🔥 Core Run Streak",
         detail: "Head to the Run Streak tab to start your daily Read/Listen/Daily Update/Story Share habit.",
