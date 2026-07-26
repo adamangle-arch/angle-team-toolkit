@@ -1056,6 +1056,24 @@ touch existing data.
 
 ## Notes on Rate a Call
 
+The "Rate This Call" button could get permanently stuck on "Rating..."
+with no error ever shown. Two contributing gaps, both fixed:
+- `app/api/assistant/rate-call/route.ts` had no `maxDuration` set, so a
+  detailed 9-section analysis (up to 3000 output tokens, not streamed) on
+  a long transcript could take longer than Vercel's default function
+  timeout and get killed mid-generation. It now sets `export const
+  maxDuration = 60;`.
+- In `CallRatingPanel.tsx`, the session refresh and the prior-ratings
+  lookup ran *before* the `try`/`finally` that resets the `rating` state -
+  if either of those hung (e.g. a flaky connection stalling the Supabase
+  auth token refresh), `setRating(false)` never ran and the button stayed
+  stuck forever with no feedback. The whole operation now runs inside one
+  `run()` closure raced against a 90-second timeout
+  (`Promise.race([run(), timeoutRejection(RATE_TIMEOUT_MS)])`), so no
+  matter which step actually stalls, the button always recovers within 90
+  seconds with a clear "check your connection and try again" message
+  instead of hanging indefinitely.
+
 The Role-Play / Rate a Call toggle-pill row on the Assistant page used to
 scroll away with the rest of the chat — once a Role-Play conversation got
 long, switching to Rate a Call meant scrolling all the way back to the top

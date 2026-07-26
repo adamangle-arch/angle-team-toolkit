@@ -5,6 +5,12 @@ import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
 import { CALL_RATING_TYPES, type CallRatingType } from "@/lib/constants";
 
+// A full 9-section analysis (up to 3000 output tokens, no streaming) on a
+// long transcript can take longer than Vercel's default function timeout
+// - this raises the ceiling so a legitimately slow-but-working rating
+// doesn't get killed mid-generation.
+export const maxDuration = 60;
+
 type CallType = CallRatingType;
 
 // Read with literal paths (not a computed lookup) so Next's file tracer can

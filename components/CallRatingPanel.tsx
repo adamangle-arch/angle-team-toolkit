@@ -19,6 +19,22 @@ type CandidateOption = {
 const MAX_PRIOR_RATINGS = 3;
 const MAX_PRIOR_ANALYSIS_CHARS = 3000;
 
+// A detailed, non-streamed rating on a long transcript can legitimately
+// take a while, but it must never hang forever — if this fires first, the
+// button always recovers with a clear message instead of staying stuck on
+// "Rating..." no matter which step (session refresh, the API call, the
+// save) is the one that's actually stalled.
+const RATE_TIMEOUT_MS = 90_000;
+
+function timeoutRejection(ms: number): Promise<never> {
+  return new Promise((_, reject) =>
+    setTimeout(
+      () => reject(new Error("That took too long and timed out — check your connection and try again.")),
+      ms
+    )
+  );
+}
+
 export default function CallRatingPanel() {
   const { user } = useAuth();
   const [callType, setCallType] = useState<CallRatingType | "">("");
@@ -60,40 +76,45 @@ export default function CallRatingPanel() {
     setError(null);
     setRating(true);
 
-    const candidate = candidates.find((c) => c.id === selectedCandidateId) ?? null;
-    const finalCandidateName = candidate ? candidate.name : candidateName.trim();
+    // Everything that can talk to the network - session refresh, the
+    // prior-ratings lookup, the API call, the save - runs inside this one
+    // closure so a single race against the timeout above covers all of it,
+    // instead of only the fetch call being guarded and the rest able to
+    // hang the button forever.
+    const run = async () => {
+      const candidate = candidates.find((c) => c.id === selectedCandidateId) ?? null;
+      const finalCandidateName = candidate ? candidate.name : candidateName.trim();
 
-    let candidateContext = "";
-    if (candidate) {
-      const { data: priorRows } = await supabase
-        .from("call_ratings")
-        .select("call_type,analysis,created_at")
-        .eq("candidate_id", candidate.id)
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(MAX_PRIOR_RATINGS);
-      const prior = (
-        (priorRows as { call_type: string; analysis: string; created_at: string }[]) ?? []
-      )
-        .slice()
-        .reverse();
-
-      const notesPart = candidate.notes.trim()
-        ? `Rep's notes on this candidate:\n${candidate.notes.trim()}\n\n`
-        : "";
-      const priorPart = prior
-        .map(
-          (r) =>
-            `--- ${r.call_type} on ${new Date(r.created_at).toLocaleDateString()} ---\n${r.analysis.slice(0, MAX_PRIOR_ANALYSIS_CHARS)}`
+      let candidateContext = "";
+      if (candidate) {
+        const { data: priorRows } = await supabase
+          .from("call_ratings")
+          .select("call_type,analysis,created_at")
+          .eq("candidate_id", candidate.id)
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(MAX_PRIOR_RATINGS);
+        const prior = (
+          (priorRows as { call_type: string; analysis: string; created_at: string }[]) ?? []
         )
-        .join("\n\n");
-      candidateContext = `${notesPart}${priorPart}`.trim();
-    }
+          .slice()
+          .reverse();
 
-    const { data: sessionData } = await supabase.auth.getSession();
-    const accessToken = sessionData.session?.access_token;
+        const notesPart = candidate.notes.trim()
+          ? `Rep's notes on this candidate:\n${candidate.notes.trim()}\n\n`
+          : "";
+        const priorPart = prior
+          .map(
+            (r) =>
+              `--- ${r.call_type} on ${new Date(r.created_at).toLocaleDateString()} ---\n${r.analysis.slice(0, MAX_PRIOR_ANALYSIS_CHARS)}`
+          )
+          .join("\n\n");
+        candidateContext = `${notesPart}${priorPart}`.trim();
+      }
 
-    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+
       const res = await fetch("/api/assistant/rate-call", {
         method: "POST",
         headers: {
@@ -132,6 +153,10 @@ export default function CallRatingPanel() {
       setTranscript("");
       setCandidateName("");
       setCallType("");
+    };
+
+    try {
+      await Promise.race([run(), timeoutRejection(RATE_TIMEOUT_MS)]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
