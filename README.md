@@ -703,15 +703,13 @@ session unlocked on their own Onboarding tab, regardless of their own
 (`isPrimaryUser`), not a schema change, so admins can review the full
 content without needing anyone to "unlock" it for them.
 
-**Session 2: List Building** is filled out with LTD's official "Building
-Your List" worksheet content (`lib/list-building-data.ts`): the "why a
-list of 100+ names" intro, the "Start Here" source checklist (phone,
-address book, Facebook, alumni, etc.), the full "Who do you know
-named..." first-name list (~200 names) and "Who do you know that is
-a(n)..." occupation list (~200 occupations) to jog memory name-by-name
-and job-by-job, "Who is your..." (accountant, dentist, insurance agent,
-etc. — professionals you personally rely on), and "Who do you know
-who..." lifestyle prompts (goes to the gym, values good health, etc.).
+**Session 2: List Building** has the "why a list of 100+ names" intro
+plus a direct link to the actual LTD "Building Your List" worksheet
+(Dropbox JPG) — the real sheet with the Start Here checklist, the "Who
+do you know named..." first-name prompts, "Who do you know that is
+a(n)..." occupations, "Who is your..." professionals, and "Who do you
+know who..." lifestyle prompts, rather than that content retyped into
+the app.
 
 ### Milestone Alerts
 

@@ -1,12 +1,3 @@
-import {
-  LIST_BUILDING_INTRO,
-  LIST_BUILDING_START_HERE,
-  LIST_BUILDING_NAMES,
-  LIST_BUILDING_OCCUPATIONS,
-  LIST_BUILDING_PROFESSIONALS,
-  LIST_BUILDING_TRAITS,
-} from "./list-building-data";
-
 // Accounts that can see every team member's data (Team tab: Members +
 // Teams views). Must match the emails hardcoded in is_app_admin() in
 // supabase/schema.sql.
@@ -202,26 +193,16 @@ export const ONBOARDING_SESSIONS: OnboardingSession[] = [
     title: "Session 2: List Building",
     description: "Identify who you can help — the LTD \"Building Your List\" exercise.",
     resources: [
-      { label: "📋 Why Build a List of 100+", detail: LIST_BUILDING_INTRO },
       {
-        label: "🔍 Start Here",
-        detail: `Go through each of these for names: ${LIST_BUILDING_START_HERE.join(", ")}.`,
+        label: "📋 Why Build a List of 100+",
+        detail:
+          "Successful business owners put themselves in a position to win by developing a list of names of everyone they know. Why everyone? It's the starting point for building a solid organization and customer base. The biggest error IBOs make is deciding whether or not contacts are open minded to additional income. If your list doesn't contain at least 100 names, you could be prejudging.",
       },
       {
-        label: "🔤 Who Do You Know Named...",
-        detail: `Go down the list and write down anyone you know with each name: ${LIST_BUILDING_NAMES.join(", ")}.`,
-      },
-      {
-        label: "💼 Who Do You Know That Is A(n)...",
-        detail: `Go down the list and write down anyone you know in each line of work: ${LIST_BUILDING_OCCUPATIONS.join(", ")}.`,
-      },
-      {
-        label: "🤝 Who Is Your...",
-        detail: `The professionals you personally rely on: ${LIST_BUILDING_PROFESSIONALS.join(", ")}.`,
-      },
-      {
-        label: "💡 Who Do You Know Who...",
-        detail: LIST_BUILDING_TRAITS.join(", ") + ".",
+        label: "📄 List Builder Worksheet",
+        detail:
+          "The official worksheet — work through it name by name: sources to start with, first names, occupations, professionals you rely on, and lifestyle prompts.",
+        url: "https://www.dropbox.com/scl/fi/uk77jor2r0zbqjqewy81c/List-Builder.jpg?rlkey=5ddroczo5hp2mhzlqdb9mbzsz&st=vel3s2wu&dl=0",
       },
     ],
   },
