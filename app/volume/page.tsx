@@ -45,7 +45,6 @@ export default function VolumePage() {
 
   const [sales, setSales] = useState<CustomerSale[]>([]);
   const [loadingSales, setLoadingSales] = useState(true);
-  const [saleDescription, setSaleDescription] = useState("");
   const [saleCategories, setSaleCategories] = useState<SaleCategory[]>(["Other"]);
   const [saleAmount, setSaleAmount] = useState("");
   const [saleNotes, setSaleNotes] = useState("");
@@ -174,8 +173,7 @@ export default function VolumePage() {
   }
 
   async function addSale() {
-    const description = saleDescription.trim();
-    if (!description || saleCategories.length === 0) return;
+    if (saleCategories.length === 0) return;
     setAddingSale(true);
     const amount = Math.max(0, parseInt(saleAmount, 10) || 0);
     const { data } = await supabase
@@ -183,7 +181,7 @@ export default function VolumePage() {
       .insert({
         user_id: ownerId,
         period_start: periodStart,
-        description,
+        description: "",
         categories: saleCategories,
         amount,
         notes: saleNotes.trim(),
@@ -191,7 +189,6 @@ export default function VolumePage() {
       .select("*")
       .single();
     if (data) setSales((prev) => [data as CustomerSale, ...prev]);
-    setSaleDescription("");
     setSaleCategories(["Other"]);
     setSaleAmount("");
     setSaleNotes("");
@@ -351,12 +348,6 @@ export default function VolumePage() {
             <p className="text-lg font-bold text-amber-light">{highestPv} PV</p>
           </div>
 
-          <input
-            className="input"
-            placeholder="Customer details"
-            value={saleDescription}
-            onChange={(e) => setSaleDescription(e.target.value)}
-          />
           <p className="text-xs text-slate-500">Tap to select — you can pick more than one.</p>
           <div className="flex flex-wrap gap-2">
             {SALE_CATEGORIES.map((cat) => (
@@ -390,7 +381,7 @@ export default function VolumePage() {
           <button
             className="btn-primary w-full"
             onClick={addSale}
-            disabled={addingSale || !saleDescription.trim() || saleCategories.length === 0}
+            disabled={addingSale || saleCategories.length === 0}
           >
             Add Sale
           </button>
@@ -405,7 +396,11 @@ export default function VolumePage() {
             {sales.map((sale) => (
               <div key={sale.id} className="card space-y-1.5">
                 <div className="flex items-start justify-between gap-2">
-                  <p className="font-medium text-white">{sale.description}</p>
+                  {sale.description ? (
+                    <p className="font-medium text-white">{sale.description}</p>
+                  ) : (
+                    <span />
+                  )}
                   <span className="shrink-0 text-sm text-amber-light">{sale.amount} PV</span>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
