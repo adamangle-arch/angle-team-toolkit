@@ -329,6 +329,13 @@ period, that cell just shows the plain logged count and a "Set goal"
 input — no confusing bare "4 /" next to an empty box; the `X / target`
 form and progress bar only appear once a real target exists.
 
+There's no way to build a real iOS Home Screen widget without a native
+app (WidgetKit requires a Swift app extension, out of reach for a web
+app installed via "Add to Home Screen"). Goals is the closest
+substitute: it's now the **landing page** (`app/page.tsx` redirects to
+`/goals` instead of `/pipeline`), so opening the app puts today's
+targets vs. actual in front of you immediately, no navigating required.
+
 ### Calendar (meetings, reminders, team events)
 
 A new **Calendar** tab (`app/calendar/page.tsx`) is one system for both
