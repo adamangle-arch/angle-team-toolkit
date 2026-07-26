@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
 import FeatureGate from "@/components/FeatureGate";
@@ -357,15 +358,20 @@ export default function TeamPage() {
 
         {viewMode === "members" && selectedId && (
           <>
-            <p className="px-1 text-xs text-slate-500">
-              Showing data for <span className="text-slate-300">{selectedProfile?.email}</span>
-              {isAdmin && selectedProfile?.account_number && (
-                <>
-                  {" "}
-                  · Account #: <span className="text-slate-300">{selectedProfile.account_number}</span>
-                </>
-              )}
-            </p>
+            <div className="card flex items-center justify-between gap-2">
+              <p className="text-xs text-slate-500">
+                Showing data for <span className="text-slate-300">{selectedProfile?.email}</span>
+                {isAdmin && selectedProfile?.account_number && (
+                  <>
+                    {" "}
+                    · Account #: <span className="text-slate-300">{selectedProfile.account_number}</span>
+                  </>
+                )}
+              </p>
+              <Link href={`/profile/${selectedId}`} className="btn-secondary shrink-0 px-3 text-xs">
+                👤 View Profile
+              </Link>
+            </div>
 
             {loadingMember || !memberData ? (
               <div className="empty-state">Loading member data…</div>
