@@ -131,6 +131,10 @@ alter table contacts add constraint contacts_category_check check (
 -- on category/status.
 alter table contacts add column if not exists connection_tags text[] not null default '{}'::text[];
 
+-- Additive: optional "best way to reconnect" (Text, Instagram, Facebook,
+-- Snapchat, Other) - purely descriptive, same as connection_tags above.
+alter table contacts add column if not exists reconnect_method text not null default '';
+
 -- ============================================================
 -- 4. CORE RUN STREAK
 -- One row per calendar day per user. Read / Listen / Daily Update /

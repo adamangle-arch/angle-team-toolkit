@@ -5,7 +5,7 @@ import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
 import FeatureGate from "@/components/FeatureGate";
 import { supabase } from "@/lib/supabaseClient";
-import { CONTACT_STATUSES, CUSTOMER_STATUSES, CONNECTION_TAGS } from "@/lib/constants";
+import { CONTACT_STATUSES, CUSTOMER_STATUSES, CONNECTION_TAGS, RECONNECT_METHODS } from "@/lib/constants";
 import { NETWORKING_MEMORY_PROMPTS, CUSTOMER_MEMORY_PROMPTS } from "@/lib/contact-questions-data";
 import type { Contact } from "@/lib/types";
 
@@ -29,6 +29,7 @@ export default function ContactsPage() {
   const [newName, setNewName] = useState("");
   const [newCategory, setNewCategory] = useState<"A" | "B">("A");
   const [newTags, setNewTags] = useState<string[]>([]);
+  const [newReconnectMethod, setNewReconnectMethod] = useState("");
   const [adding, setAdding] = useState(false);
 
   const [promptIndex, setPromptIndex] = useState(0);
@@ -59,6 +60,10 @@ export default function ContactsPage() {
     setNewTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]));
   }
 
+  function selectReconnectMethod(method: string) {
+    setNewReconnectMethod((prev) => (prev === method ? "" : method));
+  }
+
   async function addContact() {
     const name = newName.trim();
     if (!name) return;
@@ -66,12 +71,19 @@ export default function ContactsPage() {
     const category = viewMode === "customer" ? "Customer" : newCategory;
     const { data } = await supabase
       .from("contacts")
-      .insert({ name, category, user_id: ownerId, connection_tags: newTags })
+      .insert({
+        name,
+        category,
+        user_id: ownerId,
+        connection_tags: newTags,
+        reconnect_method: newReconnectMethod,
+      })
       .select("*")
       .single();
     if (data) setContacts((prev) => [data as Contact, ...prev]);
     setNewName("");
     setNewTags([]);
+    setNewReconnectMethod("");
     setAdding(false);
   }
 
@@ -230,6 +242,22 @@ export default function ContactsPage() {
               </button>
             ))}
           </div>
+          <p className="text-xs text-slate-500">Best way to reconnect? (optional)</p>
+          <div className="flex flex-wrap gap-2">
+            {RECONNECT_METHODS.map((method) => (
+              <button
+                key={method}
+                onClick={() => selectReconnectMethod(method)}
+                className={
+                  newReconnectMethod === method
+                    ? "toggle-pill-active flex-none px-3"
+                    : "toggle-pill-inactive flex-none bg-white/5 px-3"
+                }
+              >
+                {method}
+              </button>
+            ))}
+          </div>
           <button
             className="btn-primary w-full"
             onClick={addContact}
@@ -353,6 +381,18 @@ function ContactCard({
         {statusOptions.map((status) => (
           <option key={status} value={status}>
             {status}
+          </option>
+        ))}
+      </select>
+      <select
+        className="select"
+        value={contact.reconnect_method}
+        onChange={(e) => onUpdate(contact.id, { reconnect_method: e.target.value })}
+      >
+        <option value="">Best way to reconnect…</option>
+        {RECONNECT_METHODS.map((method) => (
+          <option key={method} value={method}>
+            {method}
           </option>
         ))}
       </select>

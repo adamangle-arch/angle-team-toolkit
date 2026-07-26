@@ -279,3 +279,7 @@ export const CONNECTION_TAGS = [
   "High School",
   "Social Media",
 ] as const;
+
+// Contact Builder: optional "best way to reconnect" single-pick, shown
+// alongside the connection tags in Add Contact.
+export const RECONNECT_METHODS = ["Text", "Instagram", "Facebook", "Snapchat", "Other"] as const;

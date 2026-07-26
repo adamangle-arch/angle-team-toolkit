@@ -214,6 +214,7 @@ export type Contact = {
   status: string;
   notes: string;
   connection_tags: string[];
+  reconnect_method: string;
   created_at: string;
   updated_at: string;
 };
