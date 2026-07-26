@@ -271,6 +271,16 @@ export type CompanyEvent = {
   created_at: string;
 };
 
+export type EventPhoto = {
+  id: string;
+  company_event_id: string;
+  storage_path: string;
+  photo_url: string;
+  caption: string;
+  uploaded_by: string | null;
+  created_at: string;
+};
+
 export type AssistantMessage = {
   id: string;
   user_id: string;

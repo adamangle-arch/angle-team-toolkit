@@ -547,6 +547,25 @@ push to whoever is currently downline), adding a recurring event here:
   off anyone's calendar who already has it (they can remove their own
   copy the normal way).
 
+### Team Events photo gallery
+
+A new **Team Events** page (`app/events/page.tsx`, under **More** —
+available from signup, not gated behind onboarding) lists every
+`company_events` row (newest first) as a photo gallery. Everyone can
+browse and tap a photo for a full-screen lightbox view; only an admin
+sees the **📷 Add Photos** upload control and the ✕ delete button on
+each thumbnail. Event titles/dates themselves are still managed from
+the Calendar tab's Team Events section — this page is purely the photo
+side of the same events.
+
+Photos live in a new `event_photos` table (one row per photo, tied to a
+`company_event_id`) plus a public-read `event-photos` Storage bucket,
+same public-bucket-with-restricted-writes pattern as the existing
+`avatars` bucket. RLS mirrors `company_events`: select is open to
+everyone, insert/update/delete is admin-only. Deleting a photo removes
+both the storage object and its row, so orphaned files don't pile up in
+the bucket.
+
 ### Daily Update summary (copy/paste for LTD)
 
 The bottom of the Core Run Streak page has a **Daily Update Summary**

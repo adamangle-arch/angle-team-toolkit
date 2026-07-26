@@ -27,6 +27,7 @@ const PAGE_SHORTCUTS: SearchResult[] = [
   { title: "Assistant", snippet: "Role-play A/B/C-list conversations.", href: "/assistant", source: "Pages" },
   { title: "Onboarding", snippet: "New team member sessions.", href: "/onboarding", source: "Pages" },
   { title: "Games", snippet: "Diamond Run, Diamond Chase, Trivia.", href: "/games", source: "Pages" },
+  { title: "Team Events", snippet: "Photos from our team events.", href: "/events", source: "Pages" },
   { title: "Team", snippet: "Your downline's data (or the whole company, for admins).", href: "/team", source: "Pages" },
   { title: "My Profile", snippet: "Account number, spouse/upline linking, public profile.", href: "/profile", source: "Pages" },
 ];

@@ -1879,3 +1879,57 @@ end;
 $$;
 
 grant execute on function public.remove_company_event(uuid) to authenticated;
+
+-- ============================================================
+-- 16. EVENT PHOTOS (photo gallery for Team Events)
+-- One row per uploaded photo, tied to a company_event - visible to
+-- everyone (same as company_events itself), but only an admin can
+-- upload or remove photos. storage_path is kept alongside photo_url so
+-- a delete can clean up the actual storage object, not just the row.
+-- ============================================================
+create table if not exists event_photos (
+  id uuid primary key default gen_random_uuid(),
+  company_event_id uuid not null references company_events(id) on delete cascade,
+  storage_path text not null,
+  photo_url text not null,
+  caption text not null default '',
+  uploaded_by uuid references auth.users(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+alter table event_photos enable row level security;
+
+drop policy if exists "event_photos_select_all" on event_photos;
+create policy "event_photos_select_all" on event_photos
+for select using (true);
+
+drop policy if exists "event_photos_insert_admin" on event_photos;
+create policy "event_photos_insert_admin" on event_photos
+for insert with check (public.is_app_admin());
+
+drop policy if exists "event_photos_update_admin" on event_photos;
+create policy "event_photos_update_admin" on event_photos
+for update using (public.is_app_admin()) with check (public.is_app_admin());
+
+drop policy if exists "event_photos_delete_admin" on event_photos;
+create policy "event_photos_delete_admin" on event_photos
+for delete using (public.is_app_admin());
+
+-- Public-read storage bucket for the actual photo files, same pattern as
+-- the avatars bucket - but uploads/deletes are admin-only here rather
+-- than per-user-folder, since only an admin manages this gallery.
+insert into storage.buckets (id, name, public)
+values ('event-photos', 'event-photos', true)
+on conflict (id) do nothing;
+
+drop policy if exists "event_photos_bucket_public_read" on storage.objects;
+create policy "event_photos_bucket_public_read" on storage.objects for select
+using (bucket_id = 'event-photos');
+
+drop policy if exists "event_photos_bucket_insert_admin" on storage.objects;
+create policy "event_photos_bucket_insert_admin" on storage.objects for insert
+with check (bucket_id = 'event-photos' and public.is_app_admin());
+
+drop policy if exists "event_photos_bucket_delete_admin" on storage.objects;
+create policy "event_photos_bucket_delete_admin" on storage.objects for delete
+using (bucket_id = 'event-photos' and public.is_app_admin());

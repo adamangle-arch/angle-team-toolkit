@@ -23,7 +23,7 @@ const NAV_ITEMS = [
 // Assistant, Onboarding, Resources, and Games are all occasional/reference
 // tools rather than something used every day - they live behind More
 // instead of taking up a slot on the main bar (see app/more/page.tsx).
-const MORE_ROUTES = ["/assistant", "/onboarding", "/library", "/games"];
+const MORE_ROUTES = ["/assistant", "/onboarding", "/library", "/games", "/events"];
 
 export default function BottomNav() {
   const pathname = usePathname();
