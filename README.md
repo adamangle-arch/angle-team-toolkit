@@ -40,6 +40,18 @@ Every card is read-only and links to the real page to make changes — the
 dashboard doesn't duplicate any editing logic, it just surfaces what's
 already there.
 
+### Bottom nav cleanup
+
+The bottom nav had grown to 14 tabs (13 plus Today), which meant scrolling
+horizontally to find anything near the end. The four most occasional/
+reference tools — **Resources**, **Assistant**, **Onboarding**, and
+**Games** — now live behind a **More** tab (`app/more/page.tsx`) instead of
+each taking a slot on the main bar. The main bar is Today, Pipeline,
+History, Contacts, Run Streak, Goals, Calendar, Volume, Leaderboard, Team,
+and More (11 tabs). The More tab's icon lights up the same way any other
+tab does whenever you're actually on one of the four pages it links to,
+so it doesn't look like you've navigated away to nowhere.
+
 ## 1. Set up Supabase
 
 1. Create a free project at [supabase.com](https://supabase.com).
@@ -541,10 +553,10 @@ than stored records.
 
 The Resources hub (`app/library/page.tsx`) now opens straight to
 **Process** by default — it's the first pill in the tab row instead of
-the last, and the **Resources** nav item itself moved up to sit right
-after **Onboarding** in the bottom nav instead of near the back — so a
-new person's path is Onboarding → Resources (Process) rather than
-Process being buried behind Audios/Leaders/Products/Scripts.
+the last — so a new person's path lands on Process rather than it being
+buried behind Audios/Leaders/Products/Scripts. (Resources itself now
+lives under the **More** tab rather than the main bottom nav — see
+"Bottom nav cleanup" below.)
 
 **🚀 Perfect First Month** is its own pill, right after Process — not a
 card nested inside it. Process stays exactly what it was (the pre-launch

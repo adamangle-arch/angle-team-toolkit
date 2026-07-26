@@ -13,20 +13,19 @@ const NAV_ITEMS = [
   { href: "/calendar", label: "Calendar", icon: "📅" },
   { href: "/volume", label: "Volume", icon: "📦" },
   { href: "/leaderboard", label: "Leaderboard", icon: "🏆" },
-  { href: "/assistant", label: "Assistant", icon: "🤖" },
-  { href: "/onboarding", label: "Onboarding", icon: "🎓" },
-  // Resources opens straight to the Process tab (what to actually do),
-  // so it sits right after Onboarding in the new-person's path instead
-  // of all the way at the back.
-  { href: "/library", label: "Resources", icon: "📚" },
-  { href: "/games", label: "Games", icon: "🎮" },
   // Visible to everyone: admins see the whole company, everyone else
   // sees their own downline (RLS scopes it either way).
   { href: "/team", label: "Team", icon: "👥" },
 ];
 
+// Assistant, Onboarding, Resources, and Games are all occasional/reference
+// tools rather than something used every day - they live behind More
+// instead of taking up a slot on the main bar (see app/more/page.tsx).
+const MORE_ROUTES = ["/assistant", "/onboarding", "/library", "/games"];
+
 export default function BottomNav() {
   const pathname = usePathname();
+  const moreActive = MORE_ROUTES.some((r) => pathname?.startsWith(r)) || pathname?.startsWith("/more");
 
   return (
     <nav
@@ -64,6 +63,25 @@ export default function BottomNav() {
             </Link>
           );
         })}
+
+        <Link
+          href="/more"
+          className={`flex min-w-[64px] flex-1 flex-col items-center gap-1 px-1 py-2.5 text-[11px] font-medium transition-all duration-150 ${
+            moreActive ? "text-amber-light" : "text-slate-400"
+          }`}
+        >
+          <span
+            className="flex h-7 w-7 items-center justify-center rounded-full text-lg leading-none transition-all duration-150"
+            style={
+              moreActive
+                ? { background: "rgba(245,158,11,0.16)", boxShadow: "0 0 12px rgba(245,158,11,0.35)" }
+                : undefined
+            }
+          >
+            ⋯
+          </span>
+          <span>More</span>
+        </Link>
       </div>
     </nav>
   );
