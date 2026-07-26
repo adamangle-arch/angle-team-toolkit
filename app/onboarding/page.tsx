@@ -4,10 +4,11 @@ import { useEffect, useState } from "react";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
-import { ONBOARDING_SESSIONS } from "@/lib/constants";
+import { ONBOARDING_SESSIONS, isPrimaryUser } from "@/lib/constants";
 
 export default function OnboardingPage() {
   const { user } = useAuth();
+  const isAdmin = isPrimaryUser(user.email);
   const [unlockedThrough, setUnlockedThrough] = useState(1);
   const [loading, setLoading] = useState(true);
 
@@ -32,7 +33,9 @@ export default function OnboardingPage() {
     };
   }, [user.id]);
 
-  const unlockedCount = Math.min(unlockedThrough, ONBOARDING_SESSIONS.length);
+  const unlockedCount = isAdmin
+    ? ONBOARDING_SESSIONS.length
+    : Math.min(unlockedThrough, ONBOARDING_SESSIONS.length);
 
   return (
     <>
@@ -46,7 +49,7 @@ export default function OnboardingPage() {
         ) : (
           ONBOARDING_SESSIONS.map((session, i) => {
             const sessionNumber = i + 1;
-            const unlocked = sessionNumber <= unlockedThrough;
+            const unlocked = isAdmin || sessionNumber <= unlockedThrough;
             return (
               <div key={session.title} className="card space-y-2">
                 <div className="flex items-center justify-between gap-2">

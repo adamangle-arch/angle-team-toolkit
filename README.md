@@ -697,6 +697,12 @@ the next session" action by their upline, backed by
 a time, same authorization check as account deletion: upline-of or
 admin).
 
+Primary users (`adamangle@icloud.com`, `alexangle@me.com`) see every
+session unlocked on their own Onboarding tab, regardless of their own
+`onboarding_unlocked_through` value — a client-side display check
+(`isPrimaryUser`), not a schema change, so admins can review the full
+content without needing anyone to "unlock" it for them.
+
 ### Milestone Alerts
 
 Separate from the milestone badges on a public profile, the Leaderboard
