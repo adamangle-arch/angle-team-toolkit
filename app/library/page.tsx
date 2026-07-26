@@ -9,13 +9,25 @@ import { SCRIPTS } from "@/lib/scripts-data";
 import { PROCESS_STAGES, QUESTIONNAIRE_QUESTIONS, FIRST_MONTH_STEPS } from "@/lib/process-data";
 import { SAMPLE_BAG_GUIDE, SURVEY_QUESTIONS, SURVEY_APPOINTMENT_FLOW } from "@/lib/acquisition-data";
 
-type Section = "audios" | "books" | "leaders" | "products" | "scripts" | "process" | "acquisition";
+type Section =
+  | "audios"
+  | "books"
+  | "leaders"
+  | "products"
+  | "scripts"
+  | "process"
+  | "first_month"
+  | "acquisition";
 
 // "Process" leads the list (and is the default tab) so it's the first
 // thing a new person sees on Resources - what to actually do, not
-// buried behind Audios/Leaders/Products.
+// buried behind Audios/Leaders/Products. "Perfect First Month" is its
+// own pill right after Process (not a card inside it), since it's a
+// distinct next step once someone's launched, not part of the
+// pre-launch interview process.
 const SECTIONS: { key: Section; label: string }[] = [
   { key: "process", label: "Process" },
+  { key: "first_month", label: "Perfect First Month" },
   { key: "audios", label: "Audios" },
   { key: "books", label: "Books" },
   { key: "leaders", label: "Leaders" },
@@ -55,6 +67,7 @@ export default function LibraryPage() {
         {section === "products" && <ProductsSection query={query} setQuery={setQuery} />}
         {section === "scripts" && <ScriptsSection query={query} setQuery={setQuery} />}
         {section === "process" && <ProcessSection />}
+        {section === "first_month" && <FirstMonthSection />}
         {section === "acquisition" && <AcquisitionSection />}
       </main>
     </>
@@ -372,30 +385,34 @@ function ProcessSection() {
           </p>
         ))}
       </div>
-
-      <div className="card space-y-2">
-        <p className="section-title">🚀 Perfect First Month (New Launch)</p>
-        <p className="text-xs text-slate-400">
-          Step by step, in order, for someone who just launched.
-        </p>
-        {FIRST_MONTH_STEPS.map((s, i) => (
-          <div key={s.step} className="space-y-1">
-            <p className="text-sm font-medium text-white">
-              {i + 1}. {s.step}
-            </p>
-            {s.substeps && (
-              <div className="space-y-0.5 pl-4">
-                {s.substeps.map((sub) => (
-                  <p key={sub} className="text-xs text-slate-400">
-                    • {sub}
-                  </p>
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
     </>
+  );
+}
+
+function FirstMonthSection() {
+  return (
+    <div className="card space-y-2">
+      <p className="section-title">🚀 Perfect First Month (New Launch)</p>
+      <p className="text-xs text-slate-400">
+        Step by step, in order, for someone who just launched.
+      </p>
+      {FIRST_MONTH_STEPS.map((s, i) => (
+        <div key={s.step} className="space-y-1">
+          <p className="text-sm font-medium text-white">
+            {i + 1}. {s.step}
+          </p>
+          {s.substeps && (
+            <div className="space-y-0.5 pl-4">
+              {s.substeps.map((sub) => (
+                <p key={sub} className="text-xs text-slate-400">
+                  • {sub}
+                </p>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
   );
 }
 

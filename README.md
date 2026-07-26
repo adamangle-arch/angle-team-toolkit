@@ -497,11 +497,13 @@ after **Onboarding** in the bottom nav instead of near the back — so a
 new person's path is Onboarding → Resources (Process) rather than
 Process being buried behind Audios/Leaders/Products/Scripts.
 
-The Process tab's **🚀 Perfect First Month (New Launch)** card (still
-in the same tab as the pre-launch interview process/questionnaire —
-nothing moved out of Process, this only reordered where the tab sits)
-is now an actual numbered step-by-step instead of a loose bag of
-targets (`FIRST_MONTH_STEPS` in `lib/process-data.ts`):
+**🚀 Perfect First Month** is its own pill, right after Process — not a
+card nested inside it. Process stays exactly what it was (the pre-launch
+interview stages + the official Pre-Launch Questionnaire); Perfect First
+Month is the distinct next step once someone's actually launched, so it
+gets its own tab rather than living inside the pre-launch content. It's
+an actual numbered step-by-step instead of a loose bag of targets
+(`FIRST_MONTH_STEPS` in `lib/process-data.ts`):
 
 1. Budget Session
 2. Create your A/B List
