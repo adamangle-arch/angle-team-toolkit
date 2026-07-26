@@ -178,6 +178,13 @@ export const PRODUCTS: Product[] = [
     pv: "2.03 PV",
   },
   {
+    name: "Glister Travel Size Multi-Action Toothpaste, 6-pack",
+    brand: "Glister",
+    summary: "Same formula as the full-size toothpaste, in travel-friendly tubes.",
+    bestFor: "Travelers, gym bags, kids' backpacks, sampling for new customers.",
+    pv: "5.51 PV",
+  },
+  {
     name: "Glister Multi-Action Concentrated Oral Rinse",
     brand: "Glister",
     summary: "Concentrated mouthwash — complements brushing/flossing for a complete daily oral care routine.",
@@ -190,6 +197,13 @@ export const PRODUCTS: Product[] = [
     summary: "Portable breath-freshening spray for on-the-go touch-ups between brushing.",
     bestFor: "On-the-go breath freshening.",
     pv: "1.90 PV",
+  },
+  {
+    name: "Glister Multi-Action Power Toothbrush",
+    brand: "Glister",
+    summary: "Rechargeable sonic toothbrush with multiple cleaning modes.",
+    bestFor: "Anyone wanting an upgrade from a manual toothbrush.",
+    pv: "45.92 PV",
   },
   {
     name: "Glister Multi-Action Power Toothbrush Refills",
