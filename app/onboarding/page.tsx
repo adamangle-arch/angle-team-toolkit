@@ -1,10 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import { ONBOARDING_SESSIONS, isPrimaryUser } from "@/lib/constants";
+
+// A resource url starting with "/" is a link to somewhere else in the
+// app (e.g. a Resources tab) rather than an external video/doc link -
+// those should navigate in-app via next/link instead of opening a new
+// browser tab.
+function isInternalLink(url: string): boolean {
+  return url.startsWith("/");
+}
 
 export default function OnboardingPage() {
   const { user } = useAuth();
@@ -104,7 +113,14 @@ export default function OnboardingPage() {
                   <div className="space-y-1.5">
                     {session.resources.map((r) => (
                       <div key={r.label} className="rounded-lg bg-navy px-3 py-2">
-                        {r.url ? (
+                        {r.url && isInternalLink(r.url) ? (
+                          <Link
+                            href={r.url}
+                            className="text-sm font-medium text-amber-light underline decoration-dotted underline-offset-2"
+                          >
+                            {r.label}
+                          </Link>
+                        ) : r.url ? (
                           <a
                             href={r.url}
                             target="_blank"

@@ -234,6 +234,11 @@ export const ONBOARDING_SESSIONS: OnboardingSession[] = [
         label: "🎥 Sample Bag Video",
         detail: "Your upline will send this to you on the LTD messaging app. Watch before your next meeting.",
       },
+      {
+        label: "📚 Resources: Customers Tab",
+        detail: "The Customer Survey questions and Sample Bag guide both live here — come back anytime.",
+        url: "/library?tab=acquisition",
+      },
       { label: "📖 Product Value Guide", detail: "Replace with your product/value reading." },
     ],
   },
