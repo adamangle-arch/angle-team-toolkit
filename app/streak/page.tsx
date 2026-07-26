@@ -797,11 +797,6 @@ export default function StreakPage() {
                 value={selectedRow.yeses}
                 onChange={(next) => saveToday({ yeses: next })}
               />
-              <Counter
-                label="Depth Texts"
-                value={selectedRow.depth_texts}
-                onChange={(next) => saveToday({ depth_texts: next })}
-              />
             </div>
 
             <div className="card space-y-2">
