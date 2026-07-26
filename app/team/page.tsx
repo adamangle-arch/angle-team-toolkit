@@ -6,7 +6,13 @@ import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
 import FeatureGate from "@/components/FeatureGate";
 import { supabase } from "@/lib/supabaseClient";
-import { isPrimaryUser, PIPELINE_STAGES, CANDIDATE_STEPS, ONBOARDING_SESSIONS } from "@/lib/constants";
+import {
+  isPrimaryUser,
+  PIPELINE_STAGES,
+  CANDIDATE_STEPS,
+  ONBOARDING_SESSIONS,
+  SESSION_4_CONTACT_MINIMUM,
+} from "@/lib/constants";
 import { groupCallRatingsByType } from "@/lib/call-ratings";
 import { getMonthStart, getWeekStart, formatDateLabel } from "@/lib/dates";
 import type {
@@ -212,6 +218,15 @@ export default function TeamPage() {
   }, [selectedId, profiles]);
 
   const selectedProfile = profiles.find((p) => p.id === selectedId) ?? null;
+
+  // Session 4 ("Sharing Your Story") shouldn't unlock until this person
+  // has put real work into their A/B list - not the Customer list, which
+  // is a separate thing. Only relevant for the 3 -> 4 transition; every
+  // other "Unlock Next" step is ungated.
+  const networkContactCount =
+    memberData?.contacts.filter((c) => c.category === "A" || c.category === "B").length ?? 0;
+  const unlockingSession4 = (selectedProfile?.onboarding_unlocked_through ?? 1) === 3;
+  const session4Gated = unlockingSession4 && networkContactCount < SESSION_4_CONTACT_MINIMUM;
 
   // Reset the delete-confirmation fields whenever the selected member
   // changes, adjusted during render rather than in an effect.
@@ -620,6 +635,13 @@ export default function TeamPage() {
                         /{ONBOARDING_SESSIONS.length} sessions unlocked
                       </p>
                       {grantError && <p className="text-xs text-red-400">{grantError}</p>}
+                      {unlockingSession4 && (
+                        <p className={`text-xs ${session4Gated ? "text-amber-light" : "text-slate-500"}`}>
+                          Session 4 needs {SESSION_4_CONTACT_MINIMUM}+ names in the Contact
+                          Builder&apos;s A/B list — currently {networkContactCount}/
+                          {SESSION_4_CONTACT_MINIMUM}.
+                        </p>
+                      )}
                     </div>
                     <div className="flex gap-2">
                       <button
@@ -647,6 +669,7 @@ export default function TeamPage() {
                         onClick={handleGrantOnboarding}
                         disabled={
                           grantingOnboarding ||
+                          session4Gated ||
                           (selectedProfile?.onboarding_unlocked_through ?? 1) >=
                             ONBOARDING_SESSIONS.length
                         }

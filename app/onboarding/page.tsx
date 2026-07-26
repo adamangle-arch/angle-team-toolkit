@@ -5,7 +5,7 @@ import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
-import { ONBOARDING_SESSIONS, isPrimaryUser } from "@/lib/constants";
+import { ONBOARDING_SESSIONS, SESSION_4_CONTACT_MINIMUM, isPrimaryUser } from "@/lib/constants";
 
 // A resource url starting with "/" is a link to somewhere else in the
 // app (e.g. a Resources tab) rather than an external video/doc link -
@@ -16,22 +16,27 @@ function isInternalLink(url: string): boolean {
 }
 
 export default function OnboardingPage() {
-  const { user, onboardingComplete } = useAuth();
+  const { user, ownerId, onboardingComplete } = useAuth();
   const isAdmin = isPrimaryUser(user.email);
   const [unlockedThrough, setUnlockedThrough] = useState(1);
+  const [networkContactCount, setNetworkContactCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
-      const { data } = await supabase
-        .from("profiles")
-        .select("onboarding_unlocked_through")
-        .eq("id", user.id)
-        .single();
+      const [{ data: profileData }, { count }] = await Promise.all([
+        supabase.from("profiles").select("onboarding_unlocked_through").eq("id", user.id).single(),
+        supabase
+          .from("contacts")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", ownerId)
+          .in("category", ["A", "B"]),
+      ]);
       if (!cancelled) {
-        setUnlockedThrough(data?.onboarding_unlocked_through ?? 1);
+        setUnlockedThrough(profileData?.onboarding_unlocked_through ?? 1);
+        setNetworkContactCount(count ?? 0);
         setLoading(false);
       }
     }
@@ -40,7 +45,7 @@ export default function OnboardingPage() {
     return () => {
       cancelled = true;
     };
-  }, [user.id]);
+  }, [user.id, ownerId]);
 
   const unlockedCount = isAdmin
     ? ONBOARDING_SESSIONS.length
@@ -150,9 +155,18 @@ export default function OnboardingPage() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-xs text-slate-500">
-                    Ask your upline to unlock this session once you&apos;re ready.
-                  </p>
+                  <>
+                    {sessionNumber === 4 && (
+                      <p className="text-xs text-amber-light">
+                        This one needs {SESSION_4_CONTACT_MINIMUM}+ names in your Contact
+                        Builder&apos;s A/B list first — you have {networkContactCount}/
+                        {SESSION_4_CONTACT_MINIMUM}.
+                      </p>
+                    )}
+                    <p className="text-xs text-slate-500">
+                      Ask your upline to unlock this session once you&apos;re ready.
+                    </p>
+                  </>
                 )}
               </div>
             );

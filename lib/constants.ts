@@ -166,6 +166,15 @@ export type OnboardingSession = {
   resources: OnboardingResource[];
 };
 
+// Session 4 ("Sharing Your Story") shouldn't unlock until someone has put
+// real work into their A/B list - not the full 100 Session 2 asks for
+// eventually, but enough (50) that they actually have people to practice
+// story-sharing on. Checked against category 'A'/'B' rows in `contacts`
+// (not 'Customer' - that's a separate list). Single source of truth for
+// both the Team tab's Unlock Next gate and the Onboarding page's own
+// progress readout.
+export const SESSION_4_CONTACT_MINIMUM = 50;
+
 export const ONBOARDING_SESSIONS: OnboardingSession[] = [
   {
     title: "Session 1: Budget Session",

@@ -787,6 +787,26 @@ Primary users bypass all of this (`unlockedThrough` reads as unlimited for
 them via `AuthGate`'s `useAuth()`), same as the full-Onboarding-content
 bypass above.
 
+**Session 4 has an extra requirement:** it shouldn't unlock until someone
+has put real work into their A/B list — `SESSION_4_CONTACT_MINIMUM` (50)
+in `lib/constants.ts` is the single source of truth, checked against
+`category in ('A', 'B')` rows in `contacts` (the Customer list doesn't
+count). Two places read it:
+- **Team tab** — the upline's "Unlock Next" button is disabled for the
+  3→4 transition specifically until the person's count clears 50, with a
+  "currently X/50" readout next to it so the upline can see the gap
+  without guessing. Every other transition (1→2, 2→3, 4→5) is ungated, and
+  "Unlock All" stays ungated everywhere — it's the existing intentional
+  override for someone who isn't actually new.
+- **Onboarding page** — the mentee sees the same "you have X/50" progress
+  line right on their own locked Session 4 card, so they know what's left
+  without having to ask.
+
+This is enforcement, not just a suggestion — reaching 50 doesn't
+auto-unlock anything (onboarding has always been upline-granted, not
+self-serve), it only unblocks the upline's button once they're ready to
+grant it.
+
 **Onboarding is the home screen until it's done.** The "resume where you
 left off" behavior that sends people to the Today dashboard on app open
 now checks completion first: anyone who hasn't unlocked all 5 sessions
