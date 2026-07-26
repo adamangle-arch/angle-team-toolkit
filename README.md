@@ -1056,6 +1056,13 @@ touch existing data.
 
 ## Notes on Rate a Call
 
+The Role-Play / Rate a Call toggle-pill row on the Assistant page used to
+scroll away with the rest of the chat — once a Role-Play conversation got
+long, switching to Rate a Call meant scrolling all the way back to the top
+first. It's now wrapped in a `.tab-bar-sticky` class (`app/globals.css`)
+that pins it just below the app header regardless of scroll position,
+same idea as the header itself being sticky.
+
 `CallRatingPanel.tsx`'s save step used to silently swallow a failed
 `call_ratings` insert — if that table (or a column/constraint on it)
 didn't exist yet in a given Supabase project, the rating would still
