@@ -150,37 +150,42 @@ export default function GoalsPage() {
                       <p className="text-[10px] uppercase tracking-wide text-slate-500">
                         {p.label}
                       </p>
-                      <div className="flex items-center justify-center gap-1 text-sm font-bold text-white">
-                        <span className={hit ? "text-amber-light" : ""}>{actual}</span>
-                        <span className="text-slate-500">/</span>
-                        <input
-                          type="number"
-                          min={0}
-                          inputMode="numeric"
-                          className="input !w-12 !p-1 text-center text-sm"
-                          value={targetInputs[inputKey(m.key, p.key)] ?? ""}
-                          onChange={(e) =>
-                            setTargetInputs((prev) => ({
-                              ...prev,
-                              [inputKey(m.key, p.key)]: e.target.value,
-                            }))
-                          }
-                          onBlur={(e) => {
-                            const parsed = Math.max(0, parseInt(e.target.value, 10) || 0);
-                            setTargetInputs((prev) => ({
-                              ...prev,
-                              [inputKey(m.key, p.key)]: parsed > 0 ? String(parsed) : "",
-                            }));
-                            if (parsed !== target) setTarget(m.key, p.key, parsed);
-                          }}
-                        />
-                      </div>
-                      <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
-                        <div
-                          className={`h-full ${hit ? "bg-amber" : "bg-amber/60"}`}
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
+                      <p className={`text-lg font-bold ${hit ? "text-amber-light" : "text-white"}`}>
+                        {actual}
+                        {target > 0 && (
+                          <span className="text-xs font-normal text-slate-500"> / {target}</span>
+                        )}
+                      </p>
+                      <input
+                        type="number"
+                        min={0}
+                        inputMode="numeric"
+                        placeholder="Set goal"
+                        className="input !w-full !p-1 text-center text-xs"
+                        value={targetInputs[inputKey(m.key, p.key)] ?? ""}
+                        onChange={(e) =>
+                          setTargetInputs((prev) => ({
+                            ...prev,
+                            [inputKey(m.key, p.key)]: e.target.value,
+                          }))
+                        }
+                        onBlur={(e) => {
+                          const parsed = Math.max(0, parseInt(e.target.value, 10) || 0);
+                          setTargetInputs((prev) => ({
+                            ...prev,
+                            [inputKey(m.key, p.key)]: parsed > 0 ? String(parsed) : "",
+                          }));
+                          if (parsed !== target) setTarget(m.key, p.key, parsed);
+                        }}
+                      />
+                      {target > 0 && (
+                        <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+                          <div
+                            className={`h-full ${hit ? "bg-amber" : "bg-amber/60"}`}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      )}
                     </div>
                   );
                 })}

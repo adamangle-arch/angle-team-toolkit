@@ -1492,7 +1492,11 @@ for delete using (user_id = auth.uid() or public.is_app_admin());
 
 -- All of a user's downline (any level), for the broadcast function
 -- below - is_upline_of only answers "is A upline of B", so this wraps
--- it into "give me every B for this A."
+-- it into "give me every B for this A." Excludes a linked spouse even
+-- if they also happen to satisfy is_upline_of (e.g. they entered this
+-- person's account number as their own upline when they signed up) -
+-- their business data resolves to the exact same owner as this
+-- account's own, so they're not really "downline."
 create or replace function public.get_downline_user_ids(p_user_id uuid)
 returns table (user_id uuid)
 language sql
@@ -1500,7 +1504,11 @@ stable
 security definer
 set search_path = public
 as $$
-  select id from profiles where public.is_upline_of(p_user_id, id);
+  select id from profiles
+  where public.is_upline_of(p_user_id, id)
+    and coalesce(household_id, id) <> coalesce(
+      (select household_id from profiles where id = p_user_id), p_user_id
+    );
 $$;
 
 grant execute on function public.get_downline_user_ids(uuid) to authenticated;

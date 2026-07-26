@@ -217,6 +217,14 @@ export default function StreakPage() {
   // (household_id), same resolution the Team tab uses, so downline
   // members are deduped to their household owner before summing to
   // avoid double-counting a linked pair.
+  //
+  // A linked spouse is NOT downline even if they also happen to satisfy
+  // is_upline_of (e.g. they entered your account number as their upline
+  // when they signed up) - their business data resolves to the exact
+  // same ownerId as this account's own, so counting them here would
+  // double-count your own numbers under their name. Filter anyone whose
+  // resolved owner matches this account's own ownerId before doing
+  // anything else with the list.
   useEffect(() => {
     let cancelled = false;
 
@@ -226,8 +234,9 @@ export default function StreakPage() {
         .select("id,first_name,last_name,household_id")
         .neq("id", user.id);
       if (cancelled) return;
-      const downlineProfiles =
-        (data as Pick<Profile, "id" | "first_name" | "last_name" | "household_id">[]) ?? [];
+      const downlineProfiles = (
+        (data as Pick<Profile, "id" | "first_name" | "last_name" | "household_id">[]) ?? []
+      ).filter((p) => (p.household_id ?? p.id) !== ownerId);
       setDownlineMemberCount(downlineProfiles.length);
 
       if (downlineProfiles.length === 0) {
@@ -287,7 +296,7 @@ export default function StreakPage() {
     return () => {
       cancelled = true;
     };
-  }, [user.id]);
+  }, [user.id, ownerId]);
 
   const selectedRow: StreakDay = history[selectedDay] ?? emptyDay(user.id, selectedDay);
 

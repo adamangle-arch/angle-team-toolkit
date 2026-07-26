@@ -89,17 +89,24 @@ export default function CalendarPage() {
     load();
   }, [ownerId]);
 
+  // A linked spouse can also technically satisfy is_upline_of (e.g. they
+  // entered this account's number as their own upline when they signed
+  // up), but they're not real downline - their data resolves to this
+  // same account's ownerId, so they're excluded here the same way the
+  // Daily Update summary's downline totals are.
   useEffect(() => {
     async function load() {
       const { data } = await supabase
         .from("profiles")
-        .select("id")
-        .neq("id", user.id)
-        .limit(1);
-      setHasDownline(((data as { id: string }[]) ?? []).length > 0);
+        .select("id,household_id")
+        .neq("id", user.id);
+      const real = ((data as { id: string; household_id: string | null }[]) ?? []).filter(
+        (p) => (p.household_id ?? p.id) !== ownerId
+      );
+      setHasDownline(real.length > 0);
     }
     load();
-  }, [user.id]);
+  }, [user.id, ownerId]);
 
   async function addEvent() {
     const trimmedTitle = title.trim();

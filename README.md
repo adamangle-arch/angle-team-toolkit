@@ -324,8 +324,10 @@ fields specifically so page counts are a real trackable number). This
 mirrors the same "never a separate source of truth that can drift"
 principle the rest of Core Run Streak already follows. Targets are
 individual (not shared with a linked spouse), stored in a new `goals`
-table, one row per metric+period, editable inline by tapping the number
-next to your progress.
+table, one row per metric+period. Until a target is set for a given
+period, that cell just shows the plain logged count and a "Set goal"
+input — no confusing bare "4 /" next to an empty box; the `X / target`
+form and progress bar only appear once a real target exists.
 
 ### Calendar (meetings, reminders, team events)
 
@@ -354,6 +356,14 @@ separate Google Calendar for team scheduling:
   this is how "when exactly QI1s are booked, and every other step of the
   process" becomes visible to upline without anyone having to share a
   separate calendar app.
+
+A linked spouse is never treated as "downline" for this, even if their
+account also technically satisfies the upline check (e.g. they entered
+your account number as their own upline when they signed up) — their
+data resolves to the same shared owner as your own, so counting them
+separately would double-count your own numbers under their name. Both
+the "Add to all downline" broadcast and the Daily Update summary's
+Downline totals (Core Run Streak page) filter this out.
 
 Data lives in a new `calendar_events` table, individual per person (not
 shared with a linked spouse, same as Core Run Streak) — `user_id` is
