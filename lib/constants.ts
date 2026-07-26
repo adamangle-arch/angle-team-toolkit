@@ -298,8 +298,6 @@ export const ONBOARDING_SESSIONS: OnboardingSession[] = [
         label: "📋 Homework: Contact Builder",
         detail: `Have ${SESSION_4_CONTACT_MINIMUM}+ names in your A/B list — also required to unlock this session. Tracked automatically and shown further up this page while it's still locked.`,
       },
-      { label: "🎥 Story Training Video", detail: "Replace with your story-sharing training link." },
-      { label: "🎧 Story Examples Audio", detail: "Replace with example story audio." },
       {
         label: "🎧 Ditch the Pitch",
         detail: "Audio by Drew Tidwell — found in the First 90 Days tab on the LTD Media app.",
