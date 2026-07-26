@@ -230,6 +230,10 @@ export const ONBOARDING_SESSIONS: OnboardingSession[] = [
         detail: "Video by Laura Angle — watch before doing customer surveys.",
         url: "https://www.youtube.com/watch?v=-4e9twlrGDk",
       },
+      {
+        label: "🎥 Sample Bag Video",
+        detail: "Your upline will send this to you on the LTD messaging app. Watch before your next meeting.",
+      },
       { label: "📖 Product Value Guide", detail: "Replace with your product/value reading." },
     ],
   },
