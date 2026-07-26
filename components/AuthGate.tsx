@@ -10,6 +10,7 @@ import ConfigWarning from "./ConfigWarning";
 import ProfileGate from "./ProfileGate";
 import ProfileDetailsGate from "./ProfileDetailsGate";
 import QuoteOverlay from "./QuoteOverlay";
+import { ONBOARDING_SESSIONS, isPrimaryUser } from "@/lib/constants";
 import type { Profile } from "@/lib/types";
 
 type AuthContextValue = {
@@ -20,6 +21,11 @@ type AuthContextValue = {
   // it's the spouse's id. Core Run Streak and the profile itself always
   // use user.id directly, never ownerId.
   ownerId: string;
+  // How many Onboarding sessions are unlocked (Infinity for admins) -
+  // drives the progressive feature-unlock gating in lib/onboarding-gate.ts
+  // (BottomNav, the More tab, and each gated page all read this).
+  unlockedThrough: number;
+  onboardingComplete: boolean;
   refreshProfile: () => void;
   signOut: () => void;
 };
@@ -71,21 +77,31 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   const nameTeamComplete = Boolean(profile?.first_name && profile?.last_name && profile?.team);
   const fullyAuthed = Boolean(user && !profileLoading && profile && nameTeamComplete && profile.profile_prompted);
 
+  // Admins always see the whole app - onboarding gating is for brand-new
+  // signups, not for the people running the team.
+  const isAdmin = Boolean(user && isPrimaryUser(user.email));
+  const unlockedThrough = isAdmin ? Infinity : (profile?.onboarding_unlocked_through ?? 1);
+  const onboardingComplete = unlockedThrough >= ONBOARDING_SESSIONS.length;
+
   // Whatever URL the browser/PWA happens to resume at (a bookmark, an
   // iOS home-screen launch resuming its last page, a stale tab), the
   // first time the fully-authenticated app shell mounts in a given tab
-  // session, send them to the Today dashboard instead of wherever that
-  // URL points. sessionStorage (not localStorage) is what makes this
-  // "once per app open" rather than "once ever" or "on every reload."
+  // session, send them to their home screen instead of wherever that URL
+  // points - the Today dashboard once Onboarding is complete, but
+  // Onboarding itself is the "home screen" until then, since it's the
+  // most important thing for a brand-new person to finish first.
+  // sessionStorage (not localStorage) is what makes this "once per app
+  // open" rather than "once ever" or "on every reload."
   useEffect(() => {
     if (!fullyAuthed) return;
     if (typeof window === "undefined") return;
     if (sessionStorage.getItem("atk_app_opened")) return;
     sessionStorage.setItem("atk_app_opened", "1");
-    if (pathname !== "/dashboard") {
-      router.replace("/dashboard");
+    const homePath = onboardingComplete ? "/dashboard" : "/onboarding";
+    if (pathname !== homePath) {
+      router.replace(homePath);
     }
-  }, [fullyAuthed, pathname, router]);
+  }, [fullyAuthed, onboardingComplete, pathname, router]);
 
   if (loading) {
     return (
@@ -137,6 +153,8 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
       value={{
         user,
         ownerId,
+        unlockedThrough,
+        onboardingComplete,
         refreshProfile: () => loadProfile(user.id),
         signOut: () => supabase.auth.signOut(),
       }}

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
+import { minSessionFor } from "@/lib/onboarding-gate";
 import { supabase } from "@/lib/supabaseClient";
 import { getToday, formatDateLabel } from "@/lib/dates";
 import { GOAL_ITEMS_BY_PERIOD } from "@/lib/constants";
@@ -21,8 +22,15 @@ function formatEventTime(iso: string): string {
 }
 
 export default function DashboardPage() {
-  const { user, ownerId } = useAuth();
+  const { user, ownerId, unlockedThrough } = useAuth();
   const today = getToday();
+  // Today is reachable from the bottom nav at every tier, but its cards
+  // link to pages that are still gated at later tiers - only show a card
+  // once its destination is actually unlocked, so it never links
+  // somewhere that immediately bounces back to Onboarding.
+  const showStreak = unlockedThrough >= minSessionFor("/streak");
+  const showGoals = unlockedThrough >= minSessionFor("/goals");
+  const showPipeline = unlockedThrough >= minSessionFor("/pipeline");
 
   const [loading, setLoading] = useState(true);
   const [streakToday, setStreakToday] = useState<StreakDay | null>(null);
@@ -101,39 +109,43 @@ export default function DashboardPage() {
           <div className="empty-state">Loading today…</div>
         ) : (
           <>
-            <Link href="/streak" className="card block space-y-2">
-              <div className="flex items-center justify-between">
-                <p className="section-title">🔥 Core Run Streak</p>
-                <span className="pill pill-amber">{currentStreak}d</span>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {STREAK_CHECKS.map((c) => (
-                  <span key={c.key} className={streakToday?.[c.key] ? "pill-amber" : "pill"}>
-                    {streakToday?.[c.key] ? "✅" : "⬜"} {c.label}
-                  </span>
-                ))}
-              </div>
-            </Link>
-
-            <Link href="/goals" className="card block space-y-2">
-              <p className="section-title">🎯 Today&apos;s Goals</p>
-              {hasAnyDailyGoal ? (
-                <div className="space-y-1">
-                  {GOAL_ITEMS_BY_PERIOD.daily
-                    .filter((item) => goalTarget(item.key) > 0)
-                    .map((item) => (
-                      <div key={item.key} className="flex items-center justify-between text-sm">
-                        <span className="text-slate-300">
-                          {item.prefix} {item.suffix}
-                        </span>
-                        <span className="pill">{goalTarget(item.key)}</span>
-                      </div>
-                    ))}
+            {showStreak && (
+              <Link href="/streak" className="card block space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="section-title">🔥 Core Run Streak</p>
+                  <span className="pill pill-amber">{currentStreak}d</span>
                 </div>
-              ) : (
-                <p className="text-sm text-slate-400">No daily goals set yet — tap to set some.</p>
-              )}
-            </Link>
+                <div className="flex flex-wrap gap-1.5">
+                  {STREAK_CHECKS.map((c) => (
+                    <span key={c.key} className={streakToday?.[c.key] ? "pill-amber" : "pill"}>
+                      {streakToday?.[c.key] ? "✅" : "⬜"} {c.label}
+                    </span>
+                  ))}
+                </div>
+              </Link>
+            )}
+
+            {showGoals && (
+              <Link href="/goals" className="card block space-y-2">
+                <p className="section-title">🎯 Today&apos;s Goals</p>
+                {hasAnyDailyGoal ? (
+                  <div className="space-y-1">
+                    {GOAL_ITEMS_BY_PERIOD.daily
+                      .filter((item) => goalTarget(item.key) > 0)
+                      .map((item) => (
+                        <div key={item.key} className="flex items-center justify-between text-sm">
+                          <span className="text-slate-300">
+                            {item.prefix} {item.suffix}
+                          </span>
+                          <span className="pill">{goalTarget(item.key)}</span>
+                        </div>
+                      ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-400">No daily goals set yet — tap to set some.</p>
+                )}
+              </Link>
+            )}
 
             <Link href="/calendar" className="card block space-y-2">
               <p className="section-title">📅 Today&apos;s Calendar</p>
@@ -151,20 +163,22 @@ export default function DashboardPage() {
               )}
             </Link>
 
-            <Link href="/pipeline" className="card block space-y-2">
-              <p className="section-title">📊 Today&apos;s Pipeline</p>
-              {pipelineActivity.length === 0 ? (
-                <p className="text-sm text-slate-400">Nothing logged in the pipeline yet today.</p>
-              ) : (
-                <div className="flex flex-wrap gap-1.5">
-                  {pipelineActivity.map((s) => (
-                    <span key={s.label} className="pill pill-amber">
-                      {s.label}: {s.value}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </Link>
+            {showPipeline && (
+              <Link href="/pipeline" className="card block space-y-2">
+                <p className="section-title">📊 Today&apos;s Pipeline</p>
+                {pipelineActivity.length === 0 ? (
+                  <p className="text-sm text-slate-400">Nothing logged in the pipeline yet today.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {pipelineActivity.map((s) => (
+                      <span key={s.label} className="pill pill-amber">
+                        {s.label}: {s.value}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </Link>
+            )}
           </>
         )}
       </main>

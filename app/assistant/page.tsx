@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
+import FeatureGate from "@/components/FeatureGate";
 import { supabase } from "@/lib/supabaseClient";
 import type { AssistantMessage } from "@/lib/types";
 
@@ -125,7 +126,7 @@ export default function AssistantPage() {
   }
 
   return (
-    <>
+    <FeatureGate minSession={5}>
       <PageHeader title="Role-Play Coach" subtitle="Practice A-list, B-list, and C-list conversations" />
       <main className="page-main">
         {loading ? (
@@ -233,6 +234,6 @@ export default function AssistantPage() {
           </button>
         </div>
       </main>
-    </>
+    </FeatureGate>
   );
 }

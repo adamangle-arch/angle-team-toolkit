@@ -714,6 +714,43 @@ listen to before working through it — and **Normalize the Work** by Kyle
 and Austin Brown, and Hunter and Vanessa Lindsay, which has no link since
 their coach sends it directly through the LTD media app.
 
+### Progressive feature unlock
+
+A brand-new signup doesn't see the whole app at once — it's a lot to take
+in on day one. Instead, tabs unlock in step with Onboarding, driven by the
+same `profiles.onboarding_unlocked_through` value used above (no separate
+schema — this is purely additive gating on top of it):
+
+| Unlocks at session | Tabs |
+| --- | --- |
+| 1 (signup) | Today, Calendar, Leaderboard, Onboarding, Resources, My Profile, Search, More |
+| 2 (List Building done) | + Contacts, Volume |
+| 3 (Customer Acquisition done) | *(nothing new)* |
+| 4 (Sharing Your Story done) | + Pipeline, History |
+| 5 (30-Day Core Run done) | + Run Streak, Goals, Team, Games, Assistant |
+
+The mapping lives in one place, `lib/onboarding-gate.ts`'s
+`FEATURE_MIN_SESSION`, and is read by three call sites: `BottomNav` and
+`app/more/page.tsx` filter out locked tabs entirely (they don't show up
+grayed-out — they just aren't there yet), and each gated page is wrapped
+in a `<FeatureGate minSession={N}>` component that bounces a direct visit
+(a bookmark, a stale link) back to `/onboarding` if that tier isn't
+unlocked yet. The Today dashboard is always reachable, but its Core Run
+Streak / Goals / Pipeline cards only render once their destination is
+actually unlocked, so it never links somewhere that immediately bounces.
+
+Primary users bypass all of this (`unlockedThrough` reads as unlimited for
+them via `AuthGate`'s `useAuth()`), same as the full-Onboarding-content
+bypass above.
+
+**Onboarding is the home screen until it's done.** The "resume where you
+left off" behavior that sends people to the Today dashboard on app open
+now checks completion first: anyone who hasn't unlocked all 5 sessions
+gets sent to `/onboarding` instead, every time they open the app, until
+they finish — reinforcing that Onboarding is the most important thing for
+a new person to work through first. Once all 5 sessions are unlocked, app
+open goes back to landing on Today as usual.
+
 ### Milestone Alerts
 
 Separate from the milestone badges on a public profile, the Leaderboard

@@ -3,6 +3,7 @@
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
+import FeatureGate from "@/components/FeatureGate";
 import DiamondRunGame from "@/components/games/DiamondRunGame";
 import DiamondChaseGame from "@/components/games/DiamondChaseGame";
 import TriviaGame from "@/components/games/TriviaGame";
@@ -49,13 +50,13 @@ function GamesTabs() {
 
 export default function GamesPage() {
   return (
-    <>
+    <FeatureGate minSession={5}>
       <PageHeader title="Games" subtitle="Take a break and have some fun" />
       <main className="page-main">
         <Suspense fallback={<div className="empty-state">Loading…</div>}>
           <GamesTabs />
         </Suspense>
       </main>
-    </>
+    </FeatureGate>
   );
 }

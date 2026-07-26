@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import PageHeader from "@/components/PageHeader";
 import TrendChart from "@/components/TrendChart";
 import { useAuth } from "@/components/AuthGate";
+import FeatureGate from "@/components/FeatureGate";
 import { supabase } from "@/lib/supabaseClient";
 import { getMonthStart, formatMonthLabel, formatShortMonthLabel } from "@/lib/dates";
 import type { MonthlyPv, CustomerSale, SaleCategory } from "@/lib/types";
@@ -196,7 +197,7 @@ export default function VolumePage() {
   }
 
   return (
-    <>
+    <FeatureGate minSession={2}>
       <PageHeader title="Volume" subtitle={formatMonthLabel(periodStart)} />
       <main className="page-main">
         <div className="card space-y-3">
@@ -416,6 +417,6 @@ export default function VolumePage() {
           </div>
         )}
       </main>
-    </>
+    </FeatureGate>
   );
 }

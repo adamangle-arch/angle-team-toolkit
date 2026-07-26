@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
+import FeatureGate from "@/components/FeatureGate";
 import { supabase } from "@/lib/supabaseClient";
 import { getWeekStart, getMonthStart } from "@/lib/dates";
 import {
@@ -98,7 +99,7 @@ export default function GoalsPage() {
   }
 
   return (
-    <>
+    <FeatureGate minSession={5}>
       <PageHeader title="Goals" subtitle="Your goal today is:" />
       <main className="page-main">
         {loading ? (
@@ -156,6 +157,6 @@ export default function GoalsPage() {
           ))
         )}
       </main>
-    </>
+    </FeatureGate>
   );
 }

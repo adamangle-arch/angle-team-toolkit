@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
+import FeatureGate from "@/components/FeatureGate";
 import { supabase } from "@/lib/supabaseClient";
 import { isPrimaryUser, PIPELINE_STAGES, CANDIDATE_STEPS, ONBOARDING_SESSIONS } from "@/lib/constants";
 import { getMonthStart, getWeekStart, formatDateLabel } from "@/lib/dates";
@@ -249,7 +250,7 @@ export default function TeamPage() {
   }
 
   return (
-    <>
+    <FeatureGate minSession={5}>
       <PageHeader
         title="Team"
         subtitle={
@@ -557,6 +558,6 @@ export default function TeamPage() {
           </>
         )}
       </main>
-    </>
+    </FeatureGate>
   );
 }

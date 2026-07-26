@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth } from "./AuthGate";
+import { minSessionFor } from "@/lib/onboarding-gate";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Today", icon: "🏠" },
@@ -25,7 +27,9 @@ const MORE_ROUTES = ["/assistant", "/onboarding", "/library", "/games"];
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const { unlockedThrough } = useAuth();
   const moreActive = MORE_ROUTES.some((r) => pathname?.startsWith(r)) || pathname?.startsWith("/more");
+  const visibleItems = NAV_ITEMS.filter((item) => unlockedThrough >= minSessionFor(item.href));
 
   return (
     <nav
@@ -39,7 +43,7 @@ export default function BottomNav() {
         className="no-scrollbar flex overflow-x-auto"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
-        {NAV_ITEMS.map((item) => {
+        {visibleItems.map((item) => {
           const active = pathname?.startsWith(item.href);
           return (
             <Link

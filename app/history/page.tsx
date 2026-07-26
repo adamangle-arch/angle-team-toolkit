@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
+import FeatureGate from "@/components/FeatureGate";
 import { supabase } from "@/lib/supabaseClient";
 import { CANDIDATE_STEPS } from "@/lib/constants";
 import { formatDateLabel, formatMonthLabel, getMonthStartOffset } from "@/lib/dates";
@@ -45,7 +46,7 @@ export default function HistoryPage() {
   }
 
   return (
-    <>
+    <FeatureGate minSession={4}>
       <PageHeader title="Candidate History" subtitle="Every candidate you've ever added" />
       <main className="page-main">
         <div className="card flex items-center justify-between">
@@ -129,6 +130,6 @@ export default function HistoryPage() {
           </div>
         )}
       </main>
-    </>
+    </FeatureGate>
   );
 }

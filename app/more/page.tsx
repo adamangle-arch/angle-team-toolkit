@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
+import { useAuth } from "@/components/AuthGate";
+import { minSessionFor } from "@/lib/onboarding-gate";
 
 const MORE_ITEMS = [
   { href: "/library", label: "Resources", icon: "📚", description: "Process, Products, Scripts & FAQ, Leaders, Audio & Book Library." },
@@ -11,11 +13,14 @@ const MORE_ITEMS = [
 ];
 
 export default function MorePage() {
+  const { unlockedThrough } = useAuth();
+  const visibleItems = MORE_ITEMS.filter((item) => unlockedThrough >= minSessionFor(item.href));
+
   return (
     <>
       <PageHeader title="More" subtitle="Resources, practice, and a break" />
       <main className="page-main">
-        {MORE_ITEMS.map((item) => (
+        {visibleItems.map((item) => (
           <Link key={item.href} href={item.href} className="card flex items-center gap-3">
             <span className="text-2xl leading-none">{item.icon}</span>
             <div>

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
+import FeatureGate from "@/components/FeatureGate";
 import { supabase } from "@/lib/supabaseClient";
 import { CONTACT_STATUSES, CUSTOMER_STATUSES, CONNECTION_TAGS } from "@/lib/constants";
 import { NETWORKING_MEMORY_PROMPTS, CUSTOMER_MEMORY_PROMPTS } from "@/lib/contact-questions-data";
@@ -106,7 +107,7 @@ export default function ContactsPage() {
   const listPct = Math.min(100, (networkingContacts.length / LIST_TARGET) * 100);
 
   return (
-    <>
+    <FeatureGate minSession={2}>
       <PageHeader title="Contact Builder" subtitle="Build your list, one name at a time" />
       <main className="page-main">
         <div className="card flex p-1">
@@ -276,7 +277,7 @@ export default function ContactsPage() {
           />
         )}
       </main>
-    </>
+    </FeatureGate>
   );
 }
 

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import PageHeader from "@/components/PageHeader";
 import TrendChart from "@/components/TrendChart";
 import { useAuth } from "@/components/AuthGate";
+import FeatureGate from "@/components/FeatureGate";
 import { supabase } from "@/lib/supabaseClient";
 import {
   PIPELINE_STAGES,
@@ -258,7 +259,7 @@ export default function PipelinePage() {
   const activeInPipelineCount = activeInPipeline.length;
 
   return (
-    <>
+    <FeatureGate minSession={4}>
       <PageHeader
         title="Pipeline Tracker"
         subtitle={
@@ -489,7 +490,7 @@ export default function PipelinePage() {
           </>
         )}
       </main>
-    </>
+    </FeatureGate>
   );
 }
 

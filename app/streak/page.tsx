@@ -5,6 +5,7 @@ import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import NotificationOptIn from "@/components/NotificationOptIn";
 import { useAuth } from "@/components/AuthGate";
+import FeatureGate from "@/components/FeatureGate";
 import { supabase } from "@/lib/supabaseClient";
 import { getToday, getWeekStart, getMonthStart, formatDateLabel } from "@/lib/dates";
 import { PIPELINE_STAGES, CANDIDATE_STEP_SHORT_LABELS, type PipelineStageKey } from "@/lib/constants";
@@ -587,7 +588,7 @@ export default function StreakPage() {
   }
 
   return (
-    <>
+    <FeatureGate minSession={5}>
       <PageHeader
         title="Core Run Streak"
         subtitle="Read • Listen • Daily Update • Story Share"
@@ -861,6 +862,6 @@ export default function StreakPage() {
           </button>
         </div>
       </main>
-    </>
+    </FeatureGate>
   );
 }
