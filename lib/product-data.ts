@@ -175,12 +175,28 @@ export const PRODUCTS: Product[] = [
     brand: "Glister",
     summary: "Fluoride + Reminact remineralization technology + silica polishing agents. Plaque removal, cavity prevention, fresh breath, stain removal.",
     bestFor: "Daily oral care, families.",
+    pv: "2.03 PV",
   },
   {
-    name: "Glister Mouthwash & Toothbrushes",
+    name: "Glister Multi-Action Concentrated Oral Rinse",
     brand: "Glister",
-    summary: "Complements brushing/flossing for a complete daily oral care routine.",
+    summary: "Concentrated mouthwash — complements brushing/flossing for a complete daily oral care routine.",
     bestFor: "Anyone wanting a full oral care system.",
+    pv: "3.67 PV",
+  },
+  {
+    name: "Glister Mint Refresher Spray",
+    brand: "Glister",
+    summary: "Portable breath-freshening spray for on-the-go touch-ups between brushing.",
+    bestFor: "On-the-go breath freshening.",
+    pv: "1.90 PV",
+  },
+  {
+    name: "Glister Multi-Action Power Toothbrush Refills",
+    brand: "Glister",
+    summary: "Replacement brush heads for the Glister power toothbrush.",
+    bestFor: "Power toothbrush owners due for a refill.",
+    pv: "9.45 PV",
   },
   // Home / durables
   {
@@ -194,6 +210,7 @@ export const PRODUCTS: Product[] = [
     brand: "Home",
     summary: "3-stage filtration: pre-filter, HEPA-grade, carbon (odors/VOCs).",
     bestFor: "Allergy sufferers, pet owners, families.",
+    pv: "448.69 PV",
   },
   {
     name: "iCook 4-Piece Stock Pot",
@@ -214,6 +231,7 @@ export const PRODUCTS: Product[] = [
     brand: "Amway Home",
     summary: "Concentrated cleaner for countertops, floors, appliances, and more — one product replacing several.",
     bestFor: "Anyone wanting to simplify their cleaning cabinet.",
+    pv: "3.28 PV",
   },
   {
     name: "LOC Multi-Purpose Wipes",
