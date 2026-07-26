@@ -235,6 +235,25 @@ export const ONBOARDING_SESSIONS: OnboardingSession[] = [
         detail: "Your upline will send this to you on the LTD messaging app. Watch before your next meeting.",
       },
       {
+        label: "🎧 Earn the Sale",
+        detail: "Audio by Adam Ladenburger — your mentor will gift this to you on the LTD Media app.",
+      },
+      {
+        label: "🎧 Crush VCS",
+        detail:
+          "Audio by Derrick and Jill Kosek — available on the Sales and Profitability Hub in the LTD Media app.",
+      },
+      {
+        label: "🎧 The Customer Experience",
+        detail:
+          "Audio by Tyler Sheridan — available on the Sales and Profitability Hub in the LTD Media app.",
+      },
+      {
+        label: "📚 Sales and Profitability Hub",
+        detail:
+          "Once you're in the Hub on the LTD Media app, study and check out all the other resources there too — they're all built around creating customers.",
+      },
+      {
         label: "📚 Resources: Customers Tab",
         detail: "The Customer Survey questions and Sample Bag guide both live here — come back anytime.",
         url: "/library?tab=acquisition",
