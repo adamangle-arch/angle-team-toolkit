@@ -1074,6 +1074,23 @@ with no error ever shown. Two contributing gaps, both fixed:
   seconds with a clear "check your connection and try again" message
   instead of hanging indefinitely.
 
+A rating could also come back with a blank result — a real Claude API
+response, but with empty text — and `route.ts` returned it as if it had
+succeeded, so it got saved as a real `call_ratings` row with nothing in
+it and no score, showing up in **Your Ratings** as an entry that expanded
+to nothing when tapped. A blank analysis is now treated as a failure the
+same as any other error instead of being saved. Separately, the
+`overall_score` parser only matched the exact literal `OVERALL_SCORE:
+X/10` line — it now also falls back to the first `X/10` near the start of
+the response, since every rubric states the score there in section 1
+regardless of whether the model reproduces the exact requested line
+format. And since a handful of bad rows had already been saved before this
+was fixed, each entry in **Your Ratings** now has a small "✕" delete
+button (`handleDeleteRating` in `CallRatingPanel.tsx`) so a rep can clean
+one up without needing database access — a row with no analysis text is
+also flagged inline ("no result — try re-rating") so a stray one is easy
+to spot.
+
 The Role-Play / Rate a Call toggle-pill row on the Assistant page used to
 scroll away with the rest of the chat — once a Role-Play conversation got
 long, switching to Rate a Call meant scrolling all the way back to the top

@@ -115,9 +115,32 @@ export async function POST(request: Request) {
     const textBlock = response.content.find(
       (block): block is Anthropic.TextBlock => block.type === "text"
     );
-    const analysis = textBlock?.text ?? "";
-    const scoreMatch = /OVERALL_SCORE:\s*(\d+(?:\.\d+)?)/i.exec(analysis);
-    const overallScore = scoreMatch ? parseFloat(scoreMatch[1]) : null;
+    const analysis = textBlock?.text.trim() ?? "";
+
+    // A blank rating is worse than no rating - it silently gets saved and
+    // looks like a real entry with nothing in it and no way to tell why.
+    // Treat this the same as any other failure instead of returning it as
+    // if it succeeded.
+    if (!analysis) {
+      return NextResponse.json(
+        { error: "The assistant returned an empty rating. Please try again." },
+        { status: 502 }
+      );
+    }
+
+    // Primary: the exact "OVERALL_SCORE: X/10" line the prompts ask for.
+    // Fallback: every rubric's section 1 states the score as "X/10" near
+    // the very start regardless, in case the model paraphrases the exact
+    // line format.
+    const primaryMatch = /OVERALL[_\s]SCORE:?\s*(\d+(?:\.\d+)?)\s*\/\s*10/i.exec(analysis);
+    const fallbackMatch = primaryMatch
+      ? null
+      : /(\d+(?:\.\d+)?)\s*\/\s*10\b/.exec(analysis.slice(0, 400));
+    const overallScore = primaryMatch
+      ? parseFloat(primaryMatch[1])
+      : fallbackMatch
+        ? parseFloat(fallbackMatch[1])
+        : null;
 
     return NextResponse.json({ analysis, overall_score: overallScore });
   } catch (error) {

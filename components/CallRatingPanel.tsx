@@ -164,6 +164,12 @@ export default function CallRatingPanel() {
     }
   }
 
+  async function handleDeleteRating(id: string) {
+    setHistory((prev) => prev.filter((h) => h.id !== id));
+    if (expandedId === id) setExpandedId(null);
+    await supabase.from("call_ratings").delete().eq("id", id);
+  }
+
   return (
     <>
       <div className="card space-y-2">
@@ -250,20 +256,32 @@ export default function CallRatingPanel() {
               </div>
               {group.items.map((h) => (
                 <div key={h.id} className="rounded-lg bg-navy p-2.5">
-                  <button
-                    className="flex w-full items-center justify-between gap-2 text-left"
-                    onClick={() => setExpandedId(expandedId === h.id ? null : h.id)}
-                  >
-                    <span className="truncate text-sm text-slate-200">
-                      {h.candidate_name || "Untitled"}
-                    </span>
-                    <span className="flex shrink-0 items-center gap-2 text-xs text-slate-500">
-                      {h.overall_score !== null && (
-                        <span className="pill">{h.overall_score}/10</span>
-                      )}
-                      {new Date(h.created_at).toLocaleDateString()}
-                    </span>
-                  </button>
+                  <div className="flex w-full items-center justify-between gap-2">
+                    <button
+                      className="flex flex-1 items-center justify-between gap-2 text-left"
+                      onClick={() => setExpandedId(expandedId === h.id ? null : h.id)}
+                    >
+                      <span className="truncate text-sm text-slate-200">
+                        {h.candidate_name || "Untitled"}
+                        {!h.analysis.trim() && (
+                          <span className="ml-1 text-red-400">(no result — try re-rating)</span>
+                        )}
+                      </span>
+                      <span className="flex shrink-0 items-center gap-2 text-xs text-slate-500">
+                        {h.overall_score !== null && (
+                          <span className="pill">{h.overall_score}/10</span>
+                        )}
+                        {new Date(h.created_at).toLocaleDateString()}
+                      </span>
+                    </button>
+                    <button
+                      className="shrink-0 text-sm text-slate-500"
+                      onClick={() => handleDeleteRating(h.id)}
+                      aria-label="Delete rating"
+                    >
+                      ✕
+                    </button>
+                  </div>
                   {expandedId === h.id && (
                     <p className="mt-2 whitespace-pre-wrap text-xs text-slate-300">{h.analysis}</p>
                   )}
