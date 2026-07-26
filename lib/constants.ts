@@ -214,6 +214,11 @@ export const ONBOARDING_SESSIONS: OnboardingSession[] = [
         detail:
           "Audio by Kyle and Austin Brown, and Hunter and Vanessa Lindsay — your coach will send this to you on the LTD app. Listen before your next meeting.",
       },
+      {
+        label: "🎧 Networking is Normal",
+        detail:
+          "Audio by Derrick and Jill Kosek — your coach will send this to you on the LTD app. Listen before your next meeting.",
+      },
     ],
   },
   {
