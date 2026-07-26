@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
 import { AUDIOS, FIRST_YEAR_BOOKS, ADVANCED_LIBRARY } from "@/lib/library-data";
 import { LEADERS } from "@/lib/leaders-data";
@@ -36,39 +37,55 @@ const SECTIONS: { key: Section; label: string }[] = [
   { key: "acquisition", label: "Acquisition" },
 ];
 
-export default function LibraryPage() {
-  const [section, setSection] = useState<Section>("process");
+function isSection(value: string | null): value is Section {
+  return SECTIONS.some((s) => s.key === value);
+}
+
+function LibraryTabs() {
+  const searchParams = useSearchParams();
+  const initialTab = searchParams.get("tab");
+  const [section, setSection] = useState<Section>(isSection(initialTab) ? initialTab : "process");
   const [query, setQuery] = useState("");
 
   return (
     <>
+      <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+        {SECTIONS.map((s) => (
+          <button
+            key={s.key}
+            onClick={() => {
+              setSection(s.key);
+              setQuery("");
+            }}
+            className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+              section === s.key ? "bg-amber text-navy" : "bg-white/10 text-slate-300"
+            }`}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
+
+      {section === "audios" && <AudiosSection query={query} setQuery={setQuery} />}
+      {section === "books" && <BooksSection />}
+      {section === "leaders" && <LeadersSection query={query} setQuery={setQuery} />}
+      {section === "products" && <ProductsSection query={query} setQuery={setQuery} />}
+      {section === "scripts" && <ScriptsSection query={query} setQuery={setQuery} />}
+      {section === "process" && <ProcessSection />}
+      {section === "first_month" && <FirstMonthSection />}
+      {section === "acquisition" && <AcquisitionSection />}
+    </>
+  );
+}
+
+export default function LibraryPage() {
+  return (
+    <>
       <PageHeader title="Resources" subtitle="Everything the team needs to reference" />
       <main className="page-main">
-        <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
-          {SECTIONS.map((s) => (
-            <button
-              key={s.key}
-              onClick={() => {
-                setSection(s.key);
-                setQuery("");
-              }}
-              className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition ${
-                section === s.key ? "bg-amber text-navy" : "bg-white/10 text-slate-300"
-              }`}
-            >
-              {s.label}
-            </button>
-          ))}
-        </div>
-
-        {section === "audios" && <AudiosSection query={query} setQuery={setQuery} />}
-        {section === "books" && <BooksSection />}
-        {section === "leaders" && <LeadersSection query={query} setQuery={setQuery} />}
-        {section === "products" && <ProductsSection query={query} setQuery={setQuery} />}
-        {section === "scripts" && <ScriptsSection query={query} setQuery={setQuery} />}
-        {section === "process" && <ProcessSection />}
-        {section === "first_month" && <FirstMonthSection />}
-        {section === "acquisition" && <AcquisitionSection />}
+        <Suspense fallback={<div className="empty-state">Loading…</div>}>
+          <LibraryTabs />
+        </Suspense>
       </main>
     </>
   );

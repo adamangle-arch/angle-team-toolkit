@@ -517,6 +517,26 @@ an actual numbered step-by-step instead of a loose bag of targets
    to share your story, building towards 150 PV
 7. Attend weekly events
 
+### Global search
+
+A 🔍 icon in the header on every page (`components/PageHeader.tsx`) opens
+**Search** (`app/search/page.tsx`) — a single text box that searches the
+whole app at once, not just whatever section you happen to be in.
+
+It matches against a static index (`lib/search-data.ts`) built from every
+page's shortcut, every Scripts & FAQ entry, every Product, Leader,
+Process stage, Pre-Launch Questionnaire question, Perfect First Month
+step, Sample Bag/Survey question, Audio, and Book — a simple
+case-insensitive substring match over each item's title/snippet/source,
+grouped by section in the results. Tapping a result navigates straight
+to the right Resources tab (`/library?tab=scripts`, `?tab=products`,
+etc. — the Resources hub now reads a `tab` query param on load) or the
+right page (`/goals`, `/calendar`, and so on).
+
+This only searches static reference content and page shortcuts, not your
+personal data (candidates, contacts, notes) — each of those already has
+its own search box on its own page.
+
 ### Onboarding
 
 A new **Onboarding** tab walks new team members through a series of

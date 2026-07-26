@@ -19,6 +19,9 @@ export default function PageHeader({
         {subtitle ? <p className="app-subtitle">{subtitle}</p> : null}
       </div>
       <div className="flex shrink-0 items-center gap-1.5">
+        <Link href="/search" className="chip-btn" aria-label="Search">
+          🔍
+        </Link>
         <Link href="/profile" className="chip-btn">
           My Profile
         </Link>
