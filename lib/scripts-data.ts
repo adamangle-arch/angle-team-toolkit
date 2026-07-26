@@ -136,7 +136,7 @@ export const SCRIPTS: ScriptEntry[] = [
     category: "Core Run",
     question: "What is a core run?",
     answer:
-      "Committing to the 4 daily activities that actually move the business: Read, Listen, a Daily Update to your upline, and a Story Share — do all 4 in a day and it counts as a streak day (tracked on the Run Streak tab). The \"30 Day Core Run\" after launch also includes reading 20+ minutes, listening to 1+ audio, reaching out to 2 potential IBOs, and building toward 150 PV. It's the daily rhythm everything else — QI1s, story shares, customers — gets built on top of.",
+      "Committing to the 4 daily activities that actually move the business: Read, Listen, a Daily Update to your upline, and a Story Share — do all 4 in a day and it counts as a streak day (tracked on the Run Streak tab). The \"30 Day Core Run\" after launch also includes reading 20+ minutes, listening to 1+ audio, reaching out to 2 people to share your story, and building toward 150 PV. It's the daily rhythm everything else — QI1s, story shares, customers — gets built on top of.",
   },
   // Team events
   {

@@ -513,8 +513,8 @@ an actual numbered step-by-step instead of a loose bag of targets
 4. Book your first QI1s
 5. Create Sample Bags
 6. Commit to a 30 Day Core Run — daily communication with your upline,
-   reading 20+ minutes, listening to 1+ audio, reaching out to 2
-   potential IBOs, building towards 150 PV
+   reading 20+ minutes, listening to 1+ audio, reaching out to 2 people
+   to share your story, building towards 150 PV
 7. Attend weekly events
 
 ### Onboarding

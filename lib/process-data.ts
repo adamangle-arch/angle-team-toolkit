@@ -100,7 +100,7 @@ export const FIRST_MONTH_STEPS: FirstMonthStep[] = [
       "Daily communication with your upline",
       "Reading 20+ minutes",
       "Listening to 1+ audio",
-      "Reaching out to 2 potential IBOs",
+      "Reaching out to 2 people to share your story",
       "Building towards 150 PV",
     ],
   },
