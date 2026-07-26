@@ -103,8 +103,11 @@ export async function POST(request: Request) {
     const textBlock = response.content.find(
       (block): block is Anthropic.TextBlock => block.type === "text"
     );
+    const reply = textBlock?.text.trim();
 
-    return NextResponse.json({ reply: textBlock?.text ?? "" });
+    return NextResponse.json({
+      reply: reply || "Didn't catch a clear reply there — try rephrasing, or send it again.",
+    });
   } catch (error) {
     console.error("Anthropic API error", error);
     return NextResponse.json(

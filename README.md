@@ -1014,7 +1014,18 @@ scenario. Everything else the old prompt covered — compensation plan,
 products, scripts, process steps, sample bags, the customer survey — lives
 as static reference content in the **Resources** tab instead; if a user asks
 the coach a general question, it's instructed to redirect them there rather
-than answer. Every message calls Anthropic's Claude API (model set in
+than answer. The same redirect now applies if someone pastes a full call
+transcript into this tab by mistake instead of using **Rate a Call** — the
+prompt has an explicit "HANDLING PASTED CALL/MEETING TRANSCRIPTS" section
+telling it not to try to invent the prospect's "next line" for a call that
+already ended (that was producing a blank reply bubble before this was
+added — a transcript ending in a natural goodbye gives the model nothing to
+continue, and the strict "output exactly one dialogue turn" rule left it
+with nothing to say). As a second layer of defense, `app/api/assistant/route.ts`
+now falls back to a plain "Didn't catch a clear reply there" message
+instead of ever returning an empty string, so a blank chat bubble shouldn't
+be possible even if a future edge case produces empty model output again.
+Every message calls Anthropic's Claude API (model set in
 `app/api/assistant/route.ts`, currently `claude-sonnet-5`) from a
 server-only API route — the API key never reaches the browser, and the
 route checks that the caller has a valid Supabase session before it will
