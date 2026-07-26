@@ -155,6 +155,7 @@ export const PRODUCTS: Product[] = [
     brand: "Satinique",
     summary: "For damaged, color-treated, or heat-styled hair — reduces breakage and improves texture over time.",
     bestFor: "People who color, flat-iron, or frequently blow-dry.",
+    pv: "4.20 PV",
   },
   {
     name: "Satinique Color Care",
@@ -225,6 +226,41 @@ export const PRODUCTS: Product[] = [
     summary: "6-product starter bundle covering the core G&H Protect/Nourish lineup at a bundled price.",
     bestFor: "First-time G&H customers wanting to try the line without buying each piece separately.",
     pv: "7.87 PV",
+  },
+  {
+    name: "G&H Refresh Exfoliating Body Wash",
+    brand: "G&H",
+    summary: "Exfoliating body wash from the G&H Refresh line.",
+    bestFor: "Anyone wanting a gentle exfoliating cleanse.",
+    pv: "3.80 PV",
+  },
+  {
+    name: "G&H Refresh Exfoliating Body Wash (Large)",
+    brand: "G&H",
+    summary: "Larger-size bottle of the same G&H Refresh Exfoliating Body Wash.",
+    bestFor: "Households wanting to stock up and maximize PV per order.",
+    pv: "7.61 PV",
+  },
+  {
+    name: "G&H Refresh Body Milk",
+    brand: "G&H",
+    summary: "Lightweight daily moisturizer from the G&H Refresh line.",
+    bestFor: "Anyone wanting a lighter, everyday moisturizer.",
+    pv: "4.13 PV",
+  },
+  {
+    name: "G&H Baby Wash & Shampoo",
+    brand: "G&H",
+    summary: "Gentle 2-in-1 wash and shampoo formulated for babies.",
+    bestFor: "New parents, baby showers, families with young kids.",
+    pv: "4.07 PV",
+  },
+  {
+    name: "G&H Baby Lotion",
+    brand: "G&H",
+    summary: "Gentle daily moisturizer formulated for babies.",
+    bestFor: "New parents, baby showers, families with young kids.",
+    pv: "4.07 PV",
   },
   // Glister
   {
