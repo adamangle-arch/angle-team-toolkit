@@ -1,3 +1,12 @@
+import {
+  LIST_BUILDING_INTRO,
+  LIST_BUILDING_START_HERE,
+  LIST_BUILDING_NAMES,
+  LIST_BUILDING_OCCUPATIONS,
+  LIST_BUILDING_PROFESSIONALS,
+  LIST_BUILDING_TRAITS,
+} from "./list-building-data";
+
 // Accounts that can see every team member's data (Team tab: Members +
 // Teams views). Must match the emails hardcoded in is_app_admin() in
 // supabase/schema.sql.
@@ -191,10 +200,29 @@ export const ONBOARDING_SESSIONS: OnboardingSession[] = [
   },
   {
     title: "Session 2: List Building",
-    description: "Identify who you can help.",
+    description: "Identify who you can help — the LTD \"Building Your List\" exercise.",
     resources: [
-      { label: "📖 List Building Guide", detail: "Replace with your list-building guide/reading." },
-      { label: "✅ List Building Exercise", detail: "Replace with your actual list-building exercise." },
+      { label: "📋 Why Build a List of 100+", detail: LIST_BUILDING_INTRO },
+      {
+        label: "🔍 Start Here",
+        detail: `Go through each of these for names: ${LIST_BUILDING_START_HERE.join(", ")}.`,
+      },
+      {
+        label: "🔤 Who Do You Know Named...",
+        detail: `Go down the list and write down anyone you know with each name: ${LIST_BUILDING_NAMES.join(", ")}.`,
+      },
+      {
+        label: "💼 Who Do You Know That Is A(n)...",
+        detail: `Go down the list and write down anyone you know in each line of work: ${LIST_BUILDING_OCCUPATIONS.join(", ")}.`,
+      },
+      {
+        label: "🤝 Who Is Your...",
+        detail: `The professionals you personally rely on: ${LIST_BUILDING_PROFESSIONALS.join(", ")}.`,
+      },
+      {
+        label: "💡 Who Do You Know Who...",
+        detail: LIST_BUILDING_TRAITS.join(", ") + ".",
+      },
     ],
   },
   {
