@@ -322,6 +322,10 @@ export const ONBOARDING_SESSIONS: OnboardingSession[] = [
         url: "https://www.dropbox.com/scl/fi/217gvovuxyyui3zpcl8gl/First-Round-Draft-Pick-S11-0054-AUD.mp3?rlkey=nr7rv7u9iunt9itl4obilhpy6&st=8h9cka6w&dl=0",
       },
       {
+        label: "🎧 Mentally Shredded",
+        detail: "Audio by Chase and Bethany McIlroy — your mentor will gift this to you on the LTD Media app.",
+      },
+      {
         label: "🔥 Core Run Streak",
         detail: "Head to the Run Streak tab to start your daily Read/Listen/Daily Update/Story Share habit.",
       },
