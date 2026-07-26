@@ -194,7 +194,7 @@ export const ONBOARDING_SESSIONS: OnboardingSession[] = [
     description: "Identify who you can help — the LTD \"Building Your List\" exercise.",
     resources: [
       {
-        label: "📋 Why Build a List of 100+",
+        label: "📋 Why Build a List?",
         detail:
           "Successful business owners put themselves in a position to win by developing a list of names of everyone they know. Why everyone? It's the starting point for building a solid organization and customer base. The biggest error IBOs make is deciding whether or not contacts are open minded to additional income. If your list doesn't contain at least 100 names, you could be prejudging.",
       },

@@ -703,7 +703,7 @@ session unlocked on their own Onboarding tab, regardless of their own
 (`isPrimaryUser`), not a schema change, so admins can review the full
 content without needing anyone to "unlock" it for them.
 
-**Session 2: List Building** has the "why a list of 100+ names" intro, a
+**Session 2: List Building** has the "why build a list?" intro, a
 direct link to the actual LTD "Building Your List" worksheet (Dropbox
 JPG) — the real sheet with the Start Here checklist, the "Who do you know
 named..." first-name prompts, "Who do you know that is a(n)..."
