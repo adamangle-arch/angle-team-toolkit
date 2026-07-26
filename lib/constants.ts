@@ -290,6 +290,10 @@ export const ONBOARDING_SESSIONS: OnboardingSession[] = [
     title: "Session 4: Sharing Your Story",
     description: "Learn to confidently share with your A & B Lists.",
     resources: [
+      {
+        label: "📖 Required Reading",
+        detail: `Read ${SESSION_4_READING_REQUIREMENT} — this (and 50+ names in your A/B list) is what's required to unlock this session. Check it off further up this page while it's still locked.`,
+      },
       { label: "🎥 Story Training Video", detail: "Replace with your story-sharing training link." },
       { label: "🎧 Story Examples Audio", detail: "Replace with example story audio." },
       {
