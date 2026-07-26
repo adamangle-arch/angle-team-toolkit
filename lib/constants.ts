@@ -291,8 +291,12 @@ export const ONBOARDING_SESSIONS: OnboardingSession[] = [
     description: "Learn to confidently share with your A & B Lists.",
     resources: [
       {
-        label: "📖 Required Reading",
-        detail: `Read ${SESSION_4_READING_REQUIREMENT} — this (and 50+ names in your A/B list) is what's required to unlock this session. Check it off further up this page while it's still locked.`,
+        label: "📖 Reading",
+        detail: `Read ${SESSION_4_READING_REQUIREMENT} — required to unlock this session. Confirm it further up this page while it's still locked.`,
+      },
+      {
+        label: "📋 Homework: Contact Builder",
+        detail: `Have ${SESSION_4_CONTACT_MINIMUM}+ names in your A/B list — also required to unlock this session. Tracked automatically and shown further up this page while it's still locked.`,
       },
       { label: "🎥 Story Training Video", detail: "Replace with your story-sharing training link." },
       { label: "🎧 Story Examples Audio", detail: "Replace with example story audio." },

@@ -821,10 +821,11 @@ requires *both* the contact count **and** this checkbox, each shown as
 its own line with a ✓/○ so the upline can see which one is still
 outstanding.
 
-The checkbox itself only shows up while Session 4 is still locked (that's
-where the actual gating happens), but the requirement is also listed as a
-normal "📖 Required Reading" resource card right inside Session 4's own
-content list, alongside the Story Training Video/audios — so it's visible
+The checkbox and contact count only show up while Session 4 is still
+locked (that's where the actual gating happens), but both requirements
+are also listed as their own separate resource cards right inside
+Session 4's own content list — "📖 Reading" and "📋 Homework: Contact
+Builder" — alongside the Story Training Video/audios, so they're visible
 in context whenever anyone (including an admin, who never sees the locked
 state at all) looks at what Session 4 covers, not just during the brief
 window before it unlocks.
