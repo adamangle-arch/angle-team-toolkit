@@ -10,6 +10,7 @@ import {
   getMonthStartOffset,
   formatDateLabel,
   formatMonthLabel,
+  getToday,
 } from "@/lib/dates";
 import { PIPELINE_STAGES, STREAK_MILESTONES, type PipelineStageKey } from "@/lib/constants";
 import type {
@@ -20,6 +21,7 @@ import type {
   ActiveCandidatesEntry,
   Qi1RhythmEntry,
   DittoEntry,
+  DailySalesEntry,
   NewMember,
   Liker,
   MilestoneEntry,
@@ -148,6 +150,9 @@ function milestoneEntryKey(userId: string, milestoneDays: number) {
 function gameEntryKey(userId: string) {
   return `game:${userId}`;
 }
+function dailySalesEntryKey(userId: string) {
+  return `daily_sales:${getToday()}:${userId}`;
+}
 
 export default function LeaderboardPage() {
   const { user } = useAuth();
@@ -167,6 +172,7 @@ export default function LeaderboardPage() {
   const [newMembers, setNewMembers] = useState<NewMember[]>([]);
   const [milestones, setMilestones] = useState<MilestoneEntry[]>([]);
   const [gameLeaders, setGameLeaders] = useState<GameLeaderEntry[]>([]);
+  const [dailySales, setDailySales] = useState<DailySalesEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [myName, setMyName] = useState("You");
@@ -261,6 +267,16 @@ export default function LeaderboardPage() {
 
   useEffect(() => {
     let cancelled = false;
+    supabase.rpc("get_daily_sales_leaderboard").then(({ data }) => {
+      if (!cancelled) setDailySales((data as DailySalesEntry[]) ?? []);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
     supabase
       .from("profiles")
       .select("first_name,last_name")
@@ -324,6 +340,7 @@ export default function LeaderboardPage() {
     for (const e of ditto) keys.add(dittoEntryKey(periodStart, e.user_id));
     for (const m of milestones) keys.add(milestoneEntryKey(m.user_id, m.milestone_days));
     for (const g of gameLeaders) keys.add(gameEntryKey(g.user_id));
+    for (const e of dailySales) keys.add(dailySalesEntryKey(e.user_id));
     return Array.from(keys);
   }, [
     teamTotals,
@@ -335,6 +352,7 @@ export default function LeaderboardPage() {
     ditto,
     milestones,
     gameLeaders,
+    dailySales,
     periodType,
     periodStart,
   ]);
@@ -477,6 +495,36 @@ export default function LeaderboardPage() {
                   </span>
                   <div className="flex shrink-0 items-center gap-2">
                     <span className="pill pill-amber">🔥 {m.current_streak}d</span>
+                    <LikeButton
+                      entryKey={key}
+                      likes={likesMap.get(key) ?? NO_LIKES}
+                      onToggle={toggleLike}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {dailySales.length > 0 && (
+          <div className="card space-y-1.5">
+            <p className="section-title">🛍️ Today&apos;s Sales</p>
+            {dailySales.map((entry, i) => {
+              const key = dailySalesEntryKey(entry.user_id);
+              return (
+                <div
+                  key={`${entry.user_id}-${i}`}
+                  className="flex items-center justify-between gap-2 text-sm"
+                >
+                  <span className="text-slate-200">
+                    {i + 1}. <CoupleLink entry={entry} />{" "}
+                    <span className="text-xs text-slate-500">
+                      ({entry.team}) — {entry.sale_count} sale{entry.sale_count === 1 ? "" : "s"}
+                    </span>
+                  </span>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <span className="pill pill-amber">{entry.total_pv} PV</span>
                     <LikeButton
                       entryKey={key}
                       likes={likesMap.get(key) ?? NO_LIKES}

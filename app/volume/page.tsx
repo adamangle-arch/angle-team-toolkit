@@ -167,7 +167,7 @@ export default function VolumePage() {
     const description = saleDescription.trim();
     if (!description) return;
     setAddingSale(true);
-    const amount = Math.max(0, parseFloat(saleAmount) || 0);
+    const amount = Math.max(0, parseInt(saleAmount, 10) || 0);
     const { data } = await supabase
       .from("customer_sales")
       .insert({
@@ -347,7 +347,7 @@ export default function VolumePage() {
               <p className="text-[10px] text-slate-400">Orders</p>
             </div>
             <div className="rounded-lg bg-navy p-2">
-              <p className="text-lg font-bold text-amber-light">${salesStats.largestOrder.toFixed(2)}</p>
+              <p className="text-lg font-bold text-amber-light">{salesStats.largestOrder} PV</p>
               <p className="text-[10px] text-slate-400">Largest Order</p>
             </div>
           </div>
@@ -376,9 +376,8 @@ export default function VolumePage() {
           <input
             type="number"
             min={0}
-            step="0.01"
             className="input"
-            placeholder="Order amount ($)"
+            placeholder="PV from this sale"
             value={saleAmount}
             onChange={(e) => setSaleAmount(e.target.value)}
           />
@@ -415,7 +414,7 @@ export default function VolumePage() {
                   ) : (
                     <span />
                   )}
-                  <span className="shrink-0 text-sm text-amber-light">${sale.amount.toFixed(2)}</span>
+                  <span className="shrink-0 text-sm text-amber-light">{sale.amount} PV</span>
                 </div>
               </div>
             ))}

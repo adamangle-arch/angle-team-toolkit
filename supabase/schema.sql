@@ -221,10 +221,13 @@ create table if not exists customer_sales (
   created_at timestamptz not null default now()
 );
 
--- Additive: quick-pick product line and dollar amount per sale, so
--- "logging a sale" is a couple of taps + a number instead of only free
--- text, and the monthly stats (customers/orders/largest order) have
--- something real to aggregate.
+-- Additive: quick-pick product line and PV amount per sale, so "logging
+-- a sale" is a couple of taps + a number instead of only free text, and
+-- the monthly stats (customers/orders/largest order) plus the daily
+-- Today's Sales leaderboard below have something real to aggregate.
+-- `amount` is PV, not dollars - numeric(10,2) is just the column type
+-- (from before that was decided), the app always writes/reads it as a
+-- whole number.
 alter table customer_sales add column if not exists category text not null default 'Other';
 alter table customer_sales drop constraint if exists customer_sales_category_check;
 alter table customer_sales add constraint customer_sales_category_check check (
@@ -1067,6 +1070,40 @@ as $$
 $$;
 
 grant execute on function public.get_ditto_leaderboard(date) to authenticated;
+
+-- Anyone who logged a customer sale today, ranked by total PV from those
+-- sales (amount on customer_sales is PV, not dollars). No period_start
+-- param needed - always "today," recomputed fresh on every page load,
+-- same as the Milestone Alerts / New to the Team spotlights above.
+create or replace function public.get_daily_sales_leaderboard()
+returns table (
+  first_name text,
+  last_name text,
+  team text,
+  sale_count int,
+  total_pv int,
+  user_id uuid,
+  partner_user_id uuid,
+  partner_first_name text,
+  partner_last_name text
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select pr.first_name, pr.last_name, pr.team,
+         count(cs.id)::int, coalesce(sum(cs.amount), 0)::int, pr.id,
+         partner.id, partner.first_name, partner.last_name
+  from customer_sales cs
+  join profiles pr on pr.id = cs.user_id
+  left join profiles partner on partner.household_id = pr.id
+  where cs.created_at::date = current_date
+  group by pr.id, pr.first_name, pr.last_name, pr.team, partner.id, partner.first_name, partner.last_name
+  order by total_pv desc;
+$$;
+
+grant execute on function public.get_daily_sales_leaderboard() to authenticated;
 
 -- ============================================================
 -- Row Level Security

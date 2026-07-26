@@ -142,6 +142,15 @@ export type DittoEntry = {
   user_id: string;
 } & WithPartner;
 
+export type DailySalesEntry = {
+  first_name: string | null;
+  last_name: string | null;
+  team: string | null;
+  sale_count: number;
+  total_pv: number;
+  user_id: string;
+} & WithPartner;
+
 export type MonthlyPv = {
   id: string;
   user_id: string;

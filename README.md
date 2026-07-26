@@ -630,12 +630,23 @@ multiplication, client-side only, nothing saved to the database).
 
 Logging a sale is a few taps instead of only free text: a customer
 name, a quick-pick product line (XS, Nutrilite, Artistry, Home, Other),
-and a dollar amount, plus optional notes. Three stat tiles above the log
+and a PV amount, plus optional notes. Three stat tiles above the log
 — **Customers** (distinct customer names this month), **Orders** (total
 sales logged this month), and **Largest Order** — are computed live from
 that month's `customer_sales` rows, so there's nothing separate to keep
 in sync. The `category` and `amount` columns are additive on the
 existing `customer_sales` table.
+
+### Today's Sales (Leaderboard)
+
+Any customer sale logged today shows up team-wide on the **Leaderboard**
+in a **🛍️ Today's Sales** card — ranked by total PV from today's sales,
+with the sale count shown alongside each person's name. It's always
+visible (not gated behind the weekly/monthly toggle, since it's a "today"
+spotlight the same way New to the Team and Milestone Alerts are) and
+recomputes fresh on every page load via `get_daily_sales_leaderboard()`,
+so there's no separate "reset it" step at midnight - a new day just
+naturally starts from zero rows matching `created_at::date = current_date`.
 
 ### Daily Reminders (push notifications)
 
