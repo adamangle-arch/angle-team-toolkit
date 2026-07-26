@@ -245,10 +245,12 @@ names that don't come to mind right away — purely a display prompt with
 nothing stored. The two lists get different prompts, matching their
 different typical demographic (see the tip above): Networking gets
 relationship-based prompts ("Who cuts your hair?", "Who was in your
-wedding?"), Customer List gets prompts aimed at people likely to actually
-buy products ("Who values organic or natural ingredients?", "Who's
-willing to spend more for quality over quantity?") — both full lists are
-in `lib/contact-questions-data.ts`.
+wedding?") plus a few aimed at ambitious/driven people specifically
+("Who's the most successful friend you have?", "Who was prom king or
+queen at your school?"); Customer List gets prompts aimed at people
+likely to actually buy products ("Who values organic or natural
+ingredients?", "Who's willing to spend more for quality over
+quantity?") — both full lists are in `lib/contact-questions-data.ts`.
 
 Personal Circle PV lives on its own **Volume** tab: each person self-reports
 their own current-month PV there (stored in the additive `monthly_pv`

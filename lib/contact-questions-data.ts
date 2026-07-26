@@ -35,6 +35,11 @@ export const NETWORKING_MEMORY_PROMPTS: string[] = [
   "Who do you see at the gym regularly?",
   "Who was your favorite teacher growing up?",
   "Who do you know from your kids' sports team?",
+  "Who were the all-state athletes at your school?",
+  "Who was prom king or queen at your school?",
+  "Who's the most successful friend you have?",
+  "Who was voted \"most likely to succeed\"?",
+  "Who's always starting a new business or side hustle?",
 ];
 
 export const CUSTOMER_MEMORY_PROMPTS: string[] = [
