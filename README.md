@@ -581,6 +581,15 @@ weeks/months/periods, instead of only ever showing the current one — a
 lightweight custom SVG chart (`components/TrendChart.tsx`), no charting
 library needed.
 
+### Duplication Calculator (Volume tab)
+
+A calculator card on the **Volume** tab (`app/volume/page.tsx`) lets you
+type in a PV number and instantly see what your group's total volume
+would look like if 25, 50, or 100 people were each duplicating that same
+amount (simple multiplication, client-side only — nothing saved to the
+database, so it's just a what-if tool separate from your actual monthly
+PV entry above it).
+
 ### Daily Reminders (push notifications)
 
 Anyone can turn on a push notification (from the Core Run Streak page)
