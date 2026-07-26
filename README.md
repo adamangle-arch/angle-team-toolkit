@@ -193,8 +193,13 @@ added, editable anytime). Marking a candidate "Filtered Out" removes them
 from the active roadmap board immediately — they're not deleted from the
 database, just hidden from the working list. Every candidate you've ever
 added (active, launched, or filtered out, and exactly which step they
-filtered out at) lives on its own **Candidate History** tab, ordered by
-connected date, with a Restore option for anything settled by mistake.
+filtered out at) lives on its own **Candidate History** tab, with a
+Restore option for anything settled by mistake.
+
+Candidate History is divided by month (by `connected_date`), one month at
+a time, with ← → arrows to page back up to 12 months — same bounded
+pattern as the Leaderboard's monthly view (`getMonthStartOffset`), so
+older history doesn't turn into one endless scrolling table.
 
 **Upgrading an existing project:** the roadmap steps shifted by one
 position to make room for the new "Yes" step at index 0 — run this once

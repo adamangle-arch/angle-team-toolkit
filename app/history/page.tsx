@@ -1,17 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import { CANDIDATE_STEPS } from "@/lib/constants";
-import { formatDateLabel } from "@/lib/dates";
+import { formatDateLabel, formatMonthLabel, getMonthStartOffset } from "@/lib/dates";
 import type { Candidate } from "@/lib/types";
 
 export default function HistoryPage() {
   const { ownerId } = useAuth();
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
+  const [monthsBack, setMonthsBack] = useState(0);
 
   useEffect(() => {
     async function load() {
@@ -28,6 +29,13 @@ export default function HistoryPage() {
     load();
   }, [ownerId]);
 
+  const monthStart = getMonthStartOffset(monthsBack);
+  const nextMonthStart = getMonthStartOffset(monthsBack - 1);
+  const candidatesThisMonth = useMemo(
+    () => candidates.filter((c) => c.connected_date >= monthStart && c.connected_date < nextMonthStart),
+    [candidates, monthStart, nextMonthStart]
+  );
+
   async function updateCandidate(id: string, patch: Partial<Candidate>) {
     setCandidates((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
     await supabase
@@ -40,11 +48,33 @@ export default function HistoryPage() {
     <>
       <PageHeader title="Candidate History" subtitle="Every candidate you've ever added" />
       <main className="page-main">
+        <div className="card flex items-center justify-between">
+          <button
+            className="btn-icon"
+            onClick={() => setMonthsBack((m) => Math.min(11, m + 1))}
+            disabled={monthsBack >= 11}
+            aria-label="Previous month"
+          >
+            ←
+          </button>
+          <span className="text-sm font-medium text-white">{formatMonthLabel(monthStart)}</span>
+          <button
+            className="btn-icon"
+            onClick={() => setMonthsBack((m) => Math.max(0, m - 1))}
+            disabled={monthsBack <= 0}
+            aria-label="Next month"
+          >
+            →
+          </button>
+        </div>
+
         {loading ? (
           <div className="empty-state">Loading candidates…</div>
-        ) : candidates.length === 0 ? (
+        ) : candidatesThisMonth.length === 0 ? (
           <div className="empty-state">
-            No candidates yet. Add one from the Pipeline Tracker&apos;s Candidate Roadmap.
+            {candidates.length === 0
+              ? "No candidates yet. Add one from the Pipeline Tracker's Candidate Roadmap."
+              : `No candidates connected in ${formatMonthLabel(monthStart)}.`}
           </div>
         ) : (
           <div className="card space-y-2">
@@ -60,7 +90,7 @@ export default function HistoryPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {candidates.map((c) => {
+                  {candidatesThisMonth.map((c) => {
                     const step = CANDIDATE_STEPS[c.current_step];
                     return (
                       <tr key={c.id} className="border-t border-white/5">
