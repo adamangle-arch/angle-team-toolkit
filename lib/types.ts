@@ -156,6 +156,8 @@ export type CustomerSale = {
   user_id: string;
   period_start: string;
   description: string;
+  category: "XS" | "Nutrilite" | "Artistry" | "Home" | "Other";
+  amount: number;
   notes: string;
   created_at: string;
 };

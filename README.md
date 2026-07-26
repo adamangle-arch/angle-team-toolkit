@@ -168,9 +168,9 @@ everyone and sorted by PV.
 The Volume tab also has a **Day 1 Ditto** field (`day1_ditto_pv` on the same
 `monthly_pv` row) — anyone over 100 PV there shows up in the Leaderboard's
 **Day 1 Ditto 100+** ranking — and a **Customer Sales** log (`customer_sales`
-table) where people can jot down customer sales and notes for the month.
-The sales log isn't scored or shown anywhere else; it's just a personal
-running record.
+table) where people log customer sales with a quick-pick product line and a
+dollar amount for the month. See "Core 300 Meter," "Day 1 Ditto Meter," and
+"Customer Sales" further down for the full Volume tab layout.
 
 By default Supabase requires email confirmation on signup; see step 2 above
 if you want teammates to be able to log in immediately after creating an
@@ -602,11 +602,21 @@ library needed.
 
 ### Core 300 Meter (Volume tab)
 
-A progress bar on the **Volume** tab (`app/volume/page.tsx`) fills in
-live against the team's 300 PV standard as you type into the Personal
-Circle PV field above it — no separate save step, it just tracks
+The **Personal Circle PV** card, at the very top of the **Volume** tab
+(`app/volume/page.tsx`), fills a progress bar live against the team's
+300 PV standard as you type — no separate save step, it just tracks
 whatever's in that input. A tick mark at the halfway point is labeled
-150 PV.
+150 PV, and three milestone badges (🟢 100, 🟢 200, 🏆 300) light up in
+color as you cross each threshold and stay grayed out below it.
+
+### Day 1 Ditto Meter (Volume tab)
+
+The **Day 1 Ditto** card has the same kind of progress bar as the PV
+meter above, scaled to the 100 PV Ditto standard instead of 300 — it
+fills live as you type into the Day 1 Ditto field (which is specifically
+for a Ditto order placed on day 1 of the month, not PV in general), hits
+🏆 at 100+, and a small trend chart underneath shows Day 1 Ditto by
+month so you can compare against past months at a glance.
 
 ### Duplication Calculator (Volume tab)
 
@@ -615,6 +625,17 @@ straight off the Personal Circle PV field above it — no separate entry —
 and instantly shows what your group's total volume would look like if
 25, 50, or 100 people were each duplicating that same amount (simple
 multiplication, client-side only, nothing saved to the database).
+
+### Customer Sales (Volume tab)
+
+Logging a sale is a few taps instead of only free text: a customer
+name, a quick-pick product line (XS, Nutrilite, Artistry, Home, Other),
+and a dollar amount, plus optional notes. Three stat tiles above the log
+— **Customers** (distinct customer names this month), **Orders** (total
+sales logged this month), and **Largest Order** — are computed live from
+that month's `customer_sales` rows, so there's nothing separate to keep
+in sync. The `category` and `amount` columns are additive on the
+existing `customer_sales` table.
 
 ### Daily Reminders (push notifications)
 

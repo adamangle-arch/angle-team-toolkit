@@ -200,8 +200,9 @@ alter table monthly_pv add column if not exists day1_ditto_pv int not null defau
 
 -- ============================================================
 -- 4c. CUSTOMER SALES LOG
--- A running log of customer sales/notes per month, shown on the Volume
--- tab. Not scored or aggregated anywhere — just a personal record.
+-- A running log of customer sales per month, shown on the Volume tab.
+-- `description` is the customer's name; category + amount back the
+-- "total customers / orders / largest order" stats shown above the log.
 -- ============================================================
 create table if not exists customer_sales (
   id uuid primary key default gen_random_uuid(),
@@ -211,6 +212,17 @@ create table if not exists customer_sales (
   notes text not null default '',
   created_at timestamptz not null default now()
 );
+
+-- Additive: quick-pick product line and dollar amount per sale, so
+-- "logging a sale" is a couple of taps + a number instead of only free
+-- text, and the monthly stats (customers/orders/largest order) have
+-- something real to aggregate.
+alter table customer_sales add column if not exists category text not null default 'Other';
+alter table customer_sales drop constraint if exists customer_sales_category_check;
+alter table customer_sales add constraint customer_sales_category_check check (
+  category in ('XS', 'Nutrilite', 'Artistry', 'Home', 'Other')
+);
+alter table customer_sales add column if not exists amount numeric(10,2) not null default 0;
 
 -- ============================================================
 -- 5. PROFILES
