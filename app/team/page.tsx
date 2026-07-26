@@ -344,7 +344,8 @@ export default function TeamPage() {
                       <span className="text-xs text-slate-500"> · shared w/ spouse</span>
                     )}
                   </span>
-                  <span className="shrink-0 text-xs text-slate-500">
+                  <span className="shrink-0 text-right text-xs text-slate-500">
+                    {isAdmin && p.account_number && <>#{p.account_number} · </>}
                     joined {formatDateLabel(p.created_at.slice(0, 10))}
                   </span>
                 </button>
@@ -357,6 +358,12 @@ export default function TeamPage() {
           <>
             <p className="px-1 text-xs text-slate-500">
               Showing data for <span className="text-slate-300">{selectedProfile?.email}</span>
+              {isAdmin && selectedProfile?.account_number && (
+                <>
+                  {" "}
+                  · Account #: <span className="text-slate-300">{selectedProfile.account_number}</span>
+                </>
+              )}
             </p>
 
             {loadingMember || !memberData ? (

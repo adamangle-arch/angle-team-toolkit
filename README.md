@@ -251,6 +251,14 @@ This is the only case in the app where reading someone's Assistant chat
 history is possible by anyone other than that person themselves — worth
 knowing if a downline ever asks who can see their role-play conversations.
 
+Primary users (`adamangle@icloud.com`, `alexangle@me.com`) additionally see
+everyone's `account_number` on the **Team** tab — next to each row in the
+Members list, and again on a selected member's detail view — since
+`profiles` RLS already lets an admin read every row, this is purely a
+display addition (`isAdmin &&` guards, no schema change). Useful for
+helping someone link up without needing to ask them to read their own
+number off My Profile.
+
 ### Deleting a downline's account
 
 An admin, or an upline at any level, can permanently delete a downline
@@ -314,29 +322,36 @@ back and completing a past day's Core Run doesn't re-trigger it.
 
 ### Goals ("Your goal today/this week/this month is...")
 
-The **Goals** tab (`app/goals/page.tsx`) is three simple boxes — "Your
-goal today is:", "Your goal this week is:", "Your goal this month is:"
-— each with the same six lines, every one an inline number field:
+The **Goals** tab (`app/goals/page.tsx`) is three boxes — "Your goal
+today is:", "Your goal this week is:", "Your goal this month is:" —
+each an inline number field per line, but **each period has its own
+item list** rather than repeating the same one everywhere
+(`GOAL_ITEMS_BY_PERIOD` in `lib/constants.ts`):
 
-- Reading `[__]` minutes
-- Listen to `[__]` Audio
-- `[__]` Conversations
-- `[__]` Story shares
-- `[__]` Questions
-- `[__]` Yeses
+- **Today**: Reading `[__]` minutes, Listen to `[__]` Audio,
+  `[__]` Conversations, `[__]` Story shares, `[__]` Questions, `[__]` Yeses
+- **This Week**: `[__]` Questions, `[__]` Yeses, `[__]` QI1s
+- **This Month**: `[__]` Yeses, `[__]` QI1s
 
-Each period's target is independent (a weekly goal isn't derived from
-the daily one, or vice versa) and **stays the same until you manually
-change it** — nothing resets automatically, and there's still no live
-actual-vs-target progress display (an earlier version had one; it
-caused repeated confusion about what the numbers meant and was
-dropped, twice). A note under the daily box reads "📋 Check Upline on
-what your daily goal should be." Targets are individual (not shared
-with a linked spouse), stored in a `goals` table — one row per
-metric+period. "Reading minutes" replaced the earlier "Pages Read"
-counter (`read_minutes` on `streak_days`, superseding `read_pages`) to
-match how the goal is actually phrased. Depth Texts was dropped from
-this list — it's still its own counter on the Core Run Streak page's
+The idea: daily is granular day-to-day activity, weekly/monthly step up
+to the funnel milestones that actually matter at that cadence. Each
+period's target is independent (a weekly goal isn't derived from the
+daily one, or vice versa) and **stays the same until you manually
+change it** — nothing resets automatically. Most metrics still have no
+live actual-vs-target display (an earlier version had one for
+everything; it caused repeated confusion and was dropped, twice) —
+**QI1s is the one exception**: since it already has a real, reliable
+per-period number (the exact same `pipeline_periods.qi1` count the
+Pipeline Tracker's own QI1 counter writes to), the weekly/monthly QI1s
+goal shows "(you've booked N so far)" next to it, safe to show because
+it's the same trusted number already visible elsewhere, not a new
+computation. A note under the daily box reads "📋 Check Upline on what
+your daily goal should be." Targets are individual (not shared with a
+linked spouse), stored in a `goals` table — one row per metric+period.
+"Reading minutes" replaced the earlier "Pages Read" counter
+(`read_minutes` on `streak_days`, superseding `read_pages`) to match
+how the goal is actually phrased. Depth Texts was dropped from this
+list — it's still its own counter on the Core Run Streak page's
 Today's Activity card, just not goal-settable here.
 
 There's no way to build a real iOS Home Screen widget without a native

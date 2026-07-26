@@ -76,7 +76,10 @@ export const ACTIVE_PIPELINE_MIN_STEP = 1;
 // Goals: one target number per metric per period - a goal for Today, a
 // separate one for This Week, and a separate one for This Month, each
 // staying the same until manually changed (no live actual-vs-target
-// display - that caused repeated confusion and was dropped). Each row
+// display for most metrics - that caused repeated confusion and was
+// dropped). Each period has its own item list rather than repeating the
+// same six everywhere: daily is granular day-to-day activity, weekly/
+// monthly step up to intermediate/late funnel milestones. Each row
 // renders as `${prefix} [number] ${suffix}`, e.g. "Reading [20] minutes"
 // or "[5] Story shares".
 export type GoalMetric =
@@ -85,7 +88,8 @@ export type GoalMetric =
   | "conversations"
   | "story_shares"
   | "questions"
-  | "yeses";
+  | "yeses"
+  | "qi1s";
 
 export type GoalPeriod = "daily" | "weekly" | "monthly";
 
@@ -95,14 +99,21 @@ export const GOAL_PERIODS: { key: GoalPeriod; label: string }[] = [
   { key: "monthly", label: "Your goal this month is:" },
 ];
 
-export const GOAL_ITEMS: { key: GoalMetric; prefix: string; suffix: string }[] = [
-  { key: "read_minutes", prefix: "Reading", suffix: "minutes" },
-  { key: "audios", prefix: "Listen to", suffix: "Audio" },
-  { key: "conversations", prefix: "", suffix: "Conversations" },
-  { key: "story_shares", prefix: "", suffix: "Story shares" },
-  { key: "questions", prefix: "", suffix: "Questions" },
-  { key: "yeses", prefix: "", suffix: "Yeses" },
-];
+type GoalItem = { key: GoalMetric; prefix: string; suffix: string };
+
+const READING = { key: "read_minutes", prefix: "Reading", suffix: "minutes" } as const;
+const LISTEN = { key: "audios", prefix: "Listen to", suffix: "Audio" } as const;
+const CONVERSATIONS = { key: "conversations", prefix: "", suffix: "Conversations" } as const;
+const STORY_SHARES = { key: "story_shares", prefix: "", suffix: "Story shares" } as const;
+const QUESTIONS = { key: "questions", prefix: "", suffix: "Questions" } as const;
+const YESES = { key: "yeses", prefix: "", suffix: "Yeses" } as const;
+const QI1S = { key: "qi1s", prefix: "", suffix: "QI1s" } as const;
+
+export const GOAL_ITEMS_BY_PERIOD: Record<GoalPeriod, GoalItem[]> = {
+  daily: [READING, LISTEN, CONVERSATIONS, STORY_SHARES, QUESTIONS, YESES],
+  weekly: [QUESTIONS, YESES, QI1S],
+  monthly: [YESES, QI1S],
+};
 
 // Short canonical labels for each CANDIDATE_STEPS index, for places (like
 // the Daily Update summary) that want the next actual process milestone

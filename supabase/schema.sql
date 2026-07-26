@@ -1437,7 +1437,9 @@ create table goals (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
   metric text not null check (
-    metric in ('read_minutes', 'audios', 'conversations', 'story_shares', 'questions', 'yeses')
+    metric in (
+      'read_minutes', 'audios', 'conversations', 'story_shares', 'questions', 'yeses', 'qi1s'
+    )
   ),
   period text not null check (period in ('daily', 'weekly', 'monthly')),
   target int not null default 0,
