@@ -320,9 +320,9 @@ number field —
 
 - Reading `[__]` minutes+
 - Listen to `[__]`+ Audio
-- `[__]` Depth Texts
 - `[__]` Conversations
 - `[__]` Story shares
+- `[__]` Questions
 - `[__]` Yeses
 
 There's no separate daily/weekly/monthly split (an earlier version of
@@ -332,12 +332,12 @@ meant). **The same goal applies every day until you manually change
 it** — nothing resets it automatically. A note at the bottom reads "📋
 Check Upline on what your daily goal should be." Targets are individual
 (not shared with a linked spouse), stored in a `goals` table — one row
-per metric, no period column at all. "Depth Texts" has no other analog
-elsewhere in the app, so it's tracked with its own new `depth_texts`
-counter next to Story Shares/Questions/Yeses on the Core Run Streak
-page's Today's Activity card; "Reading minutes" replaced the earlier
-"Pages Read" counter (`read_minutes` on `streak_days`, superseding
-`read_pages`) to match how the goal is actually phrased.
+per metric, no period column at all. "Reading minutes" replaced the
+earlier "Pages Read" counter (`read_minutes` on `streak_days`,
+superseding `read_pages`) to match how the goal is actually phrased.
+Depth Texts was dropped from this list — it's still its own counter on
+the Core Run Streak page's Today's Activity card, just not
+goal-settable here.
 
 There's no way to build a real iOS Home Screen widget without a native
 app (WidgetKit requires a Swift app extension, out of reach for a web

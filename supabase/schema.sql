@@ -1427,8 +1427,9 @@ grant execute on function public.get_likers(text[]) to authenticated;
 -- the same goal applies every day until manually changed. Superseded
 -- the earlier per-period design (dropped entirely, including the old
 -- Meetings/Pages Read metrics) in favor of a flat list matching exactly
--- what was asked for: Reading minutes, Audios, Depth Texts,
--- Conversations, Story Shares, Yeses.
+-- what was asked for: Reading minutes, Audios, Conversations, Story
+-- Shares, Questions, Yeses (Depth Texts dropped from Goals - it's still
+-- tracked as its own counter on Core Run Streak, just not goal-settable).
 -- ============================================================
 drop table if exists goals cascade;
 
@@ -1436,7 +1437,7 @@ create table goals (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
   metric text not null check (
-    metric in ('read_minutes', 'audios', 'depth_texts', 'questions', 'story_shares', 'yeses')
+    metric in ('read_minutes', 'audios', 'conversations', 'story_shares', 'questions', 'yeses')
   ),
   target int not null default 0,
   updated_at timestamptz not null default now(),

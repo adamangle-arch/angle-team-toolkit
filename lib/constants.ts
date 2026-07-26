@@ -80,17 +80,17 @@ export const ACTIVE_PIPELINE_MIN_STEP = 1;
 export type GoalMetric =
   | "read_minutes"
   | "audios"
-  | "depth_texts"
-  | "questions"
+  | "conversations"
   | "story_shares"
+  | "questions"
   | "yeses";
 
 export const GOAL_ITEMS: { key: GoalMetric; prefix: string; suffix: string }[] = [
   { key: "read_minutes", prefix: "Reading", suffix: "minutes+" },
   { key: "audios", prefix: "Listen to", suffix: "+ Audio" },
-  { key: "depth_texts", prefix: "", suffix: "Depth texts" },
-  { key: "questions", prefix: "", suffix: "Conversations" },
+  { key: "conversations", prefix: "", suffix: "Conversations" },
   { key: "story_shares", prefix: "", suffix: "Story shares" },
+  { key: "questions", prefix: "", suffix: "Questions" },
   { key: "yeses", prefix: "", suffix: "Yeses" },
 ];
 
