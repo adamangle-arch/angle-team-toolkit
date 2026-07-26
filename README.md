@@ -289,26 +289,40 @@ history; `daily_update` stays a plain manual toggle either way.
 ### Daily Update summary (copy/paste for LTD)
 
 The bottom of the Core Run Streak page has a **Daily Update Summary**
-card: a read-only, pre-formatted block of text built from today's Read/
-Listen/activity detail, meeting details, any new contacts added to your
-A/B list today (name + category, pulled from `contacts.created_at`
-falling on today), your current streak, this week's and this month's
-pipeline numbers, your current PV, and a list of everyone currently
+card: a read-only, pre-formatted block of text built from that day's
+Read/Listen/activity detail, meeting details, any new candidates
+connected that day, your streak as of that day, that week's and that
+month's pipeline numbers, your PV, and a list of everyone currently
 active in your Candidate Roadmap — pulled the same way the Pipeline
 Tracker defines "active" (not yet launched, not filtered out). Each
 active candidate shows their next real process milestone (QI1, QI2,
 IS1, FU1, IS2, FU2, or Offer Call) rather than their raw roadmap step,
 so the two internal "Audio & Reading" homework steps roll forward to
 the info session they're prepping for (`CANDIDATE_STEP_SHORT_LABELS` in
-`lib/constants.ts`) instead of showing as "Audio & Reading". Meetings and
-new contacts show real detail rather than a bare count: **Meetings** is
-now an add-one-at-a-time list (same pattern as Listen — type who/what,
-hit Add, ✕ to remove), stored in `meeting_items text[]`, and each new
-contact's line includes their status (and notes, if any), not just
-name/category. Meant to be copied straight into your nightly LTD update
+`lib/constants.ts`) instead of showing as "Audio & Reading". **Meetings**
+is an add-one-at-a-time list (same pattern as Listen — type who/what,
+hit Add, ✕ to remove), stored in `meeting_items text[]`, so the summary
+shows what each meeting actually was instead of a bare count. **New
+Contacts Today** pulls from the Candidate Roadmap itself — any
+`candidates` row whose `connected_date` falls on the summary's day —
+with the candidate's notes included verbatim (the same "met at X, works
+at Y" detail visible on their roadmap card), not the separate A/B
+Contact List. Meant to be copied straight into your nightly LTD update
 to your upline. Tap **Copy Daily Update** to copy it, or select the text
 manually from the box. It regenerates live as you fill in today's Core
 Run Streak fields, so fill those in first.
+
+Since people sometimes file after midnight for the day that just ended,
+the summary has its own date picker (defaulting to today, capped to the
+last 120 days of loaded history) that only changes what the summary
+block shows — it's completely separate from the live Read/Listen/Daily
+Update/Meetings fields above, which always stay bound to the actual
+current day, so picking a previous date can't corrupt today's in-progress
+entries. Picking a previous day also re-derives that day's actual
+week/month boundaries (via `getWeekStart`/`getMonthStart`) rather than
+reusing today's, so the pipeline totals shown are correct even right at
+a week or month boundary, and the streak line reports the streak as of
+that day rather than today's live streak.
 
 The summary also has a separate **Downline** section, clearly split from
 your own numbers above it: combined weekly/monthly pipeline totals

@@ -8,7 +8,7 @@ import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import { getToday, getWeekStart, getMonthStart, formatDateLabel } from "@/lib/dates";
 import { PIPELINE_STAGES, CANDIDATE_STEP_SHORT_LABELS, type PipelineStageKey } from "@/lib/constants";
-import type { StreakDay, PipelinePeriod, MonthlyPv, Candidate, Contact, Profile } from "@/lib/types";
+import type { StreakDay, PipelinePeriod, MonthlyPv, Candidate, Profile } from "@/lib/types";
 
 type StageTotals = Record<PipelineStageKey, number>;
 
@@ -54,6 +54,23 @@ function addDays(dateStr: string, delta: number): string {
   const d = new Date(`${dateStr}T00:00:00`);
   d.setDate(d.getDate() + delta);
   return d.toISOString().slice(0, 10);
+}
+
+// Consecutive qualifying days counting back from `day` (or the day
+// before, if `day` itself doesn't qualify yet) - same walk used for the
+// live "Current Streak" card, parameterized so the Daily Update summary
+// can report the streak as of whichever day it's being filed for.
+function computeStreakAsOf(history: Record<string, StreakDay>, day: string): number {
+  let count = 0;
+  let cursor = day;
+  if (!(history[cursor] && qualifies(history[cursor]))) {
+    cursor = addDays(cursor, -1);
+  }
+  while (history[cursor] && qualifies(history[cursor])) {
+    count++;
+    cursor = addDays(cursor, -1);
+  }
+  return count;
 }
 
 function emptyDay(userId: string, day: string): StreakDay {
@@ -126,6 +143,13 @@ export default function StreakPage() {
   const [history, setHistory] = useState<Record<string, StreakDay>>({});
   const [loading, setLoading] = useState(true);
   const today = getToday();
+  const since = addDays(today, -120);
+
+  // The Daily Update summary can be generated for any previously-logged
+  // day (someone filing after midnight for "yesterday"), completely
+  // separate from the live edit fields below, which always stay bound
+  // to the actual current day.
+  const [selectedDay, setSelectedDay] = useState(today);
 
   const [readWhat, setReadWhat] = useState("");
   const [readAmount, setReadAmount] = useState("");
@@ -136,7 +160,7 @@ export default function StreakPage() {
   const [monthly, setMonthly] = useState<PipelinePeriod | null>(null);
   const [pv, setPv] = useState<MonthlyPv | null>(null);
   const [activeCandidates, setActiveCandidates] = useState<Candidate[]>([]);
-  const [newContactsToday, setNewContactsToday] = useState<Contact[]>([]);
+  const [newCandidatesForDay, setNewCandidatesForDay] = useState<Candidate[]>([]);
   const [copied, setCopied] = useState(false);
   const [showTriviaUnlocked, setShowTriviaUnlocked] = useState(false);
 
@@ -150,7 +174,6 @@ export default function StreakPage() {
   useEffect(() => {
     async function load() {
       setLoading(true);
-      const since = addDays(today, -120);
       const { data } = await supabase
         .from("streak_days")
         .select("*")
@@ -262,13 +285,17 @@ export default function StreakPage() {
     setNewMeeting("");
   }
 
+  // Pipeline totals for whichever day the Daily Update summary is being
+  // filed for - the week/month boundaries are derived from selectedDay
+  // rather than hardcoded to today, so picking a previous day always
+  // shows the numbers for the period that day actually fell in (matters
+  // right at a week/month boundary).
   useEffect(() => {
     async function load() {
-      const weekStart = getWeekStart();
-      const monthStart = getMonthStart();
-      const dayStart = `${today}T00:00:00`;
-      const dayEnd = `${addDays(today, 1)}T00:00:00`;
-      const [{ data: w }, { data: m }, { data: p }, { data: c }, { data: nc }] = await Promise.all([
+      const selectedDate = new Date(`${selectedDay}T00:00:00`);
+      const weekStart = getWeekStart(selectedDate);
+      const monthStart = getMonthStart(selectedDate);
+      const [{ data: w }, { data: m }, { data: p }] = await Promise.all([
         supabase
           .from("pipeline_periods")
           .select("*")
@@ -289,29 +316,47 @@ export default function StreakPage() {
           .eq("user_id", ownerId)
           .eq("period_start", monthStart)
           .maybeSingle(),
-        supabase
-          .from("candidates")
-          .select("*")
-          .eq("user_id", ownerId)
-          .eq("launched", false)
-          .eq("filtered_out", false)
-          .order("current_step", { ascending: false }),
-        supabase
-          .from("contacts")
-          .select("*")
-          .eq("user_id", ownerId)
-          .gte("created_at", dayStart)
-          .lt("created_at", dayEnd)
-          .order("created_at", { ascending: true }),
       ]);
       setWeekly((w as PipelinePeriod) ?? null);
       setMonthly((m as PipelinePeriod) ?? null);
       setPv((p as MonthlyPv) ?? null);
-      setActiveCandidates((c as Candidate[]) ?? []);
-      setNewContactsToday((nc as Contact[]) ?? []);
     }
     load();
-  }, [ownerId, today]);
+  }, [ownerId, selectedDay]);
+
+  // Who's currently active in the Candidate Roadmap - always "right
+  // now" regardless of which day the summary is for, since there's no
+  // historical snapshot of pipeline state to go back to.
+  useEffect(() => {
+    async function load() {
+      const { data } = await supabase
+        .from("candidates")
+        .select("*")
+        .eq("user_id", ownerId)
+        .eq("launched", false)
+        .eq("filtered_out", false)
+        .order("current_step", { ascending: false });
+      setActiveCandidates((data as Candidate[]) ?? []);
+    }
+    load();
+  }, [ownerId]);
+
+  // New candidates connected on the selected day, straight from the
+  // Candidate Roadmap (connected_date) rather than the separate A/B
+  // Contact List - includes their notes so the summary shows the same
+  // "met at X, works at Y" detail visible on their roadmap card.
+  useEffect(() => {
+    async function load() {
+      const { data } = await supabase
+        .from("candidates")
+        .select("*")
+        .eq("user_id", ownerId)
+        .eq("connected_date", selectedDay)
+        .order("created_at", { ascending: true });
+      setNewCandidatesForDay((data as Candidate[]) ?? []);
+    }
+    load();
+  }, [ownerId, selectedDay]);
 
   async function saveToday(patch: Partial<StreakDay>) {
     const merged = withDerived({ ...todayRow, ...patch });
@@ -383,18 +428,13 @@ export default function StreakPage() {
     saveMeetings(todayRow.meeting_items.filter((_, i) => i !== index));
   }
 
-  const streak = useMemo(() => {
-    let count = 0;
-    let cursor = today;
-    if (!(history[cursor] && qualifies(history[cursor]))) {
-      cursor = addDays(cursor, -1);
-    }
-    while (history[cursor] && qualifies(history[cursor])) {
-      count++;
-      cursor = addDays(cursor, -1);
-    }
-    return count;
-  }, [history, today]);
+  const streak = useMemo(() => computeStreakAsOf(history, today), [history, today]);
+
+  const selectedRow: StreakDay = history[selectedDay] ?? emptyDay(user.id, selectedDay);
+  const streakAsOfSelectedDay = useMemo(
+    () => computeStreakAsOf(history, selectedDay),
+    [history, selectedDay]
+  );
 
   const todayQualifies = qualifies(todayRow);
   const doneCount = [todayRow.read, todayRow.listen, todayRow.daily_update, todayRow.story_share].filter(
@@ -403,30 +443,32 @@ export default function StreakPage() {
 
   const summaryText = useMemo(() => {
     const lines: string[] = [];
-    lines.push(`📋 Daily Update — ${formatDateLabel(today)}`);
+    lines.push(`📋 Daily Update — ${formatDateLabel(selectedDay)}`);
     lines.push("");
     lines.push("Today:");
-    lines.push(`📖 Read: ${todayRow.read_what || "—"}${todayRow.read_amount ? ` — ${todayRow.read_amount}` : ""}`);
     lines.push(
-      `🎧 Listened: ${todayRow.listen_what || "—"}${todayRow.listen_count ? ` — ${todayRow.listen_count} audio(s)` : ""}`
+      `📖 Read: ${selectedRow.read_what || "—"}${selectedRow.read_amount ? ` — ${selectedRow.read_amount}` : ""}`
     );
-    lines.push(`📝 Daily Update: ${todayRow.daily_update ? "Done" : "Not yet"}`);
     lines.push(
-      `💬 Story Shares: ${todayRow.story_shares} | Questions: ${todayRow.questions} | Yeses: ${todayRow.yeses}`
+      `🎧 Listened: ${selectedRow.listen_what || "—"}${selectedRow.listen_count ? ` — ${selectedRow.listen_count} audio(s)` : ""}`
     );
-    lines.push(`🤝 Meetings Today (${todayRow.meeting_items.length}):`);
+    lines.push(`📝 Daily Update: ${selectedRow.daily_update ? "Done" : "Not yet"}`);
     lines.push(
-      todayRow.meeting_items.length > 0 ? todayRow.meeting_items.join("\n") : "None today."
+      `💬 Story Shares: ${selectedRow.story_shares} | Questions: ${selectedRow.questions} | Yeses: ${selectedRow.yeses}`
     );
-    lines.push(`👋 New Contacts Today (${newContactsToday.length}):`);
+    lines.push(`🤝 Meetings Today (${selectedRow.meeting_items.length}):`);
     lines.push(
-      newContactsToday.length > 0
-        ? newContactsToday
-            .map((c) => `${c.name} (${c.category}) — ${c.status}${c.notes ? `: ${c.notes}` : ""}`)
+      selectedRow.meeting_items.length > 0 ? selectedRow.meeting_items.join("\n") : "None today."
+    );
+    lines.push(`👋 New Contacts Today (${newCandidatesForDay.length}):`);
+    lines.push(
+      newCandidatesForDay.length > 0
+        ? newCandidatesForDay
+            .map((c) => `${c.name}${c.notes ? ` — ${c.notes}` : ""}`)
             .join("\n")
         : "None today."
     );
-    lines.push(`🔥 Current Streak: ${streak} day(s)`);
+    lines.push(`🔥 Current Streak: ${streakAsOfSelectedDay} day(s)`);
     lines.push("");
     lines.push("My Pipeline — This Week:");
     lines.push(
@@ -478,14 +520,14 @@ export default function StreakPage() {
     }
     return lines.join("\n");
   }, [
-    today,
-    todayRow,
-    streak,
+    selectedDay,
+    selectedRow,
+    streakAsOfSelectedDay,
     weekly,
     monthly,
     pv,
     activeCandidates,
-    newContactsToday,
+    newCandidatesForDay,
     downlineMemberCount,
     downlineWeekly,
     downlineMonthly,
@@ -710,8 +752,28 @@ export default function StreakPage() {
         <div className="card space-y-2">
           <p className="section-title">Daily Update Summary</p>
           <p className="text-xs text-slate-400">
-            Copy/paste this into your LTD daily update to your upline.
+            Copy/paste this into your LTD daily update to your upline. Filing a
+            previous day&apos;s update after midnight? Pick that date below —
+            it only changes what this box shows, not your live entries above.
           </p>
+          <div className="flex gap-2">
+            <input
+              type="date"
+              className="input flex-1"
+              value={selectedDay}
+              min={since}
+              max={today}
+              onChange={(e) => setSelectedDay(e.target.value || today)}
+            />
+            {selectedDay !== today && (
+              <button
+                className="btn-icon shrink-0 px-3 text-xs"
+                onClick={() => setSelectedDay(today)}
+              >
+                Today
+              </button>
+            )}
+          </div>
           <textarea
             readOnly
             className="textarea min-h-[220px] font-mono text-xs"
