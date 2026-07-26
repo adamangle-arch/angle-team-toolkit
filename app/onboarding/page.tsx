@@ -16,7 +16,7 @@ function isInternalLink(url: string): boolean {
 }
 
 export default function OnboardingPage() {
-  const { user } = useAuth();
+  const { user, onboardingComplete } = useAuth();
   const isAdmin = isPrimaryUser(user.email);
   const [unlockedThrough, setUnlockedThrough] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -66,6 +66,19 @@ export default function OnboardingPage() {
         subtitle={`${unlockedCount}/${ONBOARDING_SESSIONS.length} sessions unlocked`}
       />
       <main className="page-main">
+        {!isAdmin && !onboardingComplete && (
+          <div className="card space-y-2 !border-amber bg-amber/10">
+            <p className="section-title">🔓 More to Unlock</p>
+            <p className="text-sm text-slate-300">
+              The app opens up as you go — Contacts and Volume unlock after
+              List Building, Pipeline and Candidate History after Sharing
+              Your Story, and Run Streak, Goals, Team, Games, and the
+              Assistant all unlock once you finish the 30-Day Core Run.
+              Keep working through your sessions to unlock the rest!
+            </p>
+          </div>
+        )}
+
         {isAdmin && (
           <div className="card space-y-2">
             <p className="section-title">🧪 Preview Onboarding Tier</p>
