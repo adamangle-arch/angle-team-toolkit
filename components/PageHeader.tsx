@@ -19,7 +19,12 @@ export default function PageHeader({
         {subtitle ? <p className="app-subtitle">{subtitle}</p> : null}
       </div>
       <div className="flex shrink-0 items-center gap-1.5">
-        <Link href="/search" className="chip-btn" aria-label="Search">
+        <Link
+          href="/search"
+          aria-label="Search"
+          className="flex items-center justify-center rounded-lg border px-2.5 py-1.5 text-base leading-none transition duration-150 active:scale-95"
+          style={{ background: "rgba(245,158,11,0.16)", borderColor: "rgba(245,158,11,0.4)" }}
+        >
           🔍
         </Link>
         <Link href="/profile" className="chip-btn">
