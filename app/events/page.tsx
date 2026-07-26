@@ -8,6 +8,17 @@ import { isPrimaryUser } from "@/lib/constants";
 import { formatDateLabel } from "@/lib/dates";
 import type { TeamEventAlbum, EventMedia } from "@/lib/types";
 
+// crypto.randomUUID() needs a secure context and isn't available in
+// every mobile browser/in-app webview - falling back avoids a thrown
+// exception mid-upload leaving the "Uploading..." button stuck forever
+// with no error shown.
+function uniqueId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 export default function EventsPage() {
   const { user } = useAuth();
   const isAdmin = isPrimaryUser(user.email);
@@ -71,28 +82,38 @@ export default function EventsPage() {
     setUploadError(null);
 
     const uploaded: EventMedia[] = [];
+    const errors: string[] = [];
+
     for (const file of Array.from(files)) {
-      const isVideo = file.type.startsWith("video/");
-      const ext = file.name.split(".").pop() || (isVideo ? "mp4" : "jpg");
-      const path = `${albumId}/${crypto.randomUUID()}.${ext}`;
-      const { error: uploadErr } = await supabase.storage.from("event-media").upload(path, file);
-      if (uploadErr) {
-        setUploadError(uploadErr.message);
-        continue;
+      try {
+        const isVideo = file.type.startsWith("video/");
+        const ext = file.name.split(".").pop() || (isVideo ? "mp4" : "jpg");
+        const path = `${albumId}/${uniqueId()}.${ext}`;
+        const { error: uploadErr } = await supabase.storage.from("event-media").upload(path, file);
+        if (uploadErr) {
+          errors.push(`${file.name}: ${uploadErr.message}`);
+          continue;
+        }
+        const { data: pub } = supabase.storage.from("event-media").getPublicUrl(path);
+        const { data: row, error: insertErr } = await supabase
+          .from("event_media")
+          .insert({
+            album_id: albumId,
+            storage_path: path,
+            media_url: pub.publicUrl,
+            media_type: isVideo ? "video" : "photo",
+            uploaded_by: user.id,
+          })
+          .select("*")
+          .single();
+        if (insertErr) {
+          errors.push(`${file.name}: ${insertErr.message}`);
+        } else if (row) {
+          uploaded.push(row as EventMedia);
+        }
+      } catch (err) {
+        errors.push(`${file.name}: ${err instanceof Error ? err.message : "Upload failed."}`);
       }
-      const { data: pub } = supabase.storage.from("event-media").getPublicUrl(path);
-      const { data: row } = await supabase
-        .from("event_media")
-        .insert({
-          album_id: albumId,
-          storage_path: path,
-          media_url: pub.publicUrl,
-          media_type: isVideo ? "video" : "photo",
-          uploaded_by: user.id,
-        })
-        .select("*")
-        .single();
-      if (row) uploaded.push(row as EventMedia);
     }
 
     if (uploaded.length > 0) {
@@ -101,6 +122,7 @@ export default function EventsPage() {
         [albumId]: [...uploaded, ...(prev[albumId] ?? [])],
       }));
     }
+    if (errors.length > 0) setUploadError(errors.join(" "));
     setUploadingFor(null);
   }
 
