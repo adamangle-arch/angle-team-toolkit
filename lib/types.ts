@@ -142,14 +142,16 @@ export type DittoEntry = {
   user_id: string;
 } & WithPartner;
 
-export type DailySalesEntry = {
+export type DailySaleEntry = {
+  sale_id: string;
+  user_id: string;
   first_name: string | null;
   last_name: string | null;
   team: string | null;
-  sale_count: number;
-  total_pv: number;
-  user_id: string;
-} & WithPartner;
+  category: "XS" | "Nutrilite" | "Artistry" | "Home" | "Other";
+  amount: number;
+  created_at: string;
+};
 
 export type MonthlyPv = {
   id: string;

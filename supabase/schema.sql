@@ -53,7 +53,7 @@ drop table if exists recognition_log cascade;
 create table if not exists pipeline_periods (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
-  period_type text not null check (period_type in ('weekly', 'monthly')),
+  period_type text not null,
   period_start date not null,
   questions int not null default 0,
   yeses int not null default 0,
@@ -68,6 +68,13 @@ create table if not exists pipeline_periods (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (user_id, period_type, period_start)
+);
+
+-- Same pattern as profiles_team_check: re-runnable so "daily" (or any
+-- future period) can be added without dropping (and wiping) this table.
+alter table pipeline_periods drop constraint if exists pipeline_periods_period_type_check;
+alter table pipeline_periods add constraint pipeline_periods_period_type_check check (
+  period_type in ('daily', 'weekly', 'monthly')
 );
 
 -- ============================================================
@@ -1071,39 +1078,36 @@ $$;
 
 grant execute on function public.get_ditto_leaderboard(date) to authenticated;
 
--- Anyone who logged a customer sale today, ranked by total PV from those
--- sales (amount on customer_sales is PV, not dollars). No period_start
--- param needed - always "today," recomputed fresh on every page load,
--- same as the Milestone Alerts / New to the Team spotlights above.
-create or replace function public.get_daily_sales_leaderboard()
+-- Every individual customer sale logged today, newest first - each sale
+-- is its own "posted" row (name, category, PV), not aggregated per
+-- person, so the category is actually meaningful per row. No
+-- period_start param needed - always "today," recomputed fresh on every
+-- page load, same as the Milestone Alerts / New to the Team spotlights
+-- above.
+create or replace function public.get_daily_sales_feed()
 returns table (
+  sale_id uuid,
+  user_id uuid,
   first_name text,
   last_name text,
   team text,
-  sale_count int,
-  total_pv int,
-  user_id uuid,
-  partner_user_id uuid,
-  partner_first_name text,
-  partner_last_name text
+  category text,
+  amount int,
+  created_at timestamptz
 )
 language sql
 stable
 security definer
 set search_path = public
 as $$
-  select pr.first_name, pr.last_name, pr.team,
-         count(cs.id)::int, coalesce(sum(cs.amount), 0)::int, pr.id,
-         partner.id, partner.first_name, partner.last_name
+  select cs.id, pr.id, pr.first_name, pr.last_name, pr.team, cs.category, cs.amount::int, cs.created_at
   from customer_sales cs
   join profiles pr on pr.id = cs.user_id
-  left join profiles partner on partner.household_id = pr.id
   where cs.created_at::date = current_date
-  group by pr.id, pr.first_name, pr.last_name, pr.team, partner.id, partner.first_name, partner.last_name
-  order by total_pv desc;
+  order by cs.created_at desc;
 $$;
 
-grant execute on function public.get_daily_sales_leaderboard() to authenticated;
+grant execute on function public.get_daily_sales_feed() to authenticated;
 
 -- ============================================================
 -- Row Level Security

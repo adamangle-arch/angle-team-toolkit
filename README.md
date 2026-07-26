@@ -639,14 +639,36 @@ existing `customer_sales` table.
 
 ### Today's Sales (Leaderboard)
 
-Any customer sale logged today shows up team-wide on the **Leaderboard**
-in a **🛍️ Today's Sales** card — ranked by total PV from today's sales,
-with the sale count shown alongside each person's name. It's always
-visible (not gated behind the weekly/monthly toggle, since it's a "today"
-spotlight the same way New to the Team and Milestone Alerts are) and
-recomputes fresh on every page load via `get_daily_sales_leaderboard()`,
-so there's no separate "reset it" step at midnight - a new day just
-naturally starts from zero rows matching `created_at::date = current_date`.
+Any customer sale logged today gets "posted" team-wide on the
+**Leaderboard** in a **🛍️ Today's Sales** card — one row per sale
+(newest first), each showing who made it, the product line category,
+and the PV amount. It's a feed of individual sales, not an aggregated
+per-person total, since the category is only meaningful sale-by-sale. It's
+always visible (not gated behind the daily/weekly/monthly toggle, since
+it's a "today" spotlight the same way New to the Team and Milestone
+Alerts are) and recomputes fresh on every page load via
+`get_daily_sales_feed()`, so there's no separate "reset it" step at
+midnight - a new day just naturally starts from zero rows matching
+`created_at::date = current_date`.
+
+### Daily period (Pipeline Tracker & Leaderboard)
+
+Both the **Pipeline Tracker** and **Leaderboard** now have a **Daily**
+option alongside Weekly and Monthly. On Pipeline Tracker it's just a
+third `period_type` bucket (`pipeline_periods.period_type` now allows
+`'daily'`, `period_start` is just today's date) — same counters,
+same Candidate Roadmap underneath, just scoped to today.
+
+On the Leaderboard, switching to Daily reuses the exact same Team
+Leaders / Individual Leaders / QI1 Rhythm sections already built for
+weekly and monthly — no new functions needed, since
+`get_team_pipeline_totals()` and `get_individual_leaders()` already take
+any `period_type`/`period_start`. This is what actually answers "who got
+the most yeses / QI1s / QI2s / etc. today" — Individual Leaders already
+covers every pipeline stage except Questions, per period. Core 300 and
+Day 1 Ditto stay monthly-only (they're inherently monthly concepts, not
+daily), and the QI1 Rhythm threshold is 1+ for Daily (vs. 2+/week,
+8+/month).
 
 ### Daily Reminders (push notifications)
 

@@ -14,13 +14,20 @@ import {
 import {
   getMonthStart,
   getWeekStart,
+  getToday,
   formatDateLabel,
   formatShortDateLabel,
   formatShortMonthLabel,
 } from "@/lib/dates";
 import type { PipelinePeriod, Candidate } from "@/lib/types";
 
-type PeriodType = "weekly" | "monthly";
+type PeriodType = "daily" | "weekly" | "monthly";
+
+function periodStartFor(periodType: PeriodType): string {
+  if (periodType === "daily") return getToday();
+  if (periodType === "weekly") return getWeekStart();
+  return getMonthStart();
+}
 
 function pct(numerator: number, denominator: number): string {
   if (!denominator) return "—";
@@ -47,8 +54,7 @@ export default function PipelinePage() {
 
     async function load() {
       setLoading(true);
-      const periodStart =
-        periodType === "weekly" ? getWeekStart() : getMonthStart();
+      const periodStart = periodStartFor(periodType);
 
       const { data: existing } = await supabase
         .from("pipeline_periods")
@@ -102,7 +108,7 @@ export default function PipelinePage() {
     let cancelled = false;
 
     async function load() {
-      const limit = periodType === "weekly" ? 8 : 6;
+      const limit = periodType === "daily" ? 7 : periodType === "weekly" ? 8 : 6;
       const { data } = await supabase
         .from("pipeline_periods")
         .select("*")
@@ -131,9 +137,9 @@ export default function PipelinePage() {
       .sort((a, b) => a.period_start.localeCompare(b.period_start))
       .map((p) => ({
         label:
-          periodType === "weekly"
-            ? formatShortDateLabel(p.period_start)
-            : formatShortMonthLabel(p.period_start),
+          periodType === "monthly"
+            ? formatShortMonthLabel(p.period_start)
+            : formatShortDateLabel(p.period_start),
         value: p[trendStage] as number,
       }));
   }, [trendHistory, period, periodType, trendStage]);
@@ -198,14 +204,22 @@ export default function PipelinePage() {
         title="Pipeline Tracker"
         subtitle={
           period
-            ? `${periodType === "weekly" ? "Week of" : "Month of"} ${formatDateLabel(
-                period.period_start
-              )}`
+            ? `${
+                periodType === "daily" ? "Day of" : periodType === "weekly" ? "Week of" : "Month of"
+              } ${formatDateLabel(period.period_start)}`
             : undefined
         }
       />
       <main className="page-main">
         <div className="card flex p-1">
+          <button
+            className={
+              periodType === "daily" ? "toggle-pill-active" : "toggle-pill-inactive"
+            }
+            onClick={() => setPeriodType("daily")}
+          >
+            Daily
+          </button>
           <button
             className={
               periodType === "weekly" ? "toggle-pill-active" : "toggle-pill-inactive"

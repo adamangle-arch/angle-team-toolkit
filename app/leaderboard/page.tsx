@@ -21,14 +21,14 @@ import type {
   ActiveCandidatesEntry,
   Qi1RhythmEntry,
   DittoEntry,
-  DailySalesEntry,
+  DailySaleEntry,
   NewMember,
   Liker,
   MilestoneEntry,
   GameLeaderEntry,
 } from "@/lib/types";
 
-type PeriodType = "weekly" | "monthly";
+type PeriodType = "daily" | "weekly" | "monthly";
 type LikeInfo = { count: number; likedByMe: boolean; names: string[] };
 const NO_LIKES: LikeInfo = { count: 0, likedByMe: false, names: [] };
 
@@ -150,8 +150,8 @@ function milestoneEntryKey(userId: string, milestoneDays: number) {
 function gameEntryKey(userId: string) {
   return `game:${userId}`;
 }
-function dailySalesEntryKey(userId: string) {
-  return `daily_sales:${getToday()}:${userId}`;
+function dailySaleEntryKey(saleId: string) {
+  return `daily_sale:${saleId}`;
 }
 
 export default function LeaderboardPage() {
@@ -160,7 +160,11 @@ export default function LeaderboardPage() {
   const [monthsBack, setMonthsBack] = useState(0);
 
   const periodStart =
-    periodType === "weekly" ? getWeekStart() : getMonthStartOffset(monthsBack);
+    periodType === "daily"
+      ? getToday()
+      : periodType === "weekly"
+        ? getWeekStart()
+        : getMonthStartOffset(monthsBack);
 
   const [teamTotals, setTeamTotals] = useState<TeamTotals[]>([]);
   const [individualLeaders, setIndividualLeaders] = useState<IndividualLeaderEntry[]>([]);
@@ -172,13 +176,13 @@ export default function LeaderboardPage() {
   const [newMembers, setNewMembers] = useState<NewMember[]>([]);
   const [milestones, setMilestones] = useState<MilestoneEntry[]>([]);
   const [gameLeaders, setGameLeaders] = useState<GameLeaderEntry[]>([]);
-  const [dailySales, setDailySales] = useState<DailySalesEntry[]>([]);
+  const [dailySales, setDailySales] = useState<DailySaleEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [myName, setMyName] = useState("You");
   const [likesMap, setLikesMap] = useState<Map<string, LikeInfo>>(new Map());
 
-  const qi1RhythmThreshold = periodType === "weekly" ? 2 : 8;
+  const qi1RhythmThreshold = periodType === "daily" ? 1 : periodType === "weekly" ? 2 : 8;
 
   useEffect(() => {
     let cancelled = false;
@@ -267,8 +271,8 @@ export default function LeaderboardPage() {
 
   useEffect(() => {
     let cancelled = false;
-    supabase.rpc("get_daily_sales_leaderboard").then(({ data }) => {
-      if (!cancelled) setDailySales((data as DailySalesEntry[]) ?? []);
+    supabase.rpc("get_daily_sales_feed").then(({ data }) => {
+      if (!cancelled) setDailySales((data as DailySaleEntry[]) ?? []);
     });
     return () => {
       cancelled = true;
@@ -340,7 +344,7 @@ export default function LeaderboardPage() {
     for (const e of ditto) keys.add(dittoEntryKey(periodStart, e.user_id));
     for (const m of milestones) keys.add(milestoneEntryKey(m.user_id, m.milestone_days));
     for (const g of gameLeaders) keys.add(gameEntryKey(g.user_id));
-    for (const e of dailySales) keys.add(dailySalesEntryKey(e.user_id));
+    for (const e of dailySales) keys.add(dailySaleEntryKey(e.sale_id));
     return Array.from(keys);
   }, [
     teamTotals,
@@ -412,13 +416,21 @@ export default function LeaderboardPage() {
       <PageHeader
         title="Leaderboard"
         subtitle={
-          periodType === "weekly"
-            ? `Week of ${formatDateLabel(periodStart)}`
-            : formatMonthLabel(periodStart)
+          periodType === "daily"
+            ? `Today, ${formatDateLabel(periodStart)}`
+            : periodType === "weekly"
+              ? `Week of ${formatDateLabel(periodStart)}`
+              : formatMonthLabel(periodStart)
         }
       />
       <main className="page-main">
         <div className="card flex p-1">
+          <button
+            className={periodType === "daily" ? "toggle-pill-active" : "toggle-pill-inactive"}
+            onClick={() => setPeriodType("daily")}
+          >
+            Daily
+          </button>
           <button
             className={periodType === "weekly" ? "toggle-pill-active" : "toggle-pill-inactive"}
             onClick={() => setPeriodType("weekly")}
@@ -510,21 +522,23 @@ export default function LeaderboardPage() {
         {dailySales.length > 0 && (
           <div className="card space-y-1.5">
             <p className="section-title">🛍️ Today&apos;s Sales</p>
-            {dailySales.map((entry, i) => {
-              const key = dailySalesEntryKey(entry.user_id);
+            {dailySales.map((entry) => {
+              const key = dailySaleEntryKey(entry.sale_id);
+              const time = new Date(entry.created_at).toLocaleTimeString(undefined, {
+                hour: "numeric",
+                minute: "2-digit",
+              });
               return (
-                <div
-                  key={`${entry.user_id}-${i}`}
-                  className="flex items-center justify-between gap-2 text-sm"
-                >
+                <div key={entry.sale_id} className="flex items-center justify-between gap-2 text-sm">
                   <span className="text-slate-200">
-                    {i + 1}. <CoupleLink entry={entry} />{" "}
+                    <PersonLink entry={entry} />{" "}
                     <span className="text-xs text-slate-500">
-                      ({entry.team}) — {entry.sale_count} sale{entry.sale_count === 1 ? "" : "s"}
+                      ({entry.team}) — {time}
                     </span>
                   </span>
                   <div className="flex shrink-0 items-center gap-2">
-                    <span className="pill pill-amber">{entry.total_pv} PV</span>
+                    <span className="pill">{entry.category}</span>
+                    <span className="pill pill-amber">{entry.amount} PV</span>
                     <LikeButton
                       entryKey={key}
                       likes={likesMap.get(key) ?? NO_LIKES}
@@ -610,7 +624,8 @@ export default function LeaderboardPage() {
 
             <div className="card space-y-1.5">
               <p className="section-title">
-                🔁 {qi1RhythmThreshold}+ QI1s {periodType === "weekly" ? "This Week" : "This Month"}
+                🔁 {qi1RhythmThreshold}+ QI1s{" "}
+                {periodType === "daily" ? "Today" : periodType === "weekly" ? "This Week" : "This Month"}
               </p>
               {qi1Rhythm.length === 0 ? (
                 <p className="text-sm text-slate-400">No one&apos;s hit that rhythm yet.</p>
