@@ -138,7 +138,9 @@ underneath the pipeline counters. A new candidate starts at step 0, **Yes**
 is what makes them count as "active in the pipeline." That count shows at
 the top of the Candidate Roadmap section, and the same threshold
 (`ACTIVE_PIPELINE_MIN_STEP` in `lib/constants.ts`) is what the Leaderboard's
-5+ Active Candidates section uses.
+5+ Active Candidates section uses. Tap the count itself to expand a quick
+name + step summary of everyone it includes, without having to scroll
+through the full editable candidate cards below to see who's where.
 
 Each candidate also has a **Connected** date (defaults to today when
 added, editable anytime). Marking a candidate "Filtered Out" removes them

@@ -40,6 +40,7 @@ export default function PipelinePage() {
 
   const [trendStage, setTrendStage] = useState<PipelineStageKey>("questions");
   const [trendHistory, setTrendHistory] = useState<PipelinePeriod[]>([]);
+  const [showActiveSummary, setShowActiveSummary] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -188,9 +189,8 @@ export default function PipelinePage() {
   // filtered out — they only live on in the Candidate History tab.
   const active = candidates.filter((c) => !c.launched && !c.filtered_out);
   const launched = candidates.filter((c) => c.launched);
-  const activeInPipelineCount = active.filter(
-    (c) => c.current_step >= ACTIVE_PIPELINE_MIN_STEP
-  ).length;
+  const activeInPipeline = active.filter((c) => c.current_step >= ACTIVE_PIPELINE_MIN_STEP);
+  const activeInPipelineCount = activeInPipeline.length;
 
   return (
     <>
@@ -302,8 +302,29 @@ export default function PipelinePage() {
 
         <div className="flex items-center justify-between px-1 pt-2">
           <p className="section-title">Candidate Roadmap</p>
-          <span className="pill pill-amber">{activeInPipelineCount} active in pipeline</span>
+          <button
+            className="pill pill-amber"
+            onClick={() => setShowActiveSummary((s) => !s)}
+          >
+            {activeInPipelineCount} active in pipeline
+          </button>
         </div>
+
+        {showActiveSummary && (
+          <div className="card space-y-1.5">
+            <p className="section-title">Who&apos;s Active</p>
+            {activeInPipeline.length === 0 ? (
+              <p className="text-sm text-slate-400">No one active in the pipeline right now.</p>
+            ) : (
+              activeInPipeline.map((c) => (
+                <div key={c.id} className="flex items-center justify-between text-sm">
+                  <span className="text-slate-200">{c.name}</span>
+                  <span className="pill">{CANDIDATE_STEPS[c.current_step].label}</span>
+                </div>
+              ))
+            )}
+          </div>
+        )}
 
         <div className="card space-y-2">
           <p className="section-title">Add Candidate</p>
