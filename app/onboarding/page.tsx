@@ -37,6 +37,19 @@ export default function OnboardingPage() {
     ? ONBOARDING_SESSIONS.length
     : Math.min(unlockedThrough, ONBOARDING_SESSIONS.length);
 
+  // TEMPORARY: lets an admin preview a locked-down onboarding tier in
+  // their own browser (see AuthGate's atk_debug_unlock sessionStorage
+  // override) without touching their real onboarding_unlocked_through
+  // row. This page is always reachable at every tier, so it's a safe
+  // place to switch back to "Full" too. Remove this card (and the
+  // override in AuthGate) once testing is done.
+  const debugTier = typeof window !== "undefined" ? sessionStorage.getItem("atk_debug_unlock") : null;
+  function previewTier(tier: number | null) {
+    if (tier === null) sessionStorage.removeItem("atk_debug_unlock");
+    else sessionStorage.setItem("atk_debug_unlock", String(tier));
+    location.reload();
+  }
+
   return (
     <>
       <PageHeader
@@ -44,6 +57,34 @@ export default function OnboardingPage() {
         subtitle={`${unlockedCount}/${ONBOARDING_SESSIONS.length} sessions unlocked`}
       />
       <main className="page-main">
+        {isAdmin && (
+          <div className="card space-y-2">
+            <p className="section-title">🧪 Preview Onboarding Tier</p>
+            <p className="text-xs text-slate-400">
+              Switches what tabs you see, as if you were at that tier — only
+              affects this browser tab, doesn&apos;t touch your real progress
+              or anyone else&apos;s.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                className={debugTier === null ? "toggle-pill-active" : "toggle-pill-inactive"}
+                onClick={() => previewTier(null)}
+              >
+                Full (Me)
+              </button>
+              {[1, 2, 3, 4, 5].map((tier) => (
+                <button
+                  key={tier}
+                  className={debugTier === String(tier) ? "toggle-pill-active" : "toggle-pill-inactive"}
+                  onClick={() => previewTier(tier)}
+                >
+                  Tier {tier}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {loading ? (
           <div className="empty-state">Loading…</div>
         ) : (
