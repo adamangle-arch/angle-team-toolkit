@@ -693,6 +693,12 @@ on the **Team** tab, calling `grant_next_onboarding_session()`. Locked
 sessions still show their title and description so people know what's
 coming, just not the resources inside.
 
+Next to **Unlock Next** is an **Unlock All** button, calling
+`grant_all_onboarding_sessions()` — same authorization (upline or
+admin), but jumps straight to all 5 sessions unlocked in one tap. Meant
+for someone who isn't actually new to the business (already experienced
+elsewhere) rather than clicking "Unlock Next" four times in a row.
+
 This is deliberately not automatic (e.g. not tied to completing a
 checklist) — it's an explicit "I'm confirming this person is ready for
 the next session" action by their upline, backed by

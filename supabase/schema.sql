@@ -523,6 +523,31 @@ $$;
 
 grant execute on function public.grant_next_onboarding_session(uuid) to authenticated;
 
+-- Same authorization as grant_next_onboarding_session, but jumps straight
+-- to fully unlocked - for someone who isn't actually new (e.g. already
+-- experienced elsewhere in the business) instead of clicking "Unlock
+-- Next" four times. The session count (5) only lives in the app's
+-- ONBOARDING_SESSIONS constant - bump this literal too if that list ever
+-- grows.
+create or replace function public.grant_all_onboarding_sessions(p_user_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not (public.is_app_admin() or public.is_upline_of(auth.uid(), p_user_id)) then
+    raise exception 'Not authorized to grant onboarding access for this account.';
+  end if;
+
+  update profiles
+  set onboarding_unlocked_through = 5
+  where id = p_user_id;
+end;
+$$;
+
+grant execute on function public.grant_all_onboarding_sessions(uuid) to authenticated;
+
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql

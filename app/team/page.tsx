@@ -232,6 +232,28 @@ export default function TeamPage() {
     setGrantingOnboarding(false);
   }
 
+  // For someone who isn't actually new - skips straight to fully
+  // unlocked instead of tapping "Unlock Next" through every session.
+  async function handleGrantAllOnboarding() {
+    if (!selectedId) return;
+    setGrantingOnboarding(true);
+    setGrantError("");
+    const { error } = await supabase.rpc("grant_all_onboarding_sessions", {
+      p_user_id: selectedId,
+    });
+    if (error) {
+      setGrantError(error.message);
+      setGrantingOnboarding(false);
+      return;
+    }
+    setProfiles((prev) =>
+      prev.map((p) =>
+        p.id === selectedId ? { ...p, onboarding_unlocked_through: ONBOARDING_SESSIONS.length } : p
+      )
+    );
+    setGrantingOnboarding(false);
+  }
+
   async function handleDelete() {
     if (!selectedId) return;
     setDeleting(true);
@@ -516,17 +538,30 @@ export default function TeamPage() {
                       </p>
                       {grantError && <p className="text-xs text-red-400">{grantError}</p>}
                     </div>
-                    <button
-                      className="btn-primary shrink-0"
-                      onClick={handleGrantOnboarding}
-                      disabled={
-                        grantingOnboarding ||
-                        (selectedProfile?.onboarding_unlocked_through ?? 1) >=
-                          ONBOARDING_SESSIONS.length
-                      }
-                    >
-                      {grantingOnboarding ? "Unlocking…" : "Unlock Next"}
-                    </button>
+                    <div className="flex shrink-0 gap-2">
+                      <button
+                        className="btn-secondary"
+                        onClick={handleGrantAllOnboarding}
+                        disabled={
+                          grantingOnboarding ||
+                          (selectedProfile?.onboarding_unlocked_through ?? 1) >=
+                            ONBOARDING_SESSIONS.length
+                        }
+                      >
+                        {grantingOnboarding ? "Unlocking…" : "Unlock All"}
+                      </button>
+                      <button
+                        className="btn-primary"
+                        onClick={handleGrantOnboarding}
+                        disabled={
+                          grantingOnboarding ||
+                          (selectedProfile?.onboarding_unlocked_through ?? 1) >=
+                            ONBOARDING_SESSIONS.length
+                        }
+                      >
+                        {grantingOnboarding ? "Unlocking…" : "Unlock Next"}
+                      </button>
+                    </div>
                   </div>
                 )}
 
