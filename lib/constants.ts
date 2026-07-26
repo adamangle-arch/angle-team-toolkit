@@ -73,10 +73,12 @@ export const CANDIDATE_STEPS: { label: string; homework: string }[] = [
 // pipeline" — index 1 is QI1, so this is "QI1 booked or beyond."
 export const ACTIVE_PIPELINE_MIN_STEP = 1;
 
-// Goals: one target number per metric, period-free - the same goal
-// applies every day until manually changed (no separate daily/weekly/
-// monthly targets). Each row renders as `${prefix} [number] ${suffix}`,
-// e.g. "Reading [20] minutes+" or "[5] Story shares".
+// Goals: one target number per metric per period - a goal for Today, a
+// separate one for This Week, and a separate one for This Month, each
+// staying the same until manually changed (no live actual-vs-target
+// display - that caused repeated confusion and was dropped). Each row
+// renders as `${prefix} [number] ${suffix}`, e.g. "Reading [20] minutes"
+// or "[5] Story shares".
 export type GoalMetric =
   | "read_minutes"
   | "audios"
@@ -84,6 +86,14 @@ export type GoalMetric =
   | "story_shares"
   | "questions"
   | "yeses";
+
+export type GoalPeriod = "daily" | "weekly" | "monthly";
+
+export const GOAL_PERIODS: { key: GoalPeriod; label: string }[] = [
+  { key: "daily", label: "Your goal today is:" },
+  { key: "weekly", label: "Your goal this week is:" },
+  { key: "monthly", label: "Your goal this month is:" },
+];
 
 export const GOAL_ITEMS: { key: GoalMetric; prefix: string; suffix: string }[] = [
   { key: "read_minutes", prefix: "Reading", suffix: "minutes" },

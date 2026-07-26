@@ -1421,15 +1421,15 @@ $$;
 grant execute on function public.get_likers(text[]) to authenticated;
 
 -- ============================================================
--- 13. GOALS ("Your goal today is...")
+-- 13. GOALS ("Your goal today/this week/this month is...")
 -- Individual, same as Core Run Streak (not household-shared) - one
--- target number per metric, no separate daily/weekly/monthly period:
--- the same goal applies every day until manually changed. Superseded
--- the earlier per-period design (dropped entirely, including the old
--- Meetings/Pages Read metrics) in favor of a flat list matching exactly
--- what was asked for: Reading minutes, Audios, Conversations, Story
--- Shares, Questions, Yeses (Depth Texts dropped from Goals - it's still
--- tracked as its own counter on Core Run Streak, just not goal-settable).
+-- target number per metric per period (daily/weekly/monthly), each
+-- staying the same until manually changed. No live actual-vs-target
+-- display (that caused repeated confusion and was dropped) - this is
+-- purely a goal-setting list: Reading minutes, Audios, Conversations,
+-- Story Shares, Questions, Yeses (Depth Texts dropped from Goals - it's
+-- still tracked as its own counter on Core Run Streak, just not
+-- goal-settable).
 -- ============================================================
 drop table if exists goals cascade;
 
@@ -1439,9 +1439,10 @@ create table goals (
   metric text not null check (
     metric in ('read_minutes', 'audios', 'conversations', 'story_shares', 'questions', 'yeses')
   ),
+  period text not null check (period in ('daily', 'weekly', 'monthly')),
   target int not null default 0,
   updated_at timestamptz not null default now(),
-  unique (user_id, metric)
+  unique (user_id, metric, period)
 );
 
 alter table goals enable row level security;

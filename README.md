@@ -312,11 +312,11 @@ that day's data once the calendar flips.
 The "Trivia Unlocked" alert only ever fires while editing today — going
 back and completing a past day's Core Run doesn't re-trigger it.
 
-### Goals ("Your goal today is...")
+### Goals ("Your goal today/this week/this month is...")
 
-The **Goals** tab (`app/goals/page.tsx`) is a single, simple box: "Your
-goal today is:" followed by one line per target, each with an inline
-number field —
+The **Goals** tab (`app/goals/page.tsx`) is three simple boxes — "Your
+goal today is:", "Your goal this week is:", "Your goal this month is:"
+— each with the same six lines, every one an inline number field:
 
 - Reading `[__]` minutes
 - Listen to `[__]` Audio
@@ -325,19 +325,19 @@ number field —
 - `[__]` Questions
 - `[__]` Yeses
 
-There's no separate daily/weekly/monthly split (an earlier version of
-this feature had one, plus a live actual-vs-target progress display —
-both were dropped after repeated confusion about what the numbers
-meant). **The same goal applies every day until you manually change
-it** — nothing resets it automatically. A note at the bottom reads "📋
-Check Upline on what your daily goal should be." Targets are individual
-(not shared with a linked spouse), stored in a `goals` table — one row
-per metric, no period column at all. "Reading minutes" replaced the
-earlier "Pages Read" counter (`read_minutes` on `streak_days`,
-superseding `read_pages`) to match how the goal is actually phrased.
-Depth Texts was dropped from this list — it's still its own counter on
-the Core Run Streak page's Today's Activity card, just not
-goal-settable here.
+Each period's target is independent (a weekly goal isn't derived from
+the daily one, or vice versa) and **stays the same until you manually
+change it** — nothing resets automatically, and there's still no live
+actual-vs-target progress display (an earlier version had one; it
+caused repeated confusion about what the numbers meant and was
+dropped, twice). A note under the daily box reads "📋 Check Upline on
+what your daily goal should be." Targets are individual (not shared
+with a linked spouse), stored in a `goals` table — one row per
+metric+period. "Reading minutes" replaced the earlier "Pages Read"
+counter (`read_minutes` on `streak_days`, superseding `read_pages`) to
+match how the goal is actually phrased. Depth Texts was dropped from
+this list — it's still its own counter on the Core Run Streak page's
+Today's Activity card, just not goal-settable here.
 
 There's no way to build a real iOS Home Screen widget without a native
 app (WidgetKit requires a Swift app extension, out of reach for a web
