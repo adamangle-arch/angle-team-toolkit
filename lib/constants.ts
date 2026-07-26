@@ -254,18 +254,6 @@ export const ONBOARDING_SESSIONS: OnboardingSession[] = [
           "Once you're in the Hub on the LTD Media app, study and check out all the other resources there too — they're all built around creating customers.",
       },
       {
-        label: "🎧 Ditch the Pitch",
-        detail: "Audio by Drew Tidwell — found in the First 90 Days tab on the LTD Media app.",
-      },
-      {
-        label: "🎧 Unrattled",
-        detail: "Audio by Drew Tidwell — your mentor will gift this to you on the LTD Media app.",
-      },
-      {
-        label: "🎧 A Compelling Story",
-        detail: "Audio by Drew Tidwell — your mentor will gift this to you on the LTD Media app.",
-      },
-      {
         label: "📚 Resources: Customers Tab",
         detail: "The Customer Survey questions and Sample Bag guide both live here — come back anytime.",
         url: "/library?tab=acquisition",
@@ -283,6 +271,18 @@ export const ONBOARDING_SESSIONS: OnboardingSession[] = [
     resources: [
       { label: "🎥 Story Training Video", detail: "Replace with your story-sharing training link." },
       { label: "🎧 Story Examples Audio", detail: "Replace with example story audio." },
+      {
+        label: "🎧 Ditch the Pitch",
+        detail: "Audio by Drew Tidwell — found in the First 90 Days tab on the LTD Media app.",
+      },
+      {
+        label: "🎧 Unrattled",
+        detail: "Audio by Drew Tidwell — your mentor will gift this to you on the LTD Media app.",
+      },
+      {
+        label: "🎧 A Compelling Story",
+        detail: "Audio by Drew Tidwell — your mentor will gift this to you on the LTD Media app.",
+      },
     ],
   },
   {
