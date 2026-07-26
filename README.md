@@ -1077,9 +1077,17 @@ with no error ever shown. Two contributing gaps, both fixed:
 The Role-Play / Rate a Call toggle-pill row on the Assistant page used to
 scroll away with the rest of the chat — once a Role-Play conversation got
 long, switching to Rate a Call meant scrolling all the way back to the top
-first. It's now wrapped in a `.tab-bar-sticky` class (`app/globals.css`)
-that pins it just below the app header regardless of scroll position,
-same idea as the header itself being sticky.
+first. The first fix for this used `position: sticky` nested inside
+`page-main` (the `overflow-y-auto` scrolling container) — that broke
+scrolling entirely on iOS Safari (a known WebKit issue: `position: sticky`
+combined with `backdrop-filter` inside a scrolling flex child can freeze
+the whole container's touch scrolling). The real fix is structural instead
+of a CSS trick: the tab bar (`.tab-bar` in `app/globals.css`) is now a
+plain, non-scrolling sibling of `<main className="page-main">`, rendered
+between `PageHeader` and `<main>` — the same position in the layout that
+the header itself already occupies, which is why the header never needed
+this workaround either. `page-main` gets `!pt-0` on this page since the
+tab bar now supplies its own top padding.
 
 `CallRatingPanel.tsx`'s save step used to silently swallow a failed
 `call_ratings` insert — if that table (or a column/constraint on it)

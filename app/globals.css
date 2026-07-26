@@ -49,13 +49,16 @@ body {
     @apply text-xs font-medium text-slate-400;
   }
 
-  /* For a toggle-pill tab switcher that sits above long scrollable
-     content (e.g. a chat) - without this it scrolls away with the rest
-     of page-main, and switching tabs means scrolling all the way back
-     up first. Pins it just below the sticky app-header instead. */
-  .tab-bar-sticky {
-    @apply sticky top-0 z-10 -mx-4 px-4 pb-3 pt-4 backdrop-blur-xl;
-    background: linear-gradient(180deg, rgba(10, 15, 30, 0.95), rgba(10, 15, 30, 0.8));
+  /* A toggle-pill tab switcher that should stay visible above long
+     scrollable content (e.g. a chat), the same way the header does.
+     Deliberately a plain static bar rendered as a sibling of page-main
+     (not nested inside it) rather than position: sticky inside the
+     scrolling container - sticky + backdrop-blur nested inside an
+     overflow-y-auto flex child is a known source of iOS Safari scroll
+     freezes, and since this sits outside the scrollable area entirely
+     it doesn't need sticky positioning to stay put. */
+  .tab-bar {
+    @apply shrink-0;
   }
 
   .page-main {

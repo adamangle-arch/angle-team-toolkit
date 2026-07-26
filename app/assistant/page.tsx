@@ -132,24 +132,23 @@ export default function AssistantPage() {
   return (
     <FeatureGate minSession={5}>
       <PageHeader title="Assistant" subtitle="Role-play conversations, and rate your meetings" />
-      <main className="page-main">
-        <div className="tab-bar-sticky">
-          <div className="card flex p-1">
-            <button
-              className={tab === "roleplay" ? "toggle-pill-active" : "toggle-pill-inactive"}
-              onClick={() => setTab("roleplay")}
-            >
-              Role-Play
-            </button>
-            <button
-              className={tab === "rate" ? "toggle-pill-active" : "toggle-pill-inactive"}
-              onClick={() => setTab("rate")}
-            >
-              Rate a Call
-            </button>
-          </div>
+      <div className="tab-bar px-4 pb-3 pt-3">
+        <div className="card flex p-1">
+          <button
+            className={tab === "roleplay" ? "toggle-pill-active" : "toggle-pill-inactive"}
+            onClick={() => setTab("roleplay")}
+          >
+            Role-Play
+          </button>
+          <button
+            className={tab === "rate" ? "toggle-pill-active" : "toggle-pill-inactive"}
+            onClick={() => setTab("rate")}
+          >
+            Rate a Call
+          </button>
         </div>
-
+      </div>
+      <main className="page-main !pt-0">
         {tab === "rate" && <CallRatingPanel />}
 
         {tab === "roleplay" && (
