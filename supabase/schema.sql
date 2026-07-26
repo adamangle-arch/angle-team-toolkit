@@ -1881,55 +1881,106 @@ $$;
 grant execute on function public.remove_company_event(uuid) to authenticated;
 
 -- ============================================================
--- 16. EVENT PHOTOS (photo gallery for Team Events)
--- One row per uploaded photo, tied to a company_event - visible to
--- everyone (same as company_events itself), but only an admin can
--- upload or remove photos. storage_path is kept alongside photo_url so
--- a delete can clean up the actual storage object, not just the row.
+-- 16. TEAM EVENT ALBUMS (photo/video gallery for past events)
+-- Deliberately independent of company_events above (which are
+-- upcoming/standing calendar events an admin schedules ahead of time) -
+-- an album is something an admin creates AFTER an event has already
+-- happened, purely to hang a photo/video gallery off of, with its own
+-- title and date. Visible to everyone; only an admin can create albums
+-- or upload/remove media.
+--
+-- event_photos (photo-only, tied to company_events) never shipped to
+-- any real database, so it's dropped outright rather than migrated -
+-- nothing to preserve.
 -- ============================================================
-create table if not exists event_photos (
+drop table if exists event_photos;
+
+create table if not exists team_event_albums (
   id uuid primary key default gen_random_uuid(),
-  company_event_id uuid not null references company_events(id) on delete cascade,
+  title text not null,
+  event_date date not null default current_date,
+  created_by uuid references auth.users(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+alter table team_event_albums enable row level security;
+
+drop policy if exists "team_event_albums_select_all" on team_event_albums;
+create policy "team_event_albums_select_all" on team_event_albums
+for select using (true);
+
+drop policy if exists "team_event_albums_insert_admin" on team_event_albums;
+create policy "team_event_albums_insert_admin" on team_event_albums
+for insert with check (public.is_app_admin());
+
+drop policy if exists "team_event_albums_update_admin" on team_event_albums;
+create policy "team_event_albums_update_admin" on team_event_albums
+for update using (public.is_app_admin()) with check (public.is_app_admin());
+
+drop policy if exists "team_event_albums_delete_admin" on team_event_albums;
+create policy "team_event_albums_delete_admin" on team_event_albums
+for delete using (public.is_app_admin());
+
+-- One row per uploaded photo or video, tied to an album. storage_path is
+-- kept alongside media_url so a delete can clean up the actual storage
+-- object, not just the row.
+create table if not exists event_media (
+  id uuid primary key default gen_random_uuid(),
+  album_id uuid not null references team_event_albums(id) on delete cascade,
   storage_path text not null,
-  photo_url text not null,
+  media_url text not null,
+  media_type text not null default 'photo',
   caption text not null default '',
   uploaded_by uuid references auth.users(id) on delete set null,
   created_at timestamptz not null default now()
 );
 
-alter table event_photos enable row level security;
+alter table event_media drop constraint if exists event_media_media_type_check;
+alter table event_media add constraint event_media_media_type_check check (
+  media_type in ('photo', 'video')
+);
 
-drop policy if exists "event_photos_select_all" on event_photos;
-create policy "event_photos_select_all" on event_photos
+alter table event_media enable row level security;
+
+drop policy if exists "event_media_select_all" on event_media;
+create policy "event_media_select_all" on event_media
 for select using (true);
 
-drop policy if exists "event_photos_insert_admin" on event_photos;
-create policy "event_photos_insert_admin" on event_photos
+drop policy if exists "event_media_insert_admin" on event_media;
+create policy "event_media_insert_admin" on event_media
 for insert with check (public.is_app_admin());
 
-drop policy if exists "event_photos_update_admin" on event_photos;
-create policy "event_photos_update_admin" on event_photos
+drop policy if exists "event_media_update_admin" on event_media;
+create policy "event_media_update_admin" on event_media
 for update using (public.is_app_admin()) with check (public.is_app_admin());
 
-drop policy if exists "event_photos_delete_admin" on event_photos;
-create policy "event_photos_delete_admin" on event_photos
+drop policy if exists "event_media_delete_admin" on event_media;
+create policy "event_media_delete_admin" on event_media
 for delete using (public.is_app_admin());
 
--- Public-read storage bucket for the actual photo files, same pattern as
--- the avatars bucket - but uploads/deletes are admin-only here rather
--- than per-user-folder, since only an admin manages this gallery.
+-- Public-read storage bucket for the actual photo/video files, same
+-- pattern as the avatars bucket - but uploads/deletes are admin-only
+-- here rather than per-user-folder, since only an admin manages this
+-- gallery.
 insert into storage.buckets (id, name, public)
-values ('event-photos', 'event-photos', true)
+values ('event-media', 'event-media', true)
 on conflict (id) do nothing;
 
+-- Drop-if-exists guards for the previous (photo-only, company_events-
+-- linked) version of this feature's bucket policies, in case that SQL
+-- was ever run against a real database before this redesign.
 drop policy if exists "event_photos_bucket_public_read" on storage.objects;
-create policy "event_photos_bucket_public_read" on storage.objects for select
-using (bucket_id = 'event-photos');
-
 drop policy if exists "event_photos_bucket_insert_admin" on storage.objects;
-create policy "event_photos_bucket_insert_admin" on storage.objects for insert
-with check (bucket_id = 'event-photos' and public.is_app_admin());
-
 drop policy if exists "event_photos_bucket_delete_admin" on storage.objects;
-create policy "event_photos_bucket_delete_admin" on storage.objects for delete
-using (bucket_id = 'event-photos' and public.is_app_admin());
+
+drop policy if exists "event_media_bucket_public_read" on storage.objects;
+create policy "event_media_bucket_public_read" on storage.objects for select
+using (bucket_id = 'event-media');
+
+drop policy if exists "event_media_bucket_insert_admin" on storage.objects;
+create policy "event_media_bucket_insert_admin" on storage.objects for insert
+with check (bucket_id = 'event-media' and public.is_app_admin());
+
+drop policy if exists "event_media_bucket_delete_admin" on storage.objects;
+create policy "event_media_bucket_delete_admin" on storage.objects for delete
+using (bucket_id = 'event-media' and public.is_app_admin());

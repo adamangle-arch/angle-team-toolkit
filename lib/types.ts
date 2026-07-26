@@ -271,11 +271,20 @@ export type CompanyEvent = {
   created_at: string;
 };
 
-export type EventPhoto = {
+export type TeamEventAlbum = {
   id: string;
-  company_event_id: string;
+  title: string;
+  event_date: string;
+  created_by: string | null;
+  created_at: string;
+};
+
+export type EventMedia = {
+  id: string;
+  album_id: string;
   storage_path: string;
-  photo_url: string;
+  media_url: string;
+  media_type: "photo" | "video";
   caption: string;
   uploaded_by: string | null;
   created_at: string;

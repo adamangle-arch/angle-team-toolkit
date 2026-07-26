@@ -5,144 +5,201 @@ import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import { isPrimaryUser } from "@/lib/constants";
-import type { CompanyEvent, EventPhoto } from "@/lib/types";
-
-function formatEventLabel(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleString(undefined, {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
+import { formatDateLabel } from "@/lib/dates";
+import type { TeamEventAlbum, EventMedia } from "@/lib/types";
 
 export default function EventsPage() {
   const { user } = useAuth();
   const isAdmin = isPrimaryUser(user.email);
 
-  const [events, setEvents] = useState<CompanyEvent[]>([]);
-  const [photosByEvent, setPhotosByEvent] = useState<Record<string, EventPhoto[]>>({});
+  const [albums, setAlbums] = useState<TeamEventAlbum[]>([]);
+  const [mediaByAlbum, setMediaByAlbum] = useState<Record<string, EventMedia[]>>({});
   const [loading, setLoading] = useState(true);
+
+  const [newTitle, setNewTitle] = useState("");
+  const [newDate, setNewDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [creatingAlbum, setCreatingAlbum] = useState(false);
+
   const [uploadingFor, setUploadingFor] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [lightbox, setLightbox] = useState<EventMedia | null>(null);
 
   useEffect(() => {
     async function load() {
       setLoading(true);
-      const [{ data: eventRows }, { data: photoRows }] = await Promise.all([
-        supabase.from("company_events").select("*").order("event_at", { ascending: false }),
-        supabase.from("event_photos").select("*").order("created_at", { ascending: false }),
+      const [{ data: albumRows }, { data: mediaRows }] = await Promise.all([
+        supabase.from("team_event_albums").select("*").order("event_date", { ascending: false }),
+        supabase.from("event_media").select("*").order("created_at", { ascending: false }),
       ]);
-      setEvents((eventRows as CompanyEvent[]) ?? []);
-      const grouped: Record<string, EventPhoto[]> = {};
-      for (const photo of (photoRows as EventPhoto[]) ?? []) {
-        (grouped[photo.company_event_id] ??= []).push(photo);
+      setAlbums((albumRows as TeamEventAlbum[]) ?? []);
+      const grouped: Record<string, EventMedia[]> = {};
+      for (const media of (mediaRows as EventMedia[]) ?? []) {
+        (grouped[media.album_id] ??= []).push(media);
       }
-      setPhotosByEvent(grouped);
+      setMediaByAlbum(grouped);
       setLoading(false);
     }
     load();
   }, []);
 
-  async function uploadPhotos(eventId: string, files: FileList | null) {
+  async function createAlbum() {
+    const title = newTitle.trim();
+    if (!title) return;
+    setCreatingAlbum(true);
+    const { data } = await supabase
+      .from("team_event_albums")
+      .insert({ title, event_date: newDate, created_by: user.id })
+      .select("*")
+      .single();
+    if (data) setAlbums((prev) => [data as TeamEventAlbum, ...prev]);
+    setNewTitle("");
+    setCreatingAlbum(false);
+  }
+
+  async function deleteAlbum(albumId: string) {
+    setAlbums((prev) => prev.filter((a) => a.id !== albumId));
+    const toRemove = mediaByAlbum[albumId] ?? [];
+    if (toRemove.length > 0) {
+      await supabase.storage.from("event-media").remove(toRemove.map((m) => m.storage_path));
+    }
+    await supabase.from("team_event_albums").delete().eq("id", albumId);
+  }
+
+  async function uploadMedia(albumId: string, files: FileList | null) {
     if (!files || files.length === 0) return;
-    setUploadingFor(eventId);
+    setUploadingFor(albumId);
     setUploadError(null);
 
-    const uploaded: EventPhoto[] = [];
+    const uploaded: EventMedia[] = [];
     for (const file of Array.from(files)) {
-      const ext = file.name.split(".").pop() || "jpg";
-      const path = `${eventId}/${crypto.randomUUID()}.${ext}`;
-      const { error: uploadErr } = await supabase.storage.from("event-photos").upload(path, file);
+      const isVideo = file.type.startsWith("video/");
+      const ext = file.name.split(".").pop() || (isVideo ? "mp4" : "jpg");
+      const path = `${albumId}/${crypto.randomUUID()}.${ext}`;
+      const { error: uploadErr } = await supabase.storage.from("event-media").upload(path, file);
       if (uploadErr) {
         setUploadError(uploadErr.message);
         continue;
       }
-      const { data: pub } = supabase.storage.from("event-photos").getPublicUrl(path);
+      const { data: pub } = supabase.storage.from("event-media").getPublicUrl(path);
       const { data: row } = await supabase
-        .from("event_photos")
+        .from("event_media")
         .insert({
-          company_event_id: eventId,
+          album_id: albumId,
           storage_path: path,
-          photo_url: pub.publicUrl,
+          media_url: pub.publicUrl,
+          media_type: isVideo ? "video" : "photo",
           uploaded_by: user.id,
         })
         .select("*")
         .single();
-      if (row) uploaded.push(row as EventPhoto);
+      if (row) uploaded.push(row as EventMedia);
     }
 
     if (uploaded.length > 0) {
-      setPhotosByEvent((prev) => ({
+      setMediaByAlbum((prev) => ({
         ...prev,
-        [eventId]: [...uploaded, ...(prev[eventId] ?? [])],
+        [albumId]: [...uploaded, ...(prev[albumId] ?? [])],
       }));
     }
     setUploadingFor(null);
   }
 
-  async function deletePhoto(photo: EventPhoto) {
-    setPhotosByEvent((prev) => ({
+  async function deleteMedia(media: EventMedia) {
+    setMediaByAlbum((prev) => ({
       ...prev,
-      [photo.company_event_id]: (prev[photo.company_event_id] ?? []).filter((p) => p.id !== photo.id),
+      [media.album_id]: (prev[media.album_id] ?? []).filter((m) => m.id !== media.id),
     }));
-    await supabase.storage.from("event-photos").remove([photo.storage_path]);
-    await supabase.from("event_photos").delete().eq("id", photo.id);
+    await supabase.storage.from("event-media").remove([media.storage_path]);
+    await supabase.from("event_media").delete().eq("id", media.id);
   }
 
   return (
     <>
-      <PageHeader title="Team Events" subtitle="Photos from our team events" />
+      <PageHeader title="Team Events" subtitle="Photos and videos from our team events" />
       <main className="page-main">
         {isAdmin && (
-          <p className="px-1 text-xs text-slate-500">
-            Manage event titles/dates from the Calendar tab&apos;s Team Events section — add photos
-            to any of them right here.
-          </p>
+          <div className="card space-y-2">
+            <p className="section-title">Add Event</p>
+            <input
+              className="input"
+              placeholder="Title (e.g. SUMMIT Conference 2026)"
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+            />
+            <input
+              type="date"
+              className="input"
+              value={newDate}
+              onChange={(e) => setNewDate(e.target.value)}
+            />
+            <button
+              className="btn-primary w-full"
+              onClick={createAlbum}
+              disabled={creatingAlbum || !newTitle.trim()}
+            >
+              {creatingAlbum ? "Adding…" : "Add Event"}
+            </button>
+          </div>
         )}
 
         {loading ? (
           <div className="empty-state">Loading events…</div>
-        ) : events.length === 0 ? (
+        ) : albums.length === 0 ? (
           <div className="empty-state">
-            No team events yet
-            {isAdmin ? " — add one from the Calendar tab's Team Events section." : "."}
+            No team events yet{isAdmin ? " — add one above." : "."}
           </div>
         ) : (
-          events.map((event) => {
-            const photos = photosByEvent[event.id] ?? [];
+          albums.map((album) => {
+            const media = mediaByAlbum[album.id] ?? [];
             return (
-              <div key={event.id} className="card space-y-2">
-                <div>
-                  <p className="section-title">{event.title}</p>
-                  <p className="text-xs text-amber-light">{formatEventLabel(event.event_at)}</p>
-                  {event.notes && <p className="text-xs text-slate-400">{event.notes}</p>}
+              <div key={album.id} className="card space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="section-title">{album.title}</p>
+                    <p className="text-xs text-amber-light">{formatDateLabel(album.event_date)}</p>
+                  </div>
+                  {isAdmin && (
+                    <button
+                      className="btn-icon !h-7 !w-7 text-sm shrink-0"
+                      onClick={() => deleteAlbum(album.id)}
+                      aria-label={`Delete event ${album.title}`}
+                    >
+                      ×
+                    </button>
+                  )}
                 </div>
 
-                {photos.length === 0 ? (
-                  <p className="text-sm text-slate-400">No photos yet.</p>
+                {media.length === 0 ? (
+                  <p className="text-sm text-slate-400">No photos or videos yet.</p>
                 ) : (
                   <div className="grid grid-cols-3 gap-1.5">
-                    {photos.map((photo) => (
-                      <div key={photo.id} className="group relative aspect-square">
+                    {media.map((item) => (
+                      <div key={item.id} className="group relative aspect-square">
                         <button
-                          onClick={() => setLightboxUrl(photo.photo_url)}
+                          onClick={() => setLightbox(item)}
                           className="h-full w-full overflow-hidden rounded-lg bg-navy"
                         >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={photo.photo_url}
-                            alt={event.title}
-                            className="h-full w-full object-cover"
-                          />
+                          {item.media_type === "video" ? (
+                            <video src={item.media_url} className="h-full w-full object-cover" muted />
+                          ) : (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={item.media_url}
+                              alt={album.title}
+                              className="h-full w-full object-cover"
+                            />
+                          )}
                         </button>
+                        {item.media_type === "video" && (
+                          <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-2xl">
+                            ▶️
+                          </span>
+                        )}
                         {isAdmin && (
                           <button
-                            onClick={() => deletePhoto(photo)}
+                            onClick={() => deleteMedia(item)}
                             className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-navy/80 text-xs text-white"
-                            aria-label="Delete photo"
+                            aria-label="Delete media"
                           >
                             ✕
                           </button>
@@ -155,15 +212,15 @@ export default function EventsPage() {
                 {isAdmin && (
                   <div className="space-y-1.5 pt-1">
                     <label className="btn-secondary block w-full cursor-pointer text-center">
-                      {uploadingFor === event.id ? "Uploading…" : "📷 Add Photos"}
+                      {uploadingFor === album.id ? "Uploading…" : "📷 Add Photos/Videos"}
                       <input
                         type="file"
-                        accept="image/*"
+                        accept="image/*,video/*"
                         multiple
                         className="hidden"
-                        disabled={uploadingFor === event.id}
+                        disabled={uploadingFor === album.id}
                         onChange={(e) => {
-                          uploadPhotos(event.id, e.target.files);
+                          uploadMedia(album.id, e.target.files);
                           e.target.value = "";
                         }}
                       />
@@ -177,24 +234,35 @@ export default function EventsPage() {
         )}
       </main>
 
-      {lightboxUrl && (
+      {lightbox && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
-          onClick={() => setLightboxUrl(null)}
+          onClick={() => setLightbox(null)}
         >
           <button
             className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-lg text-white"
-            onClick={() => setLightboxUrl(null)}
+            onClick={() => setLightbox(null)}
             aria-label="Close"
           >
             ✕
           </button>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={lightboxUrl}
-            alt="Event photo"
-            className="max-h-full max-w-full rounded-lg object-contain"
-          />
+          {lightbox.media_type === "video" ? (
+            <video
+              src={lightbox.media_url}
+              className="max-h-full max-w-full rounded-lg"
+              controls
+              autoPlay
+              onClick={(e) => e.stopPropagation()}
+            />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={lightbox.media_url}
+              alt="Event media"
+              className="max-h-full max-w-full rounded-lg object-contain"
+              onClick={(e) => e.stopPropagation()}
+            />
+          )}
         </div>
       )}
     </>
