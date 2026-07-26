@@ -283,7 +283,9 @@ export default function CallRatingPanel() {
                     </button>
                   </div>
                   {expandedId === h.id && (
-                    <p className="mt-2 whitespace-pre-wrap text-xs text-slate-300">{h.analysis}</p>
+                    <p className="expand-scroll mt-2 whitespace-pre-wrap text-xs text-slate-300">
+                      {h.analysis}
+                    </p>
                   )}
                 </div>
               ))}

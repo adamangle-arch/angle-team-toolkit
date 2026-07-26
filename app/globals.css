@@ -74,6 +74,19 @@ body {
 
   .page-main {
     @apply flex-1 space-y-3 overflow-y-auto px-4 pb-28 pt-4;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* A block of text that only appears after the user taps to expand it
+     (a rating write-up, an assistant message, etc.) - bounded and
+     independently scrollable rather than just growing page-main's total
+     height, since some mobile browsers don't reliably recognize that a
+     scroll container's content grew after a React state update until
+     some other interaction forces a reflow. Self-contained avoids
+     depending on that entirely. */
+  .expand-scroll {
+    @apply max-h-80 overflow-y-auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .card {

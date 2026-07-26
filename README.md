@@ -1122,6 +1122,23 @@ page — re-running the same headless comparison after the fix shows
 `page-main`'s `scrollHeight` exceeding its `clientHeight` and wheel/touch
 scrolling correctly moving its `scrollTop`.
 
+Two more scroll hardening passes on top of that fix, since it wasn't
+enough on its own for content that appears *after* the initial page load
+(tapping a rating open):
+- `page-main` now also sets `-webkit-overflow-scrolling: touch`, the
+  standard hint for momentum/inertial touch scrolling to actually engage
+  on a nested `overflow-y: auto` element in iOS WebKit.
+- A rating's expanded write-up (in both `CallRatingPanel.tsx`'s "Your
+  Ratings" and the Team page's "Call Ratings" folder) is now wrapped in a
+  new `.expand-scroll` class (`max-h-80 overflow-y-auto` plus the same
+  touch-scrolling hint) instead of just being a plain `<p>` that grows
+  `page-main`'s total height. Some mobile browsers don't reliably notice
+  that a scroll container's content grew after a React state update
+  (tapping to expand) until some other interaction forces a reflow -
+  giving the expanded text its own bounded, independently-scrollable box
+  from the start sidesteps that entirely, since only its own internal
+  scroll position needs to change, not the outer page's scroll range.
+
 `CallRatingPanel.tsx`'s save step used to silently swallow a failed
 `call_ratings` insert — if that table (or a column/constraint on it)
 didn't exist yet in a given Supabase project, the rating would still
