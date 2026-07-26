@@ -228,19 +228,28 @@ create table if not exists customer_sales (
   created_at timestamptz not null default now()
 );
 
--- Additive: quick-pick product line and PV amount per sale, so "logging
--- a sale" is a couple of taps + a number instead of only free text, and
--- the monthly stats (customers/orders/largest order) plus the daily
--- Today's Sales leaderboard below have something real to aggregate.
--- `amount` is PV, not dollars - numeric(10,2) is just the column type
--- (from before that was decided), the app always writes/reads it as a
--- whole number.
+-- Additive: quick-pick product line(s) and PV amount per sale, so
+-- "logging a sale" is a couple of taps + a number instead of only free
+-- text, and the monthly stats (customers/orders/largest order) plus the
+-- daily Today's Sales leaderboard below have something real to
+-- aggregate. `amount` is PV, not dollars - numeric(10,2) is just the
+-- column type (from before that was decided), the app always
+-- writes/reads it as a whole number.
 alter table customer_sales add column if not exists category text not null default 'Other';
-alter table customer_sales drop constraint if exists customer_sales_category_check;
-alter table customer_sales add constraint customer_sales_category_check check (
-  category in ('XS', 'Nutrilite', 'Artistry', 'Home', 'Other')
-);
 alter table customer_sales add column if not exists amount numeric(10,2) not null default 0;
+
+-- `categories` (plural, an array) replaced the original single-select
+-- `category` column so more than one product line can be picked per
+-- sale - `category` is left in place, unused, rather than dropped, so
+-- no historical data is ever destroyed; existing rows get backfilled
+-- into `categories` below (guarded so re-running this doesn't clobber
+-- categories someone has already picked).
+alter table customer_sales add column if not exists categories text[] not null default '{}'::text[];
+update customer_sales set categories = array[category] where categories = '{}'::text[];
+alter table customer_sales drop constraint if exists customer_sales_categories_check;
+alter table customer_sales add constraint customer_sales_categories_check check (
+  categories <@ array['XS', 'Nutrilite', 'Artistry', 'Amway Home', 'Satinique', 'G&H', 'Glister', 'iCook', 'Other']::text[]
+);
 
 -- ============================================================
 -- 5. PROFILES
@@ -1083,19 +1092,25 @@ grant execute on function public.get_ditto_leaderboard(date) to authenticated;
 drop function if exists public.get_daily_sales_leaderboard();
 
 -- Every individual customer sale logged today, newest first - each sale
--- is its own "posted" row (name, category, PV), not aggregated per
--- person, so the category is actually meaningful per row. No
+-- is its own "posted" row (name, categories, PV), not aggregated per
+-- person, so the categories are actually meaningful per row. No
 -- period_start param needed - always "today," recomputed fresh on every
 -- page load, same as the Milestone Alerts / New to the Team spotlights
 -- above.
-create or replace function public.get_daily_sales_feed()
+--
+-- Dropped first because its return shape changed (category text ->
+-- categories text[]) - Postgres won't let create or replace change an
+-- existing function's return type.
+drop function if exists public.get_daily_sales_feed();
+
+create function public.get_daily_sales_feed()
 returns table (
   sale_id uuid,
   user_id uuid,
   first_name text,
   last_name text,
   team text,
-  category text,
+  categories text[],
   amount int,
   created_at timestamptz
 )
@@ -1104,7 +1119,7 @@ stable
 security definer
 set search_path = public
 as $$
-  select cs.id, pr.id, pr.first_name, pr.last_name, pr.team, cs.category, cs.amount::int, cs.created_at
+  select cs.id, pr.id, pr.first_name, pr.last_name, pr.team, cs.categories, cs.amount::int, cs.created_at
   from customer_sales cs
   join profiles pr on pr.id = cs.user_id
   where cs.created_at::date = current_date

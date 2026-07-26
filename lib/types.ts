@@ -142,13 +142,24 @@ export type DittoEntry = {
   user_id: string;
 } & WithPartner;
 
+export type SaleCategory =
+  | "XS"
+  | "Nutrilite"
+  | "Artistry"
+  | "Amway Home"
+  | "Satinique"
+  | "G&H"
+  | "Glister"
+  | "iCook"
+  | "Other";
+
 export type DailySaleEntry = {
   sale_id: string;
   user_id: string;
   first_name: string | null;
   last_name: string | null;
   team: string | null;
-  category: "XS" | "Nutrilite" | "Artistry" | "Home" | "Other";
+  categories: SaleCategory[];
   amount: number;
   created_at: string;
 };
@@ -167,7 +178,7 @@ export type CustomerSale = {
   user_id: string;
   period_start: string;
   description: string;
-  category: "XS" | "Nutrilite" | "Artistry" | "Home" | "Other";
+  categories: SaleCategory[];
   amount: number;
   notes: string;
   created_at: string;

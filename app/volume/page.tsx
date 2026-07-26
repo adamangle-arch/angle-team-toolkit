@@ -6,7 +6,7 @@ import TrendChart from "@/components/TrendChart";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import { getMonthStart, formatMonthLabel, formatShortMonthLabel } from "@/lib/dates";
-import type { MonthlyPv, CustomerSale } from "@/lib/types";
+import type { MonthlyPv, CustomerSale, SaleCategory } from "@/lib/types";
 
 const CORE_300_TARGET = 300;
 const DITTO_TARGET = 100;
@@ -16,7 +16,17 @@ const MILESTONES: { threshold: number; emoji: string }[] = [
   { threshold: 300, emoji: "🏆" },
 ];
 
-const SALE_CATEGORIES: CustomerSale["category"][] = ["XS", "Nutrilite", "Artistry", "Home", "Other"];
+const SALE_CATEGORIES: SaleCategory[] = [
+  "XS",
+  "Nutrilite",
+  "Artistry",
+  "Amway Home",
+  "Satinique",
+  "G&H",
+  "Glister",
+  "iCook",
+  "Other",
+];
 
 export default function VolumePage() {
   const { ownerId } = useAuth();
@@ -36,7 +46,7 @@ export default function VolumePage() {
   const [sales, setSales] = useState<CustomerSale[]>([]);
   const [loadingSales, setLoadingSales] = useState(true);
   const [saleDescription, setSaleDescription] = useState("");
-  const [saleCategory, setSaleCategory] = useState<CustomerSale["category"]>("Other");
+  const [saleCategories, setSaleCategories] = useState<SaleCategory[]>(["Other"]);
   const [saleAmount, setSaleAmount] = useState("");
   const [saleNotes, setSaleNotes] = useState("");
   const [addingSale, setAddingSale] = useState(false);
@@ -163,9 +173,15 @@ export default function VolumePage() {
     setSavedDitto(true);
   }
 
+  function toggleSaleCategory(cat: SaleCategory) {
+    setSaleCategories((prev) =>
+      prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]
+    );
+  }
+
   async function addSale() {
     const description = saleDescription.trim();
-    if (!description) return;
+    if (!description || saleCategories.length === 0) return;
     setAddingSale(true);
     const amount = Math.max(0, parseInt(saleAmount, 10) || 0);
     const { data } = await supabase
@@ -174,7 +190,7 @@ export default function VolumePage() {
         user_id: ownerId,
         period_start: periodStart,
         description,
-        category: saleCategory,
+        categories: saleCategories,
         amount,
         notes: saleNotes.trim(),
       })
@@ -182,7 +198,7 @@ export default function VolumePage() {
       .single();
     if (data) setSales((prev) => [data as CustomerSale, ...prev]);
     setSaleDescription("");
-    setSaleCategory("Other");
+    setSaleCategories(["Other"]);
     setSaleAmount("");
     setSaleNotes("");
     setAddingSale(false);
@@ -358,13 +374,14 @@ export default function VolumePage() {
             value={saleDescription}
             onChange={(e) => setSaleDescription(e.target.value)}
           />
+          <p className="text-xs text-slate-500">Tap to select — you can pick more than one.</p>
           <div className="flex flex-wrap gap-2">
             {SALE_CATEGORIES.map((cat) => (
               <button
                 key={cat}
-                onClick={() => setSaleCategory(cat)}
+                onClick={() => toggleSaleCategory(cat)}
                 className={
-                  saleCategory === cat
+                  saleCategories.includes(cat)
                     ? "toggle-pill-active flex-none px-3"
                     : "toggle-pill-inactive flex-none bg-white/5 px-3"
                 }
@@ -390,7 +407,7 @@ export default function VolumePage() {
           <button
             className="btn-primary w-full"
             onClick={addSale}
-            disabled={addingSale || !saleDescription.trim()}
+            disabled={addingSale || !saleDescription.trim() || saleCategories.length === 0}
           >
             Add Sale
           </button>
@@ -403,19 +420,19 @@ export default function VolumePage() {
         ) : (
           <div className="space-y-2">
             {sales.map((sale) => (
-              <div key={sale.id} className="card space-y-1">
+              <div key={sale.id} className="card space-y-1.5">
                 <div className="flex items-start justify-between gap-2">
                   <p className="font-medium text-white">{sale.description}</p>
-                  <span className="pill-amber shrink-0">{sale.category}</span>
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  {sale.notes ? (
-                    <p className="text-sm text-slate-400">{sale.notes}</p>
-                  ) : (
-                    <span />
-                  )}
                   <span className="shrink-0 text-sm text-amber-light">{sale.amount} PV</span>
                 </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {sale.categories.map((cat) => (
+                    <span key={cat} className="pill-amber">
+                      {cat}
+                    </span>
+                  ))}
+                </div>
+                {sale.notes && <p className="text-sm text-slate-400">{sale.notes}</p>}
               </div>
             ))}
           </div>

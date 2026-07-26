@@ -629,22 +629,27 @@ multiplication, client-side only, nothing saved to the database).
 ### Customer Sales (Volume tab)
 
 Logging a sale is a few taps instead of only free text: a customer
-name, a quick-pick product line (XS, Nutrilite, Artistry, Home, Other),
-and a PV amount, plus optional notes. Three stat tiles above the log
-— **Customers** (distinct customer names this month), **Orders** (total
-sales logged this month), and **Largest Order** — are computed live from
-that month's `customer_sales` rows, so there's nothing separate to keep
-in sync. The `category` and `amount` columns are additive on the
-existing `customer_sales` table.
+name, one or more quick-pick product lines — XS, Nutrilite, Artistry,
+Amway Home, Satinique, G&H, Glister, iCook, Other, tap to select any
+number of them — and a PV amount, plus optional notes. Three stat tiles
+above the log — **Customers** (distinct customer names this month),
+**Orders** (total sales logged this month), and **Largest Order** — are
+computed live from that month's `customer_sales` rows, so there's
+nothing separate to keep in sync. The `categories` (plural, an array)
+and `amount` columns are additive on the existing `customer_sales`
+table; `categories` replaced an earlier single-select `category` column
+(left in place, unused, rather than dropped) once multi-select was
+added.
 
 ### Today's Sales (Leaderboard)
 
 Any customer sale logged today gets "posted" team-wide on the
 **Leaderboard** in a **🛍️ Today's Sales** card — one row per sale
-(newest first), each showing who made it, the product line category,
-and the PV amount. It's a feed of individual sales, not an aggregated
-per-person total, since the category is only meaningful sale-by-sale. It's
-always visible (not gated behind the daily/weekly/monthly toggle, since
+(newest first), each showing who made it, every product line category
+picked for that sale, and the PV amount. It's a feed of individual
+sales, not an aggregated per-person total, since the categories are only
+meaningful sale-by-sale. It's always visible (not gated behind the
+daily/weekly/monthly toggle, since
 it's a "today" spotlight the same way New to the Team and Milestone
 Alerts are) and recomputes fresh on every page load via
 `get_daily_sales_feed()`, so there's no separate "reset it" step at

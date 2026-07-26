@@ -529,21 +529,32 @@ export default function LeaderboardPage() {
                 minute: "2-digit",
               });
               return (
-                <div key={entry.sale_id} className="flex items-center justify-between gap-2 text-sm">
-                  <span className="text-slate-200">
-                    <PersonLink entry={entry} />{" "}
-                    <span className="text-xs text-slate-500">
-                      ({entry.team}) — {time}
+                <div
+                  key={entry.sale_id}
+                  className="space-y-1 border-b border-white/5 pb-2 text-sm last:border-0 last:pb-0"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-slate-200">
+                      <PersonLink entry={entry} />{" "}
+                      <span className="text-xs text-slate-500">
+                        ({entry.team}) — {time}
+                      </span>
                     </span>
-                  </span>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <span className="pill">{entry.category}</span>
-                    <span className="pill pill-amber">{entry.amount} PV</span>
-                    <LikeButton
-                      entryKey={key}
-                      likes={likesMap.get(key) ?? NO_LIKES}
-                      onToggle={toggleLike}
-                    />
+                    <div className="flex shrink-0 items-center gap-2">
+                      <span className="pill pill-amber">{entry.amount} PV</span>
+                      <LikeButton
+                        entryKey={key}
+                        likes={likesMap.get(key) ?? NO_LIKES}
+                        onToggle={toggleLike}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {entry.categories.map((cat) => (
+                      <span key={cat} className="pill">
+                        {cat}
+                      </span>
+                    ))}
                   </div>
                 </div>
               );
