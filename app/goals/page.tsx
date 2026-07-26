@@ -141,7 +141,7 @@ export default function GoalsPage() {
                     <span>{item.suffix}</span>
                     {qi1Count !== null && (
                       <span className="text-xs text-amber-light">
-                        (you&apos;ve booked {qi1Count} so far)
+                        (you&apos;ve shown {qi1Count} so far)
                       </span>
                     )}
                   </div>

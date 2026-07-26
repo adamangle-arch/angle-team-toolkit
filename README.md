@@ -343,9 +343,11 @@ everything; it caused repeated confusion and was dropped, twice) —
 **QI1s is the one exception**: since it already has a real, reliable
 per-period number (the exact same `pipeline_periods.qi1` count the
 Pipeline Tracker's own QI1 counter writes to), the weekly/monthly QI1s
-goal shows "(you've booked N so far)" next to it, safe to show because
+goal shows "(you've shown N so far)" next to it, safe to show because
 it's the same trusted number already visible elsewhere, not a new
-computation. A note under the daily box reads "📋 Check Upline on what
+computation — logging a QI1 there means it's already happened, not
+just scheduled, so "shown" is the accurate word, not "booked". A note
+under the daily box reads "📋 Check Upline on what
 your daily goal should be." Targets are individual (not shared with a
 linked spouse), stored in a `goals` table — one row per metric+period.
 "Reading minutes" replaced the earlier "Pages Read" counter
