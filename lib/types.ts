@@ -223,6 +223,18 @@ export type Goal = {
   updated_at: string;
 };
 
+export type CalendarEvent = {
+  id: string;
+  user_id: string;
+  creator_id: string;
+  title: string;
+  notes: string;
+  event_at: string;
+  candidate_id: string | null;
+  scope: "private" | "downline";
+  created_at: string;
+};
+
 export type AssistantMessage = {
   id: string;
   user_id: string;

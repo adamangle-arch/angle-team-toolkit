@@ -14,6 +14,7 @@ import type {
   StreakDay,
   TeamTotals,
   AssistantMessage,
+  CalendarEvent,
 } from "@/lib/types";
 
 type ViewMode = "members" | "teams";
@@ -55,6 +56,7 @@ type MemberData = {
   contacts: Contact[];
   streakDays: StreakDay[];
   assistantMessages: AssistantMessage[];
+  calendarEvents: CalendarEvent[];
 };
 
 export default function TeamPage() {
@@ -138,6 +140,7 @@ export default function TeamPage() {
         { data: contacts },
         { data: streakDays },
         { data: assistantMessages },
+        { data: calendarEvents },
       ] = await Promise.all([
         supabase
           .from("pipeline_periods")
@@ -167,6 +170,12 @@ export default function TeamPage() {
           .select("*")
           .eq("user_id", selectedId)
           .order("created_at", { ascending: true }),
+        supabase
+          .from("calendar_events")
+          .select("*")
+          .eq("user_id", selectedId)
+          .gte("event_at", new Date().toISOString())
+          .order("event_at", { ascending: true }),
       ]);
 
       if (!cancelled) {
@@ -176,6 +185,7 @@ export default function TeamPage() {
           contacts: (contacts as Contact[]) ?? [],
           streakDays: (streakDays as StreakDay[]) ?? [],
           assistantMessages: (assistantMessages as AssistantMessage[]) ?? [],
+          calendarEvents: (calendarEvents as CalendarEvent[]) ?? [],
         });
         setLoadingMember(false);
       }
@@ -424,6 +434,31 @@ export default function TeamPage() {
                   <p className="text-2xl font-bold text-amber">
                     🔥 {computeStreak(memberData.streakDays)}
                   </p>
+                </div>
+
+                <div className="card space-y-2">
+                  <p className="section-title">
+                    Upcoming Calendar ({memberData.calendarEvents.length})
+                  </p>
+                  {memberData.calendarEvents.length === 0 ? (
+                    <p className="text-sm text-slate-400">No upcoming events.</p>
+                  ) : (
+                    memberData.calendarEvents.map((e) => (
+                      <div key={e.id} className="rounded-lg bg-navy p-2">
+                        <p className="text-sm font-medium text-white">{e.title}</p>
+                        <p className="text-xs text-amber-light">
+                          {new Date(e.event_at).toLocaleString(undefined, {
+                            weekday: "short",
+                            month: "short",
+                            day: "numeric",
+                            hour: "numeric",
+                            minute: "2-digit",
+                          })}
+                        </p>
+                        {e.notes && <p className="text-xs text-slate-400">{e.notes}</p>}
+                      </div>
+                    ))
+                  )}
                 </div>
 
                 <div className="card space-y-2">

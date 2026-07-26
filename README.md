@@ -327,6 +327,41 @@ individual (not shared with a linked spouse), stored in a new `goals`
 table, one row per metric+period, editable inline by tapping the number
 next to your progress.
 
+### Calendar (meetings, reminders, team events)
+
+A new **Calendar** tab (`app/calendar/page.tsx`) is one system for both
+personal reminders and team-wide events, replacing the need for a
+separate Google Calendar for team scheduling:
+
+- **Personal use** — add anything with a title, date/time, optional
+  notes, and an optional link to a candidate (e.g. "QI1 with Jane" at a
+  specific time, or a reminder like "17, graduates this year — follow up
+  after"). Shows under Upcoming, sorted soonest-first; recently-passed
+  events stay visible below for a bit before you clean them up.
+- **Broadcasting to your downline** — if you have anyone below you,
+  an "Add to all downline" checkbox appears when adding an event. Check
+  it for team meetings, info sessions, master classes, or conferences
+  and every downline member (any level) gets their own copy on their
+  own calendar, tagged "📢 From {your name}" so it's clear it came from
+  upline. This calls a new `broadcast_event_to_downline()` function
+  (security definer, same pattern as `delete_downline_account` and
+  `grant_next_onboarding_session` elsewhere in this app) since normal
+  RLS only allows inserting rows for yourself.
+- **Upline visibility** — same access model as Core Run Streak and
+  Assistant conversations: an upline (any level) or admin can read a
+  downline's calendar even without a broadcast, so the Team tab's member
+  detail view now shows a downline member's **Upcoming Calendar** card —
+  this is how "when exactly QI1s are booked, and every other step of the
+  process" becomes visible to upline without anyone having to share a
+  separate calendar app.
+
+Data lives in a new `calendar_events` table, individual per person (not
+shared with a linked spouse, same as Core Run Streak) — `user_id` is
+whose calendar a row shows on, `creator_id` is who actually made it, so
+a broadcast row can show who sent it even though it's now "owned" by
+the recipient (they can delete their own copy without affecting anyone
+else's).
+
 ### Daily Update summary (copy/paste for LTD)
 
 The bottom of the Core Run Streak page has a **Daily Update Summary**
