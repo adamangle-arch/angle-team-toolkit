@@ -124,6 +124,7 @@ create table streak_days (
   questions int not null default 0,
   yeses int not null default 0,
   meetings int not null default 0,
+  meeting_items text[] not null default '{}'::text[],
   unique (user_id, day)
 );
 
@@ -147,6 +148,11 @@ alter table streak_days add column if not exists story_shares int not null defau
 alter table streak_days add column if not exists questions int not null default 0;
 alter table streak_days add column if not exists yeses int not null default 0;
 alter table streak_days add column if not exists meetings int not null default 0;
+-- Same one-at-a-time pattern as listen_items: each entry is a free-text
+-- detail of a meeting held that day (who/what), so the Daily Update
+-- summary can show more than a bare count. meetings stays in sync as
+-- the array length.
+alter table streak_days add column if not exists meeting_items text[] not null default '{}'::text[];
 
 -- ============================================================
 -- 4b. PERSONAL CIRCLE PV

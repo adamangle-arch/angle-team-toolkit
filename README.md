@@ -290,7 +290,7 @@ history; `daily_update` stays a plain manual toggle either way.
 
 The bottom of the Core Run Streak page has a **Daily Update Summary**
 card: a read-only, pre-formatted block of text built from today's Read/
-Listen/activity detail, meeting count, any new contacts added to your
+Listen/activity detail, meeting details, any new contacts added to your
 A/B list today (name + category, pulled from `contacts.created_at`
 falling on today), your current streak, this week's and this month's
 pipeline numbers, your current PV, and a list of everyone currently
@@ -300,11 +300,15 @@ active candidate shows their next real process milestone (QI1, QI2,
 IS1, FU1, IS2, FU2, or Offer Call) rather than their raw roadmap step,
 so the two internal "Audio & Reading" homework steps roll forward to
 the info session they're prepping for (`CANDIDATE_STEP_SHORT_LABELS` in
-`lib/constants.ts`) instead of showing as "Audio & Reading". Meant to be
-copied straight into your nightly LTD update to your upline. Tap **Copy
-Daily Update** to copy it, or select the text manually from the box. It
-regenerates live as you fill in today's Core Run Streak fields, so fill
-those in first.
+`lib/constants.ts`) instead of showing as "Audio & Reading". Meetings and
+new contacts show real detail rather than a bare count: **Meetings** is
+now an add-one-at-a-time list (same pattern as Listen — type who/what,
+hit Add, ✕ to remove), stored in `meeting_items text[]`, and each new
+contact's line includes their status (and notes, if any), not just
+name/category. Meant to be copied straight into your nightly LTD update
+to your upline. Tap **Copy Daily Update** to copy it, or select the text
+manually from the box. It regenerates live as you fill in today's Core
+Run Streak fields, so fill those in first.
 
 ### New to the Team spotlight
 

@@ -210,6 +210,7 @@ export type StreakDay = {
   questions: number;
   yeses: number;
   meetings: number;
+  meeting_items: string[];
 };
 
 export type AssistantMessage = {

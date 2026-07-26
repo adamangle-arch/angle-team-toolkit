@@ -54,6 +54,7 @@ function emptyDay(userId: string, day: string): StreakDay {
     questions: 0,
     yeses: 0,
     meetings: 0,
+    meeting_items: [],
   };
 }
 
@@ -109,6 +110,7 @@ export default function StreakPage() {
   const [readWhat, setReadWhat] = useState("");
   const [readAmount, setReadAmount] = useState("");
   const [newAudio, setNewAudio] = useState("");
+  const [newMeeting, setNewMeeting] = useState("");
 
   const [weekly, setWeekly] = useState<PipelinePeriod | null>(null);
   const [monthly, setMonthly] = useState<PipelinePeriod | null>(null);
@@ -150,6 +152,7 @@ export default function StreakPage() {
     setReadWhat(todayRow.read_what);
     setReadAmount(todayRow.read_amount);
     setNewAudio("");
+    setNewMeeting("");
   }
 
   useEffect(() => {
@@ -230,6 +233,7 @@ export default function StreakPage() {
           questions: merged.questions,
           yeses: merged.yeses,
           meetings: merged.meetings,
+          meeting_items: merged.meeting_items,
         },
         { onConflict: "user_id,day" }
       )
@@ -255,6 +259,21 @@ export default function StreakPage() {
 
   function removeAudio(index: number) {
     saveAudios(todayRow.listen_items.filter((_, i) => i !== index));
+  }
+
+  function saveMeetings(items: string[]) {
+    saveToday({ meeting_items: items, meetings: items.length });
+  }
+
+  function addMeeting() {
+    const trimmed = newMeeting.trim();
+    if (!trimmed) return;
+    saveMeetings([...todayRow.meeting_items, trimmed]);
+    setNewMeeting("");
+  }
+
+  function removeMeeting(index: number) {
+    saveMeetings(todayRow.meeting_items.filter((_, i) => i !== index));
   }
 
   const streak = useMemo(() => {
@@ -288,11 +307,16 @@ export default function StreakPage() {
     lines.push(
       `💬 Story Shares: ${todayRow.story_shares} | Questions: ${todayRow.questions} | Yeses: ${todayRow.yeses}`
     );
-    lines.push(`🤝 Meetings Today: ${todayRow.meetings}`);
+    lines.push(`🤝 Meetings Today (${todayRow.meeting_items.length}):`);
+    lines.push(
+      todayRow.meeting_items.length > 0 ? todayRow.meeting_items.join("\n") : "None today."
+    );
     lines.push(`👋 New Contacts Today (${newContactsToday.length}):`);
     lines.push(
       newContactsToday.length > 0
-        ? newContactsToday.map((c) => `${c.name} (${c.category})`).join(", ")
+        ? newContactsToday
+            .map((c) => `${c.name} (${c.category}) — ${c.status}${c.notes ? `: ${c.notes}` : ""}`)
+            .join("\n")
         : "None today."
     );
     lines.push(`🔥 Current Streak: ${streak} day(s)`);
@@ -474,11 +498,46 @@ export default function StreakPage() {
                 value={todayRow.yeses}
                 onChange={(next) => saveToday({ yeses: next })}
               />
-              <Counter
-                label="Meetings"
-                value={todayRow.meetings}
-                onChange={(next) => saveToday({ meetings: next })}
-              />
+            </div>
+
+            <div className="card space-y-2">
+              <p className="section-title">🤝 Meetings</p>
+              {todayRow.meeting_items.length > 0 && (
+                <div className="space-y-1.5">
+                  {todayRow.meeting_items.map((item, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center justify-between rounded-lg bg-navy px-2 py-1.5"
+                    >
+                      <span className="text-sm text-white">{item}</span>
+                      <button
+                        className="btn-icon !h-6 !w-6 text-xs"
+                        onClick={() => removeMeeting(i)}
+                        aria-label={`Remove ${item}`}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-2">
+                <input
+                  className="input flex-1"
+                  placeholder="Add a meeting (who/what)…"
+                  value={newMeeting}
+                  onChange={(e) => setNewMeeting(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addMeeting();
+                    }
+                  }}
+                />
+                <button className="btn-primary shrink-0 px-4" onClick={addMeeting}>
+                  Add
+                </button>
+              </div>
             </div>
           </>
         )}
