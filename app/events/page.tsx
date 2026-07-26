@@ -14,8 +14,10 @@ import type { TeamEventAlbum, EventMedia } from "@/lib/types";
 // with no error shown.
 // Selecting a big batch at once (especially with videos) is what makes
 // the iOS Photos picker hang - capping it here keeps each upload quick
-// and gives a clear message instead of a slow, uncertain wait.
-const MAX_FILES_PER_UPLOAD = 5;
+// and gives a clear message instead of a slow, uncertain wait. Videos
+// are much bigger than photos, so they get a tighter cap.
+const MAX_PHOTOS_PER_UPLOAD = 5;
+const MAX_VIDEOS_PER_UPLOAD = 1;
 
 function uniqueId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -83,9 +85,13 @@ export default function EventsPage() {
 
   async function uploadMedia(albumId: string, files: FileList | null) {
     if (!files || files.length === 0) return;
-    if (files.length > MAX_FILES_PER_UPLOAD) {
+    const isVideoBatch = files[0].type.startsWith("video/");
+    const max = isVideoBatch ? MAX_VIDEOS_PER_UPLOAD : MAX_PHOTOS_PER_UPLOAD;
+    if (files.length > max) {
       setUploadError(
-        `Select ${MAX_FILES_PER_UPLOAD} or fewer at a time (you picked ${files.length}) — large batches can make the picker hang.`
+        isVideoBatch
+          ? `Select ${max} video at a time (you picked ${files.length}) — videos are large and can make the picker hang.`
+          : `Select ${max} or fewer at a time (you picked ${files.length}) — large batches can make the picker hang.`
       );
       return;
     }
@@ -248,7 +254,8 @@ export default function EventsPage() {
                         picker (accept="image/*,video/*") makes the iOS
                         Photos picker choke on large multi-selections. */}
                     <p className="text-xs text-slate-500">
-                      Up to {MAX_FILES_PER_UPLOAD} at a time.
+                      Up to {MAX_PHOTOS_PER_UPLOAD} photos or {MAX_VIDEOS_PER_UPLOAD} video at a
+                      time.
                     </p>
                     <div className="flex gap-2">
                       <label className="btn-secondary flex-1 cursor-pointer text-center">
@@ -266,11 +273,10 @@ export default function EventsPage() {
                         />
                       </label>
                       <label className="btn-secondary flex-1 cursor-pointer text-center">
-                        {uploadingFor === album.id ? "Uploading…" : "🎥 Add Videos"}
+                        {uploadingFor === album.id ? "Uploading…" : "🎥 Add Video"}
                         <input
                           type="file"
                           accept="video/*"
-                          multiple
                           className="hidden"
                           disabled={uploadingFor === album.id}
                           onChange={(e) => {
