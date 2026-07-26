@@ -610,12 +610,11 @@ whatever's in that input. A tick mark at the halfway point is labeled
 
 ### Duplication Calculator (Volume tab)
 
-A calculator card on the **Volume** tab (`app/volume/page.tsx`) lets you
-type in a PV number and instantly see what your group's total volume
-would look like if 25, 50, or 100 people were each duplicating that same
-amount (simple multiplication, client-side only — nothing saved to the
-database, so it's just a what-if tool separate from your actual monthly
-PV entry above it).
+A calculator card on the **Volume** tab (`app/volume/page.tsx`) reads
+straight off the Personal Circle PV field above it — no separate entry —
+and instantly shows what your group's total volume would look like if
+25, 50, or 100 people were each duplicating that same amount (simple
+multiplication, client-side only, nothing saved to the database).
 
 ### Daily Reminders (push notifications)
 

@@ -20,8 +20,6 @@ export default function VolumePage() {
   const [savingDitto, setSavingDitto] = useState(false);
   const [savedDitto, setSavedDitto] = useState(false);
 
-  const [dupInput, setDupInput] = useState("0");
-
   const [history, setHistory] = useState<MonthlyPv[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -234,20 +232,12 @@ export default function VolumePage() {
         <div className="card space-y-2">
           <p className="section-title">Duplication Calculator</p>
           <p className="text-xs text-slate-400">
-            Put in the volume you&apos;ve done and see what your group&apos;s PV would look like
+            Based on your Personal Circle PV above — what your group&apos;s PV would look like
             if that many people were duplicating you.
           </p>
-          <input
-            type="number"
-            min={0}
-            className="input"
-            placeholder="Your PV"
-            value={dupInput}
-            onChange={(e) => setDupInput(e.target.value)}
-          />
           <div className="space-y-1.5">
             {[25, 50, 100].map((count) => {
-              const dupPv = Math.max(0, parseInt(dupInput, 10) || 0) * count;
+              const dupPv = corePv * count;
               return (
                 <div key={count} className="flex items-center justify-between rounded-lg bg-navy p-2">
                   <span className="text-sm text-slate-300">{count} people duplicating you</span>
