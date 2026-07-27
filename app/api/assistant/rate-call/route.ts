@@ -105,8 +105,23 @@ export async function POST(request: Request) {
     // blank or near-blank completion - it's happened intermittently with
     // the exact same input succeeding on one attempt and not another. One
     // automatic retry covers that transient case before actually failing.
+    //
+    // A full, non-streamed 9-section analysis can legitimately take
+    // 20-40+ seconds on its own, and this retry loop can trigger a second
+    // one - two of those back to back risks blowing past this route's
+    // maxDuration (60s), which kills the function mid-generation with no
+    // HTTP response at all. From the client that's indistinguishable from
+    // a dropped connection ("Load failed"), not a clean error message. If
+    // the first attempt already ate most of the time budget, skip the
+    // retry and fail fast with a real error instead of risking that.
+    const startedAt = Date.now();
+    const RETRY_TIME_BUDGET_MS = 40_000;
     let analysis = "";
-    for (let attempt = 0; attempt < 2 && !analysis; attempt++) {
+    for (
+      let attempt = 0;
+      attempt < 2 && !analysis && (attempt === 0 || Date.now() - startedAt < RETRY_TIME_BUDGET_MS);
+      attempt++
+    ) {
       const response = await anthropic.messages.create({
         model: "claude-sonnet-5",
         max_tokens: 3000,

@@ -35,6 +35,17 @@ function timeoutRejection(ms: number): Promise<never> {
   );
 }
 
+// "Load failed" (Safari/WebKit) and "Failed to fetch" (Chromium) are the
+// browser's own wording for a request whose connection dropped outright -
+// no HTTP response at all, as opposed to the server responding with an
+// error. On mobile this is usually transient (a signal dip, the OS
+// suspending an in-flight request while the screen locks or the tab gets
+// backgrounded during this multi-second wait) and clears up on its own a
+// moment later, so it's worth one silent retry before bothering the user.
+function isNetworkFailure(err: unknown): boolean {
+  return err instanceof TypeError && /load failed|failed to fetch|network/i.test(err.message);
+}
+
 export default function CallRatingPanel() {
   const { user } = useAuth();
   const [callType, setCallType] = useState<CallRatingType | "">("");
@@ -155,10 +166,26 @@ export default function CallRatingPanel() {
       setCallType("");
     };
 
+    async function runWithNetworkRetry() {
+      try {
+        await run();
+      } catch (err) {
+        if (!isNetworkFailure(err)) throw err;
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        await run();
+      }
+    }
+
     try {
-      await Promise.race([run(), timeoutRejection(RATE_TIMEOUT_MS)]);
+      await Promise.race([runWithNetworkRetry(), timeoutRejection(RATE_TIMEOUT_MS)]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
+      setError(
+        isNetworkFailure(err)
+          ? "Lost connection while rating this call. Your transcript is still here — check your signal and tap Rate This Call again."
+          : err instanceof Error
+            ? err.message
+            : "Something went wrong."
+      );
     } finally {
       setRating(false);
     }

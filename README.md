@@ -1326,6 +1326,28 @@ Anthropic call once automatically before giving up if the first attempt
 comes back blank, and the eventual error message (if both attempts are
 empty) suggests pasting the complete transcript rather than an excerpt.
 
+That blank-result retry turned out to have created a second, subtler
+failure mode: two full non-streamed 9-section generations back to back
+(the original attempt plus the retry) can add up to longer than the
+route's `maxDuration = 60`, and a function killed mid-generation gives
+the browser no HTTP response at all — from the client that's not a clean
+error, it's a raw dropped connection (`TypeError: Load failed` on
+Safari/iOS, `Failed to fetch` on Chromium), surfacing as an opaque "Load
+failed" message with no indication anything was even attempted.
+`route.ts` now tracks elapsed time and skips the retry attempt entirely
+if the first one already used more than 40 of the 60 seconds, failing
+fast with a real error message instead of risking the function getting
+killed mid-retry. `CallRatingPanel.tsx` also now recognizes this specific
+network-level failure (`isNetworkFailure()`) and retries the whole
+operation once automatically after a 1.5s pause before giving up — this
+class of failure is usually transient on mobile (a signal dip, or iOS
+suspending the in-flight request if the screen locks or the tab gets
+backgrounded during the multi-second wait) and often clears up on its
+own. If it still fails after that, the message is now "Lost connection
+while rating this call. Your transcript is still here — check your
+signal and tap Rate This Call again" instead of the browser's raw,
+unhelpful wording.
+
 The Role-Play / Rate a Call toggle-pill row on the Assistant page used to
 scroll away with the rest of the chat — once a Role-Play conversation got
 long, switching to Rate a Call meant scrolling all the way back to the top
