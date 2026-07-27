@@ -1044,18 +1044,27 @@ daily), and the QI1 Rhythm threshold is 1+ for Daily (vs. 2+/week,
 
 ### Daily Reminders (push notifications)
 
-Push notifications turn on automatically the first time someone opens the
-Notifications page — there's no "Enable" button to tap first. The one
-prompt that's unavoidable is the browser/OS's own native permission
-dialog (that's how push works on every platform; no app can skip it),
-but `components/NotificationOptIn.tsx` never adds an extra in-app tap in
-front of it. A few things worth knowing:
+`components/NotificationOptIn.tsx` (surfaced on the Notifications page)
+tries to turn on push notifications automatically the moment the page
+loads, with no "Enable" button — this works with zero taps on platforms
+that allow a background permission request (Android/desktop Chrome and
+Firefox). **iOS Safari is a hard exception**: it flatly refuses to show
+its native permission dialog unless triggered by a real tap, so the
+automatic attempt there reliably fails, and the component falls back to
+a single **Turn On** button — that's an Apple platform rule, not a
+choice this app makes, and there's no way to get push notifications on
+an iPhone with truly zero taps. The automatic attempt is raced against a
+4-second timeout specifically so this fallback always kicks in cleanly
+instead of leaving the component stuck showing nothing (an earlier
+version of this hung with a blank space where the card should be, since
+the failed permission request never resolved). A few other things worth
+knowing:
 
-- **iPhone requires "Add to Home Screen" first** — this is a hard Safari
-  rule, not something the app can work around. If someone opens the app
-  in a regular Safari tab, they'll see instructions instead; once they've
-  added it to their Home Screen and reopened it from there, it subscribes
-  automatically on the next visit to Notifications.
+- **iPhone requires "Add to Home Screen" first**, on top of the above —
+  this is a separate hard Safari rule. If someone opens the app in a
+  regular Safari tab, they'll see instructions instead; only once it's
+  been added to the Home Screen and reopened from there does the
+  Turn On button even become reachable.
 - If someone taps **Turn Off**, that choice is remembered (a
   `angle-notifications-opted-out` flag in `localStorage`) so the app
   doesn't silently re-subscribe them next visit — a **Turn On** control

@@ -26,11 +26,35 @@ function urlBase64ToUint8Array(base64String: string) {
   return outputArray;
 }
 
-// Turns on push notifications automatically - there's deliberately no
-// "Enable" button to tap first. The one prompt that's unavoidable is the
-// browser/OS's own native permission dialog (that's how push works
-// everywhere; no app can skip it), but this component never adds an
-// extra in-app tap in front of it.
+// Safari on iOS silently refuses (or just never resolves) a
+// Notification.requestPermission() call that isn't triggered by a real
+// tap - it won't show its native permission dialog otherwise. Racing
+// against a timeout means an attempt made without a tap (the automatic
+// one below) always eventually gives up and falls back to a one-tap
+// button instead of leaving the whole component hanging forever.
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("timed out")), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      }
+    );
+  });
+}
+
+// Tries to turn on push notifications automatically first, so platforms
+// that allow it (Android/desktop Chrome and Firefox) never need a tap at
+// all. iOS Safari requires a real user gesture before it'll show its own
+// native permission dialog, so on iPhone the automatic attempt below
+// reliably fails/times out and this falls back to a single "Turn On" tap
+// - that's a hard platform rule, not something this app can bypass, but
+// it's still just the one unavoidable tap, never an extra one on top of it.
 export default function NotificationOptIn() {
   const { user } = useAuth();
   const [isIOS] = useState(() => typeof navigator !== "undefined" && /iphone|ipad|ipod/i.test(navigator.userAgent));
@@ -45,9 +69,10 @@ export default function NotificationOptIn() {
   const [subscribed, setSubscribed] = useState(false);
   const [blocked, setBlocked] = useState(false);
   const [optedOut, setOptedOut] = useState(false);
+  const [needsTap, setNeedsTap] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  async function subscribe() {
+  async function subscribe(): Promise<boolean> {
     if (!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) return false;
     const permission = await Notification.requestPermission();
     if (permission !== "granted") return false;
@@ -85,14 +110,24 @@ export default function NotificationOptIn() {
         setChecked(true);
         return;
       }
-      if (Notification.permission === "denied") {
+      const permissionBefore: NotificationPermission = Notification.permission;
+      if (permissionBefore === "denied") {
         setBlocked(true);
         setChecked(true);
         return;
       }
-      const ok = await subscribe();
-      if (ok) setSubscribed(true);
-      else setBlocked(true);
+      try {
+        const ok = await withTimeout(subscribe(), 4000);
+        const permissionAfter: NotificationPermission = Notification.permission;
+        if (ok) setSubscribed(true);
+        else if (permissionAfter === "denied") setBlocked(true);
+        else setNeedsTap(true);
+      } catch {
+        // Threw or timed out - almost always Safari declining to prompt
+        // without a tap. Fall back to a one-tap button rather than
+        // leaving the component stuck with nothing rendered.
+        setNeedsTap(true);
+      }
       setChecked(true);
     }
     ensureSubscribed();
@@ -109,8 +144,10 @@ export default function NotificationOptIn() {
         window.localStorage.removeItem(OPTED_OUT_KEY);
         setOptedOut(false);
         setBlocked(false);
+        setNeedsTap(false);
         setSubscribed(true);
-      } else {
+      } else if (Notification.permission === "denied") {
+        setNeedsTap(false);
         setBlocked(true);
       }
     } finally {
@@ -157,6 +194,22 @@ export default function NotificationOptIn() {
           You&apos;ve blocked notifications for this app in your browser or device settings. Turn
           them back on there to get your Core Run reminder and stat-leader updates.
         </p>
+      </div>
+    );
+  }
+
+  if (needsTap && !subscribed) {
+    return (
+      <div className="card flex items-center justify-between gap-2">
+        <div>
+          <p className="section-title">🔔 Notifications</p>
+          <p className="text-xs text-slate-400">
+            Get a Core Run reminder and daily/weekly/monthly stat-leader updates.
+          </p>
+        </div>
+        <button className="btn-primary shrink-0" onClick={turnOn} disabled={busy}>
+          Turn On
+        </button>
       </div>
     );
   }
