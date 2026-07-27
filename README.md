@@ -1359,6 +1359,37 @@ estimate) plus a line naming which rubric it's checking against and that
 a detailed call can take up to a minute, so the wait reads as expected
 rather than broken.
 
+**The actual root cause of "Load failed" happening on every single
+attempt** (not a flaky-connection retry case at all) turned out to be a
+missing deploy config, not the network or timeout theories above.
+`route.ts` reads five rubric files (`lib/qi1-call-rating-prompt.txt`
+through `lib/questionnaire-call-rating-prompt.txt`) with `readFileSync`
+at module load — the code comment even predicted the risk ("so Next's
+file tracer can see each one individually"), but `next.config.ts`'s
+`outputFileTracingIncludes` only ever declared the unrelated
+`/api/assistant` role-play route's system prompt file, never this
+route's five rubric files. Next's automatic tracer doesn't reliably
+follow a computed `path.join(process.cwd(), ...)` call, so in the actual
+deployed Vercel bundle these files were very likely missing entirely -
+confirmed by inspecting the build's own `route.js.nft.json` file-trace
+manifest before and after this fix. A missing file used to throw at
+module load, before the request handler's own `try`/`catch` could ever
+run, crashing the function before it could respond at all - which a
+client can only ever see as a dropped connection, not a clean error, and
+does so on every single request rather than intermittently, since it's
+a deployment bug, not a runtime fluke.
+
+Two fixes: `next.config.ts` now declares all five rubric files under
+`outputFileTracingIncludes["/api/assistant/rate-call"]`, matching the
+existing pattern already used for the role-play route. Separately,
+`route.ts` no longer reads these files at module scope at all -
+`loadRatingPrompts()` reads them lazily on first request (then caches
+the result) inside the request handler's own `try`/`catch`, so even if a
+tracing config slips again in the future, the failure mode is a clean
+JSON 500 ("The rating rubrics aren't available on the server right
+now.") instead of silently taking the whole function down before it can
+respond.
+
 The Role-Play / Rate a Call toggle-pill row on the Assistant page used to
 scroll away with the rest of the chat — once a Role-Play conversation got
 long, switching to Rate a Call meant scrolling all the way back to the top

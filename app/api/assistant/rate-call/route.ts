@@ -15,17 +15,36 @@ type CallType = CallRatingType;
 
 // Read with literal paths (not a computed lookup) so Next's file tracer can
 // see each one individually instead of falling back to tracing the whole
-// project into the deployed function bundle.
-const RATING_PROMPTS: Record<CallType, string> = {
-  QI1: readFileSync(path.join(process.cwd(), "lib/qi1-call-rating-prompt.txt"), "utf-8"),
-  QI2: readFileSync(path.join(process.cwd(), "lib/qi2-call-rating-prompt.txt"), "utf-8"),
-  FU1: readFileSync(path.join(process.cwd(), "lib/fu1-call-rating-prompt.txt"), "utf-8"),
-  FU2: readFileSync(path.join(process.cwd(), "lib/fu2-call-rating-prompt.txt"), "utf-8"),
-  Questionnaire: readFileSync(
-    path.join(process.cwd(), "lib/questionnaire-call-rating-prompt.txt"),
-    "utf-8"
-  ),
-};
+// project into the deployed function bundle - reinforced by explicit
+// outputFileTracingIncludes entries in next.config.ts, since the tracer
+// missing one of these in the deployed Vercel bundle is exactly what
+// caused every single rating attempt to fail outright (a missing file
+// throws here, which used to happen at module load time - before the
+// request handler's own try/catch could ever run, crashing the function
+// before it could respond at all).
+//
+// Loaded lazily (on first request, then cached) rather than at module
+// scope specifically so that failure path now goes through the request
+// handler's own try/catch below and returns a real, debuggable JSON
+// error instead of taking the whole function down before it can even
+// start handling requests.
+let ratingPromptsCache: Record<CallType, string> | null = null;
+
+function loadRatingPrompts(): Record<CallType, string> {
+  if (!ratingPromptsCache) {
+    ratingPromptsCache = {
+      QI1: readFileSync(path.join(process.cwd(), "lib/qi1-call-rating-prompt.txt"), "utf-8"),
+      QI2: readFileSync(path.join(process.cwd(), "lib/qi2-call-rating-prompt.txt"), "utf-8"),
+      FU1: readFileSync(path.join(process.cwd(), "lib/fu1-call-rating-prompt.txt"), "utf-8"),
+      FU2: readFileSync(path.join(process.cwd(), "lib/fu2-call-rating-prompt.txt"), "utf-8"),
+      Questionnaire: readFileSync(
+        path.join(process.cwd(), "lib/questionnaire-call-rating-prompt.txt"),
+        "utf-8"
+      ),
+    };
+  }
+  return ratingPromptsCache;
+}
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -98,6 +117,17 @@ export async function POST(request: Request) {
     ? `Context on this candidate from prior meetings and the rep's notes:\n${candidateContext}\n\n---\n\nNew call transcript to analyze:\n\n${transcript}`
     : transcript;
 
+  let ratingPrompts: Record<CallType, string>;
+  try {
+    ratingPrompts = loadRatingPrompts();
+  } catch (err) {
+    console.error("Failed to load rating rubric files", err);
+    return NextResponse.json(
+      { error: "The rating rubrics aren't available on the server right now." },
+      { status: 500 }
+    );
+  }
+
   try {
     // A very short transcript (a call's tail end, a couple of exchanges)
     // combined with a rubric that demands detailed, specific evidence
@@ -128,7 +158,7 @@ export async function POST(request: Request) {
         system: [
           {
             type: "text",
-            text: RATING_PROMPTS[callType],
+            text: ratingPrompts[callType],
             cache_control: { type: "ephemeral" },
           },
         ],
