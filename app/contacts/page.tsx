@@ -31,6 +31,7 @@ export default function ContactsPage() {
   const [newTags, setNewTags] = useState<string[]>([]);
   const [newReconnectMethod, setNewReconnectMethod] = useState("");
   const [adding, setAdding] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
 
   const [promptIndex, setPromptIndex] = useState(0);
   const activePrompts = viewMode === "customer" ? CUSTOMER_MEMORY_PROMPTS : NETWORKING_MEMORY_PROMPTS;
@@ -68,8 +69,9 @@ export default function ContactsPage() {
     const name = newName.trim();
     if (!name) return;
     setAdding(true);
+    setAddError(null);
     const category = viewMode === "customer" ? "Customer" : newCategory;
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("contacts")
       .insert({
         name,
@@ -80,6 +82,11 @@ export default function ContactsPage() {
       })
       .select("*")
       .single();
+    if (error) {
+      setAddError(error.message);
+      setAdding(false);
+      return;
+    }
     if (data) setContacts((prev) => [data as Contact, ...prev]);
     setNewName("");
     setNewTags([]);
@@ -258,6 +265,7 @@ export default function ContactsPage() {
               </button>
             ))}
           </div>
+          {addError && <p className="text-xs text-red-400">{addError}</p>}
           <button
             className="btn-primary w-full"
             onClick={addContact}
