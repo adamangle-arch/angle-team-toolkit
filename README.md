@@ -387,6 +387,35 @@ display addition (`isAdmin &&` guards, no schema change). Useful for
 helping someone link up without needing to ask them to read their own
 number off My Profile.
 
+### Sponsorship tree views
+
+The Team tab's toggle row has two more views alongside Members/Teams,
+both visualizing the same `upline_id` chain as a nested, collapsible
+tree (indented rather than a graphical side-scrolling org chart — a real
+box-and-line chart doesn't fit a 448px-wide phone screen without
+horizontal scrolling of its own, the exact thing this pass was trying to
+get away from):
+
+- **My Tree** (everyone) — your own downline, nested by who sponsored
+  whom, with "you" as the root. For a non-admin this is a client-side
+  reshape of the same `profiles` rows already fetched for the Members
+  view (RLS already limits that query to self + downline), so no new
+  query or SQL was needed. Empty for anyone who hasn't sponsored anyone
+  yet.
+- **Whole Team** (admin only) — literally everyone who's signed up,
+  nested the same way, rooted at whoever has no upline at all (the
+  founders). Only meaningful for an admin, since a non-admin's `profiles`
+  rows never include anyone outside their own downline in the first
+  place.
+
+Both are built by `buildSponsorshipChildren()` in
+`lib/sponsorship-tree.ts` (groups the flat `profiles` array by
+`upline_id`, sorts each level alphabetically, recurses) and rendered by
+`components/SponsorshipTree.tsx` — each node is tap-to-collapse (▾/▸) and
+links straight to that person's `/profile/[id]`, with their named `team`
+shown alongside and a count of direct reports. No new tables, columns, or
+RPCs — this is purely a new way to look at data the app already had.
+
 ### Pipeline Tracker: upline fill-in
 
 Any upline (any level, not just admins) can log a downline member's

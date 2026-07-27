@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
@@ -15,6 +15,8 @@ import {
   SESSION_4_READING_REQUIREMENT,
 } from "@/lib/constants";
 import { groupCallRatingsByType } from "@/lib/call-ratings";
+import { buildSponsorshipChildren } from "@/lib/sponsorship-tree";
+import SponsorshipTree from "@/components/SponsorshipTree";
 import {
   getMonthStartOffset,
   getWeekStartOffset,
@@ -34,7 +36,7 @@ import type {
   CallRating,
 } from "@/lib/types";
 
-type ViewMode = "members" | "teams";
+type ViewMode = "members" | "teams" | "my-tree" | "whole-tree";
 type PeriodType = "weekly" | "monthly";
 
 function pct(numerator: number, denominator: number): string {
@@ -113,6 +115,23 @@ export default function TeamPage() {
   const [grantError, setGrantError] = useState("");
 
   const [expandedRatingId, setExpandedRatingId] = useState<string | null>(null);
+
+  // "My Downline" - everyone's own personal sponsorship tree, rooted at
+  // themselves. For a non-admin, `profiles` already only contains self +
+  // downline (RLS), so this is just a client-side re-shape of data
+  // already fetched, no extra query needed. For an admin, `profiles` has
+  // everyone, so this naturally narrows to just the admin's own chain.
+  const myTreeChildren = useMemo(
+    () => buildSponsorshipChildren(profiles, user.id),
+    [profiles, user.id]
+  );
+  // "Whole Team" - the entire company's sponsorship forest, rooted at
+  // whoever has no upline at all. Admin-only, since a non-admin's
+  // `profiles` never contains anyone outside their own downline anyway.
+  const wholeTreeRoots = useMemo(
+    () => (isAdmin ? buildSponsorshipChildren(profiles, null) : []),
+    [isAdmin, profiles]
+  );
 
   useEffect(() => {
     async function load() {
@@ -354,22 +373,36 @@ export default function TeamPage() {
         }
       />
       <main className="page-main">
-        {isAdmin && (
-          <div className="card flex p-1">
-            <button
-              className={viewMode === "members" ? "toggle-pill-active" : "toggle-pill-inactive"}
-              onClick={() => setViewMode("members")}
-            >
-              Members
-            </button>
+        <div className="card flex flex-wrap gap-1 p-1">
+          <button
+            className={viewMode === "members" ? "toggle-pill-active" : "toggle-pill-inactive"}
+            onClick={() => setViewMode("members")}
+          >
+            Members
+          </button>
+          {isAdmin && (
             <button
               className={viewMode === "teams" ? "toggle-pill-active" : "toggle-pill-inactive"}
               onClick={() => setViewMode("teams")}
             >
               Teams
             </button>
-          </div>
-        )}
+          )}
+          <button
+            className={viewMode === "my-tree" ? "toggle-pill-active" : "toggle-pill-inactive"}
+            onClick={() => setViewMode("my-tree")}
+          >
+            My Tree
+          </button>
+          {isAdmin && (
+            <button
+              className={viewMode === "whole-tree" ? "toggle-pill-active" : "toggle-pill-inactive"}
+              onClick={() => setViewMode("whole-tree")}
+            >
+              Whole Team
+            </button>
+          )}
+        </div>
 
         {viewMode === "teams" && isAdmin && (
           <>
@@ -438,6 +471,41 @@ export default function TeamPage() {
               ))
             )}
           </>
+        )}
+
+        {viewMode === "my-tree" && (
+          <div className="card space-y-1.5">
+            <p className="section-title">My Downline</p>
+            <p className="text-xs text-slate-400">
+              Everyone under you, nested by who they were sponsored by — tap a name to view their
+              profile, tap ▾ to collapse a branch.
+            </p>
+            <div className="rounded-lg bg-navy p-2.5">
+              <p className="pb-1 text-sm font-semibold text-amber-light">
+                {user.email} <span className="text-xs font-normal text-slate-500">(you)</span>
+              </p>
+              <SponsorshipTree
+                nodes={myTreeChildren}
+                emptyLabel="No one in your downline yet — once someone signs up with your account number as their upline, they'll show up here."
+              />
+            </div>
+          </div>
+        )}
+
+        {viewMode === "whole-tree" && isAdmin && (
+          <div className="card space-y-1.5">
+            <p className="section-title">Whole Team</p>
+            <p className="text-xs text-slate-400">
+              Every signed-up member, nested by line of sponsorship. Tap a name to view their
+              profile, tap ▾ to collapse a branch.
+            </p>
+            <div className="rounded-lg bg-navy p-2.5">
+              <SponsorshipTree
+                nodes={wholeTreeRoots}
+                emptyLabel="No one has signed up yet."
+              />
+            </div>
+          </div>
         )}
 
         {viewMode === "members" && (
