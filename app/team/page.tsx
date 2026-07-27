@@ -20,6 +20,7 @@ import SponsorshipTree from "@/components/SponsorshipTree";
 import {
   getMonthStartOffset,
   getWeekStartOffset,
+  getDateOffset,
   formatMonthLabel,
   formatWeekRangeLabel,
   formatDateLabel,
@@ -37,7 +38,7 @@ import type {
 } from "@/lib/types";
 
 type ViewMode = "members" | "teams" | "my-tree" | "whole-tree";
-type PeriodType = "weekly" | "monthly";
+type PeriodType = "daily" | "weekly" | "monthly";
 
 function pct(numerator: number, denominator: number): string {
   if (!denominator) return "—";
@@ -85,13 +86,22 @@ export default function TeamPage() {
 
   const [viewMode, setViewMode] = useState<ViewMode>("members");
   const [periodType, setPeriodType] = useState<PeriodType>("weekly");
-  // 0 = current week/month, 1 = one back, etc. - weekly and monthly offsets
-  // aren't comparable, so switching the type resets this back to current.
+  // 0 = current day/week/month, 1 = one back, etc. - the three period
+  // types' offsets aren't comparable, so switching the type resets this
+  // back to current.
   const [periodOffset, setPeriodOffset] = useState(0);
   const periodStart =
-    periodType === "weekly" ? getWeekStartOffset(periodOffset) : getMonthStartOffset(periodOffset);
+    periodType === "daily"
+      ? getDateOffset(periodOffset)
+      : periodType === "weekly"
+        ? getWeekStartOffset(periodOffset)
+        : getMonthStartOffset(periodOffset);
   const periodLabel =
-    periodType === "weekly" ? formatWeekRangeLabel(periodStart) : formatMonthLabel(periodStart);
+    periodType === "daily"
+      ? formatDateLabel(periodStart)
+      : periodType === "weekly"
+        ? formatWeekRangeLabel(periodStart)
+        : formatMonthLabel(periodStart);
 
   function switchPeriodType(type: PeriodType) {
     setPeriodType(type);
@@ -408,6 +418,12 @@ export default function TeamPage() {
           <>
             <div className="card flex p-1">
               <button
+                className={periodType === "daily" ? "toggle-pill-active" : "toggle-pill-inactive"}
+                onClick={() => switchPeriodType("daily")}
+              >
+                Daily
+              </button>
+              <button
                 className={periodType === "weekly" ? "toggle-pill-active" : "toggle-pill-inactive"}
                 onClick={() => switchPeriodType("weekly")}
               >
@@ -425,7 +441,7 @@ export default function TeamPage() {
               <button
                 className="btn-icon !h-8 !w-8 text-base"
                 onClick={() => setPeriodOffset((o) => o + 1)}
-                aria-label={`Previous ${periodType === "weekly" ? "week" : "month"}`}
+                aria-label={`Previous ${periodType === "daily" ? "day" : periodType === "weekly" ? "week" : "month"}`}
               >
                 ‹
               </button>
@@ -439,7 +455,7 @@ export default function TeamPage() {
                 className="btn-icon !h-8 !w-8 text-base"
                 onClick={() => setPeriodOffset((o) => Math.max(0, o - 1))}
                 disabled={periodOffset === 0}
-                aria-label={`Next ${periodType === "weekly" ? "week" : "month"}`}
+                aria-label={`Next ${periodType === "daily" ? "day" : periodType === "weekly" ? "week" : "month"}`}
               >
                 ›
               </button>

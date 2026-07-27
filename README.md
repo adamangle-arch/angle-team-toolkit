@@ -228,16 +228,18 @@ to only ever show the current week or month, with no way to look back or
 compare periods. `get_team_pipeline_totals(p_period_type, p_period_start)`
 already took an arbitrary period start with no "current period" assumption
 baked in — the limitation was purely client-side, so no schema changes
-were needed. `app/team/page.tsx` now has a `‹`/`›` navigator next to the
-Weekly/Monthly toggle: `‹` steps one period further back, `›` steps
-forward again (disabled once you're back at the current period — no
-peeking into the future), with the label showing either a week range
-("Jul 20 - 26, 2026") or a month name, plus a "(current)" tag when you're
-looking at today's period. Switching between Weekly and Monthly resets
-back to the current period, since a "3 weeks back" offset and a "3 months
-back" offset aren't the same thing. New helpers in `lib/dates.ts`:
-`getWeekStartOffset(weeksBack)` (mirrors the existing
-`getMonthStartOffset`) and `formatWeekRangeLabel`.
+were needed. `app/team/page.tsx` now has a `‹`/`›` navigator next to a
+Daily/Weekly/Monthly toggle (Daily added later, same treatment as
+Weekly/Monthly): `‹` steps one period further back, `›` steps forward
+again (disabled once you're back at the current period — no peeking into
+the future), with the label showing a date, a week range
+("Jul 20 - 26, 2026"), or a month name depending on the toggle, plus a
+"(current)" tag when you're looking at today's period. Switching between
+Daily/Weekly/Monthly resets back to the current period, since a "3 days
+back" offset, a "3 weeks back" offset, and a "3 months back" offset
+aren't the same thing. Helpers in `lib/dates.ts`: `getDateOffset(daysBack)`,
+`getWeekStartOffset(weeksBack)`, `getMonthStartOffset(monthsBack)`, and
+`formatWeekRangeLabel`.
 
 `formatWeekRangeLabel` originally showed a broken label for a same-month
 week ("Jul 19 - 2026 (day: 25)" instead of "Jul 19 - 25, 2026") — it asked
