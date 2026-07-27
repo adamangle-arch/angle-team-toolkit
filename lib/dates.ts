@@ -14,10 +14,21 @@ export function getWeekStart(date: Date = new Date()): string {
 }
 
 // weeksBack = 0 is the current week (Monday start), 1 is last week, etc.
+//
+// This used to round-trip through getWeekStart()'s returned "YYYY-MM-DD"
+// string via `new Date(thatString)` - but a bare date-only string is
+// parsed as UTC midnight, not local midnight. In any timezone behind UTC
+// (all of the US), converting that UTC instant back to local time lands
+// on the *previous* calendar day, so this returned Monday's date one day
+// early - every single time, for anyone west of UTC, not intermittently.
+// Confirmed live: a rep in US Eastern saw "current week" labeled Sun-Sat
+// instead of Mon-Sun. Building the shifted date directly (never through
+// a string) and asking getWeekStart() for its Monday sidesteps the UTC
+// round-trip entirely.
 export function getWeekStartOffset(weeksBack: number): string {
-  const d = new Date(getWeekStart());
+  const d = new Date();
   d.setDate(d.getDate() - weeksBack * 7);
-  return toDateOnly(d);
+  return getWeekStart(d);
 }
 
 // "Jul 20 - 26, 2026" for a Monday week-start date.

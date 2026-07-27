@@ -248,6 +248,27 @@ aren't the same thing. Helpers in `lib/dates.ts`: `getDateOffset(daysBack)`,
 `getWeekStartOffset(weeksBack)`, `getMonthStartOffset(monthsBack)`, and
 `formatWeekRangeLabel`.
 
+**Real bug found here, not a timezone quirk on anyone's device:** a rep
+in US Eastern reported "current week" was showing a Sunday-Saturday range
+instead of Monday-Sunday — e.g. "Jul 26 - Aug 1" instead of the correct
+"Jul 27 - Aug 2." Confirmed live and root-caused: `getWeekStartOffset()`
+computed today's Monday via `getWeekStart()` (correct, returns a plain
+`"YYYY-MM-DD"` string), then round-tripped that string through
+`new Date(thatString)` to subtract whole weeks from it. A bare date-only
+string like `"2026-07-27"` is parsed as **UTC midnight**, not local
+midnight — in any timezone behind UTC (all of the US), converting that
+UTC instant back to local time for the subsequent `.setDate()`/`.getDate()`
+calls lands on the *previous* calendar day. This wasn't intermittent or
+device-specific — it silently shifted the "current week" back by one full
+day for every single person west of UTC, every time, until caught. Fixed
+by never round-tripping through a string: `getWeekStartOffset` now builds
+the shifted date directly from `new Date()` and asks `getWeekStart()` for
+*that* date's Monday, the same safe pattern every other date helper in
+`lib/dates.ts` already used (they all explicitly append `T00:00:00` when
+parsing a date-only string back into a `Date`, precisely to avoid this).
+`getMonthStartOffset` and `getDateOffset` were never affected — neither
+one round-trips through a string at all.
+
 ### Members view: same Daily/Weekly/Monthly + back-navigation as your own Pipeline Tracker
 
 The **Members** view's per-person detail panel (available to any upline,
