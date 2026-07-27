@@ -262,6 +262,16 @@ export default function CallRatingPanel() {
         >
           {rating ? "Rating…" : !callType ? "Select a meeting type first" : "Rate This Call"}
         </button>
+        {rating && (
+          <div className="space-y-1">
+            <div className="progress-track">
+              <div className="progress-fill" />
+            </div>
+            <p className="text-center text-xs text-slate-500">
+              Analyzing against the {callType} rubric — a detailed call can take up to a minute.
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="card space-y-3">

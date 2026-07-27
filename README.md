@@ -1348,6 +1348,17 @@ while rating this call. Your transcript is still here — check your
 signal and tap Rate This Call again" instead of the browser's raw,
 unhelpful wording.
 
+Since a legitimate rating can still take up to a minute even when
+nothing's wrong, "Rate This Call" turning into "Rating…" with no other
+feedback for that long reads as frozen. It now shows an indeterminate
+sliding progress bar (`.progress-track`/`.progress-fill` in
+`app/globals.css`, a `translateX` loop — there's no real percentage to
+report for a single non-streamed API call, so this is deliberately just
+"something is actively happening" rather than a fake completion
+estimate) plus a line naming which rubric it's checking against and that
+a detailed call can take up to a minute, so the wait reads as expected
+rather than broken.
+
 The Role-Play / Rate a Call toggle-pill row on the Assistant page used to
 scroll away with the rest of the chat — once a Role-Play conversation got
 long, switching to Rate a Call meant scrolling all the way back to the top
