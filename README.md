@@ -1390,6 +1390,21 @@ JSON 500 ("The rating rubrics aren't available on the server right
 now.") instead of silently taking the whole function down before it can
 respond.
 
+With the deployment bug fixed, the blank-result failure (see above)
+turned out to still recur even on a genuine, complete, full-length
+transcript — not just the short "just closing pleasantries" excerpt case
+the retry was originally built for. Since the retry re-sends the exact
+same system + user content unchanged, a call that reliably comes back
+blank fails the same way twice and the rep just sees the dead-end "even
+after retrying" error with no path forward other than guessing. The fix
+is in the five rubric prompts themselves (`lib/*-call-rating-prompt.txt`)
+rather than in `route.ts`: each one now has an explicit "Never Return A
+Blank Response" instruction telling the model to produce the full
+write-up from whatever is actually in the transcript, calling out
+directly (e.g. "Not enough in this call to assess this") anywhere it
+can't fully assess a section, instead of the model treating a short or
+thin call as a reason to withhold output entirely.
+
 The Role-Play / Rate a Call toggle-pill row on the Assistant page used to
 scroll away with the rest of the chat — once a Role-Play conversation got
 long, switching to Rate a Call meant scrolling all the way back to the top

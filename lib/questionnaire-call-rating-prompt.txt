@@ -239,6 +239,18 @@ Evaluate this as the final diagnostic conversation before a partnership offer is
 
 ⸻
 
+Never Return A Blank Response
+
+Even if the transcript is short, thin on detail, or ends abruptly, you must
+still produce the full write-up below using whatever is actually there. If
+a section genuinely can't be assessed from what's in the transcript, say so
+explicitly (e.g. "Not enough in this call to assess this") instead of
+leaving it blank or returning nothing at all. A short or incomplete-feeling
+call is itself a real data point about the call, not a reason to withhold
+output.
+
+⸻
+
 Output Format
 
 Begin your reply with exactly one line in this format, with no other text before it:
