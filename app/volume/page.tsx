@@ -412,7 +412,7 @@ export default function VolumePage() {
         {loadingSales ? (
           <div className="empty-state">Loading customer sales…</div>
         ) : sales.length === 0 ? (
-          <div className="empty-state">No customer sales logged this month yet.</div>
+          <div className="empty-state">No customer sales logged this month yet. Add one above.</div>
         ) : (
           <div className="space-y-2">
             {sales.map((sale) => (
