@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
-import NotificationOptIn from "@/components/NotificationOptIn";
 import { useAuth } from "@/components/AuthGate";
 import FeatureGate from "@/components/FeatureGate";
 import { supabase } from "@/lib/supabaseClient";
@@ -36,7 +35,7 @@ function qualifies(day: StreakDay): boolean {
 }
 
 // Best-effort local notification reusing the permission/service worker
-// already set up by NotificationOptIn - no server round-trip needed.
+// set up on the Notifications page - no server round-trip needed.
 async function notifyTriviaUnlocked() {
   try {
     if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
@@ -594,8 +593,6 @@ export default function StreakPage() {
         subtitle="Read • Listen • Daily Update • Story Share"
       />
       <main className="page-main">
-        <NotificationOptIn />
-
         {showTriviaUnlocked && (
           <div className="card flex items-center justify-between gap-2 !border-amber bg-amber/10">
             <div>

@@ -1044,15 +1044,25 @@ daily), and the QI1 Rhythm threshold is 1+ for Daily (vs. 2+/week,
 
 ### Daily Reminders (push notifications)
 
-Anyone can turn on a push notification (from the Core Run Streak page)
-that fires once in the evening if they haven't logged that day's Core Run
-yet. A few things worth knowing:
+Push notifications turn on automatically the first time someone opens the
+Notifications page — there's no "Enable" button to tap first. The one
+prompt that's unavoidable is the browser/OS's own native permission
+dialog (that's how push works on every platform; no app can skip it),
+but `components/NotificationOptIn.tsx` never adds an extra in-app tap in
+front of it. A few things worth knowing:
 
 - **iPhone requires "Add to Home Screen" first** — this is a hard Safari
   rule, not something the app can work around. If someone opens the app
-  in a regular Safari tab, they'll see instructions instead of an Enable
-  button; once they've added it to their Home Screen and reopened it from
-  there, the Enable button appears.
+  in a regular Safari tab, they'll see instructions instead; once they've
+  added it to their Home Screen and reopened it from there, it subscribes
+  automatically on the next visit to Notifications.
+- If someone taps **Turn Off**, that choice is remembered (a
+  `angle-notifications-opted-out` flag in `localStorage`) so the app
+  doesn't silently re-subscribe them next visit — a **Turn On** control
+  takes its place. If the browser/OS permission itself is denied, there's
+  nothing the app can do about that from inside the page; it shows a
+  message pointing to the browser/device settings instead of a dead
+  button.
 - The reminder fires once daily via a Vercel Cron job hitting
   `/api/push/send-reminders`, currently scheduled for **8:00 PM Eastern**
   (`0 0 * * *` UTC). Because it's a fixed UTC hour, it'll actually land at
@@ -1072,9 +1082,9 @@ yet. A few things worth knowing:
   key in particular bypasses Row Level Security entirely and must never
   be exposed to the browser (no `NEXT_PUBLIC_` prefix, server-only).
 
-The opt-in toggle (`components/NotificationOptIn.tsx`, still surfaced on
-the Core Run Streak page) is a single subscription that now covers both
-this reminder and the stat-leader digest below — there's only one
+The opt-in component (`components/NotificationOptIn.tsx`, surfaced on the
+Notifications page) is a single subscription that covers both this
+reminder and the stat-leader digest below — there's only one
 `push_subscriptions` row per device, not one per notification type.
 
 ### Stat Leader Notifications

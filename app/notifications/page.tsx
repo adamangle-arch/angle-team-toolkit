@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import PageHeader from "@/components/PageHeader";
+import NotificationOptIn from "@/components/NotificationOptIn";
 import { supabase } from "@/lib/supabaseClient";
 import type { SentNotification } from "@/lib/types";
 
@@ -43,13 +44,13 @@ export default function NotificationsPage() {
     <>
       <PageHeader title="Notifications" subtitle="Every push notification we've sent you" />
       <main className="page-main">
+        <NotificationOptIn />
+
         {loading ? (
           <p className="text-sm text-slate-400">Loading...</p>
         ) : notifications.length === 0 ? (
           <div className="card">
-            <p className="text-sm text-slate-400">
-              No notifications yet. Enable push notifications on Core Run Streak to start getting them.
-            </p>
+            <p className="text-sm text-slate-400">No notifications yet.</p>
           </div>
         ) : (
           notifications.map((n) => (
