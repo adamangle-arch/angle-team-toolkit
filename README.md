@@ -51,14 +51,20 @@ in-app navigation or manual reload of the same tab).
 ### Bottom nav cleanup
 
 The bottom nav had grown to 14 tabs (13 plus Today), which meant scrolling
-horizontally to find anything near the end. The four most occasional/
-reference tools — **Resources**, **Assistant**, **Onboarding**, and
-**Games** — now live behind a **More** tab (`app/more/page.tsx`) instead of
-each taking a slot on the main bar. The main bar is Today, Pipeline,
-History, Contacts, Run Streak, Goals, Calendar, Volume, Leaderboard, Team,
-and More (11 tabs). The More tab's icon lights up the same way any other
-tab does whenever you're actually on one of the four pages it links to,
-so it doesn't look like you've navigated away to nowhere.
+horizontally to find anything near the end — an earlier pass trimmed that
+to 11 by moving Resources/Assistant/Onboarding/Games behind **More**, but
+11 still needed horizontal scrolling to reach Team at the end, and
+swiping sideways through a tab bar to find something isn't an intuitive
+pattern for everyone using this app (it skews toward younger, app-fluent
+users; a lot of people won't think to try it). The main bar
+(`components/BottomNav.tsx`) is now just the 5 tabs used every single
+day — **Today, Pipeline, Contacts, Run Streak, Team** — plus **More**,
+short enough to never need scrolling on a phone screen. Everything else
+(Goals, Calendar, Candidate History, Volume, Leaderboard, plus the
+existing Resources/Assistant/Onboarding/Games/Team Events) lives behind
+More (`app/more/page.tsx`), one tap away. The More tab's icon still lights
+up whenever you're actually on one of its pages, same as before, so it
+never looks like you've navigated away to nowhere.
 
 ## 1. Set up Supabase
 

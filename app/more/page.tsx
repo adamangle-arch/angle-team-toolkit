@@ -6,6 +6,11 @@ import { useAuth } from "@/components/AuthGate";
 import { minSessionFor } from "@/lib/onboarding-gate";
 
 const MORE_ITEMS = [
+  { href: "/goals", label: "Goals", icon: "🎯", description: "Your daily/weekly/monthly targets." },
+  { href: "/calendar", label: "Calendar", icon: "📅", description: "Meetings, reminders, and team events." },
+  { href: "/history", label: "Candidate History", icon: "🗂️", description: "Every candidate you've ever added, active or not." },
+  { href: "/volume", label: "Volume", icon: "📦", description: "Personal PV and Ditto tracking." },
+  { href: "/leaderboard", label: "Leaderboard", icon: "🏆", description: "Team and individual rankings, streaks, milestones." },
   { href: "/library", label: "Resources", icon: "📚", description: "Process, Products, Scripts & FAQ, Leaders, Audio & Book Library." },
   { href: "/assistant", label: "Assistant", icon: "🤖", description: "Role-play A/B/C-list conversations." },
   { href: "/onboarding", label: "Onboarding", icon: "🎓", description: "New team member sessions." },

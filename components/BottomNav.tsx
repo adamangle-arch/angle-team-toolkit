@@ -5,25 +5,33 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "./AuthGate";
 import { minSessionFor } from "@/lib/onboarding-gate";
 
+// Only the handful of tabs used every single day live on the main bar -
+// everything else (see app/more/page.tsx) is one tap away under More.
+// Swiping a scrollable nav row to find a tab wasn't intuitive, so this is
+// deliberately short enough to never need horizontal scrolling.
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Today", icon: "🏠" },
   { href: "/pipeline", label: "Pipeline", icon: "📊" },
-  { href: "/history", label: "History", icon: "🗂️" },
   { href: "/contacts", label: "Contacts", icon: "📇" },
   { href: "/streak", label: "Run Streak", icon: "🔥" },
-  { href: "/goals", label: "Goals", icon: "🎯" },
-  { href: "/calendar", label: "Calendar", icon: "📅" },
-  { href: "/volume", label: "Volume", icon: "📦" },
-  { href: "/leaderboard", label: "Leaderboard", icon: "🏆" },
   // Visible to everyone: admins see the whole company, everyone else
   // sees their own downline (RLS scopes it either way).
   { href: "/team", label: "Team", icon: "👥" },
 ];
 
-// Assistant, Onboarding, Resources, and Games are all occasional/reference
-// tools rather than something used every day - they live behind More
-// instead of taking up a slot on the main bar (see app/more/page.tsx).
-const MORE_ROUTES = ["/assistant", "/onboarding", "/library", "/games", "/events"];
+// Everything not on the main bar lives behind More instead.
+const MORE_ROUTES = [
+  "/history",
+  "/goals",
+  "/calendar",
+  "/volume",
+  "/leaderboard",
+  "/assistant",
+  "/onboarding",
+  "/library",
+  "/games",
+  "/events",
+];
 
 export default function BottomNav() {
   const pathname = usePathname();
