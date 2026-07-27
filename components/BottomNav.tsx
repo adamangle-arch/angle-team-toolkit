@@ -12,19 +12,17 @@ import { minSessionFor } from "@/lib/onboarding-gate";
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Today", icon: "🏠" },
   { href: "/pipeline", label: "Pipeline", icon: "📊" },
-  { href: "/contacts", label: "Contacts", icon: "📇" },
+  { href: "/calendar", label: "Calendar", icon: "📅" },
   { href: "/streak", label: "Run Streak", icon: "🔥" },
-  // Visible to everyone: admins see the whole company, everyone else
-  // sees their own downline (RLS scopes it either way).
-  { href: "/team", label: "Team", icon: "👥" },
+  { href: "/leaderboard", label: "Leaderboard", icon: "🏆" },
 ];
 
 // Everything not on the main bar lives behind More instead.
 const MORE_ROUTES = [
   "/goals",
-  "/calendar",
+  "/contacts",
   "/volume",
-  "/leaderboard",
+  "/team",
   "/assistant",
   "/onboarding",
   "/library",

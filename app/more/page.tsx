@@ -7,10 +7,12 @@ import { minSessionFor } from "@/lib/onboarding-gate";
 
 const MORE_ITEMS = [
   { href: "/notifications", label: "Notifications", icon: "🔔", description: "Every push notification we've sent you." },
-  { href: "/goals", label: "Goals", icon: "🎯", description: "Your daily/weekly/monthly targets." },
-  { href: "/calendar", label: "Calendar", icon: "📅", description: "Meetings, reminders, and team events." },
+  { href: "/goals", label: "Goals", icon: "🎯", description: "Your daily/weekly/monthly targets and your 5/10-year and lifetime dreams." },
+  { href: "/contacts", label: "Contacts", icon: "📇", description: "Your A/B/Customer contact list." },
   { href: "/volume", label: "Volume", icon: "📦", description: "Personal PV and Ditto tracking." },
-  { href: "/leaderboard", label: "Leaderboard", icon: "🏆", description: "Team and individual rankings, streaks, milestones." },
+  // Visible to everyone: admins see the whole company, everyone else
+  // sees their own upline chain and downline (RLS scopes it either way).
+  { href: "/team", label: "Team", icon: "👥", description: "Your downline, your upline, and team pipeline totals." },
   { href: "/library", label: "Resources", icon: "📚", description: "Process, Products, Scripts & FAQ, Leaders, Audio & Book Library." },
   { href: "/assistant", label: "Assistant", icon: "🤖", description: "Role-play A/B/C-list conversations." },
   { href: "/onboarding", label: "Onboarding", icon: "🎓", description: "New team member sessions." },

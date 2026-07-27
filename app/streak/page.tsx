@@ -267,33 +267,37 @@ export default function StreakPage() {
   // members are deduped to their household owner before summing to
   // avoid double-counting a linked pair.
   //
-  // A linked spouse is NOT downline even if they also happen to satisfy
-  // is_upline_of (e.g. they entered your account number as their upline
-  // when they signed up) - their business data resolves to the exact
-  // same ownerId as this account's own, so counting them here would
-  // double-count your own numbers under their name. Filter anyone whose
-  // resolved owner matches this account's own ownerId before doing
-  // anything else with the list.
+  // get_downline_user_ids is the authoritative "who's actually below me"
+  // source (and already excludes a linked spouse - their business data
+  // resolves to this account's own ownerId, so counting them here would
+  // double-count your own numbers under their name). A plain `profiles`
+  // query scoped only by RLS would also include anyone in this account's
+  // *upline* chain now that upline visibility exists, which isn't what
+  // this card means by "downline."
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
-      const { data } = await supabase
-        .from("profiles")
-        .select("id,first_name,last_name,household_id")
-        .neq("id", user.id);
+      const { data: ids } = await supabase.rpc("get_downline_user_ids", { p_user_id: user.id });
+      const downlineIds = ((ids as { user_id: string }[]) ?? []).map((r) => r.user_id);
       if (cancelled) return;
-      const downlineProfiles = (
-        (data as Pick<Profile, "id" | "first_name" | "last_name" | "household_id">[]) ?? []
-      ).filter((p) => (p.household_id ?? p.id) !== ownerId);
-      setDownlineMemberCount(downlineProfiles.length);
 
-      if (downlineProfiles.length === 0) {
+      if (downlineIds.length === 0) {
+        setDownlineMemberCount(0);
         setDownlineWeekly(emptyStageTotals());
         setDownlineMonthly(emptyStageTotals());
         setDownlineActive([]);
         return;
       }
+
+      const { data } = await supabase
+        .from("profiles")
+        .select("id,first_name,last_name,household_id")
+        .in("id", downlineIds);
+      if (cancelled) return;
+      const downlineProfiles =
+        (data as Pick<Profile, "id" | "first_name" | "last_name" | "household_id">[]) ?? [];
+      setDownlineMemberCount(downlineProfiles.length);
 
       const ownerIds = Array.from(
         new Set(downlineProfiles.map((p) => p.household_id ?? p.id))

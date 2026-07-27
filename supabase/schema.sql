@@ -402,9 +402,24 @@ $$;
 
 alter table profiles enable row level security;
 
+-- Visibility is intentionally symmetric along your own sponsorship line
+-- only, never sideways: is_upline_of(auth.uid(), id) covers your downline
+-- (any level), is_upline_of(id, auth.uid()) covers your upline (any
+-- level, in sponsoring order once queried client-side) - a cousin
+-- branch (someone else's downline who isn't yours, or your upline's
+-- other downline who isn't you) matches neither clause and stays
+-- invisible, same as before. This only affects the `profiles` row
+-- itself (name, team, join date, account number) - it does not grant
+-- visibility into anyone's business data (pipeline, candidates,
+-- contacts, etc.), which stays governed by each table's own policy.
 drop policy if exists "select_own_or_admin" on profiles;
 create policy "select_own_or_admin" on profiles for select
-using (id = auth.uid() or public.is_upline_of(auth.uid(), id) or public.is_app_admin());
+using (
+  id = auth.uid()
+  or public.is_upline_of(auth.uid(), id)
+  or public.is_upline_of(id, auth.uid())
+  or public.is_app_admin()
+);
 
 drop policy if exists "update_own" on profiles;
 create policy "update_own" on profiles for update

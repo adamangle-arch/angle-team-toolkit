@@ -111,24 +111,20 @@ export default function CalendarPage() {
     load();
   }, [ownerId]);
 
-  // A linked spouse can also technically satisfy is_upline_of (e.g. they
-  // entered this account's number as their own upline when they signed
-  // up), but they're not real downline - their data resolves to this
-  // same account's ownerId, so they're excluded here the same way the
-  // Daily Update summary's downline totals are.
+  // get_downline_user_ids is the authoritative "who's actually below me"
+  // source (already excludes a linked spouse, whose data resolves to
+  // this same account's ownerId, same as the Daily Update summary's
+  // downline totals). A plain `profiles` query scoped only by RLS would
+  // also include anyone in this account's *upline* chain now that upline
+  // visibility exists, which would make this true even for someone with
+  // zero real downline.
   useEffect(() => {
     async function load() {
-      const { data } = await supabase
-        .from("profiles")
-        .select("id,household_id")
-        .neq("id", user.id);
-      const real = ((data as { id: string; household_id: string | null }[]) ?? []).filter(
-        (p) => (p.household_id ?? p.id) !== ownerId
-      );
-      setHasDownline(real.length > 0);
+      const { data } = await supabase.rpc("get_downline_user_ids", { p_user_id: user.id });
+      setHasDownline(((data as { user_id: string }[]) ?? []).length > 0);
     }
     load();
-  }, [user.id, ownerId]);
+  }, [user.id]);
 
   useEffect(() => {
     if (!isAdmin) return;

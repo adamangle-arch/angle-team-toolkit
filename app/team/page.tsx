@@ -146,6 +146,37 @@ export default function TeamPage() {
     () => (isAdmin ? buildSponsorshipChildren(profiles, null) : []),
     [isAdmin, profiles]
   );
+  // "My Upline" - the chain going up from your own sponsor to the top,
+  // in sponsoring order (immediate sponsor first). The profiles select
+  // policy now allows reading rows anywhere in your own upline chain
+  // (not just your downline), so those rows are already present in
+  // `profiles` once fetched - this just walks upline_id pointers using
+  // what's already loaded, no extra query.
+  const myUplineChain = useMemo(() => {
+    const byId = new Map(profiles.map((p) => [p.id, p]));
+    const chain: Profile[] = [];
+    const seen = new Set<string>([user.id]);
+    let cursor = byId.get(user.id)?.upline_id ?? null;
+    while (cursor && !seen.has(cursor)) {
+      const p = byId.get(cursor);
+      if (!p) break;
+      chain.push(p);
+      seen.add(p.id);
+      cursor = p.upline_id ?? null;
+    }
+    return chain;
+  }, [profiles, user.id]);
+  // `profiles` (for a non-admin) now also includes rows from the upline
+  // chain above, which is exactly what "My Upline" needs - but the
+  // Members list is specifically "people I supervise," so it excludes
+  // those same upline rows to avoid mixing "people above me" into a list
+  // titled around downline/supervision. Admins are unaffected: they
+  // already see everyone via is_app_admin(), independent of up/downline.
+  const uplineIds = useMemo(() => new Set(myUplineChain.map((p) => p.id)), [myUplineChain]);
+  const downlineProfiles = useMemo(
+    () => (isAdmin ? profiles : profiles.filter((p) => !uplineIds.has(p.id))),
+    [isAdmin, profiles, uplineIds]
+  );
 
   useEffect(() => {
     async function load() {
@@ -386,7 +417,7 @@ export default function TeamPage() {
         subtitle={
           isAdmin
             ? `${profiles.length} member(s) signed up`
-            : `${profiles.length} member(s) in your downline`
+            : `${downlineProfiles.length} member(s) in your downline`
         }
       />
       <main className="page-main">
@@ -498,6 +529,36 @@ export default function TeamPage() {
 
         {viewMode === "my-tree" && (
           <div className="card space-y-1.5">
+            <p className="section-title">My Upline</p>
+            <p className="text-xs text-slate-400">
+              In line of sponsoring order — your sponsor first, then theirs, up to the top.
+            </p>
+            {myUplineChain.length === 0 ? (
+              <p className="text-sm text-slate-400">
+                No upline set yet — add your sponsor&apos;s account number on My Profile.
+              </p>
+            ) : (
+              <div className="rounded-lg bg-navy p-2.5">
+                {myUplineChain.map((p, i) => (
+                  <Link
+                    key={p.id}
+                    href={`/profile/${p.id}`}
+                    className="flex items-center gap-2 py-1 text-sm text-slate-200 active:opacity-70"
+                  >
+                    <span className="shrink-0 text-xs text-slate-500">{i + 1}.</span>
+                    <span className="truncate">
+                      {p.first_name && p.last_name ? `${p.first_name} ${p.last_name}` : p.email}
+                      {p.team && <span className="text-xs text-slate-500"> · {p.team}</span>}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {viewMode === "my-tree" && (
+          <div className="card space-y-1.5">
             <p className="section-title">My Downline</p>
             <p className="text-xs text-slate-400">
               Everyone under you, nested by who they were sponsored by — tap a name to view their
@@ -536,10 +597,10 @@ export default function TeamPage() {
             <p className="section-title">Members</p>
             {loadingProfiles ? (
               <p className="text-sm text-slate-400">Loading…</p>
-            ) : profiles.length === 0 ? (
+            ) : downlineProfiles.length === 0 ? (
               <p className="text-sm text-slate-400">No one has signed up yet.</p>
             ) : (
-              profiles.map((p) => (
+              downlineProfiles.map((p) => (
                 <button
                   key={p.id}
                   onClick={() => setSelectedId(p.id)}

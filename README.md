@@ -114,6 +114,13 @@ More (`app/more/page.tsx`), one tap away. The More tab's icon still lights
 up whenever you're actually on one of its pages, same as before, so it
 never looks like you've navigated away to nowhere.
 
+**Swapped again since**: the main bar is now **Today, Pipeline, Calendar,
+Run Streak, Leaderboard**, with **Contacts** and **Team** moved behind
+More instead — a better fit for what actually gets checked constantly
+(a live calendar and rankings) versus what's more of an occasional
+lookup (a specific contact, a downline member's page). Same 5-tabs-plus-More
+shape, just which 5.
+
 ## 1. Set up Supabase
 
 1. Create a free project at [supabase.com](https://supabase.com).
@@ -431,6 +438,24 @@ exists — it only affects what each login reads/writes going forward.
 If both spouses already had their own separate pipeline/candidates/PV
 history before linking, that old data doesn't get combined automatically.
 
+### Upline account number required at signup
+
+`ProfileGate.tsx` (the one-time "Finish your profile" screen shown after
+signup, before the rest of the app unlocks) used to only require first
+name, last name, and team — linking to an upline was a separate,
+easy-to-skip self-service step on My Profile, so plenty of accounts never
+did it. The upline's account number is now a **required** field on this
+same gate, right alongside name/team: submitting calls `link_upline()`
+same as My Profile always has, and a bad/unknown number blocks
+progression with the RPC's own error message ("No account found with
+that number") instead of silently letting someone through un-sponsored.
+A spouse's email is also collected here now, but stays **optional** —
+not everyone has one on the team — calling the existing `link_spouse()`
+if filled in, same validation-blocks-progression treatment if it's typed
+but wrong. Nothing changed about the RPCs themselves or My Profile's own
+link/unlink UI, which still exists for fixing a mistake or changing
+either link later.
+
 ### Upline visibility
 
 Every account gets a 6-digit `account_number` (shown at the top of **My
@@ -458,6 +483,35 @@ This is the only case in the app where reading someone's Assistant chat
 history is possible by anyone other than that person themselves — worth
 knowing if a downline ever asks who can see their role-play conversations.
 
+**Now symmetric: you can also see your own upline, in sponsoring
+order — but never sideways.** The `profiles` table's select policy used
+to only grant `is_upline_of(auth.uid(), id)` (you can read anyone in your
+*downline*). It now also grants `is_upline_of(id, auth.uid())` — anyone in
+your *upline* — so a rep can see who sponsored them, and who sponsored
+that person, all the way to the top. Someone in neither chain (a
+completely different branch, or a sibling under the same sponsor who
+isn't literally you) matches neither clause and is still invisible —
+"no cross-line visibility" was already true before this change (a
+non-admin's `profiles` query was always scoped to self + downline only)
+and stays true now; the only thing added is the second, upward direction.
+This only affects the `profiles` row itself (name, team, join date,
+account number) — it does **not** extend to anyone's business data
+(pipeline, candidates, contacts, ratings, goals), which is still governed
+entirely by each table's own `is_upline_of(auth.uid(), user_id)`-only
+policy, unchanged and still one-directional (you still can't see your
+upline's numbers just because you can now see their name).
+
+Three places elsewhere in the app used to discover "does this account
+have any downline" via a plain `profiles` query scoped only by RLS
+(`.neq("id", user.id)`, relying on RLS to mean "downline") —
+`app/streak/page.tsx`'s downline pipeline card and `app/calendar/page.tsx`'s
+"do I have anyone to broadcast an event to" check. Both would have started
+counting upline members as if they were downline the moment upline
+visibility shipped, so both were switched to the same
+`get_downline_user_ids()` RPC the Pipeline Tracker's fill-in feature
+already used — the authoritative "who's actually below me" source,
+unaffected by the `profiles` RLS change either way.
+
 Primary users (`adamangle@icloud.com`, `alexangle@me.com`) additionally see
 everyone's `account_number` on the **Team** tab — next to each row in the
 Members list, and again on a selected member's detail view — since
@@ -475,25 +529,42 @@ box-and-line chart doesn't fit a 448px-wide phone screen without
 horizontal scrolling of its own, the exact thing this pass was trying to
 get away from):
 
+- **My Upline** (everyone) — the chain going up from your own sponsor to
+  the top, **in sponsoring order** (immediate sponsor first, then theirs,
+  and so on) — a flat numbered list, not a tree, since there's exactly
+  one path upward by definition. Built by walking `upline_id` pointers
+  starting from your own profile using whatever's already in the fetched
+  `profiles` array — now that the select policy grants upline visibility
+  (see above), those rows are simply present once fetched, no extra
+  query. Empty for anyone with no upline set yet, with a nudge to add
+  one on My Profile.
 - **My Tree** (everyone) — your own downline, nested by who sponsored
-  whom, with "you" as the root. For a non-admin this is a client-side
-  reshape of the same `profiles` rows already fetched for the Members
-  view (RLS already limits that query to self + downline), so no new
-  query or SQL was needed. Empty for anyone who hasn't sponsored anyone
-  yet.
+  whom, with "you" as the root. `buildSponsorshipChildren()` only follows
+  the `upline_id`-graph *downward* from your own id, so the upline rows
+  now also present in `profiles` are simply never reached by this
+  traversal — they don't leak into this tree.
 - **Whole Team** (admin only) — literally everyone who's signed up,
   nested the same way, rooted at whoever has no upline at all (the
-  founders). Only meaningful for an admin, since a non-admin's `profiles`
-  rows never include anyone outside their own downline in the first
-  place.
+  founders). Only meaningful for an admin, since `is_app_admin()` already
+  grants full visibility independent of upline/downline either way.
 
-Both are built by `buildSponsorshipChildren()` in
+The **Members** list (flat list of downline profiles, each with a
+Pipeline/Candidates/Contacts/etc. detail view) explicitly excludes the
+upline chain now present in `profiles` — a `downlineProfiles` filter
+subtracts `myUplineChain`'s ids before rendering, so your own sponsor
+doesn't show up mixed into a list of people you supervise (their business
+data wouldn't even load correctly there anyway, since every other table's
+RLS is still one-directional downline-only). The member count in the
+page subtitle uses the same filtered list for a non-admin.
+
+`My Tree`/`Whole Team` are built by `buildSponsorshipChildren()` in
 `lib/sponsorship-tree.ts` (groups the flat `profiles` array by
 `upline_id`, sorts each level alphabetically, recurses) and rendered by
 `components/SponsorshipTree.tsx` — each node is tap-to-collapse (▾/▸) and
 links straight to that person's `/profile/[id]`, with their named `team`
-shown alongside and a count of direct reports. No new tables, columns, or
-RPCs — this is purely a new way to look at data the app already had.
+shown alongside and a count of direct reports. No new tables or RPCs for
+any of this — the upline-chain piece is one RLS policy addition, the rest
+is a new way to look at data the app already had.
 
 ### Pipeline Tracker: upline fill-in
 

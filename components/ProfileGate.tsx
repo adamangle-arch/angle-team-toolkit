@@ -15,16 +15,18 @@ export default function ProfileGate({
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [team, setTeam] = useState("");
+  const [uplineNumber, setUplineNumber] = useState("");
+  const [spouseEmail, setSpouseEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!firstName.trim() || !lastName.trim() || !team) return;
+    if (!firstName.trim() || !lastName.trim() || !team || !uplineNumber.trim()) return;
     setError(null);
     setSaving(true);
 
-    const { error } = await supabase
+    const { error: profileError } = await supabase
       .from("profiles")
       .update({
         first_name: firstName.trim(),
@@ -33,11 +35,39 @@ export default function ProfileGate({
       })
       .eq("id", user.id);
 
-    setSaving(false);
-    if (error) {
-      setError(error.message);
+    if (profileError) {
+      setSaving(false);
+      setError(profileError.message);
       return;
     }
+
+    // Required, same as name/team - every new signup has to be sponsored
+    // by someone already in the business, so this is how the sponsorship
+    // tree (upline visibility, Team tab) gets built from day one instead
+    // of being an easy-to-skip self-service step people forgot to do.
+    const { error: uplineError } = await supabase.rpc("link_upline", {
+      p_account_number: uplineNumber.trim(),
+    });
+    if (uplineError) {
+      setSaving(false);
+      setError(`Upline account number: ${uplineError.message}`);
+      return;
+    }
+
+    // Optional - not everyone has a spouse also on the team, but if they
+    // typed an email in here they mean it, so a bad one should still be
+    // caught now rather than silently doing nothing.
+    const email = spouseEmail.trim();
+    if (email) {
+      const { error: spouseError } = await supabase.rpc("link_spouse", { p_partner_email: email });
+      if (spouseError) {
+        setSaving(false);
+        setError(`Spouse email: ${spouseError.message}`);
+        return;
+      }
+    }
+
+    setSaving(false);
     onComplete();
   }
 
@@ -85,10 +115,30 @@ export default function ProfileGate({
               </option>
             ))}
           </select>
+          <input
+            type="text"
+            required
+            inputMode="numeric"
+            className="input"
+            placeholder="Your upline's account number"
+            value={uplineNumber}
+            onChange={(e) => setUplineNumber(e.target.value)}
+          />
+          <p className="-mt-1.5 text-xs text-slate-500">
+            Ask whoever brought you in for their account number — find it on their My Profile page.
+          </p>
+          <input
+            type="email"
+            autoComplete="off"
+            className="input"
+            placeholder="Spouse's email (only if they're also on the team)"
+            value={spouseEmail}
+            onChange={(e) => setSpouseEmail(e.target.value)}
+          />
           {error && <p className="text-xs text-red-400">{error}</p>}
           <button
             className="btn-primary w-full"
-            disabled={saving || !firstName.trim() || !lastName.trim() || !team}
+            disabled={saving || !firstName.trim() || !lastName.trim() || !team || !uplineNumber.trim()}
           >
             {saving ? "Saving…" : "Continue"}
           </button>
