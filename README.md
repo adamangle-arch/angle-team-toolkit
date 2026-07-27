@@ -1627,18 +1627,27 @@ Removed from `app/more/page.tsx`, `components/BottomNav.tsx`'s
 `MORE_ROUTES`, and `lib/onboarding-gate.ts`; `lib/search-data.ts`'s
 "Candidate History" shortcut now points at `/pipeline`.
 
-### Leaderboard: tab split tried and reverted
+### Leaderboard: tab split tried and reverted, collapsible sections instead
 
-Briefly split into Pipeline/Recognition tabs along a real data fault
-line (only Team Leaders, Individual Leaders, QI1 Rhythm, Core 300, and
-Day 1 Ditto actually depend on the Daily/Weekly/Monthly toggle; Milestone
-Alerts, Today's Sales, Core Run Streaks, Active Candidates, and Diamond
-Run High Scores are all period-independent RPCs that used to sit under a
-toggle that did nothing to them) — but the tab split itself didn't land
-well in practice, so `app/leaderboard/page.tsx` is back to the single
-long-scroll layout it had before. The underlying observation about which
-sections are/aren't period-dependent is still true; it just didn't turn
-out to be the right basis for reorganizing this page.
+First attempt split the page into Pipeline/Recognition tabs along a real
+data fault line (only Team Leaders, Individual Leaders, QI1 Rhythm, Core
+300, and Day 1 Ditto actually depend on the Daily/Weekly/Monthly toggle;
+Milestone Alerts, Today's Sales, Core Run Streaks, Active Candidates, and
+Diamond Run High Scores are all period-independent RPCs that used to sit
+under a toggle that did nothing to them) — but the tab split itself
+didn't land well in practice, so that got reverted.
+
+The actual fix: every section (`Section` in `app/leaderboard/page.tsx`)
+is now collapsible — a tap on the title toggles it open/closed, with a
+`▸`/`▾` chevron showing which way it'll go. **Team Leaders** and
+**Individual Leaders** default open (the two sections the page's whole
+purpose is built around); the other eight — New to the Team, Milestone
+Alerts, Today's Sales, QI1 Rhythm, Core Run Streaks, 5+ Active
+Candidates, Diamond Run High Scores, Core 300, and Day 1 Ditto — default
+closed, collapsing down to just a title bar until tapped open. This
+shortens the default scroll to roughly a fifth of its previous length
+without asking anyone to learn a new tab-based mental model, and every
+section is still there, one tap away, exactly where it always was.
 
 ## Tech stack
 

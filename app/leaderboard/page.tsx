@@ -117,6 +117,35 @@ function LikeButton({
   );
 }
 
+// Collapsible card - this page has ten-plus sections in one scroll, so
+// most default closed (just the title + a chevron) and only the couple
+// most core ones default open, instead of every section always being
+// fully expanded regardless of whether anyone's actually looking at it.
+function Section({
+  title,
+  defaultOpen = false,
+  children,
+}: {
+  title: React.ReactNode;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="card space-y-1.5">
+      <button
+        type="button"
+        className="flex w-full items-center justify-between gap-2 text-left"
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span className="section-title">{title}</span>
+        <span className="shrink-0 text-xs text-slate-500">{open ? "▾" : "▸"}</span>
+      </button>
+      {open && <div className="space-y-1.5">{children}</div>}
+    </div>
+  );
+}
+
 function leadingTeams(teams: TeamTotals[], key: PipelineStageKey): TeamTotals[] {
   const max = teams.reduce((best, t) => Math.max(best, t[key]), 0);
   if (max === 0) return [];
@@ -468,8 +497,7 @@ export default function LeaderboardPage() {
         )}
 
         {periodType === "daily" && newMembers.length > 0 && (
-          <div className="card space-y-1.5">
-            <p className="section-title">🎉 New to the Team</p>
+          <Section title="🎉 New to the Team">
             {newMembers.map((m) => (
               <div key={m.user_id} className="flex items-center justify-between text-sm">
                 <span className="text-slate-200">
@@ -484,12 +512,11 @@ export default function LeaderboardPage() {
                 <span className="pill">{formatDateLabel(m.created_at.slice(0, 10))}</span>
               </div>
             ))}
-          </div>
+          </Section>
         )}
 
         {milestones.length > 0 && (
-          <div className="card space-y-1.5">
-            <p className="section-title">🏅 Milestone Alerts</p>
+          <Section title="🏅 Milestone Alerts">
             {milestones.map((m) => {
               const label =
                 STREAK_MILESTONES.find((s) => s.days === m.milestone_days)?.label ??
@@ -516,12 +543,11 @@ export default function LeaderboardPage() {
                 </div>
               );
             })}
-          </div>
+          </Section>
         )}
 
         {dailySales.length > 0 && (
-          <div className="card space-y-1.5">
-            <p className="section-title">🛍️ Today&apos;s Sales</p>
+          <Section title="🛍️ Today's Sales">
             {dailySales.map((entry) => {
               const key = dailySaleEntryKey(entry.sale_id);
               const time = new Date(entry.created_at).toLocaleTimeString(undefined, {
@@ -559,15 +585,14 @@ export default function LeaderboardPage() {
                 </div>
               );
             })}
-          </div>
+          </Section>
         )}
 
         {loading ? (
           <div className="empty-state">Loading leaderboard…</div>
         ) : (
           <>
-            <div className="card space-y-1.5">
-              <p className="section-title">Team Leaders</p>
+            <Section title="Team Leaders" defaultOpen>
               {CATEGORIES.every((c) => leadingTeams(teamTotals, c.key).length === 0) ? (
                 <p className="text-sm text-slate-400">Nothing logged for this period yet.</p>
               ) : (
@@ -595,10 +620,9 @@ export default function LeaderboardPage() {
                   );
                 })
               )}
-            </div>
+            </Section>
 
-            <div className="card space-y-1.5">
-              <p className="section-title">Individual Leaders</p>
+            <Section title="Individual Leaders" defaultOpen>
               {individualLeaders.length === 0 ? (
                 <p className="text-sm text-slate-400">Nothing logged for this period yet.</p>
               ) : (
@@ -631,13 +655,16 @@ export default function LeaderboardPage() {
                   );
                 })
               )}
-            </div>
+            </Section>
 
-            <div className="card space-y-1.5">
-              <p className="section-title">
-                🔁 {qi1RhythmThreshold}+ QI1s{" "}
-                {periodType === "daily" ? "Today" : periodType === "weekly" ? "This Week" : "This Month"}
-              </p>
+            <Section
+              title={
+                <>
+                  🔁 {qi1RhythmThreshold}+ QI1s{" "}
+                  {periodType === "daily" ? "Today" : periodType === "weekly" ? "This Week" : "This Month"}
+                </>
+              }
+            >
               {qi1Rhythm.length === 0 ? (
                 <p className="text-sm text-slate-400">No one&apos;s hit that rhythm yet.</p>
               ) : (
@@ -664,10 +691,9 @@ export default function LeaderboardPage() {
                   );
                 })
               )}
-            </div>
+            </Section>
 
-            <div className="card space-y-1.5">
-              <p className="section-title">🔥 Core Run Streaks</p>
+            <Section title="🔥 Core Run Streaks">
               {streakLeaders.length === 0 ? (
                 <p className="text-sm text-slate-400">No one&apos;s on a streak right now.</p>
               ) : (
@@ -693,10 +719,9 @@ export default function LeaderboardPage() {
                   );
                 })
               )}
-            </div>
+            </Section>
 
-            <div className="card space-y-1.5">
-              <p className="section-title">🎯 5+ Active Candidates</p>
+            <Section title="🎯 5+ Active Candidates">
               {activeCandidates.length === 0 ? (
                 <p className="text-sm text-slate-400">No one&apos;s running 5+ active candidates right now.</p>
               ) : (
@@ -722,10 +747,9 @@ export default function LeaderboardPage() {
                   );
                 })
               )}
-            </div>
+            </Section>
 
-            <div className="card space-y-1.5">
-              <p className="section-title">💎 Diamond Run High Scores</p>
+            <Section title="💎 Diamond Run High Scores">
               {gameLeaders.length === 0 ? (
                 <p className="text-sm text-slate-400">No one&apos;s played Diamond Run yet.</p>
               ) : (
@@ -752,12 +776,11 @@ export default function LeaderboardPage() {
                   );
                 })
               )}
-            </div>
+            </Section>
 
             {periodType === "monthly" && (
               <>
-                <div className="card space-y-1.5">
-                  <p className="section-title">Core 300</p>
+                <Section title="Core 300">
                   {core300.length === 0 ? (
                     <p className="text-sm text-slate-400">No one&apos;s hit Core 300 yet this month.</p>
                   ) : (
@@ -784,10 +807,9 @@ export default function LeaderboardPage() {
                       );
                     })
                   )}
-                </div>
+                </Section>
 
-                <div className="card space-y-1.5">
-                  <p className="section-title">📦 Day 1 Ditto 100+</p>
+                <Section title="📦 Day 1 Ditto 100+">
                   {ditto.length === 0 ? (
                     <p className="text-sm text-slate-400">No one&apos;s over 100 PV on a day 1 Ditto yet.</p>
                   ) : (
@@ -814,7 +836,7 @@ export default function LeaderboardPage() {
                       );
                     })
                   )}
-                </div>
+                </Section>
               </>
             )}
           </>
