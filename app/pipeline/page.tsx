@@ -105,8 +105,11 @@ function StageCount({
   );
 }
 
+type Tab = "tally" | "roadmap";
+
 export default function PipelinePage() {
   const { user, ownerId } = useAuth();
+  const [tab, setTab] = useState<Tab>("tally");
   const [periodType, setPeriodType] = useState<PeriodType>("weekly");
   const [period, setPeriod] = useState<PipelinePeriod | null>(null);
   const [loading, setLoading] = useState(true);
@@ -370,222 +373,239 @@ export default function PipelinePage() {
             : undefined
         }
       />
-      <main className="page-main">
+      <div className="tab-bar px-4 pb-3 pt-3">
         <div className="card flex p-1">
           <button
-            className={
-              periodType === "daily" ? "toggle-pill-active" : "toggle-pill-inactive"
-            }
-            onClick={() => setPeriodType("daily")}
+            className={tab === "tally" ? "toggle-pill-active" : "toggle-pill-inactive"}
+            onClick={() => setTab("tally")}
           >
-            Daily
+            Tally
           </button>
           <button
-            className={
-              periodType === "weekly" ? "toggle-pill-active" : "toggle-pill-inactive"
-            }
-            onClick={() => setPeriodType("weekly")}
+            className={tab === "roadmap" ? "toggle-pill-active" : "toggle-pill-inactive"}
+            onClick={() => setTab("roadmap")}
           >
-            Weekly
-          </button>
-          <button
-            className={
-              periodType === "monthly" ? "toggle-pill-active" : "toggle-pill-inactive"
-            }
-            onClick={() => setPeriodType("monthly")}
-          >
-            Monthly
+            Candidate Roadmap
           </button>
         </div>
-
-        {downlineOptions.length > 0 && (
-          <div className="card space-y-2">
-            <p className="section-title">Filling In For</p>
-            <select
-              className="select"
-              value={actingForId}
-              onChange={(e) => setActingForId(e.target.value)}
-            >
-              <option value="">Me</option>
-              {downlineOptions.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
-            {actingFor && (
-              <p className="text-xs text-amber-light">
-                ✏️ You&apos;re editing {actingFor.name}&apos;s pipeline numbers, not your own.
-              </p>
-            )}
-          </div>
-        )}
-
-        <div className="card flex items-center justify-between">
-          <div>
-            <p className="section-title">Questions → Launches</p>
-            <p className="text-xs text-slate-400">Overall conversion</p>
-          </div>
-          <p className="text-3xl font-bold text-amber">{pct(launches, questions)}</p>
-        </div>
-
-        {/* Add Candidate is the single most common daily action here (a
-            fresh Yes), so the Candidate Roadmap lives right up top -
-            it used to sit below the full stage-counter list and the
-            trend chart, meaning a scroll past ~10 cards every time. */}
-        {actingFor ? (
-          <div className="empty-state">
-            Switch back to &quot;Me&quot; to see the Candidate Roadmap — filling in only covers
-            {" "}
-            {actingFor.name}&apos;s pipeline numbers above, not their individual candidates.
-          </div>
-        ) : (
+      </div>
+      <main className="page-main !pt-0">
+        {tab === "tally" && (
           <>
-            <div className="flex items-center justify-between px-1 pt-2">
-              <p className="section-title">Candidate Roadmap</p>
+            <div className="card flex p-1">
               <button
-                className="pill pill-amber"
-                onClick={() => setShowActiveSummary((s) => !s)}
+                className={
+                  periodType === "daily" ? "toggle-pill-active" : "toggle-pill-inactive"
+                }
+                onClick={() => setPeriodType("daily")}
               >
-                {activeInPipelineCount} active in pipeline
+                Daily
+              </button>
+              <button
+                className={
+                  periodType === "weekly" ? "toggle-pill-active" : "toggle-pill-inactive"
+                }
+                onClick={() => setPeriodType("weekly")}
+              >
+                Weekly
+              </button>
+              <button
+                className={
+                  periodType === "monthly" ? "toggle-pill-active" : "toggle-pill-inactive"
+                }
+                onClick={() => setPeriodType("monthly")}
+              >
+                Monthly
               </button>
             </div>
 
-            {showActiveSummary && (
-              <div className="card space-y-1.5">
-                <p className="section-title">Who&apos;s Active</p>
-                {activeInPipeline.length === 0 ? (
-                  <p className="text-sm text-slate-400">No one active in the pipeline right now.</p>
-                ) : (
-                  activeInPipeline.map((c) => (
-                    <div key={c.id} className="flex items-center justify-between text-sm">
-                      <span className="text-slate-200">{c.name}</span>
-                      <span className="pill">{CANDIDATE_STEPS[c.current_step].label}</span>
-                    </div>
-                  ))
+            {downlineOptions.length > 0 && (
+              <div className="card space-y-2">
+                <p className="section-title">Filling In For</p>
+                <select
+                  className="select"
+                  value={actingForId}
+                  onChange={(e) => setActingForId(e.target.value)}
+                >
+                  <option value="">Me</option>
+                  {downlineOptions.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+                {actingFor && (
+                  <p className="text-xs text-amber-light">
+                    ✏️ You&apos;re editing {actingFor.name}&apos;s pipeline numbers, not your own.
+                  </p>
                 )}
+              </div>
+            )}
+
+            <div className="card flex items-center justify-between">
+              <div>
+                <p className="section-title">Questions → Launches</p>
+                <p className="text-xs text-slate-400">Overall conversion</p>
+              </div>
+              <p className="text-3xl font-bold text-amber">{pct(launches, questions)}</p>
+            </div>
+
+            {updateError && (
+              <div className="card">
+                <p className="text-xs text-red-400">{updateError}</p>
+              </div>
+            )}
+
+            {loadError ? (
+              <div className="empty-state">Couldn&apos;t load this period: {loadError}</div>
+            ) : loading || !period ? (
+              <div className="empty-state">Loading pipeline…</div>
+            ) : (
+              <div className="space-y-2">
+                {PIPELINE_STAGES.map((stage, i) => {
+                  const count = period[stage.key] as number;
+                  const prevStage = i > 0 ? PIPELINE_STAGES[i - 1] : null;
+                  const prevCount = prevStage ? (period[prevStage.key] as number) : null;
+
+                  return (
+                    <div key={stage.key}>
+                      {i > 0 && (
+                        <div className="flex items-center justify-center py-1 text-xs text-slate-500">
+                          <span>
+                            {prevStage?.label} → {stage.label}:{" "}
+                            <span className="font-semibold text-amber-light">
+                              {pct(count, prevCount ?? 0)}
+                            </span>
+                          </span>
+                        </div>
+                      )}
+                      <div className="card flex items-center justify-between">
+                        <p className="font-medium text-white">{stage.label}</p>
+                        <StageCount
+                          label={stage.label}
+                          value={count}
+                          onDelta={(delta) => updateStage(stage.key, delta)}
+                          onSetAbsolute={(value) => setStageAbsolute(stage.key, value)}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
 
             <div className="card space-y-2">
-              <p className="section-title">Add Candidate</p>
-              <div className="flex gap-2">
-                <input
-                  className="input"
-                  placeholder="Candidate name"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && addCandidate()}
-                />
-                <button
-                  className="btn-primary"
-                  onClick={addCandidate}
-                  disabled={adding || !newName.trim()}
+              <div className="flex items-center justify-between gap-2">
+                <p className="section-title">Trend</p>
+                <select
+                  className="select"
+                  value={trendStage}
+                  onChange={(e) => setTrendStage(e.target.value as PipelineStageKey)}
                 >
-                  Add
-                </button>
+                  {PIPELINE_STAGES.map((s) => (
+                    <option key={s.key} value={s.key}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
               </div>
-              {addError && <p className="text-xs text-red-400">{addError}</p>}
+              <TrendChart data={chartData} />
             </div>
-
-            {loadingCandidates ? (
-              <div className="empty-state">Loading candidates…</div>
-            ) : candidates.length === 0 ? (
-              <div className="empty-state">No candidates yet. Add your first one above.</div>
-            ) : (
-              <>
-                {active.map((candidate) => (
-                  <CandidateCard
-                    key={candidate.id}
-                    candidate={candidate}
-                    onMoveStep={moveStep}
-                    onUpdate={updateCandidate}
-                  />
-                ))}
-
-                {active.length === 0 && (
-                  <p className="empty-state">No active candidates right now.</p>
-                )}
-
-                {launched.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="section-title px-1">Launched 🎉</p>
-                    {launched.map((candidate) => (
-                      <CandidateCard
-                        key={candidate.id}
-                        candidate={candidate}
-                        onMoveStep={moveStep}
-                        onUpdate={updateCandidate}
-                      />
-                    ))}
-                  </div>
-                )}
-              </>
-            )}
           </>
         )}
 
-        {updateError && (
-          <div className="card">
-            <p className="text-xs text-red-400">{updateError}</p>
-          </div>
-        )}
+        {tab === "roadmap" &&
+          (actingFor ? (
+            <div className="empty-state">
+              Switch back to &quot;Me&quot; on the Tally tab to see the Candidate Roadmap — filling
+              in only covers {actingFor.name}&apos;s pipeline numbers, not their individual
+              candidates.
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between px-1 pt-2">
+                <p className="section-title">Candidate Roadmap</p>
+                <button
+                  className="pill pill-amber"
+                  onClick={() => setShowActiveSummary((s) => !s)}
+                >
+                  {activeInPipelineCount} active in pipeline
+                </button>
+              </div>
 
-        {loadError ? (
-          <div className="empty-state">Couldn&apos;t load this period: {loadError}</div>
-        ) : loading || !period ? (
-          <div className="empty-state">Loading pipeline…</div>
-        ) : (
-          <div className="space-y-2">
-            {PIPELINE_STAGES.map((stage, i) => {
-              const count = period[stage.key] as number;
-              const prevStage = i > 0 ? PIPELINE_STAGES[i - 1] : null;
-              const prevCount = prevStage ? (period[prevStage.key] as number) : null;
+              {showActiveSummary && (
+                <div className="card space-y-1.5">
+                  <p className="section-title">Who&apos;s Active</p>
+                  {activeInPipeline.length === 0 ? (
+                    <p className="text-sm text-slate-400">No one active in the pipeline right now.</p>
+                  ) : (
+                    activeInPipeline.map((c) => (
+                      <div key={c.id} className="flex items-center justify-between text-sm">
+                        <span className="text-slate-200">{c.name}</span>
+                        <span className="pill">{CANDIDATE_STEPS[c.current_step].label}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
 
-              return (
-                <div key={stage.key}>
-                  {i > 0 && (
-                    <div className="flex items-center justify-center py-1 text-xs text-slate-500">
-                      <span>
-                        {prevStage?.label} → {stage.label}:{" "}
-                        <span className="font-semibold text-amber-light">
-                          {pct(count, prevCount ?? 0)}
-                        </span>
-                      </span>
+              <div className="card space-y-2">
+                <p className="section-title">Add Candidate</p>
+                <div className="flex gap-2">
+                  <input
+                    className="input"
+                    placeholder="Candidate name"
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && addCandidate()}
+                  />
+                  <button
+                    className="btn-primary"
+                    onClick={addCandidate}
+                    disabled={adding || !newName.trim()}
+                  >
+                    Add
+                  </button>
+                </div>
+                {addError && <p className="text-xs text-red-400">{addError}</p>}
+              </div>
+
+              {loadingCandidates ? (
+                <div className="empty-state">Loading candidates…</div>
+              ) : candidates.length === 0 ? (
+                <div className="empty-state">No candidates yet. Add your first one above.</div>
+              ) : (
+                <>
+                  {active.map((candidate) => (
+                    <CandidateCard
+                      key={candidate.id}
+                      candidate={candidate}
+                      onMoveStep={moveStep}
+                      onUpdate={updateCandidate}
+                    />
+                  ))}
+
+                  {active.length === 0 && (
+                    <p className="empty-state">No active candidates right now.</p>
+                  )}
+
+                  {launched.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="section-title px-1">Launched 🎉</p>
+                      {launched.map((candidate) => (
+                        <CandidateCard
+                          key={candidate.id}
+                          candidate={candidate}
+                          onMoveStep={moveStep}
+                          onUpdate={updateCandidate}
+                        />
+                      ))}
                     </div>
                   )}
-                  <div className="card flex items-center justify-between">
-                    <p className="font-medium text-white">{stage.label}</p>
-                    <StageCount
-                      label={stage.label}
-                      value={count}
-                      onDelta={(delta) => updateStage(stage.key, delta)}
-                      onSetAbsolute={(value) => setStageAbsolute(stage.key, value)}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        <div className="card space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <p className="section-title">Trend</p>
-            <select
-              className="select"
-              value={trendStage}
-              onChange={(e) => setTrendStage(e.target.value as PipelineStageKey)}
-            >
-              {PIPELINE_STAGES.map((s) => (
-                <option key={s.key} value={s.key}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <TrendChart data={chartData} />
-        </div>
+                </>
+              )}
+            </>
+          ))}
       </main>
     </FeatureGate>
   );

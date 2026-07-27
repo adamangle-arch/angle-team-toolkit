@@ -1574,13 +1574,20 @@ less like a chore and more like something reps actually want to open:
   plain numeric entry (`StageCount` in `app/pipeline/page.tsx`, the
   existing shared `Counter` in `app/streak/page.tsx`), while the +/−
   buttons stay for quick single adjustments.
-- **Add Candidate moved to the top of Pipeline Tracker.** It used to sit
-  below the entire stage-counter list and the trend chart — a full
-  scroll past ~10 cards every single time, for what's likely the single
-  most common action on that page (a fresh Yes). The whole Candidate
-  Roadmap section (active-pipeline summary, Add Candidate, candidate
-  list) now renders right after the Questions → Launches summary card,
-  before the per-stage counters.
+- **Pipeline Tracker split into Tally / Candidate Roadmap tabs.** These
+  used to be one long page — the per-stage tally (what most people check
+  many times a day) and the heavier candidate-management UI (notes,
+  connected dates, launch/filter buttons) stacked on top of each other in
+  a single scroll, competing for the same space. An earlier pass tried
+  moving Candidate Roadmap above the tally since Add Candidate is likely
+  the single most common action on the page, but that just flipped which
+  one was buried — the actual fix was giving them separate tabs, the same
+  pill-tab pattern already used on Assistant (Role-Play/Rate a Call) and
+  Games. **Tally** (period toggle, Filling In For, conversion %, the
+  per-stage counters, Trend chart) is the default tab, so the numbers you
+  check constantly are visible with zero scrolling and no longer share
+  space with the roadmap at all; **Candidate Roadmap** (active-pipeline
+  summary, Add Candidate, candidate list) is one tap away.
 - **Search now finds your actual people, not just app content.**
   `app/search/page.tsx` used to only search static content — page names,
   Scripts & FAQ, Products, Leaders. Typing a name now also runs a
