@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthGate";
+import { useRatingJobs } from "@/components/RatingJobsProvider";
 import { supabase } from "@/lib/supabaseClient";
 import { CALL_RATING_TYPES, type CallRatingType } from "@/lib/constants";
 import { groupCallRatingsByType } from "@/lib/call-ratings";
@@ -19,42 +20,21 @@ type CandidateOption = {
 const MAX_PRIOR_RATINGS = 3;
 const MAX_PRIOR_ANALYSIS_CHARS = 3000;
 
-// A detailed, non-streamed rating on a long transcript can legitimately
-// take a while, but it must never hang forever — if this fires first, the
-// button always recovers with a clear message instead of staying stuck on
-// "Rating..." no matter which step (session refresh, the API call, the
-// save) is the one that's actually stalled.
-const RATE_TIMEOUT_MS = 90_000;
-
-function timeoutRejection(ms: number): Promise<never> {
-  return new Promise((_, reject) =>
-    setTimeout(
-      () => reject(new Error("That took too long and timed out — check your connection and try again.")),
-      ms
-    )
-  );
-}
-
-// "Load failed" (Safari/WebKit) and "Failed to fetch" (Chromium) are the
-// browser's own wording for a request whose connection dropped outright -
-// no HTTP response at all, as opposed to the server responding with an
-// error. On mobile this is usually transient (a signal dip, the OS
-// suspending an in-flight request while the screen locks or the tab gets
-// backgrounded during this multi-second wait) and clears up on its own a
-// moment later, so it's worth one silent retry before bothering the user.
-function isNetworkFailure(err: unknown): boolean {
-  return err instanceof TypeError && /load failed|failed to fetch|network/i.test(err.message);
-}
-
 export default function CallRatingPanel() {
   const { user } = useAuth();
+  const { jobs, submitRating } = useRatingJobs();
   const [callType, setCallType] = useState<CallRatingType | "">("");
   const [candidates, setCandidates] = useState<CandidateOption[]>([]);
   const [selectedCandidateId, setSelectedCandidateId] = useState("");
   const [candidateName, setCandidateName] = useState("");
   const [transcript, setTranscript] = useState("");
-  const [rating, setRating] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Job ids this panel instance has submitted, so it can react when one of
+  // them finishes - the job itself keeps running in RatingJobsProvider
+  // (mounted at the app root) even if this panel unmounts because the rep
+  // switched pages, so this list only matters while this panel is up.
+  const [myJobIds, setMyJobIds] = useState<string[]>([]);
 
   const [history, setHistory] = useState<CallRating[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
@@ -81,114 +61,85 @@ export default function CallRatingPanel() {
     load();
   }, [user.id]);
 
+  const myRunningJobs = jobs.filter((j) => myJobIds.includes(j.id) && j.status === "running");
+
+  // React to jobs this panel submitted finishing - whether that happens
+  // while this panel is still mounted (updates History in place, right
+  // here) or the rep already moved to another page (RatingJobsProvider's
+  // banner is what tells them then; this panel just picks up the result
+  // from Supabase next time it mounts). This is exactly the "subscribe to
+  // an external system and setState when it changes" case the lint rule
+  // itself calls out as fine, so it's disabled below rather than restructured.
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    if (myJobIds.length === 0) return;
+    const mine = jobs.filter((j) => myJobIds.includes(j.id) && j.status !== "running");
+    if (mine.length === 0) return;
+
+    for (const job of mine) {
+      if (job.status === "done" && job.result) {
+        setHistory((prev) => (prev.some((h) => h.id === job.result!.id) ? prev : [job.result!, ...prev]));
+        setExpandedId(job.result.id);
+      } else if (job.status === "error") {
+        setError(job.error ?? "Something went wrong.");
+      }
+    }
+    setMyJobIds((prev) => prev.filter((id) => !mine.some((j) => j.id === id)));
+  }, [jobs, myJobIds]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
   async function handleRate() {
     const text = transcript.trim();
-    if (!text || !callType || rating) return;
+    if (!text || !callType || submitting) return;
     setError(null);
-    setRating(true);
+    setSubmitting(true);
 
-    // Everything that can talk to the network - session refresh, the
-    // prior-ratings lookup, the API call, the save - runs inside this one
-    // closure so a single race against the timeout above covers all of it,
-    // instead of only the fetch call being guarded and the rest able to
-    // hang the button forever.
-    const run = async () => {
-      const candidate = candidates.find((c) => c.id === selectedCandidateId) ?? null;
-      const finalCandidateName = candidate ? candidate.name : candidateName.trim();
+    const candidate = candidates.find((c) => c.id === selectedCandidateId) ?? null;
+    const finalCandidateName = candidate ? candidate.name : candidateName.trim();
 
-      let candidateContext = "";
-      if (candidate) {
-        const { data: priorRows } = await supabase
-          .from("call_ratings")
-          .select("call_type,analysis,created_at")
-          .eq("candidate_id", candidate.id)
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false })
-          .limit(MAX_PRIOR_RATINGS);
-        const prior = (
-          (priorRows as { call_type: string; analysis: string; created_at: string }[]) ?? []
-        )
-          .slice()
-          .reverse();
-
-        const notesPart = candidate.notes.trim()
-          ? `Rep's notes on this candidate:\n${candidate.notes.trim()}\n\n`
-          : "";
-        const priorPart = prior
-          .map(
-            (r) =>
-              `--- ${r.call_type} on ${new Date(r.created_at).toLocaleDateString()} ---\n${r.analysis.slice(0, MAX_PRIOR_ANALYSIS_CHARS)}`
-          )
-          .join("\n\n");
-        candidateContext = `${notesPart}${priorPart}`.trim();
-      }
-
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData.session?.access_token;
-
-      const res = await fetch("/api/assistant/rate-call", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({ call_type: callType, transcript: text, candidate_context: candidateContext }),
-      });
-
-      const json = await res.json();
-      if (!res.ok) {
-        throw new Error(json.error || "Something went wrong.");
-      }
-
-      const { data: row, error: insertError } = await supabase
+    let candidateContext = "";
+    if (candidate) {
+      const { data: priorRows } = await supabase
         .from("call_ratings")
-        .insert({
-          user_id: user.id,
-          call_type: callType,
-          candidate_id: candidate?.id ?? null,
-          candidate_name: finalCandidateName,
-          transcript: text,
-          analysis: json.analysis,
-          overall_score: json.overall_score,
-        })
-        .select("*")
-        .single();
+        .select("call_type,analysis,created_at")
+        .eq("candidate_id", candidate.id)
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(MAX_PRIOR_RATINGS);
+      const prior = ((priorRows as { call_type: string; analysis: string; created_at: string }[]) ?? [])
+        .slice()
+        .reverse();
 
-      if (insertError) {
-        throw new Error(`Rated it, but couldn't save it: ${insertError.message}`);
-      }
-
-      const inserted = row as CallRating;
-      setHistory((prev) => [inserted, ...prev]);
-      setExpandedId(inserted.id);
-      setTranscript("");
-      setCandidateName("");
-      setCallType("");
-    };
-
-    async function runWithNetworkRetry() {
-      try {
-        await run();
-      } catch (err) {
-        if (!isNetworkFailure(err)) throw err;
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-        await run();
-      }
+      const notesPart = candidate.notes.trim()
+        ? `Rep's notes on this candidate:\n${candidate.notes.trim()}\n\n`
+        : "";
+      const priorPart = prior
+        .map(
+          (r) =>
+            `--- ${r.call_type} on ${new Date(r.created_at).toLocaleDateString()} ---\n${r.analysis.slice(0, MAX_PRIOR_ANALYSIS_CHARS)}`
+        )
+        .join("\n\n");
+      candidateContext = `${notesPart}${priorPart}`.trim();
     }
 
-    try {
-      await Promise.race([runWithNetworkRetry(), timeoutRejection(RATE_TIMEOUT_MS)]);
-    } catch (err) {
-      setError(
-        isNetworkFailure(err)
-          ? "Lost connection while rating this call. Your transcript is still here — check your signal and tap Rate This Call again."
-          : err instanceof Error
-            ? err.message
-            : "Something went wrong."
-      );
-    } finally {
-      setRating(false);
-    }
+    // Hand the actual rating off to RatingJobsProvider (mounted at the app
+    // root) and clear the form right away - the job now runs independently
+    // of this panel, so there's nothing left here to wait on. It'll keep
+    // going, get saved, and show up in History even if this page is long
+    // gone by the time it finishes.
+    const jobId = submitRating({
+      userId: user.id,
+      callType,
+      transcript: text,
+      candidateId: candidate?.id ?? null,
+      candidateName: finalCandidateName,
+      candidateContext,
+    });
+    setMyJobIds((prev) => [...prev, jobId]);
+    setTranscript("");
+    setCandidateName("");
+    setCallType("");
+    setSubmitting(false);
   }
 
   async function handleDeleteRating(id: string) {
@@ -258,21 +209,29 @@ export default function CallRatingPanel() {
         <button
           className="btn-primary w-full"
           onClick={handleRate}
-          disabled={rating || !transcript.trim() || !callType}
+          disabled={submitting || !transcript.trim() || !callType}
         >
-          {rating ? "Rating…" : !callType ? "Select a meeting type first" : "Rate This Call"}
+          {!callType ? "Select a meeting type first" : "Rate This Call"}
         </button>
-        {rating && (
-          <div className="space-y-1">
-            <div className="progress-track">
-              <div className="progress-fill" />
-            </div>
-            <p className="text-center text-xs text-slate-500">
-              Analyzing against the {callType} rubric — a detailed call can take up to a minute.
-            </p>
-          </div>
-        )}
+        <p className="text-center text-xs text-slate-500">
+          Ratings run in the background — feel free to switch tabs, it&apos;ll keep going and land
+          in Your Ratings (with a heads-up banner) whenever it&apos;s done.
+        </p>
       </div>
+
+      {myRunningJobs.length > 0 && (
+        <div className="card space-y-1">
+          {myRunningJobs.map((job) => (
+            <div key={job.id} className="flex items-center gap-2">
+              <span className="h-3 w-3 shrink-0 animate-spin rounded-full border-2 border-slate-600 border-t-amber" />
+              <p className="text-xs text-slate-400">
+                Analyzing {job.candidateName}&apos;s {job.callType} call against the rubric — a
+                detailed call can take up to a minute.
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="card space-y-3">
         <p className="section-title">Your Ratings ({history.length})</p>

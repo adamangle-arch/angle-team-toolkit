@@ -231,26 +231,4 @@ body {
   .animate-fade-in {
     animation: fade-in 0.4s ease-in;
   }
-
-  /* A non-streamed AI call can genuinely take up to a minute - an
-     indeterminate sliding bar (no real percentage to report) is just
-     there to show something is actively happening instead of the button
-     looking frozen on "Rating...". */
-  @keyframes progress-indeterminate {
-    0% {
-      transform: translateX(-100%);
-    }
-    100% {
-      transform: translateX(350%);
-    }
-  }
-  .progress-track {
-    @apply relative h-1.5 w-full overflow-hidden rounded-full;
-    background: rgba(255, 255, 255, 0.08);
-  }
-  .progress-fill {
-    @apply absolute inset-y-0 w-1/4 rounded-full;
-    background: linear-gradient(135deg, var(--color-amber-light), var(--color-amber));
-    animation: progress-indeterminate 1.3s ease-in-out infinite;
-  }
 }

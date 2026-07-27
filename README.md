@@ -1564,6 +1564,43 @@ separately, since it's cheap to regenerate from `call_ratings` and
 in this context to keep cost bounded for a candidate who's been rated many
 times.
 
+### Rating a call now runs in the background, independent of the page
+
+Rate a Call used to run entirely inside `CallRatingPanel`'s own local
+state — tapping "Rate This Call" kicked off an async flow (session
+refresh, the Anthropic call, the Supabase save) that lived and died with
+that component. Since Next.js unmounts a page's components on client-side
+navigation, switching to any other tab while a rating was in flight threw
+the whole thing away mid-request — a detailed call can legitimately take
+up to a minute, and leaving the Assistant page during that minute (to
+check Pipeline, answer a text, anything) silently killed a rating that
+otherwise would have completed successfully.
+
+The fix: `components/RatingJobsProvider.tsx` is a new context provider
+mounted once in `AuthGate.tsx`, inside the authenticated tree but wrapping
+`{children}` and `BottomNav` together — so unlike a page's own components,
+it never unmounts on navigation, only on sign-out or closing the tab.
+`submitRating()` hands the whole rating flow (the fetch to
+`/api/assistant/rate-call`, then the `call_ratings` insert, plus the same
+network-failure retry and a 90s timeout the old code had) off to this
+provider and returns immediately — the rep can leave the page right away
+and the job keeps running regardless of what's on screen.
+
+Two pieces of feedback come out of this: a small global banner
+(`RatingJobsBanner`, fixed just above the bottom nav on every page) shows
+"Rating X's call in the background…" while it runs and a brief "✅ Rated…"
+or "⚠️ Couldn't rate…" for a few seconds once it lands, dismissible early
+with a tap; and if the rep is still on the Assistant page when it
+finishes, `CallRatingPanel` picks up the same job (tracked by id in
+`myJobIds`) and updates **Your Ratings** in place, same as before. If
+they've navigated away by the time it completes, the result is already
+saved to `call_ratings` by the time they come back, so History just shows
+it fresh on next load — no separate relay needed for that case. The old
+per-page progress bar (`.progress-track`/`.progress-fill` in
+`app/globals.css`) is gone along with the local `rating` boolean it was
+tied to, replaced by the global banner plus a small inline "still
+analyzing" line scoped to jobs this panel itself submitted.
+
 ### App-wide audit: silent write failures
 
 A full pass looked for the same bug class already found and fixed in Rate
