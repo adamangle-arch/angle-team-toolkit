@@ -7,8 +7,13 @@ import { useAuth } from "@/components/AuthGate";
 import { minSessionFor } from "@/lib/onboarding-gate";
 import { supabase } from "@/lib/supabaseClient";
 import { getToday, formatDateLabel } from "@/lib/dates";
-import { GOAL_ITEMS_BY_PERIOD, CANDIDATE_STEPS } from "@/lib/constants";
+import { GOAL_ITEMS_BY_PERIOD, CANDIDATE_STEPS, PIPELINE_STAGES } from "@/lib/constants";
 import type { StreakDay, Goal, CalendarEvent, PipelinePeriod } from "@/lib/types";
+
+type DownlinePipelineTotals = Record<
+  "questions" | "yeses" | "qi1" | "qi2" | "is1" | "fu1" | "is2" | "fu2" | "questionnaire" | "launches",
+  number
+>;
 
 const STREAK_CHECKS: { key: keyof Pick<StreakDay, "read" | "listen" | "daily_update" | "story_share">; label: string }[] = [
   { key: "read", label: "Read" },
@@ -72,6 +77,7 @@ export default function DashboardPage() {
   const [dailyGoals, setDailyGoals] = useState<Goal[]>([]);
   const [todayEvents, setTodayEvents] = useState<CalendarEvent[]>([]);
   const [todayPipeline, setTodayPipeline] = useState<PipelinePeriod | null>(null);
+  const [downlineTodayTotals, setDownlineTodayTotals] = useState<DownlinePipelineTotals | null>(null);
   const [myActiveCount, setMyActiveCount] = useState(0);
   const [downlineActiveCount, setDownlineActiveCount] = useState(0);
 
@@ -111,6 +117,7 @@ export default function DashboardPage() {
         { data: events },
         { data: pipeline },
         { data: activeSummary },
+        { data: downlineTotals },
       ] = await Promise.all([
         supabase.from("streak_days").select("*").eq("user_id", user.id).eq("day", today).maybeSingle(),
         supabase.rpc("get_current_streak", { p_user_id: user.id }),
@@ -130,6 +137,7 @@ export default function DashboardPage() {
           .eq("period_start", today)
           .maybeSingle(),
         supabase.rpc("get_my_active_pipeline_summary").maybeSingle(),
+        supabase.rpc("get_downline_pipeline_totals", { p_period_type: "daily", p_period_start: today }).maybeSingle(),
       ]);
 
       if (!cancelled) {
@@ -138,6 +146,7 @@ export default function DashboardPage() {
         setDailyGoals((goals as Goal[]) ?? []);
         setTodayEvents((events as CalendarEvent[]) ?? []);
         setTodayPipeline((pipeline as PipelinePeriod) ?? null);
+        setDownlineTodayTotals((downlineTotals as DownlinePipelineTotals) ?? null);
         const summary = activeSummary as { my_active_count: number; downline_active_count: number } | null;
         setMyActiveCount(summary?.my_active_count ?? 0);
         setDownlineActiveCount(summary?.downline_active_count ?? 0);
@@ -155,19 +164,21 @@ export default function DashboardPage() {
   const hasAnyDailyGoal = dailyGoals.some((g) => g.target > 0);
   const todayStats = [
     ...(todayPipeline
-      ? [
-          { label: "Questions", value: todayPipeline.questions },
-          { label: "Yeses", value: todayPipeline.yeses },
-          { label: "QI1", value: todayPipeline.qi1 },
-          { label: "QI2", value: todayPipeline.qi2 },
-          { label: "Launches", value: todayPipeline.launches },
-        ]
+      ? PIPELINE_STAGES.map((s) => ({ label: s.label, value: todayPipeline[s.key] as number }))
       : []),
     // Meetings are logged on the Core Run Streak page, not the Pipeline
     // Tracker, but they belong on this "everything that happened today"
     // card too.
     { label: "Meetings", value: streakToday?.meetings ?? 0 },
   ].filter((s) => s.value > 0);
+
+  // Same treatment for the downline total: only stages someone actually
+  // logged something in show up, rather than a wall of "QI1: 0"s.
+  const downlineStats = downlineTodayTotals
+    ? PIPELINE_STAGES.map((s) => ({ label: s.label, value: downlineTodayTotals[s.key] })).filter(
+        (s) => s.value > 0
+      )
+    : [];
 
   return (
     <>
@@ -235,16 +246,32 @@ export default function DashboardPage() {
               <div className="card space-y-2">
                 <Link href="/pipeline" className="block space-y-2">
                   <p className="section-title">📊 Today&apos;s Stats</p>
-                  {todayStats.length === 0 ? (
+                  {todayStats.length === 0 && downlineStats.length === 0 ? (
                     <p className="text-sm text-slate-400">Nothing logged yet today.</p>
                   ) : (
-                    <div className="flex flex-wrap gap-1.5">
-                      {todayStats.map((s) => (
-                        <span key={s.label} className="pill pill-amber">
-                          {s.label}: {s.value}
-                        </span>
-                      ))}
-                    </div>
+                    <>
+                      {todayStats.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {todayStats.map((s) => (
+                            <span key={s.label} className="pill pill-amber">
+                              {s.label}: {s.value}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {downlineStats.length > 0 && (
+                        <>
+                          <p className="text-xs text-slate-500">Downline Today</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {downlineStats.map((s) => (
+                              <span key={s.label} className="pill">
+                                {s.label}: {s.value}
+                              </span>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </>
                   )}
                 </Link>
                 {(myActiveCount > 0 || downlineActiveCount > 0) && (

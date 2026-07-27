@@ -1216,6 +1216,52 @@ $$;
 
 grant execute on function public.get_downline_active_candidates() to authenticated;
 
+-- Powers the Today dashboard's "Downline Today" numbers on the same
+-- card as your own stats - your personal sponsorship chain's pipeline
+-- stage counts for the given period, summed into one row (not broken
+-- out per person). Same is_upline_of scoping as everything else here:
+-- "your downline", not "everyone" even for an admin.
+create or replace function public.get_downline_pipeline_totals(
+  p_period_type text,
+  p_period_start date
+)
+returns table (
+  questions int,
+  yeses int,
+  qi1 int,
+  qi2 int,
+  is1 int,
+  fu1 int,
+  is2 int,
+  fu2 int,
+  questionnaire int,
+  launches int
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    coalesce(sum(pp.questions), 0)::int,
+    coalesce(sum(pp.yeses), 0)::int,
+    coalesce(sum(pp.qi1), 0)::int,
+    coalesce(sum(pp.qi2), 0)::int,
+    coalesce(sum(pp.is1), 0)::int,
+    coalesce(sum(pp.fu1), 0)::int,
+    coalesce(sum(pp.is2), 0)::int,
+    coalesce(sum(pp.fu2), 0)::int,
+    coalesce(sum(pp.questionnaire), 0)::int,
+    coalesce(sum(pp.launches), 0)::int
+  from pipeline_periods pp
+  join profiles pr on pr.id = pp.user_id
+  where public.is_upline_of(auth.uid(), pr.id)
+    and pp.period_type = p_period_type
+    and pp.period_start = p_period_start;
+$$;
+
+grant execute on function public.get_downline_pipeline_totals(text, date) to authenticated;
+
 -- Everyone at or above a QI1 threshold for the period (2+/week, 8+/month
 -- are the rhythms we recognize), ranked highest to lowest.
 create or replace function public.get_qi1_rhythm_leaderboard(

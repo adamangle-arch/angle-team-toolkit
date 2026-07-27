@@ -34,12 +34,24 @@ checking five different places:
 - **📅 Today's Calendar** — anything on your personal calendar with an
   `event_at` today, from `calendar_events`.
 - **📊 Today's Stats** — non-zero stage counts from today's
-  `pipeline_periods` row (`period_type = 'daily'`), plus the meeting
-  count from today's Core Run Streak row (`streak_days.meetings`) — the
-  one thing on this card that isn't actually pipeline data, since
-  meetings are logged on the Run Streak page, not Pipeline Tracker, but
-  still belong on the "everything that happened today" card. Originally
-  called "Today's Pipeline" before meetings were folded in.
+  `pipeline_periods` row (`period_type = 'daily'`), across every stage
+  (`PIPELINE_STAGES` — Questions through Launches, not just a hand-picked
+  few), plus the meeting count from today's Core Run Streak row
+  (`streak_days.meetings`) — the one thing on this card that isn't
+  actually pipeline data, since meetings are logged on the Run Streak
+  page, not Pipeline Tracker, but still belong on the "everything that
+  happened today" card. Originally called "Today's Pipeline" before
+  meetings were folded in. Only stages with a nonzero count show up
+  (`.filter((s) => s.value > 0)`) — a stage nobody touched today stays
+  off the card entirely rather than cluttering it with "QI1: 0".
+
+  A second row, **Downline Today**, sums the same stage counts across
+  your entire downline for today (`get_downline_pipeline_totals()`,
+  `is_upline_of`-scoped like everything else "your downline" means in
+  this app) and shows up right underneath your own numbers, same
+  zero-filtering rule. If neither you nor your downline has logged
+  anything yet, the card just says so; if only one side has, only that
+  row shows.
 
   Two more pills round this card out, and neither is actually "today"
   data — they're a live snapshot rather than something logged today, but
