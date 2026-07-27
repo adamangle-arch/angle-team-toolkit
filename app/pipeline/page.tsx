@@ -48,6 +48,8 @@ export default function PipelinePage() {
   const [loadingCandidates, setLoadingCandidates] = useState(true);
   const [newName, setNewName] = useState("");
   const [adding, setAdding] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
+  const [updateError, setUpdateError] = useState<string | null>(null);
 
   const [trendStage, setTrendStage] = useState<PipelineStageKey>("questions");
   const [trendHistory, setTrendHistory] = useState<PipelinePeriod[]>([]);
@@ -206,37 +208,62 @@ export default function PipelinePage() {
 
   async function updateStage(key: PipelineStageKey, delta: number) {
     if (!period) return;
-    const nextValue = Math.max(0, (period[key] as number) + delta);
-    const updated = { ...period, [key]: nextValue };
-    setPeriod(updated);
-    await supabase
+    const previousValue = period[key] as number;
+    const nextValue = Math.max(0, previousValue + delta);
+    setPeriod({ ...period, [key]: nextValue });
+    const { error } = await supabase
       .from("pipeline_periods")
       .update({ [key]: nextValue, updated_at: new Date().toISOString() })
       .eq("id", period.id);
+    if (error) {
+      // Revert the optimistic count - otherwise a failed save looks
+      // identical to a successful one and silently under/over-counts
+      // this period's stats.
+      setPeriod((prev) => (prev ? { ...prev, [key]: previousValue } : prev));
+      setUpdateError(error.message);
+    } else {
+      setUpdateError(null);
+    }
   }
 
   async function addCandidate() {
     const name = newName.trim();
     if (!name) return;
     setAdding(true);
-    const { data } = await supabase
+    setAddError(null);
+    const { data, error } = await supabase
       .from("candidates")
       .insert({ name, user_id: ownerId })
       .select("*")
       .single();
-    if (data) setCandidates((prev) => [data as Candidate, ...prev]);
-    setNewName("");
+    if (error) {
+      setAddError(error.message);
+    } else if (data) {
+      setCandidates((prev) => [data as Candidate, ...prev]);
+      setNewName("");
+    }
     setAdding(false);
   }
 
   async function updateCandidate(id: string, patch: Partial<Candidate>) {
+    const previous = candidates.find((c) => c.id === id);
     setCandidates((prev) =>
       prev.map((c) => (c.id === id ? { ...c, ...patch } : c))
     );
-    await supabase
+    const { error } = await supabase
       .from("candidates")
       .update({ ...patch, updated_at: new Date().toISOString() })
       .eq("id", id);
+    if (error) {
+      // Revert - otherwise a failed step move/status change still shows
+      // as if it saved.
+      if (previous) {
+        setCandidates((prev) => prev.map((c) => (c.id === id ? previous : c)));
+      }
+      setUpdateError(error.message);
+    } else {
+      setUpdateError(null);
+    }
   }
 
   function moveStep(candidate: Candidate, delta: number) {
@@ -328,6 +355,12 @@ export default function PipelinePage() {
           </div>
           <p className="text-3xl font-bold text-amber">{pct(launches, questions)}</p>
         </div>
+
+        {updateError && (
+          <div className="card">
+            <p className="text-xs text-red-400">{updateError}</p>
+          </div>
+        )}
 
         {loadError ? (
           <div className="empty-state">Couldn&apos;t load this period: {loadError}</div>
@@ -451,6 +484,7 @@ export default function PipelinePage() {
                   Add
                 </button>
               </div>
+              {addError && <p className="text-xs text-red-400">{addError}</p>}
             </div>
 
             {loadingCandidates ? (

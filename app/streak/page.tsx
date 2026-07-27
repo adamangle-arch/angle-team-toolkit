@@ -183,6 +183,7 @@ export default function StreakPage() {
   const [newCandidatesForDay, setNewCandidatesForDay] = useState<Candidate[]>([]);
   const [copied, setCopied] = useState(false);
   const [showTriviaUnlocked, setShowTriviaUnlocked] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const [downlineMemberCount, setDownlineMemberCount] = useState(0);
   const [downlineWeekly, setDownlineWeekly] = useState<StageTotals>(emptyStageTotals());
@@ -404,7 +405,7 @@ export default function StreakPage() {
       setShowTriviaUnlocked(true);
       notifyTriviaUnlocked();
     }
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("streak_days")
       .upsert(
         {
@@ -431,7 +432,15 @@ export default function StreakPage() {
       )
       .select("*")
       .single();
-    if (data) setHistory((prev) => ({ ...prev, [selectedDay]: normalizeRow(data as StreakDay) }));
+    if (error) {
+      // The checkbox/field above already flipped optimistically - without
+      // surfacing this, a failed save looks identical to a successful one
+      // and silently doesn't count toward the streak.
+      setSaveError(`Couldn't save that: ${error.message}`);
+    } else if (data) {
+      setSaveError(null);
+      setHistory((prev) => ({ ...prev, [selectedDay]: normalizeRow(data as StreakDay) }));
+    }
   }
 
   function saveAudios(items: string[]) {
@@ -656,6 +665,7 @@ export default function StreakPage() {
             fields below and the Daily Update Summary will edit/show that day
             instead, without touching any other day&apos;s entries.
           </p>
+          {saveError && <p className="text-xs text-red-400">{saveError}</p>}
         </div>
 
         <div className="card space-y-2">

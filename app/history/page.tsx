@@ -14,6 +14,7 @@ export default function HistoryPage() {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
   const [monthsBack, setMonthsBack] = useState(0);
+  const [updateError, setUpdateError] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -38,11 +39,20 @@ export default function HistoryPage() {
   );
 
   async function updateCandidate(id: string, patch: Partial<Candidate>) {
+    const previous = candidates.find((c) => c.id === id);
     setCandidates((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
-    await supabase
+    const { error } = await supabase
       .from("candidates")
       .update({ ...patch, updated_at: new Date().toISOString() })
       .eq("id", id);
+    if (error) {
+      if (previous) {
+        setCandidates((prev) => prev.map((c) => (c.id === id ? previous : c)));
+      }
+      setUpdateError(error.message);
+    } else {
+      setUpdateError(null);
+    }
   }
 
   return (
@@ -68,6 +78,12 @@ export default function HistoryPage() {
             →
           </button>
         </div>
+
+        {updateError && (
+          <div className="card">
+            <p className="text-xs text-red-400">{updateError}</p>
+          </div>
+        )}
 
         {loading ? (
           <div className="empty-state">Loading candidates…</div>

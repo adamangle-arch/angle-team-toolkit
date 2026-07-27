@@ -1462,6 +1462,58 @@ separately, since it's cheap to regenerate from `call_ratings` and
 in this context to keep cost bounded for a candidate who's been rated many
 times.
 
+### App-wide audit: silent write failures
+
+A full pass looked for the same bug class already found and fixed in Rate
+a Call, Add Contact, and the Team Events album/photo uploads earlier:
+code that fires off a Supabase insert/update/upsert, destructures only
+`{ data }` (or nothing at all) without checking `error`, and then
+unconditionally clears the input / keeps an optimistic local update as if
+it had succeeded — so a failed save looks identical to a successful one,
+with no error shown and (for optimistic updates) the UI now silently
+disagreeing with the database. This turned out to be a pattern used
+throughout the app rather than a one-off, and it was fixed the same way
+everywhere it was found:
+
+- **Pipeline Tracker** — `addCandidate`, the +/- stage counters
+  (`updateStage`), and candidate step/status changes (`updateCandidate`)
+  now check `error`, surface it, and revert the optimistic value (the
+  counters and step changes) rather than leaving a count or step that was
+  never actually saved.
+- **Volume** — Personal Circle PV (`savePv`), Day 1 Ditto (`saveDitto`),
+  and Customer Sales (`addSale`) all now surface a save error instead of
+  showing "Saved." (or clearing the sale form) regardless of outcome.
+- **Team Events** — creating an album (`createAlbum`) no longer clears the
+  title field on a failed insert.
+- **Assistant** — if saving the user's own message fails, the input text
+  is restored and the assistant API is never called with stale/incomplete
+  context (previously it would silently proceed using only the prior
+  messages, so the reply wouldn't reflect what was just typed). If saving
+  the assistant's reply fails after a successful API call, the reply is
+  still shown in the conversation (the API call already happened and cost
+  something) with a note that it couldn't be saved to history.
+- **Calendar** — adding a personal event or a recurring team event
+  (`addEvent`, `addCompanyEvent`) now surfaces insert/RPC errors instead
+  of clearing the form regardless.
+- **Goals** — saving a target on blur (`setTarget`) now surfaces an error
+  instead of silently not persisting a typed number.
+- **Core Run Streak** — `saveToday` (every checkbox, counter, and text
+  field on the page funnels through this) now surfaces a save error
+  instead of leaving an optimistic checkmark that was never actually
+  written — this is the single highest-traffic write in the app, so this
+  was the most consequential instance of the bug.
+- **Onboarding** — the Session 4 "I've read the chapters" checkbox now
+  reverts and shows an error on a failed save, instead of showing
+  "confirmed" for a requirement that never actually saved.
+- **Contact Builder / Candidate History** — `updateContact` and the
+  History page's `updateCandidate` now revert their optimistic update and
+  surface an error on failure.
+
+Left alone deliberately: the Leaderboard's like button and the mini-games'
+high-score/trivia-result saves. Both are optimistic, low-stakes,
+easily-retried actions with no real consequence if a save is silently
+missed, unlike the business data above.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

@@ -32,6 +32,7 @@ export default function ContactsPage() {
   const [newReconnectMethod, setNewReconnectMethod] = useState("");
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
+  const [updateError, setUpdateError] = useState<string | null>(null);
 
   const [promptIndex, setPromptIndex] = useState(0);
   const activePrompts = viewMode === "customer" ? CUSTOMER_MEMORY_PROMPTS : NETWORKING_MEMORY_PROMPTS;
@@ -95,11 +96,21 @@ export default function ContactsPage() {
   }
 
   async function updateContact(id: string, patch: Partial<Contact>) {
+    const previous = contacts.find((c) => c.id === id);
     setContacts((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
-    await supabase
+    const { error } = await supabase
       .from("contacts")
       .update({ ...patch, updated_at: new Date().toISOString() })
       .eq("id", id);
+    if (error) {
+      // Revert - otherwise a failed status/tag change still shows as saved.
+      if (previous) {
+        setContacts((prev) => prev.map((c) => (c.id === id ? previous : c)));
+      }
+      setUpdateError(error.message);
+    } else {
+      setUpdateError(null);
+    }
   }
 
   async function deleteContact(id: string) {
@@ -277,6 +288,12 @@ export default function ContactsPage() {
             💡 {activePrompts[promptIndex % activePrompts.length]}
           </p>
         </div>
+
+        {updateError && (
+          <div className="card">
+            <p className="text-xs text-red-400">{updateError}</p>
+          </div>
+        )}
 
         {loading ? (
           <div className="empty-state">Loading contacts…</div>

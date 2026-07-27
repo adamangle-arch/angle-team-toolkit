@@ -43,6 +43,7 @@ export default function CalendarPage() {
   const [candidateId, setCandidateId] = useState("");
   const [broadcast, setBroadcast] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const isAdmin = isPrimaryUser(user.email);
   const [companyEvents, setCompanyEvents] = useState<CompanyEvent[]>([]);
@@ -54,6 +55,7 @@ export default function CalendarPage() {
     return toLocalInputValue(d);
   });
   const [ceSaving, setCeSaving] = useState(false);
+  const [ceSaveError, setCeSaveError] = useState<string | null>(null);
 
   async function loadCompanyEvents() {
     const { data } = await supabase
@@ -140,16 +142,21 @@ export default function CalendarPage() {
     const trimmedTitle = ceTitle.trim();
     if (!trimmedTitle || !ceEventAt) return;
     setCeSaving(true);
-    await supabase.rpc("add_company_event", {
+    setCeSaveError(null);
+    const { error } = await supabase.rpc("add_company_event", {
       p_title: trimmedTitle,
       p_notes: ceNotes,
       p_event_at: new Date(ceEventAt).toISOString(),
     });
-    setCeTitle("");
-    setCeNotes("");
+    if (error) {
+      setCeSaveError(error.message);
+    } else {
+      setCeTitle("");
+      setCeNotes("");
+      await loadCompanyEvents();
+      await loadEvents();
+    }
     setCeSaving(false);
-    await loadCompanyEvents();
-    await loadEvents();
   }
 
   async function removeCompanyEvent(id: string) {
@@ -161,10 +168,11 @@ export default function CalendarPage() {
     const trimmedTitle = title.trim();
     if (!trimmedTitle || !eventAt) return;
     setSaving(true);
+    setSaveError(null);
     const isoEventAt = new Date(eventAt).toISOString();
     const linkedCandidate = candidateId || null;
 
-    await supabase.from("calendar_events").insert({
+    const { error: insertError } = await supabase.from("calendar_events").insert({
       user_id: user.id,
       creator_id: user.id,
       title: trimmedTitle,
@@ -174,13 +182,22 @@ export default function CalendarPage() {
       scope: "private",
     });
 
+    if (insertError) {
+      setSaveError(insertError.message);
+      setSaving(false);
+      return;
+    }
+
     if (broadcast) {
-      await supabase.rpc("broadcast_event_to_downline", {
+      const { error: broadcastError } = await supabase.rpc("broadcast_event_to_downline", {
         p_title: trimmedTitle,
         p_notes: notes,
         p_event_at: isoEventAt,
         p_candidate_id: linkedCandidate,
       });
+      if (broadcastError) {
+        setSaveError(`Saved, but couldn't send it to your downline: ${broadcastError.message}`);
+      }
     }
 
     setTitle("");
@@ -261,6 +278,7 @@ export default function CalendarPage() {
           >
             {saving ? "Saving…" : "Add Event"}
           </button>
+          {saveError && <p className="text-xs text-red-400">{saveError}</p>}
         </div>
 
         {isAdmin && (
@@ -295,6 +313,7 @@ export default function CalendarPage() {
             >
               {ceSaving ? "Saving…" : "Add Recurring Event"}
             </button>
+            {ceSaveError && <p className="text-xs text-red-400">{ceSaveError}</p>}
 
             {companyEvents.length > 0 && (
               <div className="space-y-1.5 pt-1">

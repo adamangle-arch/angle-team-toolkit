@@ -25,6 +25,7 @@ export default function GoalsPage() {
   const [loading, setLoading] = useState(true);
   const [qi1Weekly, setQi1Weekly] = useState(0);
   const [qi1Monthly, setQi1Monthly] = useState(0);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -78,12 +79,15 @@ export default function GoalsPage() {
       if (existing) return prev.map((g) => (g === existing ? { ...g, target } : g));
       return [...prev, { id: "", user_id: user.id, metric, period, target, updated_at: "" }];
     });
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("goals")
       .upsert({ user_id: user.id, metric, period, target }, { onConflict: "user_id,metric,period" })
       .select("*")
       .single();
-    if (data) {
+    if (error) {
+      setSaveError(`Couldn't save that goal: ${error.message}`);
+    } else if (data) {
+      setSaveError(null);
       const row = data as Goal;
       setGoalRows((prev) => [
         ...prev.filter((g) => !(g.metric === row.metric && g.period === row.period)),
@@ -102,6 +106,11 @@ export default function GoalsPage() {
     <FeatureGate minSession={5}>
       <PageHeader title="Goals" subtitle="Your goal today is:" />
       <main className="page-main">
+        {saveError && (
+          <div className="card">
+            <p className="text-xs text-red-400">{saveError}</p>
+          </div>
+        )}
         {loading ? (
           <div className="empty-state">Loading…</div>
         ) : (

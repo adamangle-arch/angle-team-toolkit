@@ -80,14 +80,24 @@ export default function AssistantPage() {
     setPendingImage(null);
     setSending(true);
 
-    const { data: userRow } = await supabase
+    const { data: userRow, error: userInsertError } = await supabase
       .from("assistant_messages")
       .insert({ user_id: user.id, role: "user", content: text, image_data: imageToSend })
       .select("*")
       .single();
 
-    const updated = userRow ? [...messages, userRow as AssistantMessage] : messages;
-    if (userRow) setMessages(updated);
+    if (userInsertError || !userRow) {
+      // Restore what they typed - without this, the input clears above
+      // but nothing was actually saved or sent, and no error explains why.
+      setInput(text);
+      setPendingImage(imageToSend);
+      setError(userInsertError?.message || "Couldn't send that message. Try again.");
+      setSending(false);
+      return;
+    }
+
+    const updated = [...messages, userRow as AssistantMessage];
+    setMessages(updated);
 
     const { data: sessionData } = await supabase.auth.getSession();
     const accessToken = sessionData.session?.access_token;
@@ -113,7 +123,7 @@ export default function AssistantPage() {
         throw new Error(json.error || "Something went wrong.");
       }
 
-      const { data: assistantRow } = await supabase
+      const { data: assistantRow, error: assistantInsertError } = await supabase
         .from("assistant_messages")
         .insert({ user_id: user.id, role: "assistant", content: json.reply })
         .select("*")
@@ -121,6 +131,24 @@ export default function AssistantPage() {
 
       if (assistantRow) {
         setMessages((prev) => [...prev, assistantRow as AssistantMessage]);
+      } else {
+        // The reply was already generated (and already cost an API call) -
+        // still show it even though saving it to history failed, rather
+        // than the user waiting and getting nothing back.
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `local-${Date.now()}`,
+            user_id: user.id,
+            role: "assistant",
+            content: json.reply,
+            image_data: null,
+            created_at: new Date().toISOString(),
+          },
+        ]);
+        if (assistantInsertError) {
+          setError("Got a reply, but couldn't save it to your conversation history.");
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");

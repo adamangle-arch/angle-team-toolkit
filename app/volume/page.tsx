@@ -36,10 +36,12 @@ export default function VolumePage() {
   const [pvInput, setPvInput] = useState("0");
   const [savingPv, setSavingPv] = useState(false);
   const [savedPv, setSavedPv] = useState(false);
+  const [pvError, setPvError] = useState<string | null>(null);
 
   const [dittoInput, setDittoInput] = useState("0");
   const [savingDitto, setSavingDitto] = useState(false);
   const [savedDitto, setSavedDitto] = useState(false);
+  const [dittoError, setDittoError] = useState<string | null>(null);
 
   const [history, setHistory] = useState<MonthlyPv[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,6 +52,7 @@ export default function VolumePage() {
   const [saleAmount, setSaleAmount] = useState("");
   const [saleNotes, setSaleNotes] = useState("");
   const [addingSale, setAddingSale] = useState(false);
+  const [saleError, setSaleError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -136,22 +139,28 @@ export default function VolumePage() {
     const pv = Math.max(0, parseInt(pvInput, 10) || 0);
     setSavingPv(true);
     setSavedPv(false);
-    await supabase
+    setPvError(null);
+    const { error } = await supabase
       .from("monthly_pv")
       .upsert(
         { user_id: ownerId, period_start: periodStart, pv, updated_at: new Date().toISOString() },
         { onConflict: "user_id,period_start" }
       );
-    setPvInput(String(pv));
+    if (error) {
+      setPvError(error.message);
+    } else {
+      setPvInput(String(pv));
+      setSavedPv(true);
+    }
     setSavingPv(false);
-    setSavedPv(true);
   }
 
   async function saveDitto() {
     const day1_ditto_pv = Math.max(0, parseInt(dittoInput, 10) || 0);
     setSavingDitto(true);
     setSavedDitto(false);
-    await supabase
+    setDittoError(null);
+    const { error } = await supabase
       .from("monthly_pv")
       .upsert(
         {
@@ -162,9 +171,13 @@ export default function VolumePage() {
         },
         { onConflict: "user_id,period_start" }
       );
-    setDittoInput(String(day1_ditto_pv));
+    if (error) {
+      setDittoError(error.message);
+    } else {
+      setDittoInput(String(day1_ditto_pv));
+      setSavedDitto(true);
+    }
     setSavingDitto(false);
-    setSavedDitto(true);
   }
 
   function toggleSaleCategory(cat: SaleCategory) {
@@ -176,8 +189,9 @@ export default function VolumePage() {
   async function addSale() {
     if (saleCategories.length === 0) return;
     setAddingSale(true);
+    setSaleError(null);
     const amount = Math.max(0, parseInt(saleAmount, 10) || 0);
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("customer_sales")
       .insert({
         user_id: ownerId,
@@ -189,10 +203,14 @@ export default function VolumePage() {
       })
       .select("*")
       .single();
-    if (data) setSales((prev) => [data as CustomerSale, ...prev]);
-    setSaleCategories(["Other"]);
-    setSaleAmount("");
-    setSaleNotes("");
+    if (error) {
+      setSaleError(error.message);
+    } else if (data) {
+      setSales((prev) => [data as CustomerSale, ...prev]);
+      setSaleCategories(["Other"]);
+      setSaleAmount("");
+      setSaleNotes("");
+    }
     setAddingSale(false);
   }
 
@@ -221,6 +239,7 @@ export default function VolumePage() {
             </button>
           </div>
           {savedPv && <p className="text-xs text-amber-light">Saved.</p>}
+          {pvError && <p className="text-xs text-red-400">{pvError}</p>}
 
           <div className="pt-1">
             <div className="relative h-5 w-full rounded-full bg-white/10">
@@ -320,6 +339,7 @@ export default function VolumePage() {
             </button>
           </div>
           {savedDitto && <p className="text-xs text-amber-light">Saved.</p>}
+          {dittoError && <p className="text-xs text-red-400">{dittoError}</p>}
 
           <div className="pt-1">
             <div className="relative h-5 w-full rounded-full bg-white/10">
@@ -386,6 +406,7 @@ export default function VolumePage() {
           >
             Add Sale
           </button>
+          {saleError && <p className="text-xs text-red-400">{saleError}</p>}
         </div>
 
         {loadingSales ? (

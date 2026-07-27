@@ -27,6 +27,7 @@ export default function OnboardingPage() {
   const [networkContactCount, setNetworkContactCount] = useState(0);
   const [chaptersConfirmed, setChaptersConfirmed] = useState(false);
   const [confirmingChapters, setConfirmingChapters] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -63,10 +64,17 @@ export default function OnboardingPage() {
     const next = !chaptersConfirmed;
     setChaptersConfirmed(next);
     setConfirmingChapters(true);
-    await supabase
+    setConfirmError(null);
+    const { error } = await supabase
       .from("profiles")
       .update({ thinking_big_chapters_confirmed: next })
       .eq("id", user.id);
+    if (error) {
+      // Roll back the optimistic checkbox - otherwise this would show
+      // "confirmed" for a requirement that never actually saved.
+      setChaptersConfirmed(!next);
+      setConfirmError(error.message);
+    }
     setConfirmingChapters(false);
   }
 
@@ -196,6 +204,7 @@ export default function OnboardingPage() {
                           />
                           <span>I&apos;ve read {SESSION_4_READING_REQUIREMENT}.</span>
                         </label>
+                        {confirmError && <p className="text-xs text-red-400">{confirmError}</p>}
                       </div>
                     )}
                     <p className="text-xs text-slate-500">

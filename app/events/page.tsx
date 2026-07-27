@@ -65,6 +65,7 @@ export default function EventsPage() {
   const [loading, setLoading] = useState(true);
 
   const [newTitle, setNewTitle] = useState("");
+  const [createAlbumError, setCreateAlbumError] = useState<string | null>(null);
   const [newDate, setNewDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [creatingAlbum, setCreatingAlbum] = useState(false);
 
@@ -127,13 +128,18 @@ export default function EventsPage() {
     const title = newTitle.trim();
     if (!title) return;
     setCreatingAlbum(true);
-    const { data } = await supabase
+    setCreateAlbumError(null);
+    const { data, error } = await supabase
       .from("team_event_albums")
       .insert({ title, event_date: newDate, created_by: user.id })
       .select("*")
       .single();
-    if (data) setAlbums((prev) => [data as TeamEventAlbum, ...prev]);
-    setNewTitle("");
+    if (error) {
+      setCreateAlbumError(error.message);
+    } else if (data) {
+      setAlbums((prev) => [data as TeamEventAlbum, ...prev]);
+      setNewTitle("");
+    }
     setCreatingAlbum(false);
   }
 
@@ -256,6 +262,7 @@ export default function EventsPage() {
             >
               {creatingAlbum ? "Adding…" : "Add Event"}
             </button>
+            {createAlbumError && <p className="text-xs text-red-400">{createAlbumError}</p>}
           </div>
         )}
 
