@@ -1485,6 +1485,28 @@ anything, so both outcomes (finishes normally, or rejects because of the
 abort this same code path triggers) are handled at the source regardless
 of which side of the race is the one that mattered.
 
+**With that fixed, a new but different failure showed up**: a clean,
+real error response instead of a dropped connection — genuine progress —
+but reading `The assistant couldn't produce a rating for this transcript
+(reason: deadline)`. That means zero characters streamed back in the
+entire deadline window, which is a distinct case from "ran out of time
+partway through a real write-up" (that path already has usable partial
+content and doesn't need a retry). Getting literally nothing back reads
+more like a transient hiccup (a momentary connection blip, brief model
+overload) than "this call is genuinely too long," so it's worth exactly
+one automatic retry rather than failing outright. `route.ts`'s `attempt()`
+now takes an explicit deadline and reports whether the stream ever fired
+its `connect` event; the route tracks total elapsed time against a 54s
+hard budget (leaving 6s for the Supabase save and response
+serialization), and if the first attempt comes back with zero characters
+*and* more than 15 seconds of budget remain, it retries once with
+whatever's left. If it's still empty after that, the error message now
+also says whether the stream ever connected at all, which narrows down
+"never reached Anthropic" vs. "connected but produced nothing" for next
+time. Every attempt (and the retry, if one happens) logs to Vercel's
+function logs regardless of outcome, so a recurrence is diagnosable from
+there instead of another round of guessing from a client-side screenshot.
+
 As defense in depth on the client side, `RatingJobsProvider.tsx` also no
 longer calls `res.json()` directly — it reads the response as text first
 and parses it explicitly, so *any* non-JSON response (this cause or a

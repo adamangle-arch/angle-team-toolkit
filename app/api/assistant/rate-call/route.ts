@@ -148,14 +148,20 @@ export async function POST(request: Request) {
     // still abort cleanly and return whatever was generated so far as a
     // real, valid JSON response - instead of getting killed by the
     // platform with nothing to show for it. A partial analysis with a
-    // clear "cut short" note beats no response at all.
-    const SOFT_DEADLINE_MS = 48_000;
+    // clear "cut short" note beats no response at all. Separately, a
+    // deadline hit with literally zero characters streamed (as opposed to
+    // a real but incomplete write-up) gets exactly one retry with
+    // whatever time budget remains, since that pattern looks more like a
+    // transient hiccup than "this call is just long."
     // Re-bound so TS carries the non-undefined type into the closure below
     // - narrowing from the `if (!callType) return` guard above doesn't
     // persist into a nested function body even though callType is const.
     const rubric = ratingPrompts[callType];
+    const requestStartedAt = Date.now();
 
-    async function attempt(): Promise<{ analysis: string; stopReason: string | null; truncated: boolean }> {
+    async function attempt(
+      deadlineMs: number
+    ): Promise<{ analysis: string; stopReason: string | null; truncated: boolean; connected: boolean }> {
       const stream = anthropic.messages.stream({
         model: "claude-sonnet-5",
         max_tokens: 8000,
@@ -170,8 +176,12 @@ export async function POST(request: Request) {
       });
 
       let text = "";
+      let connected = false;
       stream.on("text", (delta) => {
         text += delta;
+      });
+      stream.on("connect", () => {
+        connected = true;
       });
 
       // stream.done() rejects if the stream errors or gets aborted - which
@@ -192,43 +202,70 @@ export async function POST(request: Request) {
 
       const timedOut = await Promise.race([
         donePromise,
-        new Promise<boolean>((resolve) => setTimeout(() => resolve(true), SOFT_DEADLINE_MS)),
+        new Promise<boolean>((resolve) => setTimeout(() => resolve(true), deadlineMs)),
       ]);
 
       if (timedOut) {
         stream.abort();
-        return { analysis: text.trim(), stopReason: "deadline", truncated: true };
+        return { analysis: text.trim(), stopReason: "deadline", truncated: true, connected };
       }
 
       const final = await stream.finalMessage();
-      return { analysis: text.trim(), stopReason: final.stop_reason, truncated: false };
+      return { analysis: text.trim(), stopReason: final.stop_reason, truncated: false, connected };
     }
 
-    const { analysis: rawAnalysis, stopReason, truncated } = await attempt();
+    // Leave buffer under this route's 60s maxDuration for the Supabase
+    // save and response serialization after the model call finishes.
+    const HARD_BUDGET_MS = 54_000;
+    let result = await attempt(HARD_BUDGET_MS - (Date.now() - requestStartedAt));
 
-    console.log("rate-call result", {
+    console.log("rate-call attempt", {
       callType,
       transcriptChars: transcript.length,
-      stopReason,
-      truncated,
-      analysisChars: rawAnalysis.length,
+      ...result,
+      analysisChars: result.analysis.length,
+      elapsedMs: Date.now() - requestStartedAt,
     });
+
+    // Zero characters streamed back before the deadline - not the normal
+    // "ran out of time mid-write-up" case (that still has real, usable
+    // partial content), but a genuine "nothing came back at all" case,
+    // which reads more like a transient hiccup (network blip, momentary
+    // overload on the model) than a call that's simply too long. Worth
+    // exactly one retry if there's still meaningful time left in this
+    // route's budget, rather than failing outright on what might be a
+    // one-off.
+    if (!result.analysis && result.truncated) {
+      const remaining = HARD_BUDGET_MS - (Date.now() - requestStartedAt);
+      if (remaining > 15_000) {
+        console.log("rate-call: zero-byte timeout, retrying once", { callType, remainingMs: remaining });
+        result = await attempt(remaining);
+        console.log("rate-call retry attempt", {
+          callType,
+          transcriptChars: transcript.length,
+          ...result,
+          analysisChars: result.analysis.length,
+          elapsedMs: Date.now() - requestStartedAt,
+        });
+      }
+    }
+
+    const { analysis: rawAnalysis, stopReason, truncated } = result;
 
     // A blank rating is worse than no rating - it silently gets saved and
     // looks like a real entry with nothing in it and no way to tell why.
     // Treat this the same as any other failure instead of returning it as
-    // if it succeeded. (Genuinely zero characters streamed before even
-    // the soft deadline is an extreme edge case, not the normal "cut
-    // short" case handled below.)
+    // if it succeeded.
     if (!rawAnalysis) {
-      console.error("rate-call: blank completion", {
+      console.error("rate-call: blank completion after retry", {
         callType,
         transcriptChars: transcript.length,
         stopReason,
+        connected: result.connected,
       });
       return NextResponse.json(
         {
-          error: `The assistant couldn't produce a rating for this transcript (reason: ${stopReason ?? "unknown"}). Please try again — if it keeps happening, let the team know it recurred so it can be tracked down.`,
+          error: `The assistant couldn't produce a rating for this transcript (reason: ${stopReason ?? "unknown"}${result.connected ? "" : ", never connected"}). Please try again — if it keeps happening, let the team know it recurred so it can be tracked down.`,
         },
         { status: 502 }
       );
