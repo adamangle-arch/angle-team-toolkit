@@ -241,6 +241,26 @@ aren't the same thing. Helpers in `lib/dates.ts`: `getDateOffset(daysBack)`,
 `getWeekStartOffset(weeksBack)`, `getMonthStartOffset(monthsBack)`, and
 `formatWeekRangeLabel`.
 
+### Members view: same Daily/Weekly/Monthly + back-navigation as your own Pipeline Tracker
+
+The **Members** view's per-person detail panel (available to any upline,
+not just admins) used to show a single downline member's Pipeline card
+pulled via "whichever `pipeline_periods` row was updated most recently" —
+no way to pick Daily vs. Weekly vs. Monthly, and no way to look back at a
+past period, even though the rep's own Pipeline Tracker (and the
+admin-only Teams view above) both already had exactly that. Now it reuses
+the same `periodType`/`periodOffset` state and `‹`/`›` navigator already
+on this page for Teams, just also rendered (and query-driving) inside the
+Members detail panel. The pipeline fetch changed from "most recently
+updated row" to an exact `period_type` + `period_start` match against
+whatever's currently selected, same as the rep's own Tally tab; a period
+with nothing logged shows real zeros across every stage (with a small
+"Nothing logged for this period" note) rather than either a stale
+different-period row or a blanket "no activity yet" message. No RLS or
+schema changes needed — the existing `pipeline_periods` select policy
+already covers any of a downline's rows regardless of date, the
+limitation was purely which single row the client happened to ask for.
+
 `formatWeekRangeLabel` originally showed a broken label for a same-month
 week ("Jul 19 - 2026 (day: 25)" instead of "Jul 19 - 25, 2026") — it asked
 `Intl.DateTimeFormat` for `year` + `day` with no `month`, which is an

@@ -212,8 +212,8 @@ export default function TeamPage() {
           .from("pipeline_periods")
           .select("*")
           .eq("user_id", ownerId)
-          .order("updated_at", { ascending: false })
-          .limit(1)
+          .eq("period_type", periodType)
+          .eq("period_start", periodStart)
           .maybeSingle(),
         supabase
           .from("candidates")
@@ -269,7 +269,7 @@ export default function TeamPage() {
     return () => {
       cancelled = true;
     };
-  }, [selectedId, profiles]);
+  }, [selectedId, profiles, periodType, periodStart]);
 
   const selectedProfile = profiles.find((p) => p.id === selectedId) ?? null;
 
@@ -581,37 +581,78 @@ export default function TeamPage() {
               </Link>
             </div>
 
+            <div className="card flex p-1">
+              <button
+                className={periodType === "daily" ? "toggle-pill-active" : "toggle-pill-inactive"}
+                onClick={() => switchPeriodType("daily")}
+              >
+                Daily
+              </button>
+              <button
+                className={periodType === "weekly" ? "toggle-pill-active" : "toggle-pill-inactive"}
+                onClick={() => switchPeriodType("weekly")}
+              >
+                Weekly
+              </button>
+              <button
+                className={periodType === "monthly" ? "toggle-pill-active" : "toggle-pill-inactive"}
+                onClick={() => switchPeriodType("monthly")}
+              >
+                Monthly
+              </button>
+            </div>
+
+            <div className="card flex items-center justify-between gap-2 py-2">
+              <button
+                className="btn-icon !h-8 !w-8 text-base"
+                onClick={() => setPeriodOffset((o) => o + 1)}
+                aria-label={`Previous ${periodType === "daily" ? "day" : periodType === "weekly" ? "week" : "month"}`}
+              >
+                ‹
+              </button>
+              <p className="text-sm font-semibold text-white">
+                {periodLabel}
+                {periodOffset === 0 && (
+                  <span className="ml-1.5 text-xs font-normal text-amber-light">(current)</span>
+                )}
+              </p>
+              <button
+                className="btn-icon !h-8 !w-8 text-base"
+                onClick={() => setPeriodOffset((o) => Math.max(0, o - 1))}
+                disabled={periodOffset === 0}
+                aria-label={`Next ${periodType === "daily" ? "day" : periodType === "weekly" ? "week" : "month"}`}
+              >
+                ›
+              </button>
+            </div>
+
             {loadingMember || !memberData ? (
               <div className="empty-state">Loading member data…</div>
             ) : (
               <>
                 <div className="card space-y-2">
                   <p className="section-title">Pipeline</p>
-                  {memberData.pipeline ? (
-                    <>
-                      <p className="text-xs text-slate-400">
-                        {memberData.pipeline.period_type === "weekly" ? "Week of" : "Month of"}{" "}
-                        {formatDateLabel(memberData.pipeline.period_start)} · Questions → Launches:{" "}
-                        <span className="font-semibold text-amber-light">
-                          {pct(memberData.pipeline.launches, memberData.pipeline.questions)}
+                  <p className="text-xs text-slate-400">
+                    {periodLabel} · Questions → Launches:{" "}
+                    <span className="font-semibold text-amber-light">
+                      {pct(memberData.pipeline?.launches ?? 0, memberData.pipeline?.questions ?? 0)}
+                    </span>
+                  </p>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {PIPELINE_STAGES.map((stage) => (
+                      <div
+                        key={stage.key}
+                        className="flex items-center justify-between rounded-lg bg-navy px-2 py-1.5 text-xs"
+                      >
+                        <span className="text-slate-400">{stage.label}</span>
+                        <span className="font-semibold text-white">
+                          {memberData.pipeline?.[stage.key] ?? 0}
                         </span>
-                      </p>
-                      <div className="grid grid-cols-2 gap-1.5">
-                        {PIPELINE_STAGES.map((stage) => (
-                          <div
-                            key={stage.key}
-                            className="flex items-center justify-between rounded-lg bg-navy px-2 py-1.5 text-xs"
-                          >
-                            <span className="text-slate-400">{stage.label}</span>
-                            <span className="font-semibold text-white">
-                              {memberData.pipeline![stage.key]}
-                            </span>
-                          </div>
-                        ))}
                       </div>
-                    </>
-                  ) : (
-                    <p className="text-sm text-slate-400">No pipeline activity yet.</p>
+                    ))}
+                  </div>
+                  {!memberData.pipeline && (
+                    <p className="text-xs text-slate-500">Nothing logged for this period.</p>
                   )}
                 </div>
 
