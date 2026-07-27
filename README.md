@@ -191,6 +191,15 @@ back" offset aren't the same thing. New helpers in `lib/dates.ts`:
 `getWeekStartOffset(weeksBack)` (mirrors the existing
 `getMonthStartOffset`) and `formatWeekRangeLabel`.
 
+`formatWeekRangeLabel` originally showed a broken label for a same-month
+week ("Jul 19 - 2026 (day: 25)" instead of "Jul 19 - 25, 2026") — it asked
+`Intl.DateTimeFormat` for `year` + `day` with no `month`, which is an
+invalid combination; some engines (Node/V8 among them) fall back to that
+literal "(day: N)" text instead of erroring. Fixed by never asking Intl
+for that combination at all — the same-month case is now built by hand
+(`${startLabel} - ${end.getDate()}, ${year}`) instead of trying to get
+Intl to omit the repeated month.
+
 The Leaderboard recognizes every pipeline stage except Questions, for both
 teams and individuals, plus who's currently on a Core Run Streak (all 4
 activities every day — not 3 of 4 — counted back from today or yesterday),
@@ -1193,6 +1202,17 @@ button (`handleDeleteRating` in `CallRatingPanel.tsx`) so a rep can clean
 one up without needing database access — a row with no analysis text is
 also flagged inline ("no result — try re-rating") so a stray one is easy
 to spot.
+
+A blank result turned out to keep recurring for the same short transcript
+(the tail end of a call — a couple of closing lines, not real diagnostic
+content) even after the fix above stopped it from being silently saved —
+the same input succeeded on some attempts and came back empty on others.
+Asking the model for a detailed, evidence-specific 9-section analysis
+from a transcript that's mostly just "thanks, talk soon, bye" is a real
+edge case for a degenerate completion. `route.ts` now retries the
+Anthropic call once automatically before giving up if the first attempt
+comes back blank, and the eventual error message (if both attempts are
+empty) suggests pasting the complete transcript rather than an excerpt.
 
 The Role-Play / Rate a Call toggle-pill row on the Assistant page used to
 scroll away with the rest of the chat — once a Role-Play conversation got

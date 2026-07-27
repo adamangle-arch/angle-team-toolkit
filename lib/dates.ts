@@ -26,16 +26,18 @@ export function formatWeekRangeLabel(weekStartStr: string): string {
   const end = new Date(start);
   end.setDate(end.getDate() + 6);
   const sameMonth = start.getMonth() === end.getMonth();
-  const startLabel = start.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-  });
-  const endLabel = end.toLocaleDateString(undefined, {
-    month: sameMonth ? undefined : "short",
-    day: "numeric",
-    year: "numeric",
-  });
-  return `${startLabel} - ${endLabel}`;
+  const startLabel = start.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const year = end.getFullYear();
+  // year + day with no month is an invalid combination for
+  // Intl.DateTimeFormat - some engines (Node/V8 among them) fall back to
+  // a bizarre literal "2026 (day: 25)" rendering instead of erroring.
+  // Building the same-month case by hand instead of asking Intl for it
+  // avoids that entirely.
+  if (sameMonth) {
+    return `${startLabel} - ${end.getDate()}, ${year}`;
+  }
+  const endLabel = end.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return `${startLabel} - ${endLabel}, ${year}`;
 }
 
 export function getMonthStart(date: Date = new Date()): string {

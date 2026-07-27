@@ -99,23 +99,32 @@ export async function POST(request: Request) {
     : transcript;
 
   try {
-    const response = await anthropic.messages.create({
-      model: "claude-sonnet-5",
-      max_tokens: 3000,
-      system: [
-        {
-          type: "text",
-          text: RATING_PROMPTS[callType],
-          cache_control: { type: "ephemeral" },
-        },
-      ],
-      messages: [{ role: "user", content: userContent }],
-    });
+    // A very short transcript (a call's tail end, a couple of exchanges)
+    // combined with a rubric that demands detailed, specific evidence
+    // across 9 sections is a real edge case for the model producing a
+    // blank or near-blank completion - it's happened intermittently with
+    // the exact same input succeeding on one attempt and not another. One
+    // automatic retry covers that transient case before actually failing.
+    let analysis = "";
+    for (let attempt = 0; attempt < 2 && !analysis; attempt++) {
+      const response = await anthropic.messages.create({
+        model: "claude-sonnet-5",
+        max_tokens: 3000,
+        system: [
+          {
+            type: "text",
+            text: RATING_PROMPTS[callType],
+            cache_control: { type: "ephemeral" },
+          },
+        ],
+        messages: [{ role: "user", content: userContent }],
+      });
 
-    const textBlock = response.content.find(
-      (block): block is Anthropic.TextBlock => block.type === "text"
-    );
-    const analysis = textBlock?.text.trim() ?? "";
+      const textBlock = response.content.find(
+        (block): block is Anthropic.TextBlock => block.type === "text"
+      );
+      analysis = textBlock?.text.trim() ?? "";
+    }
 
     // A blank rating is worse than no rating - it silently gets saved and
     // looks like a real entry with nothing in it and no way to tell why.
@@ -123,7 +132,10 @@ export async function POST(request: Request) {
     // if it succeeded.
     if (!analysis) {
       return NextResponse.json(
-        { error: "The assistant returned an empty rating. Please try again." },
+        {
+          error:
+            "The assistant couldn't produce a rating for this transcript, even after retrying. If this is a short excerpt rather than the full call, try pasting the complete transcript.",
+        },
         { status: 502 }
       );
     }
