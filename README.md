@@ -1534,6 +1534,28 @@ from the fixes above all stay as the safety net for whatever residual
 tail case still runs long, but the goal is for that path to stop being
 the common case.
 
+### Score calibration: anchoring the number, not just the write-up
+
+A side-by-side comparison against ChatGPT rating the identical
+transcript surfaced a real gap: ChatGPT scored it an 8, this rated it a
+6, and the rep's own read of the call (they were on it) was that it was
+genuinely good. The rubrics never gave the model an actual anchor for
+what a given number means — "score the call out of 10" with no scale —
+so a rigorous, honesty-focused rubric (explicitly told to hunt for real
+weaknesses and not overrate pleasant-but-unproven candidates) had every
+incentive to dock points for legitimate, specific critiques without
+anything stopping those from dragging an otherwise strong call down into
+"average" territory. Each rubric now has a **Score Calibration** block
+right under the score request, with explicit 9-10 / 7-8 / 5-6 / 3-4 / 1-2
+bands and a direct instruction: a call with genuine rapport, real
+candidate openness, and natural forward momentum belongs in the 7-8
+range even with a few specific things to sharpen next time — 5-6 and
+below is reserved for calls with actual structural gaps (multiple
+diagnostic goals untouched, weak connection, no real pressure-testing at
+all), not just normal room for polish. The goal is a score that still
+tells the truth about weaknesses in the write-up, without an unanchored
+number quietly punishing a good call for not being flawless.
+
 The Role-Play / Rate a Call toggle-pill row on the Assistant page used to
 scroll away with the rest of the chat — once a Role-Play conversation got
 long, switching to Rate a Call meant scrolling all the way back to the top
