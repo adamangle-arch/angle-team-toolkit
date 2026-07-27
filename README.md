@@ -1400,19 +1400,51 @@ write up whatever's actually there rather than withhold output on a thin
 call — worth keeping, but it doesn't explain a blank result on a rich
 30-minute call, so it's very unlikely to be the actual fix here.
 
-Since the retry re-sends the exact same system + user content unchanged,
-a call that reliably comes back blank fails the same way twice with no
-way to tell why from the client side alone. Rather than guess a third
-time, `route.ts` now: (1) logs `stop_reason`, token `usage`, and the
-response's content block types on every attempt (visible in Vercel's
-function logs), so a recurrence is actually diagnosable instead of
-another round of blind theorizing; (2) surfaces the last attempt's
-`stop_reason` directly in the error message shown to the rep, so even
-without log access the next occurrence says *why* in plain sight; and
-(3) raises `max_tokens` from 3000 to 8000 — a full write-up covering all
-9 sections plus the 10-dimension candidate scorecard for a rich,
-substantial call can genuinely run close to 3000 tokens on its own,
-which wasn't ruled out as a contributing factor.
+**The actual root cause, found after adding logging and watching it
+recur live:** a full, non-streamed, blocking call to Anthropic for a
+detailed 9-section write-up plus 10-dimension scorecard on a genuinely
+long transcript can take longer than this route's `maxDuration` (60s) to
+generate — and when Vercel kills a function mid-generation, the client
+gets no HTTP response at all, just a dropped connection. Different
+browsers report that dropped connection in confusingly different-looking
+ways depending on *where* the client-side code was when it got cut off:
+sometimes the familiar "Load failed"/"Failed to fetch", but if the
+platform's own non-JSON timeout page reaches the client instead and
+`res.json()` tries to parse it, Safari specifically throws a raw
+`SyntaxError: The string did not match the expected pattern.` — a
+generic WebKit message shared by several unrelated failed-string-parsing
+APIs, so it reads like nonsense with zero context, but it's the same
+underlying cause: the function got killed and the client is looking at
+garbage instead of JSON. Raising `max_tokens` from 3000 to 8000 (to fix
+the earlier blank-result theory) made this *more* likely, not less — a
+detailed write-up that actually uses close to 8000 tokens takes
+meaningfully longer to generate than one capped at 3000, pushing more
+requests past the 60s ceiling instead of fewer.
+
+The real fix is streaming. `route.ts` now uses
+`anthropic.messages.stream()` instead of a single blocking
+`messages.create()` call, accumulating text as it arrives, racing it
+against a 48-second soft deadline (well under the 60s hard ceiling, with
+buffer left for the Supabase save and response serialization). If the
+soft deadline hits, the stream is aborted and whatever text has already
+streamed in is used as the result — real, substantive content, just
+possibly missing the last section — with a plain note appended
+explaining it may be cut short and suggesting a re-rate. This guarantees
+the function always returns a valid JSON response before Vercel's hard
+kill, which is the thing that actually eliminates both the "Load failed"
+and the cryptic Safari `SyntaxError` failure modes: there's no longer a
+code path where the platform kills the function with nothing sent back
+at all. The old attempt-loop retry (re-sending identical input and
+hoping for a different, non-blank result) is gone along with it — it
+never addressed a *slow* generation, only a spuriously blank one, and
+added its own risk of compounding two long requests back to back.
+
+As defense in depth on the client side, `RatingJobsProvider.tsx` also no
+longer calls `res.json()` directly — it reads the response as text first
+and parses it explicitly, so *any* non-JSON response (this cause or a
+genuinely new one down the line) surfaces a clear, readable error message
+instead of whatever native exception happens to bubble up from a failed
+parse.
 
 The Role-Play / Rate a Call toggle-pill row on the Assistant page used to
 scroll away with the rest of the chat — once a Role-Play conversation got
@@ -1452,15 +1484,27 @@ enough on its own for content that appears *after* the initial page load
   standard hint for momentum/inertial touch scrolling to actually engage
   on a nested `overflow-y: auto` element in iOS WebKit.
 - A rating's expanded write-up (in both `CallRatingPanel.tsx`'s "Your
-  Ratings" and the Team page's "Call Ratings" folder) is now wrapped in a
-  new `.expand-scroll` class (`max-h-80 overflow-y-auto` plus the same
-  touch-scrolling hint) instead of just being a plain `<p>` that grows
-  `page-main`'s total height. Some mobile browsers don't reliably notice
-  that a scroll container's content grew after a React state update
-  (tapping to expand) until some other interaction forces a reflow -
-  giving the expanded text its own bounded, independently-scrollable box
-  from the start sidesteps that entirely, since only its own internal
-  scroll position needs to change, not the outer page's scroll range.
+  Ratings" and the Team page's "Call Ratings" folder) was given its own
+  bounded, independently-scrollable box (`.expand-scroll`: `max-h-80
+  overflow-y-auto` plus the same touch-scrolling hint) instead of being a
+  plain `<p>` that grows `page-main`'s total height - the idea being that
+  some mobile browsers don't reliably notice a scroll container's content
+  grew after a React state update until something else forces a reflow.
+
+  **This turned out to be wrong, and to be the exact same bug all over
+  again at a smaller scale.** A rep reported a long rating's write-up
+  visibly "cutting off" with no way to read the rest - `.expand-scroll`'s
+  own nested `overflow-y-auto`, sitting *inside* `page-main`'s
+  `overflow-y-auto`, hit precisely the nested-scroll-region hazard
+  described above: iOS doesn't reliably recognize the inner region as its
+  own independently-scrollable target, especially when it's short enough
+  that a scroll gesture reads as ambiguous between "scroll me" and "scroll
+  my parent." The fix is to remove the nested scroll box entirely -
+  `.expand-scroll` is gone, and the expanded analysis is now a plain `<p>`
+  that just grows `page-main`'s height, the same container already proven
+  to scroll reliably by the `h-dvh` fix above. One scroll region for the
+  whole page, not two independent ones fighting over the same touch
+  gesture.
 
 `CallRatingPanel.tsx`'s save step used to silently swallow a failed
 `call_ratings` insert — if that table (or a column/constraint on it)

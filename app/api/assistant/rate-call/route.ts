@@ -5,10 +5,11 @@ import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
 import { CALL_RATING_TYPES, type CallRatingType } from "@/lib/constants";
 
-// A full 9-section analysis (up to 3000 output tokens, no streaming) on a
-// long transcript can take longer than Vercel's default function timeout
-// - this raises the ceiling so a legitimately slow-but-working rating
-// doesn't get killed mid-generation.
+// A full 9-section analysis plus scorecard on a long transcript can take
+// longer than Vercel's default function timeout - this raises the ceiling,
+// and the streaming + soft-deadline logic below stays well under it so a
+// legitimately slow rating still gets a real response instead of getting
+// killed mid-generation.
 export const maxDuration = 60;
 
 type CallType = CallRatingType;
@@ -129,82 +130,97 @@ export async function POST(request: Request) {
   }
 
   try {
-    // A blank completion turned out to happen even on a full, substantial
-    // (e.g. ~30 minute) transcript, not just a short excerpt - so this
-    // can't just be "not enough content for the rubric." One automatic
-    // retry still covers whatever transient share of this is real
-    // variance, but every attempt now logs stop_reason/usage so a
-    // recurrence is actually debuggable from Vercel logs instead of a
-    // repeat of blind guessing.
+    // The actual root cause of "cuts off"/"Load failed" on a genuinely
+    // long, rich (e.g. ~30 minute) transcript: a full 9-section write-up
+    // plus 10-dimension scorecard for a substantial call can legitimately
+    // need more tokens - and therefore more wall-clock time - than this
+    // route's maxDuration (60s) allows for a single blocking, non-streamed
+    // call. When Vercel kills a function mid-generation, the client gets
+    // no HTTP response at all - just a dropped connection, which browsers
+    // report in confusingly different ways ("Load failed" on Safari, or a
+    // native "The string did not match the expected pattern" SyntaxError
+    // when the client's `res.json()` chokes on the platform's own
+    // non-JSON timeout page instead of our JSON).
     //
-    // A full, non-streamed 9-section analysis can legitimately take
-    // 20-40+ seconds on its own, and this retry loop can trigger a second
-    // one - two of those back to back risks blowing past this route's
-    // maxDuration (60s), which kills the function mid-generation with no
-    // HTTP response at all. From the client that's indistinguishable from
-    // a dropped connection ("Load failed"), not a clean error message. If
-    // the first attempt already ate most of the time budget, skip the
-    // retry and fail fast with a real error instead of risking that.
-    const startedAt = Date.now();
-    const RETRY_TIME_BUDGET_MS = 40_000;
-    let analysis = "";
-    let lastStopReason: string | null = null;
-    for (
-      let attempt = 0;
-      attempt < 2 && !analysis && (attempt === 0 || Date.now() - startedAt < RETRY_TIME_BUDGET_MS);
-      attempt++
-    ) {
-      const response = await anthropic.messages.create({
+    // Streaming fixes this properly: text arrives incrementally, so if a
+    // soft deadline (well under maxDuration, leaving buffer for the
+    // Supabase save and response serialization) is hit, the function can
+    // still abort cleanly and return whatever was generated so far as a
+    // real, valid JSON response - instead of getting killed by the
+    // platform with nothing to show for it. A partial analysis with a
+    // clear "cut short" note beats no response at all.
+    const SOFT_DEADLINE_MS = 48_000;
+    // Re-bound so TS carries the non-undefined type into the closure below
+    // - narrowing from the `if (!callType) return` guard above doesn't
+    // persist into a nested function body even though callType is const.
+    const rubric = ratingPrompts[callType];
+
+    async function attempt(): Promise<{ analysis: string; stopReason: string | null; truncated: boolean }> {
+      const stream = anthropic.messages.stream({
         model: "claude-sonnet-5",
-        // Bumped from 3000: a full write-up of a substantial call (9
-        // sections plus a 10-dimension scorecard) can run close to that
-        // ceiling on its own, leaving little room for anything but a
-        // short call before truncating.
         max_tokens: 8000,
         system: [
           {
             type: "text",
-            text: ratingPrompts[callType],
+            text: rubric,
             cache_control: { type: "ephemeral" },
           },
         ],
         messages: [{ role: "user", content: userContent }],
       });
 
-      lastStopReason = response.stop_reason;
-      const textBlock = response.content.find(
-        (block): block is Anthropic.TextBlock => block.type === "text"
-      );
-      analysis = textBlock?.text.trim() ?? "";
-
-      console.log("rate-call attempt result", {
-        attempt,
-        callType,
-        transcriptChars: transcript.length,
-        stopReason: response.stop_reason,
-        usage: response.usage,
-        contentBlockTypes: response.content.map((b) => b.type),
-        analysisChars: analysis.length,
+      let text = "";
+      stream.on("text", (delta) => {
+        text += delta;
       });
+
+      const timedOut = await Promise.race([
+        stream.done().then(() => false),
+        new Promise<boolean>((resolve) => setTimeout(() => resolve(true), SOFT_DEADLINE_MS)),
+      ]);
+
+      if (timedOut) {
+        stream.abort();
+        return { analysis: text.trim(), stopReason: "deadline", truncated: true };
+      }
+
+      const final = await stream.finalMessage();
+      return { analysis: text.trim(), stopReason: final.stop_reason, truncated: false };
     }
+
+    const { analysis: rawAnalysis, stopReason, truncated } = await attempt();
+
+    console.log("rate-call result", {
+      callType,
+      transcriptChars: transcript.length,
+      stopReason,
+      truncated,
+      analysisChars: rawAnalysis.length,
+    });
 
     // A blank rating is worse than no rating - it silently gets saved and
     // looks like a real entry with nothing in it and no way to tell why.
     // Treat this the same as any other failure instead of returning it as
-    // if it succeeded.
-    if (!analysis) {
-      console.error("rate-call: blank completion after all attempts", {
+    // if it succeeded. (Genuinely zero characters streamed before even
+    // the soft deadline is an extreme edge case, not the normal "cut
+    // short" case handled below.)
+    if (!rawAnalysis) {
+      console.error("rate-call: blank completion", {
         callType,
         transcriptChars: transcript.length,
-        lastStopReason,
+        stopReason,
       });
       return NextResponse.json(
         {
-          error: `The assistant couldn't produce a rating for this transcript, even after retrying (reason: ${lastStopReason ?? "unknown"}). Please try again — if it keeps happening, let the team know it recurred so it can be tracked down.`,
+          error: `The assistant couldn't produce a rating for this transcript (reason: ${stopReason ?? "unknown"}). Please try again — if it keeps happening, let the team know it recurred so it can be tracked down.`,
         },
         { status: 502 }
       );
     }
+
+    const analysis = truncated
+      ? `${rawAnalysis}\n\n_(This call was long enough that the full write-up didn't finish in time — the analysis above is real but may cut off before the last section. Try rating it again if you need the complete version.)_`
+      : rawAnalysis;
 
     // Primary: the exact "OVERALL_SCORE: X/10" line the prompts ask for.
     // Fallback: every rubric's section 1 states the score as "X/10" near

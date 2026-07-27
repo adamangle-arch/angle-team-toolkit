@@ -97,7 +97,25 @@ export default function RatingJobsProvider({ children }: { children: React.React
         }),
       });
 
-      const json = await res.json();
+      // A killed/timed-out function (or any platform-level failure that
+      // never reaches our route handler) comes back as a non-JSON body -
+      // an HTML error page, or nothing at all. res.json() on that throws a
+      // raw, cryptic native exception (Safari's wording for this is
+      // literally "The string did not match the expected pattern.", which
+      // reads like nonsense to a rep with zero context). Parse as text
+      // first so a real failure here always surfaces a clear message
+      // instead of an inscrutable one.
+      const bodyText = await res.text();
+      let json: { error?: string; analysis?: string; overall_score?: number | null };
+      try {
+        json = JSON.parse(bodyText);
+      } catch {
+        throw new Error(
+          res.ok
+            ? "Got an unreadable response from the server. Please try again."
+            : `The server didn't respond properly (status ${res.status}). Please try again.`
+        );
+      }
       if (!res.ok) {
         throw new Error(json.error || "Something went wrong.");
       }
