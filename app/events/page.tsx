@@ -26,6 +26,36 @@ function uniqueId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
+// Phone camera photos routinely run 3-8MB each - over LTE that's what
+// actually made a 5-photo batch feel like it uploaded "forever". Resizing
+// to a sane max dimension and re-encoding as JPEG before it ever leaves
+// the device cuts that by 80-90% in the common case. Falls back to the
+// original file untouched if decoding fails (e.g. an unsupported format)
+// or the "compressed" result would somehow be bigger.
+const MAX_UPLOAD_DIMENSION = 1920;
+const JPEG_QUALITY = 0.82;
+
+async function compressImage(file: File): Promise<File> {
+  try {
+    const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+    const scale = Math.min(1, MAX_UPLOAD_DIMENSION / Math.max(bitmap.width, bitmap.height));
+    const width = Math.round(bitmap.width * scale);
+    const height = Math.round(bitmap.height * scale);
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", JPEG_QUALITY));
+    if (!blob || blob.size >= file.size) return file;
+    const newName = file.name.replace(/\.[^.]+$/, "") + ".jpg";
+    return new File([blob], newName, { type: "image/jpeg" });
+  } catch {
+    return file;
+  }
+}
+
 export default function EventsPage() {
   const { user } = useAuth();
   const isAdmin = isPrimaryUser(user.email);
@@ -39,6 +69,8 @@ export default function EventsPage() {
   const [creatingAlbum, setCreatingAlbum] = useState(false);
 
   const [uploadingFor, setUploadingFor] = useState<string | null>(null);
+  const [uploadType, setUploadType] = useState<"photo" | "video" | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<{ albumId: string; index: number } | null>(null);
   const touchStartX = useRef<number | null>(null);
@@ -114,6 +146,36 @@ export default function EventsPage() {
     await supabase.from("team_event_albums").delete().eq("id", albumId);
   }
 
+  async function uploadOne(
+    albumId: string,
+    file: File
+  ): Promise<{ ok: true; row: EventMedia } | { ok: false; error: string }> {
+    try {
+      const isVideo = file.type.startsWith("video/");
+      const toUpload = isVideo ? file : await compressImage(file);
+      const ext = isVideo ? file.name.split(".").pop() || "mp4" : "jpg";
+      const path = `${albumId}/${uniqueId()}.${ext}`;
+      const { error: uploadErr } = await supabase.storage.from("event-media").upload(path, toUpload);
+      if (uploadErr) return { ok: false, error: `${file.name}: ${uploadErr.message}` };
+      const { data: pub } = supabase.storage.from("event-media").getPublicUrl(path);
+      const { data: row, error: insertErr } = await supabase
+        .from("event_media")
+        .insert({
+          album_id: albumId,
+          storage_path: path,
+          media_url: pub.publicUrl,
+          media_type: isVideo ? "video" : "photo",
+          uploaded_by: user.id,
+        })
+        .select("*")
+        .single();
+      if (insertErr) return { ok: false, error: `${file.name}: ${insertErr.message}` };
+      return { ok: true, row: row as EventMedia };
+    } catch (err) {
+      return { ok: false, error: `${file.name}: ${err instanceof Error ? err.message : "Upload failed."}` };
+    }
+  }
+
   async function uploadMedia(albumId: string, files: FileList | null) {
     if (!files || files.length === 0) return;
     const isVideoBatch = files[0].type.startsWith("video/");
@@ -127,42 +189,25 @@ export default function EventsPage() {
       return;
     }
     setUploadingFor(albumId);
+    setUploadType(isVideoBatch ? "video" : "photo");
     setUploadError(null);
 
-    const uploaded: EventMedia[] = [];
-    const errors: string[] = [];
+    const fileArray = Array.from(files);
+    setUploadProgress({ done: 0, total: fileArray.length });
 
-    for (const file of Array.from(files)) {
-      try {
-        const isVideo = file.type.startsWith("video/");
-        const ext = file.name.split(".").pop() || (isVideo ? "mp4" : "jpg");
-        const path = `${albumId}/${uniqueId()}.${ext}`;
-        const { error: uploadErr } = await supabase.storage.from("event-media").upload(path, file);
-        if (uploadErr) {
-          errors.push(`${file.name}: ${uploadErr.message}`);
-          continue;
-        }
-        const { data: pub } = supabase.storage.from("event-media").getPublicUrl(path);
-        const { data: row, error: insertErr } = await supabase
-          .from("event_media")
-          .insert({
-            album_id: albumId,
-            storage_path: path,
-            media_url: pub.publicUrl,
-            media_type: isVideo ? "video" : "photo",
-            uploaded_by: user.id,
-          })
-          .select("*")
-          .single();
-        if (insertErr) {
-          errors.push(`${file.name}: ${insertErr.message}`);
-        } else if (row) {
-          uploaded.push(row as EventMedia);
-        }
-      } catch (err) {
-        errors.push(`${file.name}: ${err instanceof Error ? err.message : "Upload failed."}`);
-      }
-    }
+    // Photos are compressed down to a small size first, so uploading the
+    // whole batch in parallel finishes faster than one-at-a-time - a
+    // single video just runs on its own either way.
+    const results = await Promise.all(
+      fileArray.map(async (file) => {
+        const result = await uploadOne(albumId, file);
+        setUploadProgress((prev) => (prev ? { done: prev.done + 1, total: prev.total } : prev));
+        return result;
+      })
+    );
+
+    const uploaded = results.filter((r) => r.ok).map((r) => r.row);
+    const errors = results.filter((r) => !r.ok).map((r) => r.error);
 
     if (uploaded.length > 0) {
       setMediaByAlbum((prev) => ({
@@ -172,6 +217,8 @@ export default function EventsPage() {
     }
     if (errors.length > 0) setUploadError(errors.join(" "));
     setUploadingFor(null);
+    setUploadType(null);
+    setUploadProgress(null);
   }
 
   async function deleteMedia(media: EventMedia) {
@@ -290,7 +337,11 @@ export default function EventsPage() {
                     </p>
                     <div className="flex gap-2">
                       <label className="btn-secondary flex-1 cursor-pointer text-center">
-                        {uploadingFor === album.id ? "Uploading…" : "📷 Add Photos"}
+                        {uploadingFor === album.id && uploadType === "photo"
+                          ? uploadProgress
+                            ? `Uploading ${uploadProgress.done}/${uploadProgress.total}…`
+                            : "Uploading…"
+                          : "📷 Add Photos"}
                         <input
                           type="file"
                           accept="image/*"
@@ -304,7 +355,7 @@ export default function EventsPage() {
                         />
                       </label>
                       <label className="btn-secondary flex-1 cursor-pointer text-center">
-                        {uploadingFor === album.id ? "Uploading…" : "🎥 Add Video"}
+                        {uploadingFor === album.id && uploadType === "video" ? "Uploading…" : "🎥 Add Video"}
                         <input
                           type="file"
                           accept="video/*"
@@ -317,6 +368,11 @@ export default function EventsPage() {
                         />
                       </label>
                     </div>
+                    {uploadingFor === album.id && uploadType === "photo" && (
+                      <p className="text-xs text-slate-500">
+                        Compressing and uploading — large photos are resized first to keep this quick.
+                      </p>
+                    )}
                     {uploadError && <p className="text-xs text-red-400">{uploadError}</p>}
                   </div>
                 )}
