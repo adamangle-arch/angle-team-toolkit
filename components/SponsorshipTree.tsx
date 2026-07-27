@@ -38,6 +38,9 @@ function TreeNode({ node }: { node: SponsorshipNode }) {
         {node.profile.team && (
           <span className="shrink-0 truncate text-xs text-slate-500">· {node.profile.team}</span>
         )}
+        {node.profile.household_id && (
+          <span className="shrink-0 truncate text-xs text-slate-500">· shared w/ spouse</span>
+        )}
         {hasChildren && (
           <span className="ml-auto shrink-0 text-xs text-slate-600">{node.children.length}</span>
         )}

@@ -566,6 +566,19 @@ shown alongside and a count of direct reports. No new tables or RPCs for
 any of this — the upline-chain piece is one RLS policy addition, the rest
 is a new way to look at data the app already had.
 
+A linked couple still shows up as **two separate nodes** in the tree —
+household linking (`link_spouse`, shares business data) and sponsorship
+(`upline_id`, who signed up under whom) are two independent concepts, so
+a married couple each having their own account under the same sponsor is
+correct, not a bug, the same as it's always been. What *was* missing:
+the tree didn't surface the "· shared w/ spouse" tag the Members list
+already shows next to a linked account's name — `TreeNode` now checks
+`profile.household_id` the same way, so both views agree. Only the
+partner who ran `link_spouse` (the one "deferring" to the other) gets the
+tag, since `household_id` is only ever set on that one side — seeing it
+on just one of the two names in a couple is expected, not a sign the link
+half-failed.
+
 ### Pipeline Tracker: upline fill-in
 
 Any upline (any level, not just admins) can log a downline member's
