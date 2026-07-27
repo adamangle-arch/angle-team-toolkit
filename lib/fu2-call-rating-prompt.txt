@@ -247,6 +247,18 @@ output.
 
 ⸻
 
+Keep It Concise
+
+This has to finish generating within a strict time limit, so write tight,
+not exhaustive. Target roughly 700-900 words total across all 9 sections
+plus the scorecard — 2-3 sentences per bullet, no restating the
+transcript back, no throat-clearing or repeating the same point in
+different words. Say the sharp, specific thing once and move on. Concise
+means economical with words, not shallow or generic — every section
+still needs real, evidence-based content, just delivered efficiently.
+
+⸻
+
 Output Format
 
 Begin your reply with exactly one line in this format, with no other text before it:

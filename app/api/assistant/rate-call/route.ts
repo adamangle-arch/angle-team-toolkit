@@ -164,7 +164,14 @@ export async function POST(request: Request) {
     ): Promise<{ analysis: string; stopReason: string | null; truncated: boolean; connected: boolean }> {
       const stream = anthropic.messages.stream({
         model: "claude-sonnet-5",
-        max_tokens: 8000,
+        // The rubrics now ask for a ~700-900 word write-up (see "Keep It
+        // Concise" in each lib/*-call-rating-prompt.txt) specifically so
+        // generation reliably finishes inside this route's fixed time
+        // budget - this Hobby-plan Vercel project can't raise maxDuration
+        // past 60s, so making the model say less, faster is the only real
+        // lever. 4000 is generous headroom above that target, not the
+        // thing doing the actual work of keeping this fast.
+        max_tokens: 4000,
         system: [
           {
             type: "text",

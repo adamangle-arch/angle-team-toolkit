@@ -1514,6 +1514,26 @@ genuinely new one down the line) surfaces a clear, readable error message
 instead of whatever native exception happens to bubble up from a failed
 parse.
 
+**Even with all of the above fixed, a genuinely rich, long call (deep
+into a 30+ minute transcript) could still legitimately need more
+generation time than fits — confirmed this is a Hobby-tier Vercel
+project, which hard-caps every function at 60 seconds with no override,
+so raising `maxDuration` past that isn't an option here.** The only real
+lever left is making the model say the same substantive thing in fewer
+tokens, since fewer output tokens directly means less generation
+wall-clock time. Each rubric (`lib/*-call-rating-prompt.txt`) now has a
+"Keep It Concise" instruction targeting roughly 700-900 words total
+across all 9 sections plus the scorecard — 2-3 sentences per bullet, no
+restating the transcript, no repeating the same point differently.
+Concise is meant as "economical with words," not "shallower judgment" —
+every section still has to carry real, evidence-based content. `max_tokens`
+in `route.ts` also came down from 8000 to 4000 (generous headroom above
+the ~900-word target, not the thing actually doing the work of keeping
+this fast). The streaming + soft-deadline + zero-byte-retry machinery
+from the fixes above all stay as the safety net for whatever residual
+tail case still runs long, but the goal is for that path to stop being
+the common case.
+
 The Role-Play / Rate a Call toggle-pill row on the Assistant page used to
 scroll away with the rest of the chat — once a Role-Play conversation got
 long, switching to Rate a Call meant scrolling all the way back to the top
