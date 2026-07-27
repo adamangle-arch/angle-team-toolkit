@@ -16,7 +16,9 @@ import {
   getMonthStart,
   getWeekStart,
   getToday,
+  getMonthStartOffset,
   formatDateLabel,
+  formatMonthLabel,
   formatShortDateLabel,
   formatShortMonthLabel,
 } from "@/lib/dates";
@@ -105,7 +107,7 @@ function StageCount({
   );
 }
 
-type Tab = "tally" | "roadmap";
+type Tab = "tally" | "roadmap" | "history";
 
 export default function PipelinePage() {
   const { user, ownerId } = useAuth();
@@ -125,6 +127,11 @@ export default function PipelinePage() {
   const [trendStage, setTrendStage] = useState<PipelineStageKey>("questions");
   const [trendHistory, setTrendHistory] = useState<PipelinePeriod[]>([]);
   const [showActiveSummary, setShowActiveSummary] = useState(false);
+
+  // History tab - reuses the same `candidates` already loaded for the
+  // Candidate Roadmap tab (every candidate for this owner, not just
+  // active ones), just filtered down to one month at a time.
+  const [monthsBack, setMonthsBack] = useState(0);
 
   // "Fill in for downline": an upline (any level) can log a downline
   // member's pipeline numbers on their behalf, in case they forget -
@@ -361,6 +368,16 @@ export default function PipelinePage() {
   const activeInPipeline = active.filter((c) => c.current_step >= ACTIVE_PIPELINE_MIN_STEP);
   const activeInPipelineCount = activeInPipeline.length;
 
+  const historyMonthStart = getMonthStartOffset(monthsBack);
+  const historyNextMonthStart = getMonthStartOffset(monthsBack - 1);
+  const candidatesThisMonth = useMemo(
+    () =>
+      candidates.filter(
+        (c) => c.connected_date >= historyMonthStart && c.connected_date < historyNextMonthStart
+      ),
+    [candidates, historyMonthStart, historyNextMonthStart]
+  );
+
   return (
     <FeatureGate minSession={4}>
       <PageHeader
@@ -386,6 +403,12 @@ export default function PipelinePage() {
             onClick={() => setTab("roadmap")}
           >
             Candidate Roadmap
+          </button>
+          <button
+            className={tab === "history" ? "toggle-pill-active" : "toggle-pill-inactive"}
+            onClick={() => setTab("history")}
+          >
+            History
           </button>
         </div>
       </div>
@@ -606,6 +629,105 @@ export default function PipelinePage() {
               )}
             </>
           ))}
+
+        {tab === "history" && actingFor && (
+          <div className="empty-state">
+            Switch back to &quot;Me&quot; on the Tally tab to see History — filling in only covers
+            {" "}
+            {actingFor.name}&apos;s pipeline numbers, not their individual candidates.
+          </div>
+        )}
+
+        {tab === "history" && !actingFor && (
+          <>
+            <div className="card flex items-center justify-between">
+              <button
+                className="btn-icon"
+                onClick={() => setMonthsBack((m) => Math.min(11, m + 1))}
+                disabled={monthsBack >= 11}
+                aria-label="Previous month"
+              >
+                ←
+              </button>
+              <span className="text-sm font-medium text-white">{formatMonthLabel(historyMonthStart)}</span>
+              <button
+                className="btn-icon"
+                onClick={() => setMonthsBack((m) => Math.max(0, m - 1))}
+                disabled={monthsBack <= 0}
+                aria-label="Next month"
+              >
+                →
+              </button>
+            </div>
+
+            {updateError && (
+              <div className="card">
+                <p className="text-xs text-red-400">{updateError}</p>
+              </div>
+            )}
+
+            {loadingCandidates ? (
+              <div className="empty-state">Loading candidates…</div>
+            ) : candidatesThisMonth.length === 0 ? (
+              <div className="empty-state">
+                {candidates.length === 0
+                  ? "No candidates yet. Add one from the Candidate Roadmap tab."
+                  : `No candidates connected in ${formatMonthLabel(historyMonthStart)}.`}
+              </div>
+            ) : (
+              <div className="card space-y-2">
+                <div className="no-scrollbar overflow-x-auto">
+                  <table className="w-full min-w-[520px] text-left text-xs">
+                    <thead>
+                      <tr className="text-slate-500">
+                        <th className="pb-1 pr-2 font-medium">Connected</th>
+                        <th className="pb-1 pr-2 font-medium">Name</th>
+                        <th className="pb-1 pr-2 font-medium">Status</th>
+                        <th className="pb-1 pr-2 font-medium">Notes</th>
+                        <th className="pb-1 font-medium"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {candidatesThisMonth.map((c) => {
+                        const step = CANDIDATE_STEPS[c.current_step];
+                        return (
+                          <tr key={c.id} className="border-t border-white/5">
+                            <td className="py-1.5 pr-2 whitespace-nowrap text-slate-400">
+                              {formatDateLabel(c.connected_date)}
+                            </td>
+                            <td className="py-1.5 pr-2 font-medium text-white">{c.name}</td>
+                            <td className="py-1.5 pr-2 text-slate-300">
+                              {c.launched
+                                ? "Launched 🎉"
+                                : c.filtered_out
+                                  ? `Filtered Out — ${step.label}`
+                                  : `Active — ${step.label}`}
+                            </td>
+                            <td className="max-w-[160px] truncate py-1.5 pr-2 text-slate-400">
+                              {c.notes || "—"}
+                            </td>
+                            <td className="py-1.5">
+                              {(c.launched || c.filtered_out) && (
+                                <button
+                                  className="pill"
+                                  onClick={() =>
+                                    updateCandidate(c.id, { launched: false, filtered_out: false })
+                                  }
+                                >
+                                  Restore
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </main>
     </FeatureGate>
   );

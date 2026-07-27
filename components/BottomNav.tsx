@@ -21,7 +21,6 @@ const NAV_ITEMS = [
 
 // Everything not on the main bar lives behind More instead.
 const MORE_ROUTES = [
-  "/history",
   "/goals",
   "/calendar",
   "/volume",

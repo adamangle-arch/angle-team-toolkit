@@ -9,7 +9,6 @@ export const FEATURE_MIN_SESSION: Record<string, number> = {
   "/contacts": 2,
   "/volume": 2,
   "/pipeline": 4,
-  "/history": 4,
   "/streak": 5,
   "/goals": 5,
   "/team": 5,

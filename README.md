@@ -1610,7 +1610,45 @@ stays a "go fill in the details" link rather than a shortcut. Only
 `daily_update` is a plain boolean, and wasn't worth a special case on its
 own.
 
-## Tech stack
+### More tab merges: Candidate History into Pipeline Tracker
+
+Liked the Assistant/Games pill-tab pattern enough to look for more places
+it fit. **Candidate History** was the clearest case — it's the exact same
+`candidates` table the Pipeline Tracker's Candidate Roadmap tab already
+shows, just a month-by-month historical lens instead of an active/launched
+one. It's now a third tab on Pipeline Tracker (**Tally / Candidate
+Roadmap / History**) instead of a separate destination behind More, and
+reuses the same `candidates` state already loaded for Roadmap (no
+duplicate query) and the same `updateCandidate` (Restore button included).
+`app/history/page.tsx` is gone; the "Filling In For" guard message
+(History is your own candidates, not the downline member's whose numbers
+you're filling in) got the same treatment the Roadmap tab already had.
+Removed from `app/more/page.tsx`, `components/BottomNav.tsx`'s
+`MORE_ROUTES`, and `lib/onboarding-gate.ts`; `lib/search-data.ts`'s
+"Candidate History" shortcut now points at `/pipeline`.
+
+### Leaderboard split into Pipeline / Recognition tabs
+
+Same idea, applied to reorganize one long page instead of merging two.
+Leaderboard had grown to ten-plus sections in a single scroll under one
+Daily/Weekly/Monthly toggle — but tracing through the data, only half of
+those sections actually depend on that toggle at all. Team Leaders,
+Individual Leaders, QI1 Rhythm, Core 300, and Day 1 Ditto all take
+`p_period_type`/`p_period_start` and genuinely change with it. Milestone
+Alerts, Today's Sales, Core Run Streaks, 5+ Active Candidates, and Diamond
+Run High Scores are all powered by RPCs that take no period params at all
+(`get_recent_milestones`, `get_daily_sales_feed`, `get_streak_leaderboard`,
+`get_active_candidates_leaderboard`, `get_game_leaderboard`) — they're
+"right now" snapshots that happened to sit under a toggle that did
+nothing to them. That's not just a length problem, it's a real point of
+confusion baked into the old layout.
+
+Split into two tabs along that exact fault line: **Pipeline** (the
+period-dependent half, Daily/Weekly/Monthly toggle included) and
+**Recognition** (everything else, no period toggle shown at all, since
+none of it applies). Each scroll is roughly half as long, and the
+Recognition tab no longer has a control sitting on top of it that
+silently does nothing.
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)
 - [Tailwind CSS](https://tailwindcss.com) v4 (navy `#0f172a` / amber `#f59e0b` theme)
