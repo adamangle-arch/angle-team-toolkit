@@ -337,7 +337,7 @@ export const ONBOARDING_SESSIONS: OnboardingSession[] = [
 export const CONTACT_STATUSES = [
   "Not yet asked",
   "Asked",
-  "Yes / Watching video",
+  "Yes",
   "QI1",
   "QI2",
   "IS1",
