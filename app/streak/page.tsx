@@ -10,6 +10,13 @@ import { getToday, getWeekStart, getMonthStart, formatDateLabel } from "@/lib/da
 import { PIPELINE_STAGES, CANDIDATE_STEP_SHORT_LABELS, type PipelineStageKey } from "@/lib/constants";
 import type { StreakDay, PipelinePeriod, MonthlyPv, Candidate, Profile } from "@/lib/types";
 
+// LTD Messaging's App Store listing. There's no public custom URL scheme
+// or universal link documented for this app (it's a private team app,
+// not a public SDK), so this can't jump straight into it - it opens the
+// App Store page, which shows "Open" instead of "Get" if it's already
+// installed.
+const LTD_MESSAGING_APP_URL = "https://apps.apple.com/app/id1633405330";
+
 type StageTotals = Record<PipelineStageKey, number>;
 
 function emptyStageTotals(): StageTotals {
@@ -862,6 +869,21 @@ export default function StreakPage() {
           <button className="btn-primary w-full" onClick={copySummary}>
             {copied ? "Copied!" : "Copy Daily Update"}
           </button>
+          {copied && (
+            <>
+              <a
+                href={LTD_MESSAGING_APP_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-secondary block w-full text-center"
+              >
+                Open LTD Messaging to paste it
+              </a>
+              <p className="text-xs text-slate-500">
+                Opens its App Store page — tap Open there if it&apos;s already installed.
+              </p>
+            </>
+          )}
         </div>
       </main>
     </FeatureGate>

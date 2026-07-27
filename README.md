@@ -1514,6 +1514,29 @@ high-score/trivia-result saves. Both are optimistic, low-stakes,
 easily-retried actions with no real consequence if a save is silently
 missed, unlike the business data above.
 
+The Notifications page's **Turn On** button had the exact same bug: its
+`turnOn()` handler wrapped the subscribe attempt in `try { ... } finally`
+with no `catch`, so a thrown error (or a missing `NEXT_PUBLIC_VAPID_PUBLIC_KEY`
+config, which used to just return `false` indistinguishably from "permission
+not granted") reset the button back to normal with zero indication
+anything failed - tapping it looked like it did nothing. `subscribe()` now
+throws a descriptive error for a real config problem instead of silently
+returning `false`, and `turnOn()` catches and surfaces it under the button.
+
+### LTD Messaging link on Core Run Streak
+
+Right under **Copy Daily Update**, once the summary's been copied, a
+second button appears: **Open LTD Messaging to paste it**, linking to
+`https://apps.apple.com/app/id1633405330` (`LTD_MESSAGING_APP_URL` in
+`app/streak/page.tsx`). LTD Messaging is a private team app with no
+public custom URL scheme or universal link documented anywhere, so this
+intentionally does **not** attempt to guess one and silently fail the
+same way the Turn On button above used to - it opens the app's real App
+Store listing instead, which shows an **Open** button there (one extra
+tap) if it's already installed, or **Get** if it isn't. If LTD ever
+publishes a real deep-link scheme, swapping this for a true one-tap
+handoff is a one-line change.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

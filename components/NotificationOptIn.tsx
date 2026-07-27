@@ -71,9 +71,16 @@ export default function NotificationOptIn() {
   const [optedOut, setOptedOut] = useState(false);
   const [needsTap, setNeedsTap] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [turnOnError, setTurnOnError] = useState<string | null>(null);
 
   async function subscribe(): Promise<boolean> {
-    if (!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) return false;
+    if (!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) {
+      // A real config problem, not "permission not granted" - throwing
+      // (instead of quietly returning false like the rest of this
+      // function) means a tap on Turn On actually shows an error instead
+      // of silently doing nothing.
+      throw new Error("Push notifications aren't set up on the server yet.");
+    }
     const permission = await Notification.requestPermission();
     if (permission !== "granted") return false;
     const registration = await navigator.serviceWorker.ready;
@@ -138,6 +145,7 @@ export default function NotificationOptIn() {
 
   async function turnOn() {
     setBusy(true);
+    setTurnOnError(null);
     try {
       const ok = await subscribe();
       if (ok) {
@@ -150,6 +158,14 @@ export default function NotificationOptIn() {
         setNeedsTap(false);
         setBlocked(true);
       }
+      // else: permission still isn't "granted" after a real tap - the OS
+      // dialog itself is the source of truth here (e.g. dismissed
+      // without choosing), nothing more this component can add.
+    } catch (err) {
+      // Without this, a thrown error (missing VAPID config, a rejected
+      // pushManager.subscribe() call, etc.) left the button looking like
+      // it did nothing when tapped, with no indication anything failed.
+      setTurnOnError(err instanceof Error ? err.message : "Couldn't turn on notifications. Try again.");
     } finally {
       setBusy(false);
     }
@@ -200,30 +216,36 @@ export default function NotificationOptIn() {
 
   if (needsTap && !subscribed) {
     return (
-      <div className="card flex items-center justify-between gap-2">
-        <div>
-          <p className="section-title">🔔 Notifications</p>
-          <p className="text-xs text-slate-400">
-            Get a Core Run reminder and daily/weekly/monthly stat-leader updates.
-          </p>
+      <div className="card space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <p className="section-title">🔔 Notifications</p>
+            <p className="text-xs text-slate-400">
+              Get a Core Run reminder and daily/weekly/monthly stat-leader updates.
+            </p>
+          </div>
+          <button className="btn-primary shrink-0" onClick={turnOn} disabled={busy}>
+            Turn On
+          </button>
         </div>
-        <button className="btn-primary shrink-0" onClick={turnOn} disabled={busy}>
-          Turn On
-        </button>
+        {turnOnError && <p className="text-xs text-red-400">{turnOnError}</p>}
       </div>
     );
   }
 
   if (optedOut && !subscribed) {
     return (
-      <div className="card flex items-center justify-between gap-2">
-        <div>
-          <p className="section-title">🔕 Notifications are off</p>
-          <p className="text-xs text-slate-400">You turned these off.</p>
+      <div className="card space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <p className="section-title">🔕 Notifications are off</p>
+            <p className="text-xs text-slate-400">You turned these off.</p>
+          </div>
+          <button className="btn-primary shrink-0" onClick={turnOn} disabled={busy}>
+            Turn On
+          </button>
         </div>
-        <button className="btn-primary shrink-0" onClick={turnOn} disabled={busy}>
-          Turn On
-        </button>
+        {turnOnError && <p className="text-xs text-red-400">{turnOnError}</p>}
       </div>
     );
   }
