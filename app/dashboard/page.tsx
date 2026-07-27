@@ -38,6 +38,8 @@ export default function DashboardPage() {
   const [dailyGoals, setDailyGoals] = useState<Goal[]>([]);
   const [todayEvents, setTodayEvents] = useState<CalendarEvent[]>([]);
   const [todayPipeline, setTodayPipeline] = useState<PipelinePeriod | null>(null);
+  const [myActiveCount, setMyActiveCount] = useState(0);
+  const [downlineActiveCount, setDownlineActiveCount] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -53,6 +55,7 @@ export default function DashboardPage() {
         { data: goals },
         { data: events },
         { data: pipeline },
+        { data: activeSummary },
       ] = await Promise.all([
         supabase.from("streak_days").select("*").eq("user_id", user.id).eq("day", today).maybeSingle(),
         supabase.rpc("get_current_streak", { p_user_id: user.id }),
@@ -71,6 +74,7 @@ export default function DashboardPage() {
           .eq("period_type", "daily")
           .eq("period_start", today)
           .maybeSingle(),
+        supabase.rpc("get_my_active_pipeline_summary").maybeSingle(),
       ]);
 
       if (!cancelled) {
@@ -79,6 +83,9 @@ export default function DashboardPage() {
         setDailyGoals((goals as Goal[]) ?? []);
         setTodayEvents((events as CalendarEvent[]) ?? []);
         setTodayPipeline((pipeline as PipelinePeriod) ?? null);
+        const summary = activeSummary as { my_active_count: number; downline_active_count: number } | null;
+        setMyActiveCount(summary?.my_active_count ?? 0);
+        setDownlineActiveCount(summary?.downline_active_count ?? 0);
         setLoading(false);
       }
     }
@@ -105,6 +112,11 @@ export default function DashboardPage() {
     // Tracker, but they belong on this "everything that happened today"
     // card too.
     { label: "Meetings", value: streakToday?.meetings ?? 0 },
+    // Not actually "today" data - a live snapshot of candidates currently
+    // in progress (booked past a QI1, not launched, not filtered out) -
+    // but this card is where it's most useful to see at a glance.
+    { label: "My Active Pipeline", value: myActiveCount },
+    { label: "Downline Active", value: downlineActiveCount },
   ].filter((s) => s.value > 0);
 
   return (

@@ -1126,6 +1126,42 @@ $$;
 
 grant execute on function public.get_active_candidates_leaderboard() to authenticated;
 
+-- Powers the Today dashboard's "My Active Pipeline" / "Downline Active"
+-- pills - same "active" definition as the leaderboard above (not
+-- launched, not filtered out, a QI1 has actually been booked). My own
+-- count resolves through the household owner (candidates are
+-- household-shared); the downline count sums every downline member's own
+-- candidates via is_upline_of, same "your personal sponsorship chain"
+-- meaning as the Team tab's My Tree (not "whole company", even for an
+-- admin).
+create or replace function public.get_my_active_pipeline_summary()
+returns table (
+  my_active_count int,
+  downline_active_count int
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    (
+      select count(*)::int
+      from candidates c
+      where c.user_id = coalesce((select household_id from profiles where id = auth.uid()), auth.uid())
+        and c.launched = false and c.filtered_out = false and c.current_step >= 1
+    ) as my_active_count,
+    (
+      select count(*)::int
+      from candidates c
+      join profiles pr on pr.id = c.user_id
+      where public.is_upline_of(auth.uid(), pr.id)
+        and c.launched = false and c.filtered_out = false and c.current_step >= 1
+    ) as downline_active_count;
+$$;
+
+grant execute on function public.get_my_active_pipeline_summary() to authenticated;
+
 -- Everyone at or above a QI1 threshold for the period (2+/week, 8+/month
 -- are the rhythms we recognize), ranked highest to lowest.
 create or replace function public.get_qi1_rhythm_leaderboard(

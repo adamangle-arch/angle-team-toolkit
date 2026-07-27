@@ -41,6 +41,19 @@ checking five different places:
   still belong on the "everything that happened today" card. Originally
   called "Today's Pipeline" before meetings were folded in.
 
+  Two more pills round this card out, and neither is actually "today"
+  data — they're a live snapshot rather than something logged today, but
+  this is the most useful place to glance at them: **My Active Pipeline**
+  (your own candidates currently in progress — a QI1 booked, not launched,
+  not filtered out) and **Downline Active** (the same count summed across
+  your entire downline). Both come from a new
+  `get_my_active_pipeline_summary()` function, using the exact same
+  "active" definition as the Leaderboard's Active Candidates ranking
+  (`launched = false and filtered_out = false and current_step >= 1`).
+  "Downline Active" means your personal sponsorship chain (`is_upline_of`)
+  — the same "your tree, not the whole company" meaning as the Team tab's
+  My Tree view, not literally everyone even for an admin.
+
 Every card is read-only and links to the real page to make changes — the
 dashboard doesn't duplicate any editing logic, it just surfaces what's
 already there.
