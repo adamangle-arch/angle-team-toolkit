@@ -15,10 +15,36 @@ function supportsPush(): boolean {
   );
 }
 
+// Strips a matching pair of wrapping quotes - pasting straight from a
+// .env.local.example line (`KEY="value"`) into Vercel's raw value field,
+// quotes included, is another common way this ends up not being valid
+// base64, same as a stray trailing space/newline.
+function stripWrappingQuotes(value: string): string {
+  const first = value[0];
+  const last = value[value.length - 1];
+  if (value.length >= 2 && first === last && (first === '"' || first === "'")) {
+    return value.slice(1, -1);
+  }
+  return value;
+}
+
 function urlBase64ToUint8Array(base64String: string) {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
-  const rawData = window.atob(base64);
+  // A stray trailing space/newline is an extremely common copy-paste
+  // artifact when setting this as a Vercel environment variable, and
+  // atob() rejects it outright with an opaque "invalid characters"
+  // error - trimming here fixes that silently instead of requiring a
+  // pixel-perfect paste.
+  const trimmed = stripWrappingQuotes(base64String.trim()).trim();
+  const padding = "=".repeat((4 - (trimmed.length % 4)) % 4);
+  const base64 = (trimmed + padding).replace(/-/g, "+").replace(/_/g, "/");
+  let rawData: string;
+  try {
+    rawData = window.atob(base64);
+  } catch {
+    throw new Error(
+      "The push notification key (NEXT_PUBLIC_VAPID_PUBLIC_KEY) is misconfigured on the server - it isn't valid base64. Double-check it was pasted in full with no extra characters."
+    );
+  }
   const outputArray = new Uint8Array(rawData.length);
   for (let i = 0; i < rawData.length; ++i) {
     outputArray[i] = rawData.charCodeAt(i);
@@ -74,7 +100,7 @@ export default function NotificationOptIn() {
   const [turnOnError, setTurnOnError] = useState<string | null>(null);
 
   async function subscribe(): Promise<boolean> {
-    if (!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) {
+    if (!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY?.trim()) {
       // A real config problem, not "permission not granted" - throwing
       // (instead of quietly returning false like the rest of this
       // function) means a tap on Turn On actually shows an error instead

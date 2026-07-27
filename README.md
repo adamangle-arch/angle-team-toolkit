@@ -1523,6 +1523,18 @@ anything failed - tapping it looked like it did nothing. `subscribe()` now
 throws a descriptive error for a real config problem instead of silently
 returning `false`, and `turnOn()` catches and surfaces it under the button.
 
+That fix immediately surfaced a real, previously-invisible config bug:
+`The string contains invalid characters` — the raw browser error `atob()`
+throws for a `NEXT_PUBLIC_VAPID_PUBLIC_KEY` that isn't valid base64.
+The near-certain cause is a stray trailing space/newline or wrapping
+quotes left over from pasting the key into Vercel's environment variable
+UI — both `components/NotificationOptIn.tsx` (client-side subscribe) and
+`lib/webpush.ts` (server-side send, same risk for `VAPID_PRIVATE_KEY`)
+now trim whitespace and strip a matching pair of wrapping quotes off
+these three env vars before using them, instead of failing on either. If
+the error still appears after this deploys, the key's actual *value* in
+Vercel is wrong (not just whitespace) and needs re-pasting in full.
+
 ### LTD Messaging link on Core Run Streak
 
 Right under **Copy Daily Update**, once the summary's been copied, a
