@@ -127,6 +127,18 @@ export type ActiveCandidatesEntry = {
   user_id: string;
 } & WithPartner;
 
+export type SentNotification = {
+  id: string;
+  created_at: string;
+  kind: "daily_stat_leaders" | "weekly_stat_leaders" | "monthly_stat_leaders" | "core_run_reminder";
+  title: string;
+  body: string;
+  period_type: "daily" | "weekly" | "monthly" | null;
+  period_start: string | null;
+  user_id: string | null;
+  recipient_count: number;
+};
+
 export type Qi1RhythmEntry = {
   first_name: string | null;
   last_name: string | null;
@@ -188,7 +200,7 @@ export type CustomerSale = {
 export type PipelinePeriod = {
   id: string;
   user_id: string;
-  period_type: "weekly" | "monthly";
+  period_type: "daily" | "weekly" | "monthly";
   period_start: string;
   created_at: string;
   updated_at: string;

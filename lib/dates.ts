@@ -61,6 +61,13 @@ export function getToday(): string {
   return toDateOnly(new Date());
 }
 
+// daysBack = 1 is yesterday, 0 is today.
+export function getDateOffset(daysBack: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - daysBack);
+  return toDateOnly(d);
+}
+
 export function daysBetween(startDateStr: string, endDateStr: string): number {
   const start = new Date(`${startDateStr}T00:00:00`);
   const end = new Date(`${endDateStr}T00:00:00`);

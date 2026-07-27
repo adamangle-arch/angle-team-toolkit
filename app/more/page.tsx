@@ -6,6 +6,7 @@ import { useAuth } from "@/components/AuthGate";
 import { minSessionFor } from "@/lib/onboarding-gate";
 
 const MORE_ITEMS = [
+  { href: "/notifications", label: "Notifications", icon: "🔔", description: "Every push notification we've sent you." },
   { href: "/goals", label: "Goals", icon: "🎯", description: "Your daily/weekly/monthly targets." },
   { href: "/calendar", label: "Calendar", icon: "📅", description: "Meetings, reminders, and team events." },
   { href: "/history", label: "Candidate History", icon: "🗂️", description: "Every candidate you've ever added, active or not." },

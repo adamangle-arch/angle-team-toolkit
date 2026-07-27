@@ -93,10 +93,10 @@ export default function NotificationOptIn() {
   if (isIOS && !isStandalone) {
     return (
       <div className="card space-y-1.5">
-        <p className="section-title">🔔 Daily Reminders</p>
+        <p className="section-title">🔔 Notifications</p>
         <p className="text-sm text-slate-300">
-          Add this app to your Home Screen to enable reminders: tap the Share button, then
-          &quot;Add to Home Screen&quot;. Reminders only work once it&apos;s opened from there.
+          Add this app to your Home Screen to enable notifications: tap the Share button, then
+          &quot;Add to Home Screen&quot;. Notifications only work once it&apos;s opened from there.
         </p>
       </div>
     );
@@ -107,11 +107,11 @@ export default function NotificationOptIn() {
   return (
     <div className="card flex items-center justify-between gap-2">
       <div>
-        <p className="section-title">🔔 Daily Reminders</p>
+        <p className="section-title">🔔 Notifications</p>
         <p className="text-xs text-slate-400">
           {subscribed
-            ? "You'll get a nudge if today's Core Run isn't logged by evening."
-            : "Get a reminder if you haven't logged today's Core Run yet."}
+            ? "You'll get a Core Run reminder plus daily, weekly, and monthly stat-leader updates."
+            : "Get a Core Run reminder and daily/weekly/monthly stat-leader updates."}
         </p>
       </div>
       {subscribed ? (

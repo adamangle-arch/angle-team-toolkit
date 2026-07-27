@@ -1072,6 +1072,49 @@ yet. A few things worth knowing:
   key in particular bypasses Row Level Security entirely and must never
   be exposed to the browser (no `NEXT_PUBLIC_` prefix, server-only).
 
+The opt-in toggle (`components/NotificationOptIn.tsx`, still surfaced on
+the Core Run Streak page) is a single subscription that now covers both
+this reminder and the stat-leader digest below — there's only one
+`push_subscriptions` row per device, not one per notification type.
+
+### Stat Leader Notifications
+
+On top of the Core Run reminder, a second cron route
+(`/api/push/send-stat-leaders`, one Vercel Cron entry at `0 13 * * *`
+UTC) sends **exactly one** consolidated push per period — never one per
+stat category:
+
+- **Daily** — every run, recaps yesterday's Individual Leaders
+  (`get_individual_leaders('daily', yesterday)`) into a single line per
+  category that had a leader, e.g. `Yeses: Jane Doe (5) · QI1: Bob Smith
+  (3)`.
+- **Weekly** — only fires when the run date is a Monday (the start of a
+  new week), recapping the week that just ended
+  (`get_individual_leaders('weekly', lastWeekStart)`).
+- **Monthly** — only fires on the 1st of the month, recapping the month
+  that just ended: Individual Leaders plus the top Core 300 PV
+  (`get_core300_leaderboard`) and top Day 1 Ditto (`get_ditto_leaderboard`)
+  performers, each appended as its own line.
+
+Ties within a category join with `/` (`Launches: Jane Doe / Bob Smith
+(2)`); a household couple's shared stat joins with `&` (`Jane Doe & John
+Doe`), matching the Leaderboard's existing convention. If a period has no
+qualifying leaders in any category, that period's notification is skipped
+entirely rather than sending an empty message — this is also why the
+route can safely run every day without ever producing three separate
+pings.
+
+### Notifications page
+
+`app/notifications/page.tsx` (linked from **More**) lists every push
+notification actually sent, newest first, reading the new
+`sent_notifications` table: broadcast rows (the stat-leader digests,
+`user_id` null) are visible to everyone, and personal rows (the Core Run
+reminder) only to their recipient. Both cron routes insert a row here
+right after a successful send — `recipient_count` records how many
+devices a broadcast actually reached. There's no insert policy for
+regular users; only the service-role cron routes write to it.
+
 ### Games
 
 A single **Games** tab holds three mini-games behind a pill-tab

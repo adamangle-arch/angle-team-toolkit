@@ -1536,6 +1536,39 @@ create policy "push_subscriptions_delete_own" on push_subscriptions
 for delete using (user_id = auth.uid());
 
 -- ============================================================
+-- 9b. SENT NOTIFICATIONS
+-- A log of every push notification actually sent, so the app can show a
+-- history page. Broadcast notifications (the daily/weekly/monthly stat
+-- leaders digest) have user_id null and are visible to everyone; personal
+-- ones (the Core Run reminder) have user_id set and are only visible to
+-- that recipient. Only ever written by the cron routes via the service
+-- role key - there is deliberately no insert policy for authenticated
+-- users.
+-- ============================================================
+create table if not exists sent_notifications (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  kind text not null check (
+    kind in ('daily_stat_leaders', 'weekly_stat_leaders', 'monthly_stat_leaders', 'core_run_reminder')
+  ),
+  title text not null,
+  body text not null,
+  period_type text,
+  period_start date,
+  user_id uuid references profiles(id) on delete cascade,
+  recipient_count int not null default 0
+);
+
+create index if not exists sent_notifications_user_id_idx on sent_notifications(user_id);
+create index if not exists sent_notifications_created_at_idx on sent_notifications(created_at desc);
+
+alter table sent_notifications enable row level security;
+
+drop policy if exists "sent_notifications_select_own_or_broadcast" on sent_notifications;
+create policy "sent_notifications_select_own_or_broadcast" on sent_notifications
+for select using (user_id is null or user_id = auth.uid());
+
+-- ============================================================
 -- 10. DIAMOND RUN (mini-game)
 -- One row per user tracking their best score. The game itself is
 -- entirely client-side (canvas), so this is purely for the fun

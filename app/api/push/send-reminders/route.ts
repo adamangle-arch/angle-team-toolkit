@@ -61,19 +61,25 @@ export async function GET(request: Request) {
       continue;
     }
 
+    const title = "🔥 Core Run reminder";
+    const body = "You haven't logged today's Core Run yet — Read, Listen, Daily Update, Story Share.";
+
     try {
       await webpush.sendNotification(
         {
           endpoint: sub.endpoint,
           keys: { p256dh: sub.p256dh, auth: sub.auth },
         },
-        JSON.stringify({
-          title: "🔥 Core Run reminder",
-          body: "You haven't logged today's Core Run yet — Read, Listen, Daily Update, Story Share.",
-          url: "/streak",
-        })
+        JSON.stringify({ title, body, url: "/streak" })
       );
       sent++;
+      await supabase.from("sent_notifications").insert({
+        kind: "core_run_reminder",
+        title,
+        body,
+        user_id: sub.user_id,
+        recipient_count: 1,
+      });
     } catch (error: unknown) {
       const statusCode = (error as { statusCode?: number })?.statusCode;
       if (statusCode === 404 || statusCode === 410) {
