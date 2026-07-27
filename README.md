@@ -273,6 +273,13 @@ likely to actually buy products ("Who values organic or natural
 ingredients?", "Who's willing to spend more for quality over
 quantity?") — both full lists are in `lib/contact-questions-data.ts`.
 
+**Add Contact** used to silently swallow a failed insert (same class of
+bug found and fixed in Rate a Call and elsewhere) — if the insert failed
+for any reason, the name field still cleared as if it had worked, but no
+contact ever appeared in the list, with no error shown anywhere. Now the
+insert's `error` is checked and surfaced as a message under the form, and
+the typed name isn't cleared on failure so nothing is lost.
+
 Personal Circle PV lives on its own **Volume** tab: each person self-reports
 their own current-month PV there (stored in the additive `monthly_pv`
 table, same owner-or-primary-user RLS pattern as everything else), with
