@@ -91,15 +91,21 @@ export default function DashboardPage() {
 
   const goalTarget = (metric: string) => dailyGoals.find((g) => g.metric === metric)?.target ?? 0;
   const hasAnyDailyGoal = dailyGoals.some((g) => g.target > 0);
-  const pipelineActivity = todayPipeline
-    ? [
-        { label: "Questions", value: todayPipeline.questions },
-        { label: "Yeses", value: todayPipeline.yeses },
-        { label: "QI1", value: todayPipeline.qi1 },
-        { label: "QI2", value: todayPipeline.qi2 },
-        { label: "Launches", value: todayPipeline.launches },
-      ].filter((s) => s.value > 0)
-    : [];
+  const todayStats = [
+    ...(todayPipeline
+      ? [
+          { label: "Questions", value: todayPipeline.questions },
+          { label: "Yeses", value: todayPipeline.yeses },
+          { label: "QI1", value: todayPipeline.qi1 },
+          { label: "QI2", value: todayPipeline.qi2 },
+          { label: "Launches", value: todayPipeline.launches },
+        ]
+      : []),
+    // Meetings are logged on the Core Run Streak page, not the Pipeline
+    // Tracker, but they belong on this "everything that happened today"
+    // card too.
+    { label: "Meetings", value: streakToday?.meetings ?? 0 },
+  ].filter((s) => s.value > 0);
 
   return (
     <>
@@ -165,12 +171,12 @@ export default function DashboardPage() {
 
             {showPipeline && (
               <Link href="/pipeline" className="card block space-y-2">
-                <p className="section-title">📊 Today&apos;s Pipeline</p>
-                {pipelineActivity.length === 0 ? (
-                  <p className="text-sm text-slate-400">Nothing logged in the pipeline yet today.</p>
+                <p className="section-title">📊 Today&apos;s Stats</p>
+                {todayStats.length === 0 ? (
+                  <p className="text-sm text-slate-400">Nothing logged yet today.</p>
                 ) : (
                   <div className="flex flex-wrap gap-1.5">
-                    {pipelineActivity.map((s) => (
+                    {todayStats.map((s) => (
                       <span key={s.label} className="pill pill-amber">
                         {s.label}: {s.value}
                       </span>

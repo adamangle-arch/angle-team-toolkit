@@ -33,8 +33,13 @@ checking five different places:
   links to Goals.
 - **📅 Today's Calendar** — anything on your personal calendar with an
   `event_at` today, from `calendar_events`.
-- **📊 Today's Pipeline** — non-zero stage counts from today's
-  `pipeline_periods` row (`period_type = 'daily'`).
+- **📊 Today's Stats** — non-zero stage counts from today's
+  `pipeline_periods` row (`period_type = 'daily'`), plus the meeting
+  count from today's Core Run Streak row (`streak_days.meetings`) — the
+  one thing on this card that isn't actually pipeline data, since
+  meetings are logged on the Run Streak page, not Pipeline Tracker, but
+  still belong on the "everything that happened today" card. Originally
+  called "Today's Pipeline" before meetings were folded in.
 
 Every card is read-only and links to the real page to make changes — the
 dashboard doesn't duplicate any editing logic, it just surfaces what's
