@@ -1467,6 +1467,24 @@ hoping for a different, non-blank result) is gone along with it — it
 never addressed a *slow* generation, only a spuriously blank one, and
 added its own risk of compounding two long requests back to back.
 
+**That streaming rewrite shipped with its own bug, and it reproduced the
+identical failure** — worth recording since it's a genuinely easy trap.
+`stream.done()` rejects if the stream errors or gets aborted, and the
+deadline branch calls `stream.abort()` on whichever side of
+`Promise.race()` *didn't* win. `Promise.race` doesn't attach a rejection
+handler to the side it discards — so once that abandoned `stream.done()`
+promise later rejected (as a direct result of the `abort()` call one line
+below it), it became a genuinely unhandled promise rejection in the
+middle of an in-flight request. An unhandled rejection can tear down a
+serverless function before its response is sent, which is exactly the
+same "killed mid-request, client gets garbage instead of JSON" failure
+the whole rewrite was meant to fix — so the fix looked like it did
+nothing. The actual fix: attach `.then(() => false, () => false)` to
+`stream.done()` immediately at creation, before racing it against
+anything, so both outcomes (finishes normally, or rejects because of the
+abort this same code path triggers) are handled at the source regardless
+of which side of the race is the one that mattered.
+
 As defense in depth on the client side, `RatingJobsProvider.tsx` also no
 longer calls `res.json()` directly — it reads the response as text first
 and parses it explicitly, so *any* non-JSON response (this cause or a

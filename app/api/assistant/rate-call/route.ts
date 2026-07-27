@@ -174,8 +174,24 @@ export async function POST(request: Request) {
         text += delta;
       });
 
+      // stream.done() rejects if the stream errors or gets aborted - which
+      // it always will on the losing side of this race once the deadline
+      // branch below calls stream.abort(). Promise.race doesn't attach a
+      // rejection handler to the side it didn't pick, so that abandoned
+      // rejection was surfacing as a genuinely unhandled promise
+      // rejection in the middle of an in-flight Vercel function - which
+      // can tear down the response before it's ever sent, reproducing the
+      // exact "killed mid-request" failure this streaming rewrite was
+      // supposed to fix. Attaching .catch() here, at the source, makes
+      // that rejection always handled regardless of which side of the
+      // race actually settles it.
+      const donePromise = stream.done().then(
+        () => false,
+        () => false
+      );
+
       const timedOut = await Promise.race([
-        stream.done().then(() => false),
+        donePromise,
         new Promise<boolean>((resolve) => setTimeout(() => resolve(true), SOFT_DEADLINE_MS)),
       ]);
 
