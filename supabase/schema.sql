@@ -1162,6 +1162,60 @@ $$;
 
 grant execute on function public.get_my_active_pipeline_summary() to authenticated;
 
+-- Detail lists behind the two pills above - tapping one shows exactly
+-- the candidates that make up that count. Kept as their own functions
+-- (rather than reusing plain RLS-scoped table selects) so the list
+-- always matches the summary count exactly, including for an admin,
+-- where a plain "select * from candidates" would return literally
+-- everyone (is_app_admin() bypass) instead of just the admin's own
+-- sponsorship chain.
+create or replace function public.get_my_active_candidates()
+returns table (
+  id uuid,
+  name text,
+  current_step int,
+  connected_date date
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select c.id, c.name, c.current_step, c.connected_date
+  from candidates c
+  where c.user_id = coalesce((select household_id from profiles where id = auth.uid()), auth.uid())
+    and c.launched = false and c.filtered_out = false and c.current_step >= 1
+  order by c.current_step desc, c.connected_date asc;
+$$;
+
+grant execute on function public.get_my_active_candidates() to authenticated;
+
+create or replace function public.get_downline_active_candidates()
+returns table (
+  id uuid,
+  name text,
+  current_step int,
+  connected_date date,
+  rep_first_name text,
+  rep_last_name text,
+  rep_team text
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select c.id, c.name, c.current_step, c.connected_date,
+         pr.first_name, pr.last_name, pr.team
+  from candidates c
+  join profiles pr on pr.id = c.user_id
+  where public.is_upline_of(auth.uid(), pr.id)
+    and c.launched = false and c.filtered_out = false and c.current_step >= 1
+  order by pr.first_name, pr.last_name, c.current_step desc;
+$$;
+
+grant execute on function public.get_downline_active_candidates() to authenticated;
+
 -- Everyone at or above a QI1 threshold for the period (2+/week, 8+/month
 -- are the rhythms we recognize), ranked highest to lowest.
 create or replace function public.get_qi1_rhythm_leaderboard(

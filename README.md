@@ -54,6 +54,24 @@ checking five different places:
   — the same "your tree, not the whole company" meaning as the Team tab's
   My Tree view, not literally everyone even for an admin.
 
+  Both pills are tappable — a modal lists the actual candidates behind the
+  number, each with their current step (e.g. "QI2", "FU1") via the same
+  `CANDIDATE_STEPS` labels used elsewhere, so you can see exactly who's
+  where without leaving Today. Backed by two more functions,
+  `get_my_active_candidates()` and `get_downline_active_candidates()`
+  (the latter also returns each candidate's rep name/team, grouped in the
+  modal by rep) — these exist as their own security-definer functions
+  rather than a plain RLS-scoped `select * from candidates`, so the list
+  always matches the summary count exactly, including for an admin, where
+  a plain select would return literally everyone (`is_app_admin()`
+  bypass) instead of just the admin's own sponsorship chain. The
+  Today's Stats card itself changed from one big `<Link>` to a `<div>`
+  wrapping a smaller `<Link>` (just the today-scoped numbers) alongside
+  the two independently-tappable pill buttons, since nesting a button
+  inside a `<Link>`'s rendered `<a>` tag is invalid HTML that browsers
+  silently "fix" by breaking out of the anchor, which would have made the
+  pills unreliable to tap.
+
 Every card is read-only and links to the real page to make changes — the
 dashboard doesn't duplicate any editing logic, it just surfaces what's
 already there.
