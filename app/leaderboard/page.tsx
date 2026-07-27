@@ -154,18 +154,8 @@ function dailySaleEntryKey(saleId: string) {
   return `daily_sale:${saleId}`;
 }
 
-type ContentTab = "pipeline" | "recognition";
-
 export default function LeaderboardPage() {
   const { user } = useAuth();
-  // Pipeline (Team/Individual Leaders, QI1 Rhythm, Core 300, Ditto) is
-  // the only half of this page that actually depends on the
-  // Daily/Weekly/Monthly toggle - Recognition (streaks, sales, active
-  // candidates, milestones, game scores) is all "right now" snapshots
-  // with no period concept, so it used to just sit under a toggle that
-  // did nothing to it. Splitting into tabs both shortens each scroll and
-  // removes that dead control from the half where it never applied.
-  const [contentTab, setContentTab] = useState<ContentTab>("pipeline");
   const [periodType, setPeriodType] = useState<PeriodType>("weekly");
   const [monthsBack, setMonthsBack] = useState(0);
 
@@ -426,34 +416,14 @@ export default function LeaderboardPage() {
       <PageHeader
         title="Leaderboard"
         subtitle={
-          contentTab === "recognition"
-            ? "Streaks, sales, milestones, and more — right now"
-            : periodType === "daily"
-              ? `Today, ${formatDateLabel(periodStart)}`
-              : periodType === "weekly"
-                ? `Week of ${formatDateLabel(periodStart)}`
-                : formatMonthLabel(periodStart)
+          periodType === "daily"
+            ? `Today, ${formatDateLabel(periodStart)}`
+            : periodType === "weekly"
+              ? `Week of ${formatDateLabel(periodStart)}`
+              : formatMonthLabel(periodStart)
         }
       />
-      <div className="tab-bar px-4 pb-3 pt-3">
-        <div className="card flex p-1">
-          <button
-            className={contentTab === "pipeline" ? "toggle-pill-active" : "toggle-pill-inactive"}
-            onClick={() => setContentTab("pipeline")}
-          >
-            Pipeline
-          </button>
-          <button
-            className={contentTab === "recognition" ? "toggle-pill-active" : "toggle-pill-inactive"}
-            onClick={() => setContentTab("recognition")}
-          >
-            Recognition
-          </button>
-        </div>
-      </div>
-      <main className="page-main !pt-0">
-        {contentTab === "pipeline" && (
-        <>
+      <main className="page-main">
         <div className="card flex p-1">
           <button
             className={periodType === "daily" ? "toggle-pill-active" : "toggle-pill-inactive"}
@@ -514,6 +484,81 @@ export default function LeaderboardPage() {
                 <span className="pill">{formatDateLabel(m.created_at.slice(0, 10))}</span>
               </div>
             ))}
+          </div>
+        )}
+
+        {milestones.length > 0 && (
+          <div className="card space-y-1.5">
+            <p className="section-title">🏅 Milestone Alerts</p>
+            {milestones.map((m) => {
+              const label =
+                STREAK_MILESTONES.find((s) => s.days === m.milestone_days)?.label ??
+                `${m.milestone_days} Days`;
+              const key = milestoneEntryKey(m.user_id, m.milestone_days);
+              return (
+                <div
+                  key={key}
+                  className="flex items-center justify-between gap-2 text-sm"
+                >
+                  <span className="text-slate-200">
+                    <PersonLink entry={m} /> just hit{" "}
+                    <span className="text-amber-light">{label}</span>{" "}
+                    <span className="text-xs text-slate-500">({m.team})</span>
+                  </span>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <span className="pill pill-amber">🔥 {m.current_streak}d</span>
+                    <LikeButton
+                      entryKey={key}
+                      likes={likesMap.get(key) ?? NO_LIKES}
+                      onToggle={toggleLike}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {dailySales.length > 0 && (
+          <div className="card space-y-1.5">
+            <p className="section-title">🛍️ Today&apos;s Sales</p>
+            {dailySales.map((entry) => {
+              const key = dailySaleEntryKey(entry.sale_id);
+              const time = new Date(entry.created_at).toLocaleTimeString(undefined, {
+                hour: "numeric",
+                minute: "2-digit",
+              });
+              return (
+                <div
+                  key={entry.sale_id}
+                  className="space-y-1 border-b border-white/5 pb-2 text-sm last:border-0 last:pb-0"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-slate-200">
+                      <PersonLink entry={entry} />{" "}
+                      <span className="text-xs text-slate-500">
+                        ({entry.team}) — {time}
+                      </span>
+                    </span>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <span className="pill pill-amber">{entry.amount} PV</span>
+                      <LikeButton
+                        entryKey={key}
+                        likes={likesMap.get(key) ?? NO_LIKES}
+                        onToggle={toggleLike}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {entry.categories.map((cat) => (
+                      <span key={cat} className="pill">
+                        {cat}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
 
@@ -621,148 +666,6 @@ export default function LeaderboardPage() {
               )}
             </div>
 
-            {periodType === "monthly" && (
-              <>
-                <div className="card space-y-1.5">
-                  <p className="section-title">Core 300</p>
-                  {core300.length === 0 ? (
-                    <p className="text-sm text-slate-400">No one&apos;s hit Core 300 yet this month.</p>
-                  ) : (
-                    core300.map((entry, i) => {
-                      const key = core300EntryKey(periodStart, entry.user_id);
-                      return (
-                        <div
-                          key={`${entry.user_id}-${i}`}
-                          className="flex items-center justify-between gap-2 text-sm"
-                        >
-                          <span className="text-slate-200">
-                            {i + 1}. <CoupleLink entry={entry} />{" "}
-                            <span className="text-xs text-slate-500">({entry.team})</span>
-                          </span>
-                          <div className="flex shrink-0 items-center gap-2">
-                            <span className="pill pill-amber">{entry.pv} PV</span>
-                            <LikeButton
-                              entryKey={key}
-                              likes={likesMap.get(key) ?? NO_LIKES}
-                              onToggle={toggleLike}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-
-                <div className="card space-y-1.5">
-                  <p className="section-title">📦 Day 1 Ditto 100+</p>
-                  {ditto.length === 0 ? (
-                    <p className="text-sm text-slate-400">No one&apos;s over 100 PV on a day 1 Ditto yet.</p>
-                  ) : (
-                    ditto.map((entry, i) => {
-                      const key = dittoEntryKey(periodStart, entry.user_id);
-                      return (
-                        <div
-                          key={`${entry.user_id}-${i}`}
-                          className="flex items-center justify-between gap-2 text-sm"
-                        >
-                          <span className="text-slate-200">
-                            {i + 1}. <CoupleLink entry={entry} />{" "}
-                            <span className="text-xs text-slate-500">({entry.team})</span>
-                          </span>
-                          <div className="flex shrink-0 items-center gap-2">
-                            <span className="pill pill-amber">{entry.day1_ditto_pv} PV</span>
-                            <LikeButton
-                              entryKey={key}
-                              likes={likesMap.get(key) ?? NO_LIKES}
-                              onToggle={toggleLike}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </>
-            )}
-          </>
-        )}
-        </>
-        )}
-
-        {contentTab === "recognition" && (
-          <>
-            {milestones.length > 0 && (
-              <div className="card space-y-1.5">
-                <p className="section-title">🏅 Milestone Alerts</p>
-                {milestones.map((m) => {
-                  const label =
-                    STREAK_MILESTONES.find((s) => s.days === m.milestone_days)?.label ??
-                    `${m.milestone_days} Days`;
-                  const key = milestoneEntryKey(m.user_id, m.milestone_days);
-                  return (
-                    <div key={key} className="flex items-center justify-between gap-2 text-sm">
-                      <span className="text-slate-200">
-                        <PersonLink entry={m} /> just hit{" "}
-                        <span className="text-amber-light">{label}</span>{" "}
-                        <span className="text-xs text-slate-500">({m.team})</span>
-                      </span>
-                      <div className="flex shrink-0 items-center gap-2">
-                        <span className="pill pill-amber">🔥 {m.current_streak}d</span>
-                        <LikeButton
-                          entryKey={key}
-                          likes={likesMap.get(key) ?? NO_LIKES}
-                          onToggle={toggleLike}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {dailySales.length > 0 && (
-              <div className="card space-y-1.5">
-                <p className="section-title">🛍️ Today&apos;s Sales</p>
-                {dailySales.map((entry) => {
-                  const key = dailySaleEntryKey(entry.sale_id);
-                  const time = new Date(entry.created_at).toLocaleTimeString(undefined, {
-                    hour: "numeric",
-                    minute: "2-digit",
-                  });
-                  return (
-                    <div
-                      key={entry.sale_id}
-                      className="space-y-1 border-b border-white/5 pb-2 text-sm last:border-0 last:pb-0"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-slate-200">
-                          <PersonLink entry={entry} />{" "}
-                          <span className="text-xs text-slate-500">
-                            ({entry.team}) — {time}
-                          </span>
-                        </span>
-                        <div className="flex shrink-0 items-center gap-2">
-                          <span className="pill pill-amber">{entry.amount} PV</span>
-                          <LikeButton
-                            entryKey={key}
-                            likes={likesMap.get(key) ?? NO_LIKES}
-                            onToggle={toggleLike}
-                          />
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {entry.categories.map((cat) => (
-                          <span key={cat} className="pill">
-                            {cat}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
             <div className="card space-y-1.5">
               <p className="section-title">🔥 Core Run Streaks</p>
               {streakLeaders.length === 0 ? (
@@ -850,6 +753,70 @@ export default function LeaderboardPage() {
                 })
               )}
             </div>
+
+            {periodType === "monthly" && (
+              <>
+                <div className="card space-y-1.5">
+                  <p className="section-title">Core 300</p>
+                  {core300.length === 0 ? (
+                    <p className="text-sm text-slate-400">No one&apos;s hit Core 300 yet this month.</p>
+                  ) : (
+                    core300.map((entry, i) => {
+                      const key = core300EntryKey(periodStart, entry.user_id);
+                      return (
+                        <div
+                          key={`${entry.user_id}-${i}`}
+                          className="flex items-center justify-between gap-2 text-sm"
+                        >
+                          <span className="text-slate-200">
+                            {i + 1}. <CoupleLink entry={entry} />{" "}
+                            <span className="text-xs text-slate-500">({entry.team})</span>
+                          </span>
+                          <div className="flex shrink-0 items-center gap-2">
+                            <span className="pill pill-amber">{entry.pv} PV</span>
+                            <LikeButton
+                              entryKey={key}
+                              likes={likesMap.get(key) ?? NO_LIKES}
+                              onToggle={toggleLike}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                <div className="card space-y-1.5">
+                  <p className="section-title">📦 Day 1 Ditto 100+</p>
+                  {ditto.length === 0 ? (
+                    <p className="text-sm text-slate-400">No one&apos;s over 100 PV on a day 1 Ditto yet.</p>
+                  ) : (
+                    ditto.map((entry, i) => {
+                      const key = dittoEntryKey(periodStart, entry.user_id);
+                      return (
+                        <div
+                          key={`${entry.user_id}-${i}`}
+                          className="flex items-center justify-between gap-2 text-sm"
+                        >
+                          <span className="text-slate-200">
+                            {i + 1}. <CoupleLink entry={entry} />{" "}
+                            <span className="text-xs text-slate-500">({entry.team})</span>
+                          </span>
+                          <div className="flex shrink-0 items-center gap-2">
+                            <span className="pill pill-amber">{entry.day1_ditto_pv} PV</span>
+                            <LikeButton
+                              entryKey={key}
+                              likes={likesMap.get(key) ?? NO_LIKES}
+                              onToggle={toggleLike}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </>
+            )}
           </>
         )}
       </main>

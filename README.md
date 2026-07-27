@@ -1627,28 +1627,20 @@ Removed from `app/more/page.tsx`, `components/BottomNav.tsx`'s
 `MORE_ROUTES`, and `lib/onboarding-gate.ts`; `lib/search-data.ts`'s
 "Candidate History" shortcut now points at `/pipeline`.
 
-### Leaderboard split into Pipeline / Recognition tabs
+### Leaderboard: tab split tried and reverted
 
-Same idea, applied to reorganize one long page instead of merging two.
-Leaderboard had grown to ten-plus sections in a single scroll under one
-Daily/Weekly/Monthly toggle — but tracing through the data, only half of
-those sections actually depend on that toggle at all. Team Leaders,
-Individual Leaders, QI1 Rhythm, Core 300, and Day 1 Ditto all take
-`p_period_type`/`p_period_start` and genuinely change with it. Milestone
-Alerts, Today's Sales, Core Run Streaks, 5+ Active Candidates, and Diamond
-Run High Scores are all powered by RPCs that take no period params at all
-(`get_recent_milestones`, `get_daily_sales_feed`, `get_streak_leaderboard`,
-`get_active_candidates_leaderboard`, `get_game_leaderboard`) — they're
-"right now" snapshots that happened to sit under a toggle that did
-nothing to them. That's not just a length problem, it's a real point of
-confusion baked into the old layout.
+Briefly split into Pipeline/Recognition tabs along a real data fault
+line (only Team Leaders, Individual Leaders, QI1 Rhythm, Core 300, and
+Day 1 Ditto actually depend on the Daily/Weekly/Monthly toggle; Milestone
+Alerts, Today's Sales, Core Run Streaks, Active Candidates, and Diamond
+Run High Scores are all period-independent RPCs that used to sit under a
+toggle that did nothing to them) — but the tab split itself didn't land
+well in practice, so `app/leaderboard/page.tsx` is back to the single
+long-scroll layout it had before. The underlying observation about which
+sections are/aren't period-dependent is still true; it just didn't turn
+out to be the right basis for reorganizing this page.
 
-Split into two tabs along that exact fault line: **Pipeline** (the
-period-dependent half, Daily/Weekly/Monthly toggle included) and
-**Recognition** (everything else, no period toggle shown at all, since
-none of it applies). Each scroll is roughly half as long, and the
-Recognition tab no longer has a control sitting on top of it that
-silently does nothing.
+## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)
 - [Tailwind CSS](https://tailwindcss.com) v4 (navy `#0f172a` / amber `#f59e0b` theme)
