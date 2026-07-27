@@ -13,6 +13,31 @@ export function getWeekStart(date: Date = new Date()): string {
   return toDateOnly(d);
 }
 
+// weeksBack = 0 is the current week (Monday start), 1 is last week, etc.
+export function getWeekStartOffset(weeksBack: number): string {
+  const d = new Date(getWeekStart());
+  d.setDate(d.getDate() - weeksBack * 7);
+  return toDateOnly(d);
+}
+
+// "Jul 20 - 26, 2026" for a Monday week-start date.
+export function formatWeekRangeLabel(weekStartStr: string): string {
+  const start = new Date(`${weekStartStr}T00:00:00`);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 6);
+  const sameMonth = start.getMonth() === end.getMonth();
+  const startLabel = start.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+  const endLabel = end.toLocaleDateString(undefined, {
+    month: sameMonth ? undefined : "short",
+    day: "numeric",
+    year: "numeric",
+  });
+  return `${startLabel} - ${endLabel}`;
+}
+
 export function getMonthStart(date: Date = new Date()): string {
   const d = new Date(date.getFullYear(), date.getMonth(), 1);
   return toDateOnly(d);

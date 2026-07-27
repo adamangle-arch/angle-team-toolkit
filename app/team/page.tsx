@@ -15,7 +15,13 @@ import {
   SESSION_4_READING_REQUIREMENT,
 } from "@/lib/constants";
 import { groupCallRatingsByType } from "@/lib/call-ratings";
-import { getMonthStart, getWeekStart, formatDateLabel } from "@/lib/dates";
+import {
+  getMonthStartOffset,
+  getWeekStartOffset,
+  formatMonthLabel,
+  formatWeekRangeLabel,
+  formatDateLabel,
+} from "@/lib/dates";
 import type {
   Profile,
   PipelinePeriod,
@@ -77,7 +83,18 @@ export default function TeamPage() {
 
   const [viewMode, setViewMode] = useState<ViewMode>("members");
   const [periodType, setPeriodType] = useState<PeriodType>("weekly");
-  const periodStart = periodType === "weekly" ? getWeekStart() : getMonthStart();
+  // 0 = current week/month, 1 = one back, etc. - weekly and monthly offsets
+  // aren't comparable, so switching the type resets this back to current.
+  const [periodOffset, setPeriodOffset] = useState(0);
+  const periodStart =
+    periodType === "weekly" ? getWeekStartOffset(periodOffset) : getMonthStartOffset(periodOffset);
+  const periodLabel =
+    periodType === "weekly" ? formatWeekRangeLabel(periodStart) : formatMonthLabel(periodStart);
+
+  function switchPeriodType(type: PeriodType) {
+    setPeriodType(type);
+    setPeriodOffset(0);
+  }
 
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loadingProfiles, setLoadingProfiles] = useState(true);
@@ -359,15 +376,39 @@ export default function TeamPage() {
             <div className="card flex p-1">
               <button
                 className={periodType === "weekly" ? "toggle-pill-active" : "toggle-pill-inactive"}
-                onClick={() => setPeriodType("weekly")}
+                onClick={() => switchPeriodType("weekly")}
               >
                 Weekly
               </button>
               <button
                 className={periodType === "monthly" ? "toggle-pill-active" : "toggle-pill-inactive"}
-                onClick={() => setPeriodType("monthly")}
+                onClick={() => switchPeriodType("monthly")}
               >
                 Monthly
+              </button>
+            </div>
+
+            <div className="card flex items-center justify-between gap-2 py-2">
+              <button
+                className="btn-icon !h-8 !w-8 text-base"
+                onClick={() => setPeriodOffset((o) => o + 1)}
+                aria-label={`Previous ${periodType === "weekly" ? "week" : "month"}`}
+              >
+                ‹
+              </button>
+              <p className="text-sm font-semibold text-white">
+                {periodLabel}
+                {periodOffset === 0 && (
+                  <span className="ml-1.5 text-xs font-normal text-amber-light">(current)</span>
+                )}
+              </p>
+              <button
+                className="btn-icon !h-8 !w-8 text-base"
+                onClick={() => setPeriodOffset((o) => Math.max(0, o - 1))}
+                disabled={periodOffset === 0}
+                aria-label={`Next ${periodType === "weekly" ? "week" : "month"}`}
+              >
+                ›
               </button>
             </div>
 
