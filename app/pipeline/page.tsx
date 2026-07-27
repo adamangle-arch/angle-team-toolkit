@@ -13,12 +13,12 @@ import {
   type PipelineStageKey,
 } from "@/lib/constants";
 import {
-  getMonthStart,
-  getWeekStart,
-  getToday,
   getMonthStartOffset,
+  getWeekStartOffset,
+  getDateOffset,
   formatDateLabel,
   formatMonthLabel,
+  formatWeekRangeLabel,
   formatShortDateLabel,
   formatShortMonthLabel,
 } from "@/lib/dates";
@@ -28,10 +28,19 @@ type PeriodType = "daily" | "weekly" | "monthly";
 
 type DownlineOption = { id: string; ownerId: string; name: string };
 
-function periodStartFor(periodType: PeriodType): string {
-  if (periodType === "daily") return getToday();
-  if (periodType === "weekly") return getWeekStart();
-  return getMonthStart();
+// offset = 0 is the current day/week/month, 1 is one back, etc. - mirrors
+// the same back-navigation already on the Team tab's Teams view and the
+// Leaderboard's monthly nav.
+function periodStartFor(periodType: PeriodType, offset: number): string {
+  if (periodType === "daily") return getDateOffset(offset);
+  if (periodType === "weekly") return getWeekStartOffset(offset);
+  return getMonthStartOffset(offset);
+}
+
+function periodLabelFor(periodType: PeriodType, periodStart: string): string {
+  if (periodType === "daily") return formatDateLabel(periodStart);
+  if (periodType === "weekly") return formatWeekRangeLabel(periodStart);
+  return formatMonthLabel(periodStart);
 }
 
 function pct(numerator: number, denominator: number): string {
@@ -113,9 +122,17 @@ export default function PipelinePage() {
   const { user, ownerId } = useAuth();
   const [tab, setTab] = useState<Tab>("tally");
   const [periodType, setPeriodType] = useState<PeriodType>("weekly");
+  // 0 = current day/week/month, 1 = one back, etc. - the three period
+  // types' offsets aren't comparable, so switching type resets this.
+  const [periodOffset, setPeriodOffset] = useState(0);
   const [period, setPeriod] = useState<PipelinePeriod | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  function switchPeriodType(next: PeriodType) {
+    setPeriodType(next);
+    setPeriodOffset(0);
+  }
 
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loadingCandidates, setLoadingCandidates] = useState(true);
@@ -181,7 +198,7 @@ export default function PipelinePage() {
     async function load() {
       setLoading(true);
       setLoadError(null);
-      const periodStart = periodStartFor(periodType);
+      const periodStart = periodStartFor(periodType, periodOffset);
 
       const { data: existing, error: selectError } = await supabase
         .from("pipeline_periods")
@@ -207,6 +224,34 @@ export default function PipelinePage() {
         return;
       }
 
+      // Only the current period auto-creates a row on load (the original
+      // "just start tallying today" convenience) - browsing back to a
+      // past period that was never logged should just show zeros, not
+      // silently write a new empty row purely from viewing it. A blank
+      // "draft" (id: "") is a real PipelinePeriod-shaped object so the
+      // rest of the page can render it normally; updateStage/
+      // setStageAbsolute below know an empty id means "insert on first
+      // edit" instead of "update this row."
+      if (periodOffset > 0) {
+        if (!cancelled) {
+          const zeroStages = Object.fromEntries(PIPELINE_STAGES.map((s) => [s.key, 0])) as Record<
+            PipelineStageKey,
+            number
+          >;
+          setPeriod({
+            id: "",
+            user_id: effectiveOwnerId,
+            period_type: periodType,
+            period_start: periodStart,
+            created_at: "",
+            updated_at: "",
+            ...zeroStages,
+          });
+          setLoading(false);
+        }
+        return;
+      }
+
       const { data: created, error: insertError } = await supabase
         .from("pipeline_periods")
         .insert({ user_id: effectiveOwnerId, period_type: periodType, period_start: periodStart })
@@ -227,7 +272,7 @@ export default function PipelinePage() {
     return () => {
       cancelled = true;
     };
-  }, [periodType, effectiveOwnerId]);
+  }, [periodType, periodOffset, effectiveOwnerId]);
 
   useEffect(() => {
     if (actingForId) return;
@@ -289,6 +334,33 @@ export default function PipelinePage() {
     const previousValue = period[key] as number;
     const nextValue = Math.max(0, previousValue + delta);
     setPeriod({ ...period, [key]: nextValue });
+
+    // A "draft" period (id === "") is a past period that was viewed but
+    // never had a real row - see the load effect above. The first edit to
+    // one of these needs to insert a brand-new row instead of updating one
+    // that doesn't exist yet (an .eq("id", "") update would silently match
+    // nothing and look like it worked while saving nothing at all).
+    if (!period.id) {
+      const { data: created, error } = await supabase
+        .from("pipeline_periods")
+        .insert({
+          user_id: period.user_id,
+          period_type: period.period_type,
+          period_start: period.period_start,
+          [key]: nextValue,
+        })
+        .select("*")
+        .single();
+      if (error) {
+        setPeriod((prev) => (prev ? { ...prev, [key]: previousValue } : prev));
+        setUpdateError(error.message);
+      } else {
+        setPeriod(created as PipelinePeriod);
+        setUpdateError(null);
+      }
+      return;
+    }
+
     const { error } = await supabase
       .from("pipeline_periods")
       .update({ [key]: nextValue, updated_at: new Date().toISOString() })
@@ -384,9 +456,9 @@ export default function PipelinePage() {
         title="Pipeline Tracker"
         subtitle={
           period
-            ? `${
-                periodType === "daily" ? "Day of" : periodType === "weekly" ? "Week of" : "Month of"
-              } ${formatDateLabel(period.period_start)}${actingFor ? ` — ${actingFor.name}` : ""}`
+            ? `${periodLabelFor(periodType, period.period_start)}${
+                periodOffset === 0 ? " (current)" : ""
+              }${actingFor ? ` — ${actingFor.name}` : ""}`
             : undefined
         }
       />
@@ -420,7 +492,7 @@ export default function PipelinePage() {
                 className={
                   periodType === "daily" ? "toggle-pill-active" : "toggle-pill-inactive"
                 }
-                onClick={() => setPeriodType("daily")}
+                onClick={() => switchPeriodType("daily")}
               >
                 Daily
               </button>
@@ -428,7 +500,7 @@ export default function PipelinePage() {
                 className={
                   periodType === "weekly" ? "toggle-pill-active" : "toggle-pill-inactive"
                 }
-                onClick={() => setPeriodType("weekly")}
+                onClick={() => switchPeriodType("weekly")}
               >
                 Weekly
               </button>
@@ -436,9 +508,31 @@ export default function PipelinePage() {
                 className={
                   periodType === "monthly" ? "toggle-pill-active" : "toggle-pill-inactive"
                 }
-                onClick={() => setPeriodType("monthly")}
+                onClick={() => switchPeriodType("monthly")}
               >
                 Monthly
+              </button>
+            </div>
+
+            <div className="card flex items-center justify-between">
+              <button
+                className="btn-icon"
+                onClick={() => setPeriodOffset((o) => o + 1)}
+                aria-label={`Previous ${periodType === "daily" ? "day" : periodType === "weekly" ? "week" : "month"}`}
+              >
+                ‹
+              </button>
+              <span className="text-sm font-medium text-white">
+                {period ? periodLabelFor(periodType, period.period_start) : "…"}
+                {periodOffset === 0 && <span className="ml-1 text-xs text-slate-500">(current)</span>}
+              </span>
+              <button
+                className="btn-icon"
+                onClick={() => setPeriodOffset((o) => Math.max(0, o - 1))}
+                disabled={periodOffset <= 0}
+                aria-label={`Next ${periodType === "daily" ? "day" : periodType === "weekly" ? "week" : "month"}`}
+              >
+                ›
               </button>
             </div>
 

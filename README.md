@@ -1713,6 +1713,27 @@ shortens the default scroll to roughly a fifth of its previous length
 without asking anyone to learn a new tab-based mental model, and every
 section is still there, one tap away, exactly where it always was.
 
+### Pipeline Tracker Tally: browsing past days/weeks/months
+
+The Tally tab used to only ever show the current day/week/month — no way
+to check "how many Yeses did I get last week" without it already having
+scrolled off. It now has the same `‹`/`›` offset-based navigator already
+used on the Team tab's Teams view and Leaderboard's monthly nav
+(`periodOffset` in `app/pipeline/page.tsx`, 0 = current, disabled going
+into the future, resets to 0 whenever Daily/Weekly/Monthly is switched
+since the three offsets aren't comparable to each other).
+
+One deliberate behavior difference from just adding an offset to the
+existing load: browsing back to a period that was never logged does
+**not** silently insert an empty row into `pipeline_periods` just from
+viewing it — only the *current* period still auto-creates on load (the
+original "just start tallying today" convenience). A past period with
+nothing logged renders as a client-only zeroed "draft" (`id: ""`); editing
+one of its counters for the first time inserts the real row at that point
+(`updateStage` in `app/pipeline/page.tsx` branches on `period.id` being
+empty), so scrolling back through history to look at old numbers can't
+leave a trail of empty rows behind it.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)
