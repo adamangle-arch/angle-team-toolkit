@@ -332,6 +332,17 @@ alter table profiles add column if not exists onboarding_unlocked_through int no
 -- needed.
 alter table profiles add column if not exists thinking_big_chapters_confirmed boolean not null default false;
 
+-- Additive: free-form "big picture" dreams (5 year / 10 year / lifetime) -
+-- deliberately unstructured text, not a metric with a target, so someone
+-- can write whatever actually matters to them rather than fill in a form.
+-- Self-service via the existing "update_own" policy below (no new RLS
+-- needed); visible to upline via the existing select policy, same as
+-- every other profile field, so an upline can see the goals/dreams of
+-- everyone in their downline without a separate visibility mechanism.
+alter table profiles add column if not exists dream_5_year text not null default '';
+alter table profiles add column if not exists dream_10_year text not null default '';
+alter table profiles add column if not exists dream_lifetime text not null default '';
+
 alter table profiles add column if not exists household_id uuid references auth.users(id);
 alter table profiles drop constraint if exists profiles_household_not_self;
 alter table profiles add constraint profiles_household_not_self check (household_id is null or household_id <> id);

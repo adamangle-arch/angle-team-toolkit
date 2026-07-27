@@ -13,6 +13,8 @@ import {
   ONBOARDING_SESSIONS,
   SESSION_4_CONTACT_MINIMUM,
   SESSION_4_READING_REQUIREMENT,
+  GOAL_ITEMS_BY_PERIOD,
+  GOAL_PERIODS,
 } from "@/lib/constants";
 import { groupCallRatingsByType } from "@/lib/call-ratings";
 import { buildSponsorshipChildren } from "@/lib/sponsorship-tree";
@@ -35,6 +37,7 @@ import type {
   AssistantMessage,
   CalendarEvent,
   CallRating,
+  Goal,
 } from "@/lib/types";
 
 type ViewMode = "members" | "teams" | "my-tree" | "whole-tree";
@@ -78,6 +81,7 @@ type MemberData = {
   assistantMessages: AssistantMessage[];
   calendarEvents: CalendarEvent[];
   callRatings: CallRating[];
+  goals: Goal[];
 };
 
 export default function TeamPage() {
@@ -202,6 +206,7 @@ export default function TeamPage() {
         { data: assistantMessages },
         { data: calendarEvents },
         { data: callRatings },
+        { data: goals },
       ] = await Promise.all([
         supabase
           .from("pipeline_periods")
@@ -242,6 +247,7 @@ export default function TeamPage() {
           .select("*")
           .eq("user_id", selectedId)
           .order("created_at", { ascending: false }),
+        supabase.from("goals").select("*").eq("user_id", selectedId),
       ]);
 
       if (!cancelled) {
@@ -253,6 +259,7 @@ export default function TeamPage() {
           assistantMessages: (assistantMessages as AssistantMessage[]) ?? [],
           calendarEvents: (calendarEvents as CalendarEvent[]) ?? [],
           callRatings: (callRatings as CallRating[]) ?? [],
+          goals: (goals as Goal[]) ?? [],
         });
         setLoadingMember(false);
       }
@@ -649,6 +656,75 @@ export default function TeamPage() {
                   <p className="text-2xl font-bold text-amber">
                     🔥 {computeStreak(memberData.streakDays)}
                   </p>
+                </div>
+
+                <div className="card space-y-3">
+                  <p className="section-title">Goals &amp; Dreams</p>
+                  {GOAL_PERIODS.map((period) => {
+                    const items = GOAL_ITEMS_BY_PERIOD[period.key].filter(
+                      (item) =>
+                        (memberData.goals.find((g) => g.metric === item.key && g.period === period.key)
+                          ?.target ?? 0) > 0
+                    );
+                    if (items.length === 0) return null;
+                    return (
+                      <div key={period.key} className="space-y-1">
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                          {period.label}
+                        </p>
+                        {items.map((item) => (
+                          <div key={item.key} className="flex items-center justify-between text-sm">
+                            <span className="text-slate-300">
+                              {item.prefix} {item.suffix}
+                            </span>
+                            <span className="pill">
+                              {memberData.goals.find((g) => g.metric === item.key && g.period === period.key)
+                                ?.target ?? 0}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
+                  {memberData.goals.every((g) => g.target <= 0) && (
+                    <p className="text-sm text-slate-400">No goals set yet.</p>
+                  )}
+                  {(selectedProfile?.dream_5_year ||
+                    selectedProfile?.dream_10_year ||
+                    selectedProfile?.dream_lifetime) && (
+                    <div className="space-y-2 border-t border-white/5 pt-2">
+                      {selectedProfile?.dream_5_year && (
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                            5 Year Dream
+                          </p>
+                          <p className="whitespace-pre-wrap text-sm text-slate-300">
+                            {selectedProfile.dream_5_year}
+                          </p>
+                        </div>
+                      )}
+                      {selectedProfile?.dream_10_year && (
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                            10 Year Dream
+                          </p>
+                          <p className="whitespace-pre-wrap text-sm text-slate-300">
+                            {selectedProfile.dream_10_year}
+                          </p>
+                        </div>
+                      )}
+                      {selectedProfile?.dream_lifetime && (
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                            Lifetime Dream
+                          </p>
+                          <p className="whitespace-pre-wrap text-sm text-slate-300">
+                            {selectedProfile.dream_lifetime}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="card space-y-2">

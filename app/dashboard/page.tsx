@@ -8,7 +8,7 @@ import { minSessionFor } from "@/lib/onboarding-gate";
 import { supabase } from "@/lib/supabaseClient";
 import { getToday, formatDateLabel } from "@/lib/dates";
 import { GOAL_ITEMS_BY_PERIOD, CANDIDATE_STEPS, PIPELINE_STAGES } from "@/lib/constants";
-import type { StreakDay, Goal, CalendarEvent, PipelinePeriod } from "@/lib/types";
+import type { StreakDay, Goal, CalendarEvent, PipelinePeriod, Profile } from "@/lib/types";
 
 type DownlinePipelineTotals = Record<
   "questions" | "yeses" | "qi1" | "qi2" | "is1" | "fu1" | "is2" | "fu2" | "questionnaire" | "launches",
@@ -78,6 +78,7 @@ export default function DashboardPage() {
   const [todayEvents, setTodayEvents] = useState<CalendarEvent[]>([]);
   const [todayPipeline, setTodayPipeline] = useState<PipelinePeriod | null>(null);
   const [downlineTodayTotals, setDownlineTodayTotals] = useState<DownlinePipelineTotals | null>(null);
+  const [dream, setDream] = useState("");
   const [myActiveCount, setMyActiveCount] = useState(0);
   const [downlineActiveCount, setDownlineActiveCount] = useState(0);
 
@@ -118,6 +119,7 @@ export default function DashboardPage() {
         { data: pipeline },
         { data: activeSummary },
         { data: downlineTotals },
+        { data: profileDreams },
       ] = await Promise.all([
         supabase.from("streak_days").select("*").eq("user_id", user.id).eq("day", today).maybeSingle(),
         supabase.rpc("get_current_streak", { p_user_id: user.id }),
@@ -138,6 +140,11 @@ export default function DashboardPage() {
           .maybeSingle(),
         supabase.rpc("get_my_active_pipeline_summary").maybeSingle(),
         supabase.rpc("get_downline_pipeline_totals", { p_period_type: "daily", p_period_start: today }).maybeSingle(),
+        supabase
+          .from("profiles")
+          .select("dream_5_year,dream_10_year,dream_lifetime")
+          .eq("id", user.id)
+          .single(),
       ]);
 
       if (!cancelled) {
@@ -150,6 +157,11 @@ export default function DashboardPage() {
         const summary = activeSummary as { my_active_count: number; downline_active_count: number } | null;
         setMyActiveCount(summary?.my_active_count ?? 0);
         setDownlineActiveCount(summary?.downline_active_count ?? 0);
+        const dreams = profileDreams as Pick<Profile, "dream_5_year" | "dream_10_year" | "dream_lifetime"> | null;
+        // Lead with whichever horizon is filled in, furthest-out first -
+        // the lifetime dream is the one worth being reminded of most, but
+        // most people won't have filled in all three right away.
+        setDream(dreams?.dream_lifetime || dreams?.dream_10_year || dreams?.dream_5_year || "");
         setLoading(false);
       }
     }
@@ -188,6 +200,13 @@ export default function DashboardPage() {
           <div className="empty-state">Loading today…</div>
         ) : (
           <>
+            {showGoals && dream && (
+              <Link href="/goals" className="card block space-y-1">
+                <p className="section-title">🌟 Remember Your Why</p>
+                <p className="line-clamp-2 text-sm text-slate-300">{dream}</p>
+              </Link>
+            )}
+
             {showStreak && (
               <Link href="/streak" className="card block space-y-2">
                 <div className="flex items-center justify-between">

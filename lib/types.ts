@@ -22,6 +22,9 @@ export type Profile = {
   upline_id: string | null;
   onboarding_unlocked_through: number;
   thinking_big_chapters_confirmed: boolean;
+  dream_5_year: string;
+  dream_10_year: string;
+  dream_lifetime: string;
   created_at: string;
 };
 

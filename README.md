@@ -597,12 +597,40 @@ how the goal is actually phrased. Depth Texts was dropped from this
 list — it's still its own counter on the Core Run Streak page's
 Today's Activity card, just not goal-settable here.
 
+### Your Dreams (5 year / 10 year / lifetime)
+
+Above the numeric goal boxes, **Your Dreams** is three plain, unbounded
+textareas — 5 Year Dream, 10 Year Dream, Lifetime Dream — deliberately
+just blank space to write freely rather than another structured form.
+Backed by three new `profiles` columns (`dream_5_year`, `dream_10_year`,
+`dream_lifetime`), which piggybacks on that table's existing RLS: same
+"own + upline (any level) + admin can read, only the owner can write"
+policy every other profile field already uses, so an upline seeing every
+level of their downline's dreams needed zero new policy work. Each field
+autosaves on blur (same local-buffer-then-commit-on-blur pattern as
+candidate notes elsewhere) rather than a separate Save button.
+
+Two places surface it beyond the Goals tab itself:
+- **Dashboard** ("Today"): a "🌟 Remember Your Why" card leads the page
+  (above even the Core Run Streak card) showing whichever horizon is
+  filled in, furthest-out first (lifetime → 10 year → 5 year), truncated
+  to two lines (`line-clamp-2`) and linking to `/goals`. Only shows once
+  at least one dream is filled in, so a brand-new profile with nothing
+  written yet doesn't show empty dead space.
+- **Team tab**: a per-member "Goals & Dreams" card (in the same expanded
+  member view as Call Ratings, Pipeline, etc.) shows that person's actual
+  goal targets by period alongside their three dream fields in full, so
+  an upline can see both the numbers and the "why" behind them in one
+  place instead of hunting across pages.
+
 There's no way to build a real iOS Home Screen widget without a native
 app (WidgetKit requires a Swift app extension, out of reach for a web
-app installed via "Add to Home Screen"). Goals is the closest
-substitute: it's the **landing page** (`app/page.tsx` redirects to
-`/goals` instead of `/pipeline`), so opening the app puts today's goals
-in front of you immediately, no navigating required.
+app installed via "Add to Home Screen"). Goals (now including Your
+Dreams) is the closest substitute: it's the **landing page**
+(`app/page.tsx` redirects to `/dashboard`, which itself leads with the
+Dreams reminder and Today's Goals), so opening the app puts both the big
+picture and today's numbers in front of you immediately, no navigating
+required.
 
 ### Calendar (meetings, reminders, team events)
 

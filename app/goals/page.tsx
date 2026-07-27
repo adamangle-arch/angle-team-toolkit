@@ -12,10 +12,74 @@ import {
   type GoalMetric,
   type GoalPeriod,
 } from "@/lib/constants";
-import type { Goal, PipelinePeriod } from "@/lib/types";
+import type { Goal, PipelinePeriod, Profile } from "@/lib/types";
 
 function inputKey(metric: GoalMetric, period: GoalPeriod): string {
   return `${metric}:${period}`;
+}
+
+type DreamField = "dream_5_year" | "dream_10_year" | "dream_lifetime";
+
+const DREAM_FIELDS: { key: DreamField; label: string; placeholder: string }[] = [
+  {
+    key: "dream_5_year",
+    label: "5 Year Dream",
+    placeholder: "Where do you want to be in 5 years? Write whatever comes to mind…",
+  },
+  {
+    key: "dream_10_year",
+    label: "10 Year Dream",
+    placeholder: "What does 10 years from now look like?",
+  },
+  {
+    key: "dream_lifetime",
+    label: "Lifetime Dream",
+    placeholder: "The big one — what are you ultimately building toward?",
+  },
+];
+
+// A plain, unbounded textarea rather than the numeric goal inputs above -
+// these are meant to be written freely, not filled into a form. Local
+// edit buffer + save-on-blur mirrors the same pattern used for candidate
+// notes elsewhere in the app (Pipeline Tracker), so typing doesn't fire a
+// save on every keystroke.
+function DreamTextarea({
+  label,
+  placeholder,
+  value,
+  onSave,
+}: {
+  label: string;
+  placeholder: string;
+  value: string;
+  onSave: (value: string) => void;
+}) {
+  const [text, setText] = useState(value);
+  // Adjust local state in response to the loaded value arriving after
+  // this mounts (profile fetch resolves after initial render) - done
+  // during render per React's "adjusting state" pattern rather than an
+  // effect, so it can't fire after the rep has already started typing.
+  const [syncedValue, setSyncedValue] = useState(value);
+  if (value !== syncedValue) {
+    setSyncedValue(value);
+    setText(value);
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <p className="text-sm font-medium text-slate-200">{label}</p>
+      <textarea
+        className="textarea"
+        rows={4}
+        placeholder={placeholder}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={() => {
+          if (text !== value) onSave(text);
+        }}
+      />
+    </div>
+  );
 }
 
 export default function GoalsPage() {
@@ -26,6 +90,11 @@ export default function GoalsPage() {
   const [qi1Weekly, setQi1Weekly] = useState(0);
   const [qi1Monthly, setQi1Monthly] = useState(0);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [dreams, setDreams] = useState<Record<DreamField, string>>({
+    dream_5_year: "",
+    dream_10_year: "",
+    dream_lifetime: "",
+  });
 
   useEffect(() => {
     async function load() {
@@ -39,6 +108,35 @@ export default function GoalsPage() {
     }
     load();
   }, [user.id]);
+
+  useEffect(() => {
+    async function load() {
+      const { data } = await supabase
+        .from("profiles")
+        .select("dream_5_year,dream_10_year,dream_lifetime")
+        .eq("id", user.id)
+        .single();
+      if (data) {
+        const d = data as Pick<Profile, "dream_5_year" | "dream_10_year" | "dream_lifetime">;
+        setDreams({
+          dream_5_year: d.dream_5_year ?? "",
+          dream_10_year: d.dream_10_year ?? "",
+          dream_lifetime: d.dream_lifetime ?? "",
+        });
+      }
+    }
+    load();
+  }, [user.id]);
+
+  async function saveDream(field: DreamField, value: string) {
+    setDreams((prev) => ({ ...prev, [field]: value }));
+    const { error } = await supabase.from("profiles").update({ [field]: value }).eq("id", user.id);
+    if (error) {
+      setSaveError(`Couldn't save that: ${error.message}`);
+    } else {
+      setSaveError(null);
+    }
+  }
 
   // QI1s already has a real, reliable per-period number (the same one
   // the Pipeline Tracker counters write to), unlike the other goal
@@ -111,6 +209,26 @@ export default function GoalsPage() {
             <p className="text-xs text-red-400">{saveError}</p>
           </div>
         )}
+
+        <div className="card space-y-4">
+          <div>
+            <p className="section-title">Your Dreams</p>
+            <p className="text-xs text-slate-400">
+              The big picture — why you&apos;re doing any of this. Write whatever&apos;s true for
+              you; your upline can see it so they know how to help you get there.
+            </p>
+          </div>
+          {DREAM_FIELDS.map((field) => (
+            <DreamTextarea
+              key={field.key}
+              label={field.label}
+              placeholder={field.placeholder}
+              value={dreams[field.key]}
+              onSave={(value) => saveDream(field.key, value)}
+            />
+          ))}
+        </div>
+
         {loading ? (
           <div className="empty-state">Loading…</div>
         ) : (
