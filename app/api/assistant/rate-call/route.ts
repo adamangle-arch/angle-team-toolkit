@@ -129,12 +129,13 @@ export async function POST(request: Request) {
   }
 
   try {
-    // A very short transcript (a call's tail end, a couple of exchanges)
-    // combined with a rubric that demands detailed, specific evidence
-    // across 9 sections is a real edge case for the model producing a
-    // blank or near-blank completion - it's happened intermittently with
-    // the exact same input succeeding on one attempt and not another. One
-    // automatic retry covers that transient case before actually failing.
+    // A blank completion turned out to happen even on a full, substantial
+    // (e.g. ~30 minute) transcript, not just a short excerpt - so this
+    // can't just be "not enough content for the rubric." One automatic
+    // retry still covers whatever transient share of this is real
+    // variance, but every attempt now logs stop_reason/usage so a
+    // recurrence is actually debuggable from Vercel logs instead of a
+    // repeat of blind guessing.
     //
     // A full, non-streamed 9-section analysis can legitimately take
     // 20-40+ seconds on its own, and this retry loop can trigger a second
@@ -147,6 +148,7 @@ export async function POST(request: Request) {
     const startedAt = Date.now();
     const RETRY_TIME_BUDGET_MS = 40_000;
     let analysis = "";
+    let lastStopReason: string | null = null;
     for (
       let attempt = 0;
       attempt < 2 && !analysis && (attempt === 0 || Date.now() - startedAt < RETRY_TIME_BUDGET_MS);
@@ -154,7 +156,11 @@ export async function POST(request: Request) {
     ) {
       const response = await anthropic.messages.create({
         model: "claude-sonnet-5",
-        max_tokens: 3000,
+        // Bumped from 3000: a full write-up of a substantial call (9
+        // sections plus a 10-dimension scorecard) can run close to that
+        // ceiling on its own, leaving little room for anything but a
+        // short call before truncating.
+        max_tokens: 8000,
         system: [
           {
             type: "text",
@@ -165,10 +171,21 @@ export async function POST(request: Request) {
         messages: [{ role: "user", content: userContent }],
       });
 
+      lastStopReason = response.stop_reason;
       const textBlock = response.content.find(
         (block): block is Anthropic.TextBlock => block.type === "text"
       );
       analysis = textBlock?.text.trim() ?? "";
+
+      console.log("rate-call attempt result", {
+        attempt,
+        callType,
+        transcriptChars: transcript.length,
+        stopReason: response.stop_reason,
+        usage: response.usage,
+        contentBlockTypes: response.content.map((b) => b.type),
+        analysisChars: analysis.length,
+      });
     }
 
     // A blank rating is worse than no rating - it silently gets saved and
@@ -176,10 +193,14 @@ export async function POST(request: Request) {
     // Treat this the same as any other failure instead of returning it as
     // if it succeeded.
     if (!analysis) {
+      console.error("rate-call: blank completion after all attempts", {
+        callType,
+        transcriptChars: transcript.length,
+        lastStopReason,
+      });
       return NextResponse.json(
         {
-          error:
-            "The assistant couldn't produce a rating for this transcript, even after retrying. If this is a short excerpt rather than the full call, try pasting the complete transcript.",
+          error: `The assistant couldn't produce a rating for this transcript, even after retrying (reason: ${lastStopReason ?? "unknown"}). Please try again — if it keeps happening, let the team know it recurred so it can be tracked down.`,
         },
         { status: 502 }
       );

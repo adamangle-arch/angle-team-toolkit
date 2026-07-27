@@ -1392,18 +1392,27 @@ respond.
 
 With the deployment bug fixed, the blank-result failure (see above)
 turned out to still recur even on a genuine, complete, full-length
-transcript — not just the short "just closing pleasantries" excerpt case
-the retry was originally built for. Since the retry re-sends the exact
-same system + user content unchanged, a call that reliably comes back
-blank fails the same way twice and the rep just sees the dead-end "even
-after retrying" error with no path forward other than guessing. The fix
-is in the five rubric prompts themselves (`lib/*-call-rating-prompt.txt`)
-rather than in `route.ts`: each one now has an explicit "Never Return A
-Blank Response" instruction telling the model to produce the full
-write-up from whatever is actually in the transcript, calling out
-directly (e.g. "Not enough in this call to assess this") anywhere it
-can't fully assess a section, instead of the model treating a short or
-thin call as a reason to withhold output entirely.
+(~30 minute) transcript — ruling out the "short excerpt" theory entirely,
+since that's a substantial, content-rich call, not a thin one. First pass
+at a fix added a "Never Return A Blank Response" instruction to all five
+rubric prompts (`lib/*-call-rating-prompt.txt`) telling the model to
+write up whatever's actually there rather than withhold output on a thin
+call — worth keeping, but it doesn't explain a blank result on a rich
+30-minute call, so it's very unlikely to be the actual fix here.
+
+Since the retry re-sends the exact same system + user content unchanged,
+a call that reliably comes back blank fails the same way twice with no
+way to tell why from the client side alone. Rather than guess a third
+time, `route.ts` now: (1) logs `stop_reason`, token `usage`, and the
+response's content block types on every attempt (visible in Vercel's
+function logs), so a recurrence is actually diagnosable instead of
+another round of blind theorizing; (2) surfaces the last attempt's
+`stop_reason` directly in the error message shown to the rep, so even
+without log access the next occurrence says *why* in plain sight; and
+(3) raises `max_tokens` from 3000 to 8000 — a full write-up covering all
+9 sections plus the 10-dimension candidate scorecard for a rich,
+substantial call can genuinely run close to 3000 tokens on its own,
+which wasn't ruled out as a contributing factor.
 
 The Role-Play / Rate a Call toggle-pill row on the Assistant page used to
 scroll away with the rest of the chat — once a Role-Play conversation got
