@@ -37,6 +37,74 @@ function pct(numerator: number, denominator: number): string {
   return `${Math.round((numerator / denominator) * 100)}%`;
 }
 
+// Tapping the count itself opens a direct numeric entry - catching up
+// after a live event (e.g. entering 15 Yeses at once) used to mean 15
+// separate taps on "+", one at a time.
+function StageCount({
+  label,
+  value,
+  onDelta,
+  onSetAbsolute,
+}: {
+  label: string;
+  value: number;
+  onDelta: (delta: number) => void;
+  onSetAbsolute: (value: number) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [editValue, setEditValue] = useState("");
+
+  function commit() {
+    const parsed = Math.max(0, parseInt(editValue, 10) || 0);
+    setEditing(false);
+    if (parsed !== value) onSetAbsolute(parsed);
+  }
+
+  return (
+    <div className="flex items-center gap-3">
+      <button
+        className="btn-icon"
+        onClick={() => onDelta(-1)}
+        disabled={value <= 0}
+        aria-label={`Decrease ${label}`}
+      >
+        −
+      </button>
+      {editing ? (
+        <input
+          type="number"
+          min={0}
+          inputMode="numeric"
+          autoFocus
+          className="input !w-14 !p-1 text-center text-lg font-bold"
+          value={editValue}
+          onChange={(e) => setEditValue(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") e.currentTarget.blur();
+            if (e.key === "Escape") setEditing(false);
+          }}
+        />
+      ) : (
+        <button
+          type="button"
+          className="w-8 text-center text-xl font-bold text-white"
+          onClick={() => {
+            setEditValue(String(value));
+            setEditing(true);
+          }}
+          aria-label={`Edit ${label} directly`}
+        >
+          {value}
+        </button>
+      )}
+      <button className="btn-icon" onClick={() => onDelta(1)} aria-label={`Increase ${label}`}>
+        +
+      </button>
+    </div>
+  );
+}
+
 export default function PipelinePage() {
   const { user, ownerId } = useAuth();
   const [periodType, setPeriodType] = useState<PeriodType>("weekly");
@@ -226,6 +294,11 @@ export default function PipelinePage() {
     }
   }
 
+  function setStageAbsolute(key: PipelineStageKey, value: number) {
+    if (!period) return;
+    updateStage(key, value - (period[key] as number));
+  }
+
   async function addCandidate() {
     const name = newName.trim();
     if (!name) return;
@@ -356,82 +429,10 @@ export default function PipelinePage() {
           <p className="text-3xl font-bold text-amber">{pct(launches, questions)}</p>
         </div>
 
-        {updateError && (
-          <div className="card">
-            <p className="text-xs text-red-400">{updateError}</p>
-          </div>
-        )}
-
-        {loadError ? (
-          <div className="empty-state">Couldn&apos;t load this period: {loadError}</div>
-        ) : loading || !period ? (
-          <div className="empty-state">Loading pipeline…</div>
-        ) : (
-          <div className="space-y-2">
-            {PIPELINE_STAGES.map((stage, i) => {
-              const count = period[stage.key] as number;
-              const prevStage = i > 0 ? PIPELINE_STAGES[i - 1] : null;
-              const prevCount = prevStage ? (period[prevStage.key] as number) : null;
-
-              return (
-                <div key={stage.key}>
-                  {i > 0 && (
-                    <div className="flex items-center justify-center py-1 text-xs text-slate-500">
-                      <span>
-                        {prevStage?.label} → {stage.label}:{" "}
-                        <span className="font-semibold text-amber-light">
-                          {pct(count, prevCount ?? 0)}
-                        </span>
-                      </span>
-                    </div>
-                  )}
-                  <div className="card flex items-center justify-between">
-                    <p className="font-medium text-white">{stage.label}</p>
-                    <div className="flex items-center gap-3">
-                      <button
-                        className="btn-icon"
-                        onClick={() => updateStage(stage.key, -1)}
-                        disabled={count <= 0}
-                        aria-label={`Decrease ${stage.label}`}
-                      >
-                        −
-                      </button>
-                      <span className="w-8 text-center text-xl font-bold text-white">
-                        {count}
-                      </span>
-                      <button
-                        className="btn-icon"
-                        onClick={() => updateStage(stage.key, 1)}
-                        aria-label={`Increase ${stage.label}`}
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        <div className="card space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <p className="section-title">Trend</p>
-            <select
-              className="select"
-              value={trendStage}
-              onChange={(e) => setTrendStage(e.target.value as PipelineStageKey)}
-            >
-              {PIPELINE_STAGES.map((s) => (
-                <option key={s.key} value={s.key}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <TrendChart data={chartData} />
-        </div>
-
+        {/* Add Candidate is the single most common daily action here (a
+            fresh Yes), so the Candidate Roadmap lives right up top -
+            it used to sit below the full stage-counter list and the
+            trend chart, meaning a scroll past ~10 cards every time. */}
         {actingFor ? (
           <div className="empty-state">
             Switch back to &quot;Me&quot; to see the Candidate Roadmap — filling in only covers
@@ -523,6 +524,68 @@ export default function PipelinePage() {
             )}
           </>
         )}
+
+        {updateError && (
+          <div className="card">
+            <p className="text-xs text-red-400">{updateError}</p>
+          </div>
+        )}
+
+        {loadError ? (
+          <div className="empty-state">Couldn&apos;t load this period: {loadError}</div>
+        ) : loading || !period ? (
+          <div className="empty-state">Loading pipeline…</div>
+        ) : (
+          <div className="space-y-2">
+            {PIPELINE_STAGES.map((stage, i) => {
+              const count = period[stage.key] as number;
+              const prevStage = i > 0 ? PIPELINE_STAGES[i - 1] : null;
+              const prevCount = prevStage ? (period[prevStage.key] as number) : null;
+
+              return (
+                <div key={stage.key}>
+                  {i > 0 && (
+                    <div className="flex items-center justify-center py-1 text-xs text-slate-500">
+                      <span>
+                        {prevStage?.label} → {stage.label}:{" "}
+                        <span className="font-semibold text-amber-light">
+                          {pct(count, prevCount ?? 0)}
+                        </span>
+                      </span>
+                    </div>
+                  )}
+                  <div className="card flex items-center justify-between">
+                    <p className="font-medium text-white">{stage.label}</p>
+                    <StageCount
+                      label={stage.label}
+                      value={count}
+                      onDelta={(delta) => updateStage(stage.key, delta)}
+                      onSetAbsolute={(value) => setStageAbsolute(stage.key, value)}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="card space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <p className="section-title">Trend</p>
+            <select
+              className="select"
+              value={trendStage}
+              onChange={(e) => setTrendStage(e.target.value as PipelineStageKey)}
+            >
+              {PIPELINE_STAGES.map((s) => (
+                <option key={s.key} value={s.key}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <TrendChart data={chartData} />
+        </div>
       </main>
     </FeatureGate>
   );

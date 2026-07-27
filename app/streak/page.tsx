@@ -138,6 +138,15 @@ function Counter({
   value: number;
   onChange: (next: number) => void;
 }) {
+  const [editing, setEditing] = useState(false);
+  const [editValue, setEditValue] = useState("");
+
+  function commit() {
+    const parsed = Math.max(0, parseInt(editValue, 10) || 0);
+    setEditing(false);
+    if (parsed !== value) onChange(parsed);
+  }
+
   return (
     <div className="flex items-center justify-between rounded-lg bg-navy px-2 py-1.5">
       <span className="text-xs text-slate-400">{label}</span>
@@ -150,7 +159,37 @@ function Counter({
         >
           −
         </button>
-        <span className="w-5 text-center text-sm font-bold text-white">{value}</span>
+        {editing ? (
+          <input
+            type="number"
+            min={0}
+            inputMode="numeric"
+            autoFocus
+            className="w-10 rounded bg-white/10 text-center text-sm font-bold text-white outline-none"
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            onBlur={commit}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") e.currentTarget.blur();
+              if (e.key === "Escape") setEditing(false);
+            }}
+          />
+        ) : (
+          // Tapping the number opens direct entry - catching up after a
+          // live event (e.g. 15 Yeses at once) used to mean 15 separate
+          // taps on "+".
+          <button
+            type="button"
+            className="w-5 text-center text-sm font-bold text-white"
+            onClick={() => {
+              setEditValue(String(value));
+              setEditing(true);
+            }}
+            aria-label={`Edit ${label} directly`}
+          >
+            {value}
+          </button>
+        )}
         <button
           className="btn-icon !h-6 !w-6 text-xs"
           onClick={() => onChange(value + 1)}

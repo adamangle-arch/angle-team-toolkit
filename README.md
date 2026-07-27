@@ -1549,6 +1549,46 @@ tap) if it's already installed, or **Get** if it isn't. If LTD ever
 publishes a real deep-link scheme, swapping this for a true one-tap
 handoff is a one-line change.
 
+### UX friction audit
+
+A pass looking for concrete tedium — redundant taps, buried actions,
+dead-end flows — rather than bugs, aimed squarely at making this feel
+less like a chore and more like something reps actually want to open:
+
+- **Tap-to-edit on every stage/streak counter.** The Pipeline Tracker's
+  per-stage counts and the Core Run Streak's Questions/Yeses/Story Shares
+  counters were `+`/`−` only — catching up on 15 Yeses from a live event
+  meant 15 separate taps. The number itself is now tappable and opens a
+  plain numeric entry (`StageCount` in `app/pipeline/page.tsx`, the
+  existing shared `Counter` in `app/streak/page.tsx`), while the +/−
+  buttons stay for quick single adjustments.
+- **Add Candidate moved to the top of Pipeline Tracker.** It used to sit
+  below the entire stage-counter list and the trend chart — a full
+  scroll past ~10 cards every single time, for what's likely the single
+  most common action on that page (a fresh Yes). The whole Candidate
+  Roadmap section (active-pipeline summary, Add Candidate, candidate
+  list) now renders right after the Questions → Launches summary card,
+  before the per-stage counters.
+- **Search now finds your actual people, not just app content.**
+  `app/search/page.tsx` used to only search static content — page names,
+  Scripts & FAQ, Products, Leaders. Typing a name now also runs a
+  debounced (250ms) `ilike` query against your own `candidates` and
+  `contacts` tables and surfaces real matches (with their current step
+  or list/status as the snippet) alongside the static results, so
+  "where's Chris" actually finds Chris instead of nothing.
+
+One deliberate non-fix: **Read/Listen/Story Share on the Core Run Streak
+dashboard card look like they could be quick-toggled directly from
+Today**, but they're not raw booleans — `read` is genuinely derived from
+whether `read_amount` is filled in, `listen` from `listen_count > 0`,
+`story_share` from `story_shares > 0`. Adding a bare toggle for any of
+these on the dashboard would create a real inconsistency (a checked box
+with no actual reading/listening/sharing behind it, silently reverted the
+next time `/streak` recomputes it from the underlying fields) — so this
+stays a "go fill in the details" link rather than a shortcut. Only
+`daily_update` is a plain boolean, and wasn't worth a special case on its
+own.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)
