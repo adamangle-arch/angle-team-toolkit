@@ -133,7 +133,12 @@ export type ActiveCandidatesEntry = {
 export type SentNotification = {
   id: string;
   created_at: string;
-  kind: "daily_stat_leaders" | "weekly_stat_leaders" | "monthly_stat_leaders" | "core_run_reminder";
+  kind:
+    | "daily_stat_leaders"
+    | "weekly_stat_leaders"
+    | "monthly_stat_leaders"
+    | "core_run_reminder"
+    | "calendar_reminder";
   title: string;
   body: string;
   period_type: "daily" | "weekly" | "monthly" | null;
@@ -276,6 +281,7 @@ export type CalendarEvent = {
   candidate_id: string | null;
   scope: "private" | "downline";
   created_at: string;
+  reminder_sent: boolean;
 };
 
 export type CompanyEvent = {

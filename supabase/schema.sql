@@ -1690,6 +1690,16 @@ create table if not exists sent_notifications (
   recipient_count int not null default 0
 );
 
+-- Same re-runnable-constraint pattern as goals_metric_check - a new kind
+-- can be added without dropping (and wiping) this table.
+alter table sent_notifications drop constraint if exists sent_notifications_kind_check;
+alter table sent_notifications add constraint sent_notifications_kind_check check (
+  kind in (
+    'daily_stat_leaders', 'weekly_stat_leaders', 'monthly_stat_leaders', 'core_run_reminder',
+    'calendar_reminder'
+  )
+);
+
 create index if not exists sent_notifications_user_id_idx on sent_notifications(user_id);
 create index if not exists sent_notifications_created_at_idx on sent_notifications(created_at desc);
 
@@ -1994,6 +2004,11 @@ create table if not exists calendar_events (
   scope text not null default 'private' check (scope in ('private', 'downline')),
   created_at timestamptz not null default now()
 );
+
+-- Additive: whether the 30-minutes-before push reminder has already gone
+-- out for this event, so send-calendar-reminders' polling query doesn't
+-- re-notify the same event on every run within its matching window.
+alter table calendar_events add column if not exists reminder_sent boolean not null default false;
 
 -- Same shape as the "personal tables" policies above (streak_days,
 -- assistant_messages) - own + upline + admin can read, only the owner

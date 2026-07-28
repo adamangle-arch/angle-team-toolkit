@@ -1319,6 +1319,58 @@ Notifications page) is a single subscription that covers both this
 reminder and the stat-leader digest below — there's only one
 `push_subscriptions` row per device, not one per notification type.
 
+### Calendar event reminders (30 minutes before)
+
+Every Calendar event now gets a push notification 30 minutes before it
+starts — title, event time, and the linked candidate's name if there is
+one (same info the Upcoming/Recently Passed cards show). This needed a
+fundamentally different scheduling mechanism than the Daily Reminder and
+Stat Leader crons above, because of a hard platform limit worth knowing
+about: **Vercel's Hobby plan caps cron jobs at once per day, and not even
+minute-precise within that hour** — there's no way to get Vercel itself
+to check "is anything starting in 30 minutes" on the kind of 5-minute
+cadence this needs.
+
+The fix: `/api/push/send-calendar-reminders` isn't wired into
+`vercel.json` at all — that limit only applies to Vercel's *own* cron
+scheduler, not to how often an ordinary deployed route can be hit by an
+external caller. Instead, a **Supabase pg_cron job** (Postgres's own
+scheduler, included on every plan including free, with a 1-minute
+minimum granularity — no Vercel plan limit anywhere near this path) fires
+every 5 minutes and uses the `pg_net` extension to make an HTTP call into
+that route, same `CRON_SECRET` bearer-token auth as the existing cron
+routes. Run this once (fill in your actual Vercel domain and `CRON_SECRET`
+value — Postgres can't read Vercel's environment variables, so this has
+to be a literal, hand-filled-in string, not a reference):
+
+```sql
+create extension if not exists pg_net;
+
+select cron.schedule(
+  'send-calendar-reminders',
+  '*/5 * * * *',
+  $$
+  select net.http_post(
+    url := 'https://YOUR-VERCEL-DOMAIN/api/push/send-calendar-reminders',
+    headers := jsonb_build_object('Authorization', 'Bearer YOUR-CRON-SECRET-VALUE'),
+    body := '{}'::jsonb
+  );
+  $$
+);
+```
+
+The route itself queries for events starting 25-35 minutes from now (a
+10-minute-wide window checked every 5 minutes gives every event at least
+one poll inside it, with margin either side for clock drift or a
+slightly-late tick) and haven't had a reminder sent yet
+(`calendar_events.reminder_sent`, a new column) — that flag, not the
+window's precision, is what actually prevents a double-send on the
+overlap. It's marked `true` the moment an event is processed, even if the
+rep has no push subscription yet or the send fails, so a stale event
+can't get retried forever on every single poll. Logged into
+`sent_notifications` under a new `calendar_reminder` kind, showing up in
+**Notifications** history same as every other push this app sends.
+
 ### Stat Leader Notifications
 
 On top of the Core Run reminder, a second cron route
