@@ -1653,6 +1653,22 @@ initial tab can be deep-linked via `?tab=diamond-run|diamond-chase|trivia`
   days scoring 5/5) is computed on the fly by `get_trivia_streak()` —
   same recursive-CTE approach as Core Run Streak — and surfaced on a
   `get_trivia_streak_leaderboard()`-powered leaderboard.
+  - **"Where to find it" hint on a miss** — every `TriviaQuestion` now
+    carries a `source` field (`lib/trivia-data.ts`) pointing at where the
+    answer actually lives — mostly `More → Resources → Audios/Books/
+    Leaders/Products/Process`, since that's where the underlying facts
+    already live in the app (an audio's summary and speaker are shown
+    right on its card, the 9 Core Steps graphic leads the Process tab,
+    etc.). A few are pure oral team history that was never written down
+    anywhere in the app (a specific event name, an old day-job story,
+    what someone was afraid of) — those just say so plainly rather than
+    pointing at nothing. Since a wrong answer ends the attempt
+    immediately (one-strike design, not a "finish all 5 then review"
+    quiz), there's only ever one missed question per day — its hint shows
+    right on the reveal, then again on the day's result card. This is
+    session-only, not persisted: `trivia_daily_results` only stores a
+    score, not which question was missed, so reloading the page loses it
+    (same as the rest of that table's shape).
   - **Games Unlocked alert** — the moment your Core Run for the day
     flips from incomplete to complete, the Core Run Streak page
     (`app/streak/page.tsx`) shows a dismissible "🎉 Games Unlocked!"

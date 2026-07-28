@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import { getToday } from "@/lib/dates";
-import { TRIVIA_QUESTIONS } from "@/lib/trivia-data";
+import { TRIVIA_QUESTIONS, type TriviaQuestion } from "@/lib/trivia-data";
 import type { GameLeaderEntry } from "@/lib/types";
 
 const QUESTIONS_PER_DAY = 5;
@@ -68,6 +68,11 @@ export default function TriviaGame() {
   const [selected, setSelected] = useState<number | null>(null);
   const [revealed, setRevealed] = useState(false);
   const [failed, setFailed] = useState(false);
+  // The one question that ended today's attempt, kept around just for
+  // this session so the result card can point to where its answer
+  // actually lives - trivia_daily_results only stores a score, not which
+  // question was missed, so this doesn't survive a page reload.
+  const [missedQuestion, setMissedQuestion] = useState<TriviaQuestion | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -139,6 +144,7 @@ export default function TriviaGame() {
     setSelected(null);
     setRevealed(false);
     setFailed(false);
+    setMissedQuestion(null);
   }
 
   async function finishAttempt(finalCorrect: number) {
@@ -176,6 +182,7 @@ export default function TriviaGame() {
       }, 900);
     } else {
       setFailed(true);
+      setMissedQuestion(q);
       setTimeout(() => {
         finishAttempt(correctCount);
       }, 1600);
@@ -230,6 +237,12 @@ export default function TriviaGame() {
           <p className="text-xs text-slate-500">
             A new set unlocks after you complete tomorrow&apos;s Core Run.
           </p>
+          {missedQuestion && (
+            <div className="rounded-lg bg-navy p-2.5 text-left">
+              <p className="text-xs font-medium text-slate-300">{missedQuestion.question}</p>
+              <p className="mt-1 text-xs text-amber-light">💡 {missedQuestion.source}</p>
+            </div>
+          )}
         </div>
       ) : !playing ? (
         <div className="card space-y-3 text-center">
@@ -268,9 +281,14 @@ export default function TriviaGame() {
             })}
           </div>
           {revealed && failed && (
-            <p className="text-sm text-red-300">
-              Not quite — that&apos;s it for today. Come back tomorrow for a new set.
-            </p>
+            <>
+              <p className="text-sm text-red-300">
+                Not quite — that&apos;s it for today. Come back tomorrow for a new set.
+              </p>
+              {missedQuestion && (
+                <p className="text-xs text-amber-light">💡 {missedQuestion.source}</p>
+              )}
+            </>
           )}
         </div>
       ) : null}
