@@ -711,9 +711,12 @@ through Supabase directly).
 Beyond the 4 qualifying checks (Read / Listen / Daily Update / Story
 Share), each day's Core Run Streak entry now also captures:
 
-- **Read** — what you're reading (free text) plus a numeric Minutes
-  Read counter (`read_minutes`) so a reading goal is a real trackable
-  number, not just free text like "20 pages"
+- **Read** — what you're reading (free text) plus how much today (free
+  text, e.g. "20 pages"). A numeric Minutes Read counter (`read_minutes`
+  on `streak_days`) briefly lived here too but was removed from this
+  card — the column and its Goals metric (`READING` in
+  `GOAL_ITEMS_BY_PERIOD`) still exist, just with no UI writing to it
+  anymore.
 - **Listen** — add each audio you listened to today one at a time (type
   a name, hit Add or Enter), with a ✕ to remove any of them — instead of
   cramming them all into one text field. `listen_what`/`listen_count`

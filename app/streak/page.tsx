@@ -778,11 +778,6 @@ export default function StreakPage() {
                   if (readAmount !== selectedRow.read_amount) saveToday({ read_amount: readAmount });
                 }}
               />
-              <Counter
-                label="Minutes read"
-                value={selectedRow.read_minutes}
-                onChange={(next) => saveToday({ read_minutes: next })}
-              />
             </div>
 
             <div className="card space-y-2">
