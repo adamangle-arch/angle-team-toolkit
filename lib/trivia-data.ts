@@ -115,4 +115,9 @@ export const TRIVIA_QUESTIONS: TriviaQuestion[] = [
     options: ["Derek Kosek", "Paul Kopecky", "Manny Winston", "Toby Ayers"],
     correctIndex: 0,
   },
+  {
+    question: "Which vitamin is recommended for people with limited sun exposure?",
+    options: ["Vitamin D", "Vitamin C", "Vitamin B12", "Vitamin E"],
+    correctIndex: 0,
+  },
 ];
