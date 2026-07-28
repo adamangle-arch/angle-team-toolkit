@@ -110,4 +110,9 @@ export const TRIVIA_QUESTIONS: TriviaQuestion[] = [
     options: ["Read 20 Minutes / Day", "Attend all Meetings", "Post on social media daily", "Be Coachable"],
     correctIndex: 2,
   },
+  {
+    question: "Which Diamond has a background in professional soccer?",
+    options: ["Derek Kosek", "Paul Kopecky", "Manny Winston", "Toby Ayers"],
+    correctIndex: 0,
+  },
 ];
