@@ -1,7 +1,13 @@
 import { supabase } from "@/lib/supabaseClient";
 
 type NotifyBody =
-  | { kind: "calendar_event_added"; title: string; eventAt: string; scope: "downline" | "all" }
+  | {
+      kind: "calendar_event_added";
+      title: string;
+      eventAt: string;
+      scope: "downline" | "all" | "specific";
+      recipientIds?: string[];
+    }
   | { kind: "call_rating_submitted"; candidateName: string; callType: string; overallScore: number | null }
   | { kind: "core_run_completed" }
   | { kind: "pipeline_5plus" }

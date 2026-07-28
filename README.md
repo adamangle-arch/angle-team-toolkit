@@ -833,6 +833,17 @@ separate Google Calendar for team scheduling:
   (security definer, same pattern as `delete_downline_account` and
   `grant_next_onboarding_session` elsewhere in this app) since normal
   RLS only allows inserting rows for yourself.
+- **Sending to specific downline people instead of everyone** — right
+  below the "Add to all downline" checkbox, unchecking it (or never
+  checking it) reveals a scrollable checklist of your actual downline
+  members by name. Check one or several and only they get a copy —
+  useful for a smaller huddle or a candidate-specific meeting that
+  doesn't belong on the whole team's calendar. Calls a new
+  `send_event_to_recipients()` function, the same shape as
+  `broadcast_event_to_downline()` but filtered to the ids you picked —
+  and it re-validates that filter server-side against your real downline
+  (`get_downline_user_ids`), so a tampered request still can't reach
+  outside it.
 - **Upline visibility** — same access model as Core Run Streak and
   Assistant conversations: an upline (any level) or admin can read a
   downline's calendar even without a broadcast, so the Team tab's member
@@ -841,20 +852,78 @@ separate Google Calendar for team scheduling:
   process" becomes visible to upline without anyone having to share a
   separate calendar app.
 
-A linked spouse is never treated as "downline" for this, even if their
-account also technically satisfies the upline check (e.g. they entered
-your account number as their own upline when they signed up) — their
-data resolves to the same shared owner as your own, so counting them
-separately would double-count your own numbers under their name. Both
-the "Add to all downline" broadcast and the Daily Update summary's
-Downline totals (Core Run Streak page) filter this out.
+A linked spouse is never treated as "downline" for broadcasting/sending,
+even if their account also technically satisfies the upline check (e.g.
+they entered your account number as their own upline when they signed
+up) — their data resolves to the same shared owner as your own, so
+counting them separately would double-count your own numbers under
+their name. Both the downline recipient pickers above and the Daily
+Update summary's Downline totals (Core Run Streak page) filter this out.
 
-Data lives in a new `calendar_events` table, individual per person (not
-shared with a linked spouse, same as Core Run Streak) — `user_id` is
-whose calendar a row shows on, `creator_id` is who actually made it, so
-a broadcast row can show who sent it even though it's now "owned" by
-the recipient (they can delete their own copy without affecting anyone
-else's).
+### Shared calendar for linked spouses
+
+Calendar now joins the list of things a linked household shares — a
+married couple sees one merged calendar, not two separate ones. This is
+a deliberate change from how `calendar_events` started out: unlike Core
+Run Streak and Assistant conversations (personal on purpose, even for a
+linked spouse), a shared family/business calendar is exactly what a
+couple actually wants.
+
+New personal events now insert under the household's canonical
+`ownerId` — the same convention `candidates`/`contacts`/`pipeline_periods`
+already use — rather than the creator's own raw id, so whichever spouse
+adds something, it shows up on both logins automatically. RLS on
+`calendar_events` widened to check household membership in both
+directions (`household_id` lookup either way), rather than the
+one-directional pattern the other household-shareable tables use —
+those tables always write through that single canonicalized owner id, so
+a row's `user_id` is never the deferring spouse's own raw id, but
+`calendar_events` predates the ownerId convention and has existing rows
+filed under whichever spouse originally created them. Checking both
+directions keeps those older rows visible to both spouses too, not just
+new ones going forward.
+
+The Calendar page itself fetches every row belonging to either side of
+the household (`ownerId` plus a `get_household_partner_id()` lookup, to
+also catch a spouse's pre-existing rows filed under their own raw id)
+and merges them into one list. A standing Team Event or downline
+broadcast still inserts one copy per profile — including both members of
+a household — so once two spouses' calendars are merged, the same
+standing event would otherwise show up twice; the merge step dedupes by
+matching title + time + notes before rendering.
+
+`user_id` is still whose calendar a row shows on and `creator_id` is
+still who actually made it, so a spouse-added or broadcast event still
+shows "📢 From {name}" — that pill now doubles as "which of us actually
+added this," not just "this came from upline."
+
+### Calendar views: Agenda, Day, and Month
+
+A three-way tab (`Agenda` / `Day` / `Month`) sits above the event list,
+mirroring the view switcher in a full calendar app:
+
+- **Agenda** — the original list view: Upcoming, soonest first, then
+  Recently Passed. Still the default.
+- **Day** — an hourly grid (6 AM–9 PM) for a single day, with each
+  event drawn as a colored block positioned at its actual time (an event
+  outside that window clamps to the nearest edge rather than
+  disappearing). Below the grid, that day's events are listed as normal
+  cards — the grid is for a fast visual scan of how the day lays out,
+  the list below is where you actually delete something or read its
+  notes. ‹ › steps one day at a time, with no limit on how far forward
+  or back.
+- **Month** — a traditional 7-column grid, Sunday-first, with leading/
+  trailing days from adjacent months filling out every row to a full
+  week. Each day shows up to 3 small colored dots (one per event type)
+  so a glance down the month shows which weeks are busy. Tapping a day
+  selects it and shows its events as cards underneath, same list-below-
+  the-grid pattern as Day view. ‹ › steps a month at a time; jumping to a
+  different month resets the selected day to today (if you're back on
+  the current month) or the 1st.
+
+Both grids and the Agenda list read from the same merged, deduped event
+list — switching tabs doesn't refetch anything, it's the same data laid
+out three different ways.
 
 **Team Events (recurring)** — an admin-only card at the top of the
 Calendar tab for standing, company-wide events (Masterclasses, Summit,
@@ -1408,8 +1477,12 @@ The five, and who they notify:
 
 - **Calendar event added by upline/admin** (`calendar_event_added`) —
   fires after `broadcast_event_to_downline()` (a rep sending something to
-  their whole downline) or `add_company_event()` (an admin's recurring
-  team event), notifying everyone the event just landed on.
+  their whole downline), `send_event_to_recipients()` (sending to a
+  specific few instead of everyone), or `add_company_event()` (an admin's
+  recurring team event), notifying everyone the event just landed on. The
+  route re-derives the recipient list itself from the caller's real
+  downline rather than trusting a client-supplied id list for the
+  "specific people" case.
 - **Downline call rating submitted** (`call_rating_submitted`) — fires in
   `RatingJobsProvider` right after a finished Rate a Call analysis saves
   successfully, notifying every level of the submitter's upline

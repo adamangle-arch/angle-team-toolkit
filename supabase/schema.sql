@@ -2072,32 +2072,62 @@ alter table calendar_events add constraint calendar_events_event_type_check chec
 );
 alter table calendar_events add column if not exists reminder_minutes_before int default 30;
 
--- Same shape as the "personal tables" policies above (streak_days,
--- assistant_messages) - own + upline + admin can read, only the owner
--- (or admin) can write. Written out explicitly rather than joining that
--- loop since this table doesn't exist yet at the point it runs.
+-- Unlike the "personal tables" above (streak_days, assistant_messages,
+-- call_ratings — deliberately never shared with a linked spouse),
+-- calendar_events IS household-shareable: a married couple wants one
+-- shared calendar, not two separate ones. Checked in both directions
+-- (household_id lookup either way) rather than the one-directional
+-- pattern the other household-shareable tables use, because those
+-- tables always write through a single canonicalized owner id
+-- (candidates/contacts/pipeline_periods all resolve to `ownerId`
+-- client-side) so a row's user_id is never the deferring spouse's own
+-- raw id - calendar_events predates that convention and has existing
+-- rows under either spouse's own id, so both directions need checking
+-- for those legacy rows to stay visible. New rows from either spouse
+-- now insert under the shared ownerId going forward (see
+-- app/calendar/page.tsx), same as the other shared tables.
 alter table calendar_events enable row level security;
 
 drop policy if exists "calendar_events_select_own_or_admin" on calendar_events;
 create policy "calendar_events_select_own_or_admin" on calendar_events
 for select using (
   user_id = auth.uid()
+  or user_id = (select household_id from profiles where id = auth.uid())
+  or user_id = (select id from profiles where household_id = auth.uid())
   or public.is_upline_of(auth.uid(), user_id)
   or public.is_app_admin()
 );
 
 drop policy if exists "calendar_events_insert_own" on calendar_events;
 create policy "calendar_events_insert_own" on calendar_events
-for insert with check (user_id = auth.uid());
+for insert with check (
+  user_id = auth.uid()
+  or user_id = (select household_id from profiles where id = auth.uid())
+);
 
 drop policy if exists "calendar_events_update_own_or_admin" on calendar_events;
 create policy "calendar_events_update_own_or_admin" on calendar_events
-for update using (user_id = auth.uid() or public.is_app_admin())
-with check (user_id = auth.uid() or public.is_app_admin());
+for update using (
+  user_id = auth.uid()
+  or user_id = (select household_id from profiles where id = auth.uid())
+  or user_id = (select id from profiles where household_id = auth.uid())
+  or public.is_app_admin()
+)
+with check (
+  user_id = auth.uid()
+  or user_id = (select household_id from profiles where id = auth.uid())
+  or user_id = (select id from profiles where household_id = auth.uid())
+  or public.is_app_admin()
+);
 
 drop policy if exists "calendar_events_delete_own_or_admin" on calendar_events;
 create policy "calendar_events_delete_own_or_admin" on calendar_events
-for delete using (user_id = auth.uid() or public.is_app_admin());
+for delete using (
+  user_id = auth.uid()
+  or user_id = (select household_id from profiles where id = auth.uid())
+  or user_id = (select id from profiles where household_id = auth.uid())
+  or public.is_app_admin()
+);
 
 -- All of a user's downline (any level), for the broadcast function
 -- below - is_upline_of only answers "is A upline of B", so this wraps
@@ -2183,6 +2213,46 @@ end;
 $$;
 
 grant execute on function public.broadcast_event_to_downline(text, text, timestamptz, uuid, text, int) to authenticated;
+
+-- Same idea as broadcast_event_to_downline, but to a caller-chosen subset
+-- of their downline instead of all of it ("select a specific downline or
+-- multiple specific downline" on the Add Event form). Filters
+-- p_recipient_ids against get_downline_user_ids(auth.uid()) rather than
+-- trusting the array outright - a tampered request can only ever narrow
+-- to ids that are already legitimately this caller's downline, never
+-- reach outside it.
+create or replace function public.send_event_to_recipients(
+  p_title text,
+  p_notes text,
+  p_event_at timestamptz,
+  p_recipient_ids uuid[],
+  p_candidate_id uuid default null,
+  p_event_type text default 'other',
+  p_reminder_minutes_before int default 30
+)
+returns int
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_count int;
+begin
+  insert into calendar_events (
+    user_id, creator_id, title, notes, event_at, candidate_id, scope,
+    event_type, reminder_minutes_before
+  )
+  select
+    d.user_id, auth.uid(), p_title, p_notes, p_event_at, p_candidate_id, 'downline',
+    p_event_type, p_reminder_minutes_before
+  from public.get_downline_user_ids(auth.uid()) d
+  where d.user_id = any(p_recipient_ids);
+  get diagnostics v_count = row_count;
+  return v_count;
+end;
+$$;
+
+grant execute on function public.send_event_to_recipients(text, text, timestamptz, uuid[], uuid, text, int) to authenticated;
 
 -- ============================================================
 -- 15. COMPANY EVENTS (standing, recurring team events)

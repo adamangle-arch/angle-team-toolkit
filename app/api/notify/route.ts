@@ -12,7 +12,13 @@ const supabaseAuthClient = createClient(
 );
 
 type Body =
-  | { kind: "calendar_event_added"; title: string; eventAt: string; scope: "downline" | "all" }
+  | {
+      kind: "calendar_event_added";
+      title: string;
+      eventAt: string;
+      scope: "downline" | "all" | "specific";
+      recipientIds?: string[];
+    }
   | { kind: "call_rating_submitted"; candidateName: string; callType: string; overallScore: number | null }
   | { kind: "core_run_completed" }
   | { kind: "pipeline_5plus" }
@@ -66,13 +72,25 @@ export async function POST(request: Request) {
   try {
     switch (body.kind) {
       case "calendar_event_added": {
-        const { data: recipientRows } =
-          body.scope === "all"
-            ? await admin.from("profiles").select("id").neq("id", userId)
-            : await admin.rpc("get_downline_user_ids", { p_user_id: userId });
-        const recipients = ((recipientRows as { id?: string; user_id?: string }[]) ?? [])
-          .map((r) => r.id ?? r.user_id)
-          .filter((id): id is string => Boolean(id));
+        let recipients: string[];
+        if (body.scope === "all") {
+          const { data: recipientRows } = await admin.from("profiles").select("id").neq("id", userId);
+          recipients = ((recipientRows as { id: string }[]) ?? []).map((r) => r.id);
+        } else {
+          // "downline" and "specific" both start from the caller's real
+          // downline - for "specific" this also doubles as validation,
+          // narrowing whatever ids the client sent down to only the ones
+          // that are actually this caller's downline (never trust a
+          // client-supplied id list outright).
+          const { data: recipientRows } = await admin.rpc("get_downline_user_ids", {
+            p_user_id: userId,
+          });
+          const downlineIds = ((recipientRows as { user_id: string }[]) ?? []).map((r) => r.user_id);
+          recipients =
+            body.scope === "specific"
+              ? downlineIds.filter((id) => (body.recipientIds ?? []).includes(id))
+              : downlineIds;
+        }
 
         const { data: creator } = await admin
           .from("profiles")
