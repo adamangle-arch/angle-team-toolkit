@@ -548,6 +548,51 @@ display addition (`isAdmin &&` guards, no schema change). Useful for
 helping someone link up without needing to ask them to read their own
 number off My Profile.
 
+### Linked households share downline/upline visibility too
+
+A rep reported seeing no downline at all despite being linked (via
+`link_spouse`) to their fiancée — real gap, not a misunderstanding.
+Household linking only ever shared *business data* (pipeline, candidates,
+contacts); sponsorship visibility (`is_upline_of`, driving the Members
+list, the Team tab's per-member detail view, and every business-data RLS
+policy) is governed entirely by `upline_id`, a completely separate
+mechanism that linking never touched. A couple running one business only
+has one real sponsor line, but a recruit may have entered *either*
+partner's account number depending on who they actually talked to — so
+only whichever partner the recruit picked ever saw them as downline; the
+other partner saw nothing, despite genuinely running the same business.
+
+Fixed at the single source of truth: `is_upline_of(p_viewer, p_target)`
+now expands **both** arguments to their linked household unit (self, plus
+whoever they're linked to in either direction — `household_id` is only
+ever stored on the "deferring" side, so both directions have to be
+checked) before walking the sponsorship chain. Both arguments needed
+expanding, not just one — this function gets called with both argument
+orders across the app (the `profiles` select policy alone does
+`is_upline_of(auth.uid(), id) or is_upline_of(id, auth.uid())`), so
+widening only `p_viewer` would've silently left the reverse direction
+broken. Because this one function is what every downline/upline check in
+the app already calls through — `profiles` visibility, every
+business-data table's RLS, `delete_downline_account`,
+`grant_next_onboarding_session`, the Team tab's aggregate RPCs — the
+Members list and per-member detail view picked this up automatically,
+with no changes needed to any of them individually.
+
+**My Tree**/**My Upline** needed a second, small fix on top: unlike the
+Members list (a flat filter over whatever `profiles` RLS already
+returns), those two are built by literally walking `upline_id` starting
+from one specific account (`buildSponsorshipChildren`), so a recruit
+sponsored under a spouse's id would still never appear rooted under "you"
+even though the row itself is now fetchable. A new
+`get_household_partner_id()` function (security definer, checks both
+directions of the `household_id` pointer the same way) lets the Team tab
+resolve a linked partner's id once and fold their tree/chain in: **My
+Downline** now builds the tree from both roots and merges the top-level
+lists (re-sorted, since each root's own list was only alphabetical on its
+own); **My Upline** falls back to a linked partner's own chain if this
+account's is empty, since typically only one partner in a couple actually
+entered a sponsor's account number.
+
 ### Sponsorship tree views
 
 The Team tab's toggle row has two more views alongside Members/Teams,

@@ -117,6 +117,21 @@ export default function TeamPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [memberData, setMemberData] = useState<MemberData | null>(null);
   const [loadingMember, setLoadingMember] = useState(false);
+  // A linked spouse's own sponsorship line needs folding into "My Tree"/
+  // "My Upline" - unlike the Members list (a flat filter over whatever
+  // profiles RLS already returns), those two are built by literally
+  // walking upline_id starting from one specific account, so they'd
+  // still miss a partner's downline/upline even after is_upline_of's
+  // household-aware widening. household_id is only ever stored on the
+  // "deferring" side, so there's no plain column read for "who's my
+  // spouse" from the other direction - hence the RPC.
+  const [partnerId, setPartnerId] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.rpc("get_household_partner_id").then(({ data }) => {
+      setPartnerId((data as string | null) ?? null);
+    });
+  }, [user.id]);
 
   const [teamTotals, setTeamTotals] = useState<TeamTotals[]>([]);
   const [loadingTeams, setLoadingTeams] = useState(true);
@@ -135,10 +150,26 @@ export default function TeamPage() {
   // downline (RLS), so this is just a client-side re-shape of data
   // already fetched, no extra query needed. For an admin, `profiles` has
   // everyone, so this naturally narrows to just the admin's own chain.
-  const myTreeChildren = useMemo(
-    () => buildSponsorshipChildren(profiles, user.id),
-    [profiles, user.id]
-  );
+  //
+  // A linked spouse's downline is folded in too, since a recruit may
+  // have entered either partner's account number - buildSponsorshipChildren
+  // only nests strictly by literal upline_id, so a recruit sponsored
+  // under your spouse's id would otherwise never appear rooted under
+  // "you" even though profiles RLS now fetches that row either way.
+  // Re-sorted after merging since each root's own top-level list was
+  // already alphabetical on its own, not combined.
+  const myTreeChildren = useMemo(() => {
+    const mine = buildSponsorshipChildren(profiles, user.id);
+    if (!partnerId) return mine;
+    const theirs = buildSponsorshipChildren(profiles, partnerId);
+    const seen = new Set(mine.map((n) => n.profile.id));
+    const merged = [...mine, ...theirs.filter((n) => !seen.has(n.profile.id))];
+    return merged.sort((a, b) => {
+      const nameFor = (p: Profile) =>
+        (p.first_name && p.last_name ? `${p.first_name} ${p.last_name}` : p.email).toLowerCase();
+      return nameFor(a.profile).localeCompare(nameFor(b.profile));
+    });
+  }, [profiles, user.id, partnerId]);
   // "Whole Team" - the entire company's sponsorship forest, rooted at
   // whoever has no upline at all. Admin-only, since a non-admin's
   // `profiles` never contains anyone outside their own downline anyway.
@@ -152,11 +183,17 @@ export default function TeamPage() {
   // (not just your downline), so those rows are already present in
   // `profiles` once fetched - this just walks upline_id pointers using
   // what's already loaded, no extra query.
-  const myUplineChain = useMemo(() => {
+  //
+  // Falls back to a linked spouse's own upline chain if this account has
+  // none set - typically only one partner in a couple actually entered a
+  // sponsor's account number, so without this, whichever partner didn't
+  // would see "My Upline" as empty despite the couple sharing one real
+  // sponsor line.
+  function uplineChainFrom(rootId: string): Profile[] {
     const byId = new Map(profiles.map((p) => [p.id, p]));
     const chain: Profile[] = [];
-    const seen = new Set<string>([user.id]);
-    let cursor = byId.get(user.id)?.upline_id ?? null;
+    const seen = new Set<string>([rootId]);
+    let cursor = byId.get(rootId)?.upline_id ?? null;
     while (cursor && !seen.has(cursor)) {
       const p = byId.get(cursor);
       if (!p) break;
@@ -165,7 +202,13 @@ export default function TeamPage() {
       cursor = p.upline_id ?? null;
     }
     return chain;
-  }, [profiles, user.id]);
+  }
+  const myUplineChain = useMemo(() => {
+    const mine = uplineChainFrom(user.id);
+    if (mine.length > 0 || !partnerId) return mine;
+    return uplineChainFrom(partnerId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profiles, user.id, partnerId]);
   // `profiles` (for a non-admin) now also includes rows from the upline
   // chain above, which is exactly what "My Upline" needs - but the
   // Members list is specifically "people I supervise," so it excludes

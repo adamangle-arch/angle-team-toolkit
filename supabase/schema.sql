@@ -382,6 +382,25 @@ alter table profiles add constraint profiles_account_number_unique unique (accou
 -- Security definer so it can walk the full profiles table regardless of
 -- who's calling — the depth cap is just a safety net against a bad
 -- upline_id cycle from manual data edits.
+--
+-- A linked household (spouse, via link_spouse) is treated as the same
+-- unit here, same as it already is for shared business data - a couple
+-- running one business together only has ONE actual sponsor line, but a
+-- recruit may have entered either partner's account number as their
+-- upline depending on who they actually talked to. Without this, only
+-- whichever partner the recruit happened to pick would ever see them as
+-- downline - the other partner would see nothing despite genuinely
+-- running the same business.
+--
+-- This function is called with both argument orders across the app
+-- (profiles' select policy alone does `is_upline_of(auth.uid(), id) or
+-- is_upline_of(id, auth.uid())`, and the same is true wherever else it's
+-- used), so both p_viewer and p_target are expanded to their household
+-- unit - not just p_viewer - otherwise only whichever argument position
+-- happened to carry the household would actually widen anything, and
+-- the "am I upline of my spouse's downline" direction would silently
+-- keep failing. household_id is only ever stored on the "deferring"
+-- side, so each *_unit CTE checks both directions of that pointer.
 create or replace function public.is_upline_of(p_viewer uuid, p_target uuid)
 returns boolean
 language sql
@@ -389,15 +408,31 @@ stable
 security definer
 set search_path = public
 as $$
-  with recursive chain as (
-    select id, upline_id, 0 as depth from profiles where id = p_target
+  with recursive target_unit as (
+    select p_target as id
+    union
+    select household_id from profiles where id = p_target and household_id is not null
+    union
+    select id from profiles where household_id = p_target
+  ),
+  chain as (
+    select id, upline_id, 0 as depth from profiles where id in (select id from target_unit)
     union all
     select pr.id, pr.upline_id, c.depth + 1
     from profiles pr
     join chain c on pr.id = c.upline_id
     where c.depth < 20
+  ),
+  viewer_unit as (
+    select p_viewer as id
+    union
+    select household_id from profiles where id = p_viewer and household_id is not null
+    union
+    select id from profiles where household_id = p_viewer
   )
-  select coalesce(p_viewer in (select upline_id from chain where upline_id is not null), false);
+  select exists (
+    select 1 from chain c join viewer_unit u on u.id = c.upline_id
+  );
 $$;
 
 alter table profiles enable row level security;
@@ -469,6 +504,30 @@ end;
 $$;
 
 grant execute on function public.link_spouse(text) to authenticated;
+
+-- household_id is only ever stored on the "deferring" side of a spouse
+-- link, so there's no plain column read that answers "who's my spouse"
+-- from the *other* side. This checks both directions and hands back
+-- whichever id isn't the caller's own - used client-side (Team tab) to
+-- fold a linked partner's own upline/downline tree into "My Tree"/"My
+-- Upline", which - unlike the Members list - are built by literally
+-- walking upline_id starting from one specific account, so they'd
+-- otherwise still miss a partner's line even after is_upline_of's
+-- household-aware widening above.
+create or replace function public.get_household_partner_id()
+returns uuid
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(
+    (select household_id from profiles where id = auth.uid()),
+    (select id from profiles where household_id = auth.uid())
+  );
+$$;
+
+grant execute on function public.get_household_partner_id() to authenticated;
 
 -- Self-service upline linking (My Profile > My Upline). Looks up the
 -- upline by their account_number and sets the caller's own upline_id —
