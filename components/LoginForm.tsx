@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 
 export default function LoginForm() {
@@ -78,6 +79,10 @@ export default function LoginForm() {
         >
           {mode === "signin" ? "Need an account? Sign up" : "Already have an account? Sign in"}
         </button>
+
+        <Link href="/prospect" className="block w-full text-center text-xs text-slate-500">
+          In the interview process? Enter your prospect code
+        </Link>
       </div>
     </div>
   );

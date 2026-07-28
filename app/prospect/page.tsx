@@ -14,6 +14,23 @@ type CandidateInfo = {
   inviter_last_name: string | null;
 };
 
+type UpcomingEvent = {
+  event_id: string;
+  title: string;
+  notes: string;
+  event_at: string;
+};
+
+function formatEventAt(iso: string): string {
+  return new Date(iso).toLocaleString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 // Remembers a validated code on this device so a prospect doesn't have to
 // retype it every time they check back for new resources - there's no
 // real account/session here, just this one value.
@@ -22,6 +39,7 @@ const STORAGE_KEY = "atk_prospect_code";
 export default function ProspectPage() {
   const [code, setCode] = useState("");
   const [info, setInfo] = useState<CandidateInfo | null>(null);
+  const [events, setEvents] = useState<UpcomingEvent[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [checkedStorage, setCheckedStorage] = useState(false);
@@ -31,9 +49,10 @@ export default function ProspectPage() {
     if (!trimmed) return;
     setLoading(true);
     setFormError(null);
-    const { data, error } = await supabase
-      .rpc("get_candidate_by_access_code", { p_code: trimmed })
-      .maybeSingle();
+    const [{ data, error }, { data: eventRows }] = await Promise.all([
+      supabase.rpc("get_candidate_by_access_code", { p_code: trimmed }).maybeSingle(),
+      supabase.rpc("get_candidate_upcoming_events", { p_code: trimmed }),
+    ]);
     setLoading(false);
     setCheckedStorage(true);
     if (error || !data) {
@@ -42,6 +61,7 @@ export default function ProspectPage() {
       return;
     }
     setInfo(data as CandidateInfo);
+    setEvents((eventRows as UpcomingEvent[]) ?? []);
     if (persist) localStorage.setItem(STORAGE_KEY, trimmed);
   }
 
@@ -99,6 +119,9 @@ export default function ProspectPage() {
               {loading ? "Checking…" : "Continue"}
             </button>
           </form>
+          <Link href="/dashboard" className="block w-full text-center text-xs text-slate-400">
+            Already a team member? Sign in
+          </Link>
         </div>
       </div>
     );
@@ -135,6 +158,19 @@ export default function ProspectPage() {
               Step {info.current_step + 1}/{CANDIDATE_STEPS.length}:{" "}
               {CANDIDATE_STEPS[info.current_step].label}
             </p>
+          </div>
+        )}
+
+        {events.length > 0 && (
+          <div className="space-y-1.5">
+            <p className="section-title">📅 Upcoming</p>
+            {events.map((e) => (
+              <div key={e.event_id} className="card space-y-1">
+                <p className="text-sm font-medium text-white">{e.title}</p>
+                <p className="text-xs text-amber-light">{formatEventAt(e.event_at)}</p>
+                {e.notes && <p className="text-xs text-slate-400">{e.notes}</p>}
+              </div>
+            ))}
           </div>
         )}
 

@@ -2463,6 +2463,35 @@ $$;
 
 grant execute on function public.send_event_to_recipients(text, text, timestamptz, uuid[], uuid, text, int) to authenticated;
 
+-- Powers the "Upcoming" section of /prospect - any calendar_events row
+-- tagged with this candidate (the existing "linked candidate" picker on
+-- the Add Event form, unchanged) shows up automatically in their
+-- code-gated view, same as scheduling it in the app today already shows
+-- it on the rep's own calendar. Callable by anon, same reasoning as
+-- get_candidate_by_access_code above - nothing here is private to a
+-- specific meeting time and a candidate's own first name.
+create or replace function public.get_candidate_upcoming_events(p_code text)
+returns table (
+  event_id uuid,
+  title text,
+  notes text,
+  event_at timestamptz
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select e.id, e.title, e.notes, e.event_at
+  from calendar_events e
+  join candidates c on c.id = e.candidate_id
+  where upper(c.access_code) = upper(p_code)
+    and e.event_at >= now()
+  order by e.event_at asc;
+$$;
+
+grant execute on function public.get_candidate_upcoming_events(text) to anon, authenticated;
+
 -- ============================================================
 -- 15. COMPANY EVENTS (standing, recurring team events)
 --

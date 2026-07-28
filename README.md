@@ -1339,12 +1339,24 @@ copies a ready-to-send message ("Check out these resources: .../prospect
 invite flow.
 
 **What the candidate sees:** they open `/prospect`, type in the code, and
-`get_candidate_by_access_code()` (the only RPC in this app callable by the
-unauthenticated `anon` role) looks them up by code and returns their name,
-current roadmap step, launched status, and the inviter's name — nothing
-private, no auth required. The app remembers a validated code in
-`localStorage` on their device so they don't have to retype it on repeat
-visits ("Not you? Enter a different code" resets it).
+`get_candidate_by_access_code()` (callable by the unauthenticated `anon`
+role) looks them up by code and returns their name, current roadmap step,
+launched status, and the inviter's name — nothing private, no auth
+required. The app remembers a validated code in `localStorage` on their
+device so they don't have to retype it on repeat visits ("Not you? Enter
+a different code" resets it). The code screen and the normal sign-in
+screen (`LoginForm`) cross-link to each other — "Already a team member?
+Sign in" on `/prospect`, "In the interview process? Enter your prospect
+code" on the sign-in screen — so whichever one someone lands on first,
+they can get to the right place.
+
+**Scheduled meetings show up in their view too.** The candidate picker
+already on the Add Event form (Calendar tab — link an event to a specific
+candidate) is the whole mechanism: any upcoming `calendar_events` row
+tagged with a candidate now also surfaces in that candidate's `/prospect`
+view as an "📅 Upcoming" card (title, date/time, notes), via
+`get_candidate_upcoming_events()` — same anon-callable pattern as above.
+Scheduling QI1, an Info Session, whatever, the normal way is all it takes.
 
 **Resources unlock automatically as they move through the roadmap.**
 `CANDIDATE_STEP_RESOURCES` in `lib/constants.ts` is a parallel array to
