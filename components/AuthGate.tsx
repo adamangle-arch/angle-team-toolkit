@@ -52,6 +52,18 @@ function withTimeout<T>(promise: PromiseLike<T>, message: string): Promise<T> {
   ]);
 }
 
+// A thrown Supabase/PostgREST error is a plain {message, code, details}
+// object, not an Error instance - `err instanceof Error` misses it and
+// falls back to a useless generic string right when the real message
+// (an RLS denial, a broken trigger) is what's actually needed to debug it.
+function errorMessage(err: unknown, fallback: string): string {
+  if (err instanceof Error) return err.message;
+  if (err && typeof err === "object" && "message" in err && typeof err.message === "string") {
+    return err.message;
+  }
+  return fallback;
+}
+
 export default function AuthGate({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -68,7 +80,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
         setLoading(false);
       })
       .catch((err) => {
-        setAuthError(err instanceof Error ? err.message : "Could not check your session.");
+        setAuthError(errorMessage(err, "Could not check your session."));
         setLoading(false);
       });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -87,7 +99,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
       setAuthError(null);
       setProfile((data as Profile) ?? null);
     } catch (err) {
-      setAuthError(err instanceof Error ? err.message : "Could not load your profile.");
+      setAuthError(errorMessage(err, "Could not load your profile."));
     } finally {
       setProfileLoading(false);
     }
