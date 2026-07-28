@@ -1640,8 +1640,12 @@ initial tab can be deep-linked via `?tab=diamond-run|diamond-chase|trivia`
   by a seeded shuffle keyed off the date string (`components/games/
   TriviaGame.tsx`'s `dailyQuestionIndices`) — no server-side "today's
   questions" state needed, it's just computed the same way on every
-  device. Honor system: books, audios, and Amway/LTD materials only, no
-  internet lookups. Playing is gated the same way as Diamond Run —
+  device. The start screen frames it as "just a fun way to test your LTD
+  knowledge" (honor system, no internet lookups or asking someone for
+  the answer) plus a no-pressure nudge if you're missing a few: it just
+  means it's a good time to plug back into audios, books, and team
+  events — not a "you're falling behind" message. Playing is gated the
+  same way as Diamond Run —
   unlocks once that day's Core Run (Read, Listen, Daily Update, Story
   Share) is complete. One attempt per day: answering a question wrong
   ends the attempt immediately (no retries, no seeing the remaining
