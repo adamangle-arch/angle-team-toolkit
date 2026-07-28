@@ -130,4 +130,80 @@ export const TRIVIA_QUESTIONS: TriviaQuestion[] = [
     ],
     correctIndex: 0,
   },
+  {
+    question: 'Who is the speaker of the audio "Networking Is Normal"?',
+    options: ["Derek & Jill Kosek", "Kyle & Austin Brown", "Joe Markiewicz", "Manny Winston"],
+    correctIndex: 0,
+  },
+  {
+    question: '"Ditch the Pitch" moves you from a recruiting mindset to what kind of mindset?',
+    options: ["Filtering", "Closing", "Coaching", "Selling"],
+    correctIndex: 0,
+  },
+  {
+    question: 'In "10 Seconds Of Courage," what does Matt Grotewold say courage really is?',
+    options: [
+      "A moment-by-moment decision",
+      "A personality trait",
+      "Something you're born with",
+      "A result of confidence",
+    ],
+    correctIndex: 0,
+  },
+  {
+    question: 'Who interviews Kent & Jenna Scheerer in the audio "Get Through Or Win Through"?',
+    options: ["Alex Angle", "Joe Markiewicz", "Mark Nathan", "Drew Tidwell"],
+    correctIndex: 0,
+  },
+  {
+    question: "What was Alex Angle's career before the business?",
+    options: ["Corporate IT sales", "UPS driver", "Car wash manager", "Bank manager"],
+    correctIndex: 0,
+  },
+  {
+    question: "What was Laura Angle's career before the business?",
+    options: ["Elementary education", "Nursing", "Cosmetology", "Accounting"],
+    correctIndex: 0,
+  },
+  {
+    question: "Where did Alex Angle go to college?",
+    options: ["William & Mary", "UVA", "Virginia Tech", "UMBC"],
+    correctIndex: 0,
+  },
+  {
+    question: "What was Mike Bundy's job before building the business full time?",
+    options: ["UPS Driver", "Car Wash Manager", "Police Officer", "Restaurant Owner"],
+    correctIndex: 0,
+  },
+  {
+    question:
+      "Which Diamond couple is based in the Chicago area and works in acting/massage therapy?",
+    options: [
+      "Mark & Meredith Nathan",
+      "Paul & Morgan Kopecky",
+      "Danny & Renate Snipes",
+      "Joe & Marybeth Markiewicz",
+    ],
+    correctIndex: 0,
+  },
+  {
+    question: "How many QI's per week does the 9 Core Steps call for?",
+    options: ["3-5", "1-2", "5-7", "2-4"],
+    correctIndex: 0,
+  },
+  {
+    question: 'What VCS percentage is part of "Grow Your Income" in the 9 Core Steps?',
+    options: ["60%", "50%", "70%", "40%"],
+    correctIndex: 0,
+  },
+  {
+    question: "How many minutes of reading per day does the 9 Core Steps call for?",
+    options: ["20 minutes", "10 minutes", "30 minutes", "15 minutes"],
+    correctIndex: 0,
+  },
+  {
+    question: 'What\'s the PV goal under "Grow Your Income" in the 9 Core Steps?',
+    options: ["300 PV Personal Circle", "150 PV", "600 PV", "100 PV"],
+    correctIndex: 0,
+  },
 ];
