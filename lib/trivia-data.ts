@@ -120,4 +120,14 @@ export const TRIVIA_QUESTIONS: TriviaQuestion[] = [
     options: ["Vitamin D", "Vitamin C", "Vitamin B12", "Vitamin E"],
     correctIndex: 0,
   },
+  {
+    question: "Who were Larry & Pam Winters' first Diamonds?",
+    options: [
+      "Danny and Renate Snipes",
+      "Gary and Tammy Newell",
+      "Mike and Susan Bundy",
+      "Jake and Jackie Baker",
+    ],
+    correctIndex: 0,
+  },
 ];
