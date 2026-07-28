@@ -248,13 +248,13 @@ export default function TriviaGame() {
         <div className="card space-y-3 text-center">
           <p className="text-lg font-bold text-white">🧠 Today&apos;s 5 Questions</p>
           <p className="text-xs text-slate-400">
-            Just a fun way to test your LTD knowledge — honor system, no internet lookups or
+            This is a fun way to test your LTD knowledge — honor system, no looking up or
             asking someone for the answer. One attempt per day: get a question wrong and
             you&apos;ll try again tomorrow.
           </p>
           <p className="text-xs text-slate-500">
-            Missing a few? No pressure — it just means it&apos;s a good time to plug back into
-            your audios, books, and team events.
+            Struggling to get 5 in a row correct? No pressure — just continue to plug into your
+            audios, books, and team events and it will continue to get easier!
           </p>
           <button className="btn-primary w-full" onClick={startQuiz}>
             Start
