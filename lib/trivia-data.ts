@@ -211,4 +211,10 @@ export const TRIVIA_QUESTIONS: TriviaQuestion[] = [
     options: ["Flying", "Public speaking", "Failure", "Rejection"],
     correctIndex: 0,
   },
+  {
+    question:
+      "What is the name of the premier Bundy/Angle Team Myrtle Beach leadership weekend?",
+    options: ["Lighthouse Leadership", "Coastal Diamonds", "Beacon Summit", "Shoreline Leaders"],
+    correctIndex: 0,
+  },
 ];
