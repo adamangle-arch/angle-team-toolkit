@@ -352,6 +352,16 @@ a time, with ← → arrows to page back up to 12 months — same bounded
 pattern as the Leaderboard's monthly view (`getMonthStartOffset`), so
 older history doesn't turn into one endless scrolling table.
 
+A horizontally-scrolling row of pills above the table further narrows
+whichever month you're looking at down to one status — All, each of the
+10 roadmap steps by name ("1. Yes", "2. QI1", …), Launched, or Filtered
+Out — so "who's stuck at Info Session 1 this month" doesn't mean scanning
+the whole table by eye. Each candidate row also has a **Delete** button
+(alongside Restore) for permanently removing a row entirely — unlike
+Filtered Out (reversible, meant for a candidate who genuinely didn't pan
+out), this is a real, confirmed, unrecoverable delete meant for a
+test/fake entry that shouldn't exist in the history at all.
+
 **Upgrading an existing project:** the roadmap steps shifted by one
 position to make room for the new "Yes" step at index 0 — run this once
 (not part of the reusable schema.sql patches) so existing candidates keep

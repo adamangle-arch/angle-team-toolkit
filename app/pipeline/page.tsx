@@ -150,6 +150,11 @@ export default function PipelinePage() {
   // Candidate Roadmap tab (every candidate for this owner, not just
   // active ones), just filtered down to one month at a time.
   const [monthsBack, setMonthsBack] = useState(0);
+  // Further narrows the browsed month down to one status/step, so "who's
+  // stuck at Info Session 1 this month" or "who filtered out this month"
+  // doesn't require scanning the whole table by eye. "all" is the
+  // existing (unfiltered) behavior.
+  const [historyFilter, setHistoryFilter] = useState<"all" | "launched" | "filtered" | number>("all");
 
   // "Fill in for downline": an upline (any level) can log a downline
   // member's pipeline numbers on their behalf, in case they forget -
@@ -480,6 +485,22 @@ export default function PipelinePage() {
     }
   }
 
+  // Permanent, unlike Filtered Out - for a test/fake entry that shouldn't
+  // exist at all, not someone who genuinely didn't pan out. Confirmed
+  // since there's no Restore from this one.
+  async function deleteCandidate(id: string, name: string) {
+    if (!window.confirm(`Permanently delete ${name}? This can't be undone.`)) return;
+    const previous = candidates;
+    setCandidates((prev) => prev.filter((c) => c.id !== id));
+    const { error } = await supabase.from("candidates").delete().eq("id", id);
+    if (error) {
+      setCandidates(previous);
+      setUpdateError(error.message);
+    } else {
+      setUpdateError(null);
+    }
+  }
+
   function moveStep(candidate: Candidate, delta: number) {
     const next = Math.min(
       CANDIDATE_STEPS.length - 1,
@@ -515,6 +536,15 @@ export default function PipelinePage() {
       ),
     [candidates, historyMonthStart, historyNextMonthStart]
   );
+
+  const historyRows = useMemo(() => {
+    if (historyFilter === "all") return candidatesThisMonth;
+    if (historyFilter === "launched") return candidatesThisMonth.filter((c) => c.launched);
+    if (historyFilter === "filtered") return candidatesThisMonth.filter((c) => c.filtered_out);
+    return candidatesThisMonth.filter(
+      (c) => !c.launched && !c.filtered_out && c.current_step === historyFilter
+    );
+  }, [candidatesThisMonth, historyFilter]);
 
   return (
     <FeatureGate minSession={4}>
@@ -820,6 +850,40 @@ export default function PipelinePage() {
               </button>
             </div>
 
+            <div className="no-scrollbar flex gap-1.5 overflow-x-auto pb-1">
+              <button
+                className={historyFilter === "all" ? "toggle-pill-active shrink-0" : "toggle-pill-inactive shrink-0"}
+                onClick={() => setHistoryFilter("all")}
+              >
+                All
+              </button>
+              {CANDIDATE_STEPS.map((step, i) => (
+                <button
+                  key={i}
+                  className={historyFilter === i ? "toggle-pill-active shrink-0" : "toggle-pill-inactive shrink-0"}
+                  onClick={() => setHistoryFilter(i)}
+                >
+                  {i + 1}. {step.label}
+                </button>
+              ))}
+              <button
+                className={
+                  historyFilter === "launched" ? "toggle-pill-active shrink-0" : "toggle-pill-inactive shrink-0"
+                }
+                onClick={() => setHistoryFilter("launched")}
+              >
+                Launched
+              </button>
+              <button
+                className={
+                  historyFilter === "filtered" ? "toggle-pill-active shrink-0" : "toggle-pill-inactive shrink-0"
+                }
+                onClick={() => setHistoryFilter("filtered")}
+              >
+                Filtered Out
+              </button>
+            </div>
+
             {updateError && (
               <div className="card">
                 <p className="text-xs text-red-400">{updateError}</p>
@@ -828,16 +892,18 @@ export default function PipelinePage() {
 
             {loadingCandidates ? (
               <div className="empty-state">Loading candidates…</div>
-            ) : candidatesThisMonth.length === 0 ? (
+            ) : historyRows.length === 0 ? (
               <div className="empty-state">
                 {candidates.length === 0
                   ? "No candidates yet. Add one from the Candidate Roadmap tab."
-                  : `No candidates connected in ${formatMonthLabel(historyMonthStart)}.`}
+                  : historyFilter === "all"
+                    ? `No candidates connected in ${formatMonthLabel(historyMonthStart)}.`
+                    : `Nobody matches that filter in ${formatMonthLabel(historyMonthStart)}.`}
               </div>
             ) : (
               <div className="card space-y-2">
                 <div className="no-scrollbar overflow-x-auto">
-                  <table className="w-full min-w-[520px] text-left text-xs">
+                  <table className="w-full min-w-[560px] text-left text-xs">
                     <thead>
                       <tr className="text-slate-500">
                         <th className="pb-1 pr-2 font-medium">Connected</th>
@@ -848,7 +914,7 @@ export default function PipelinePage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {candidatesThisMonth.map((c) => {
+                      {historyRows.map((c) => {
                         const step = CANDIDATE_STEPS[c.current_step];
                         return (
                           <tr key={c.id} className="border-t border-white/5">
@@ -867,16 +933,24 @@ export default function PipelinePage() {
                               {c.notes || "—"}
                             </td>
                             <td className="py-1.5">
-                              {(c.launched || c.filtered_out) && (
+                              <div className="flex justify-end gap-1">
+                                {(c.launched || c.filtered_out) && (
+                                  <button
+                                    className="pill"
+                                    onClick={() =>
+                                      updateCandidate(c.id, { launched: false, filtered_out: false })
+                                    }
+                                  >
+                                    Restore
+                                  </button>
+                                )}
                                 <button
-                                  className="pill"
-                                  onClick={() =>
-                                    updateCandidate(c.id, { launched: false, filtered_out: false })
-                                  }
+                                  className="pill text-red-400"
+                                  onClick={() => deleteCandidate(c.id, c.name)}
                                 >
-                                  Restore
+                                  Delete
                                 </button>
-                              )}
+                              </div>
                             </td>
                           </tr>
                         );
