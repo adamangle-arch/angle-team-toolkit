@@ -95,6 +95,28 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
         supabase.from("profiles").select("*").eq("id", uid).single(),
         "Timed out loading your profile — check your connection."
       );
+      // PGRST116 = "no rows returned" - an auth account with no matching
+      // profiles row (a signup trigger that failed partway, or any other
+      // edge case that skipped the insert) used to be a permanent dead
+      // end here, since retrying the same select just fails the same
+      // way forever. ensure_profile() creates the missing row exactly
+      // the way the signup trigger would have, then this re-selects
+      // once - a no-op for every normal account that already has one.
+      if (error?.code === "PGRST116") {
+        const { error: ensureError } = await withTimeout(
+          supabase.rpc("ensure_profile"),
+          "Timed out setting up your profile — check your connection."
+        );
+        if (ensureError) throw ensureError;
+        const retry = await withTimeout(
+          supabase.from("profiles").select("*").eq("id", uid).single(),
+          "Timed out loading your profile — check your connection."
+        );
+        if (retry.error) throw retry.error;
+        setAuthError(null);
+        setProfile((retry.data as Profile) ?? null);
+        return;
+      }
       if (error) throw error;
       setAuthError(null);
       setProfile((data as Profile) ?? null);

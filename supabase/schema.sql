@@ -800,6 +800,29 @@ insert into public.profiles (id, email)
 select id, email from auth.users
 on conflict (id) do nothing;
 
+-- Self-heal for an auth account with no matching profiles row (the
+-- trigger above failing partway, or any other edge case that skips the
+-- insert) - AuthGate calls this if its profile select comes back with
+-- zero rows, so a broken account isn't a permanent dead end. Same insert
+-- handle_new_user() does, just callable directly by the affected user
+-- instead of only running at signup time.
+create or replace function public.ensure_profile()
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.profiles (id, email, account_number)
+  select u.id, u.email, public.generate_account_number()
+  from auth.users u
+  where u.id = auth.uid()
+  on conflict (id) do nothing;
+end;
+$$;
+
+grant execute on function public.ensure_profile() to authenticated;
+
 -- ============================================================
 -- 5b. PROFILE PHOTOS (STORAGE)
 -- A public bucket for profile photos — public so teammates can view
