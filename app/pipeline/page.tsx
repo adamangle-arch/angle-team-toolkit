@@ -150,11 +150,10 @@ export default function PipelinePage() {
   // Candidate Roadmap tab (every candidate for this owner, not just
   // active ones), just filtered down to one month at a time.
   const [monthsBack, setMonthsBack] = useState(0);
-  // Further narrows the browsed month down to one status/step, so "who's
-  // stuck at Info Session 1 this month" or "who filtered out this month"
-  // doesn't require scanning the whole table by eye. "all" is the
-  // existing (unfiltered) behavior.
-  const [historyFilter, setHistoryFilter] = useState<"all" | "launched" | "filtered" | number>("all");
+  // Candidate Roadmap tab - narrows the active list down to one step, so
+  // finding everyone stuck at a specific step doesn't mean scrolling past
+  // everyone else. "all" is the existing (unfiltered) behavior.
+  const [roadmapStepFilter, setRoadmapStepFilter] = useState<"all" | number>("all");
 
   // "Fill in for downline": an upline (any level) can log a downline
   // member's pipeline numbers on their behalf, in case they forget -
@@ -527,6 +526,9 @@ export default function PipelinePage() {
   const activeInPipeline = active.filter((c) => c.current_step >= ACTIVE_PIPELINE_MIN_STEP);
   const activeInPipelineCount = activeInPipeline.length;
 
+  const filteredActive =
+    roadmapStepFilter === "all" ? active : active.filter((c) => c.current_step === roadmapStepFilter);
+
   const historyMonthStart = getMonthStartOffset(monthsBack);
   const historyNextMonthStart = getMonthStartOffset(monthsBack - 1);
   const candidatesThisMonth = useMemo(
@@ -536,15 +538,6 @@ export default function PipelinePage() {
       ),
     [candidates, historyMonthStart, historyNextMonthStart]
   );
-
-  const historyRows = useMemo(() => {
-    if (historyFilter === "all") return candidatesThisMonth;
-    if (historyFilter === "launched") return candidatesThisMonth.filter((c) => c.launched);
-    if (historyFilter === "filtered") return candidatesThisMonth.filter((c) => c.filtered_out);
-    return candidatesThisMonth.filter(
-      (c) => !c.launched && !c.filtered_out && c.current_step === historyFilter
-    );
-  }, [candidatesThisMonth, historyFilter]);
 
   return (
     <FeatureGate minSession={4}>
@@ -783,13 +776,37 @@ export default function PipelinePage() {
                 {addError && <p className="text-xs text-red-400">{addError}</p>}
               </div>
 
+              {active.length > 0 && (
+                <div className="no-scrollbar flex gap-1.5 overflow-x-auto pb-1">
+                  <button
+                    className={
+                      roadmapStepFilter === "all" ? "toggle-pill-active shrink-0" : "toggle-pill-inactive shrink-0"
+                    }
+                    onClick={() => setRoadmapStepFilter("all")}
+                  >
+                    All
+                  </button>
+                  {CANDIDATE_STEPS.map((step, i) => (
+                    <button
+                      key={i}
+                      className={
+                        roadmapStepFilter === i ? "toggle-pill-active shrink-0" : "toggle-pill-inactive shrink-0"
+                      }
+                      onClick={() => setRoadmapStepFilter(i)}
+                    >
+                      {i + 1}. {step.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+
               {loadingCandidates ? (
                 <div className="empty-state">Loading candidates…</div>
               ) : candidates.length === 0 ? (
                 <div className="empty-state">No candidates yet. Add your first one above.</div>
               ) : (
                 <>
-                  {active.map((candidate) => (
+                  {filteredActive.map((candidate) => (
                     <CandidateCard
                       key={candidate.id}
                       candidate={candidate}
@@ -798,8 +815,12 @@ export default function PipelinePage() {
                     />
                   ))}
 
-                  {active.length === 0 && (
-                    <p className="empty-state">No active candidates right now.</p>
+                  {filteredActive.length === 0 && (
+                    <p className="empty-state">
+                      {active.length === 0
+                        ? "No active candidates right now."
+                        : "Nobody's at that step right now."}
+                    </p>
                   )}
 
                   {launched.length > 0 && (
@@ -850,40 +871,6 @@ export default function PipelinePage() {
               </button>
             </div>
 
-            <div className="no-scrollbar flex gap-1.5 overflow-x-auto pb-1">
-              <button
-                className={historyFilter === "all" ? "toggle-pill-active shrink-0" : "toggle-pill-inactive shrink-0"}
-                onClick={() => setHistoryFilter("all")}
-              >
-                All
-              </button>
-              {CANDIDATE_STEPS.map((step, i) => (
-                <button
-                  key={i}
-                  className={historyFilter === i ? "toggle-pill-active shrink-0" : "toggle-pill-inactive shrink-0"}
-                  onClick={() => setHistoryFilter(i)}
-                >
-                  {i + 1}. {step.label}
-                </button>
-              ))}
-              <button
-                className={
-                  historyFilter === "launched" ? "toggle-pill-active shrink-0" : "toggle-pill-inactive shrink-0"
-                }
-                onClick={() => setHistoryFilter("launched")}
-              >
-                Launched
-              </button>
-              <button
-                className={
-                  historyFilter === "filtered" ? "toggle-pill-active shrink-0" : "toggle-pill-inactive shrink-0"
-                }
-                onClick={() => setHistoryFilter("filtered")}
-              >
-                Filtered Out
-              </button>
-            </div>
-
             {updateError && (
               <div className="card">
                 <p className="text-xs text-red-400">{updateError}</p>
@@ -892,13 +879,11 @@ export default function PipelinePage() {
 
             {loadingCandidates ? (
               <div className="empty-state">Loading candidates…</div>
-            ) : historyRows.length === 0 ? (
+            ) : candidatesThisMonth.length === 0 ? (
               <div className="empty-state">
                 {candidates.length === 0
                   ? "No candidates yet. Add one from the Candidate Roadmap tab."
-                  : historyFilter === "all"
-                    ? `No candidates connected in ${formatMonthLabel(historyMonthStart)}.`
-                    : `Nobody matches that filter in ${formatMonthLabel(historyMonthStart)}.`}
+                  : `No candidates connected in ${formatMonthLabel(historyMonthStart)}.`}
               </div>
             ) : (
               <div className="card space-y-2">
@@ -914,7 +899,7 @@ export default function PipelinePage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {historyRows.map((c) => {
+                      {candidatesThisMonth.map((c) => {
                         const step = CANDIDATE_STEPS[c.current_step];
                         return (
                           <tr key={c.id} className="border-t border-white/5">

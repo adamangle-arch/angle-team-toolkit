@@ -339,6 +339,12 @@ the first thing you see instead of being buried under whoever was added
 most recently. Candidates on the same step keep their existing
 newest-first relative order (`Array.prototype.sort` is stable).
 
+A horizontally-scrolling row of pills above the active list — All, then
+each of the 8 roadmap steps by name ("1. Yes", "2. QI1", …) — narrows it
+down to one step, so finding everyone stuck at a specific point in the
+process doesn't mean scrolling past everyone else. It only shows up once
+there's at least one active candidate.
+
 Each candidate also has a **Connected** date (defaults to today when
 added, editable anytime). Marking a candidate "Filtered Out" removes them
 from the active roadmap board immediately — they're not deleted from the
@@ -350,25 +356,37 @@ Restore option for anything settled by mistake.
 Candidate History is divided by month (by `connected_date`), one month at
 a time, with ← → arrows to page back up to 12 months — same bounded
 pattern as the Leaderboard's monthly view (`getMonthStartOffset`), so
-older history doesn't turn into one endless scrolling table.
+older history doesn't turn into one endless scrolling table. Each
+candidate row also has a **Delete** button (alongside Restore) for
+permanently removing a row entirely — unlike Filtered Out (reversible,
+meant for a candidate who genuinely didn't pan out), this is a real,
+confirmed, unrecoverable delete meant for a test/fake entry that
+shouldn't exist in the history at all.
 
-A horizontally-scrolling row of pills above the table further narrows
-whichever month you're looking at down to one status — All, each of the
-10 roadmap steps by name ("1. Yes", "2. QI1", …), Launched, or Filtered
-Out — so "who's stuck at Info Session 1 this month" doesn't mean scanning
-the whole table by eye. Each candidate row also has a **Delete** button
-(alongside Restore) for permanently removing a row entirely — unlike
-Filtered Out (reversible, meant for a candidate who genuinely didn't pan
-out), this is a real, confirmed, unrecoverable delete meant for a
-test/fake entry that shouldn't exist in the history at all.
-
-**Upgrading an existing project:** the roadmap steps shifted by one
-position to make room for the new "Yes" step at index 0 — run this once
-(not part of the reusable schema.sql patches) so existing candidates keep
-pointing at the same step they were actually on:
+**Upgrading an existing project:** two one-time data migrations (not part
+of the reusable schema.sql patches) as the roadmap steps have changed
+shape over time:
 ```sql
+-- 1. Made room for the new "Yes" step at index 0.
 update candidates set current_step = current_step + 1;
+
+-- 2. Removed the two "Audio & Reading" entries (they were homework
+-- reminders, not real process steps) - shifts everyone after them down
+-- and merges anyone who was sitting on one forward into the Info Session
+-- that followed it.
+update candidates set current_step = case current_step
+  when 3 then 3
+  when 4 then 3
+  when 5 then 4
+  when 6 then 5
+  when 7 then 5
+  when 8 then 6
+  when 9 then 7
+  else current_step
+end;
 ```
+Run whichever of these your existing data hasn't already gone through —
+if you're setting this up fresh, skip both.
 
 ### Contact Builder (was "A/B Contact List")
 

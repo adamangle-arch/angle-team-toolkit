@@ -75,18 +75,10 @@ export const CANDIDATE_STEPS: { label: string; homework: string }[] = [
   { label: "QI1", homework: "Send the intro video/audio before the call." },
   { label: "QI2", homework: "Listen to a testimonial audio before the call." },
   {
-    label: "Audio & Reading",
-    homework: "Complete the assigned audio + reading before Info Session 1.",
-  },
-  {
     label: "Info Session 1",
     homework: "Write down questions from the info session.",
   },
   { label: "FU1", homework: "Follow up on questions from Info Session 1." },
-  {
-    label: "Audio & Reading",
-    homework: "Complete the second audio + reading assignment before Info Session 2.",
-  },
   {
     label: "Info Session 2",
     homework: "Review Info Session 2 materials and next steps.",
@@ -123,25 +115,15 @@ export const CANDIDATE_STEP_RESOURCES: CandidateStepResource[][] = [
   [{ label: "🎥 Intro Video/Audio", detail: "Placeholder — swap in the real intro video/audio." }],
   // 2. QI2
   [{ label: "🎧 Testimonial Audio", detail: "Placeholder — swap in a real testimonial audio." }],
-  // 3. Audio & Reading (before Info Session 1)
-  [
-    { label: "🎧 Audio", detail: "Placeholder — swap in the assigned audio." },
-    { label: "📖 Reading", detail: "Placeholder — swap in the assigned reading." },
-  ],
-  // 4. Info Session 1
+  // 3. Info Session 1
   [],
-  // 5. FU1
+  // 4. FU1
   [],
-  // 6. Audio & Reading (before Info Session 2)
-  [
-    { label: "🎧 Audio", detail: "Placeholder — swap in the second assigned audio." },
-    { label: "📖 Reading", detail: "Placeholder — swap in the second assigned reading." },
-  ],
-  // 7. Info Session 2
+  // 5. Info Session 2
   [],
-  // 8. FU2
+  // 6. FU2
   [],
-  // 9. Offer Call
+  // 7. Offer Call
   [],
 ];
 
@@ -189,17 +171,14 @@ export const GOAL_ITEMS_BY_PERIOD: Record<GoalPeriod, GoalItem[]> = {
 
 // Short canonical labels for each CANDIDATE_STEPS index, for places (like
 // the Daily Update summary) that want the next actual process milestone
-// rather than the internal step label. "Yes" and the two "Audio & Reading"
-// homework steps aren't real milestones in the process, so they roll
-// forward to whichever named step comes next (QI1, IS1, IS2).
+// rather than the internal step label. "Yes" isn't a real milestone in
+// the process, so it rolls forward to QI1.
 export const CANDIDATE_STEP_SHORT_LABELS = [
   "QI1",
   "QI1",
   "QI2",
   "IS1",
-  "IS1",
   "FU1",
-  "IS2",
   "IS2",
   "FU2",
   "Offer Call",
