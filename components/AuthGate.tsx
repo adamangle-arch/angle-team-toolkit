@@ -111,11 +111,11 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     if (typeof window === "undefined") return;
     if (sessionStorage.getItem("atk_app_opened")) return;
     sessionStorage.setItem("atk_app_opened", "1");
-    const homePath = onboardingComplete ? "/dashboard" : "/onboarding";
+    const homePath = unlockedThrough <= 0 ? "/library" : onboardingComplete ? "/dashboard" : "/onboarding";
     if (pathname !== homePath) {
       router.replace(homePath);
     }
-  }, [fullyAuthed, onboardingComplete, pathname, router]);
+  }, [fullyAuthed, onboardingComplete, unlockedThrough, pathname, router]);
 
   if (loading) {
     return (
@@ -146,7 +146,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     return (
       <>
         <ConfigWarning />
-        <ProfileGate user={user} onComplete={() => loadProfile(user.id)} />
+        <ProfileGate user={user} profile={profile} onComplete={() => loadProfile(user.id)} />
       </>
     );
   }
@@ -177,7 +177,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
       <QuoteOverlay />
       <RatingJobsProvider>
         {children}
-        <BottomNav />
+        {unlockedThrough > 0 && <BottomNav />}
       </RatingJobsProvider>
     </AuthContext.Provider>
   );

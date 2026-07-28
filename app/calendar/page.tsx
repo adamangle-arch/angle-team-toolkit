@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import PageHeader from "@/components/PageHeader";
+import FeatureGate from "@/components/FeatureGate";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import {
@@ -502,7 +503,7 @@ export default function CalendarPage() {
   }
 
   return (
-    <>
+    <FeatureGate minSession={1}>
       <PageHeader
         title="Calendar"
         subtitle="Meetings, sessions, and reminders — yours, your spouse's, and your downline's"
@@ -925,6 +926,6 @@ export default function CalendarPage() {
           </div>
         </div>
       )}
-    </>
+    </FeatureGate>
   );
 }

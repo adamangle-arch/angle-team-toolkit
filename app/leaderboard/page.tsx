@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
+import FeatureGate from "@/components/FeatureGate";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import {
@@ -441,7 +442,7 @@ export default function LeaderboardPage() {
   }
 
   return (
-    <>
+    <FeatureGate minSession={1}>
       <PageHeader
         title="Leaderboard"
         subtitle={
@@ -842,6 +843,6 @@ export default function LeaderboardPage() {
           </>
         )}
       </main>
-    </>
+    </FeatureGate>
   );
 }

@@ -1320,6 +1320,52 @@ they finish — reinforcing that Onboarding is the most important thing for
 a new person to work through first. Once all 5 sessions are unlocked, app
 open goes back to landing on Today as usual.
 
+### Candidate accounts (session 0)
+
+Candidates in the interview process can get a stripped-down version of the
+app — Resources only — before they've actually joined, so a rep can send
+them audios/books/scripts to look through ahead of launch without handing
+over the whole app. This reuses the progressive-unlock system above
+rather than being a second app: it just adds a new tier, **session 0**,
+one step below the existing floor of 1.
+
+**Inviting a candidate:** each active card on the **Candidate Roadmap**
+(Pipeline Tracker tab) that doesn't have a linked account yet shows a
+"🔗 Invite to App" pill. Tapping it copies a shareable link
+(`/dashboard?candidate=<id>`) tied to that specific candidate row — texting
+or emailing that link to the candidate is the whole invite flow, there's
+no separate admin-created-account step. Once they've signed up, the pill
+changes to "🎉 Invited — has an account".
+
+**Signup:** the login screen reads a `?candidate=` id straight out of the
+URL (`LoginForm`) and, if it matches an unclaimed candidate row, shows a
+"You've been invited by {inviter}" greeting (via the
+`get_candidate_invite_info()` RPC — the first RPC in this app callable by
+the unauthenticated `anon` role, since nobody's signed in yet at that
+point). Signing up from that link passes the candidate id through
+Supabase Auth's `signUp({ options: { data: { candidate_id }}})`, which
+`handle_new_user()` reads server-side to auto-fill `team` and `upline_id`
+from the inviter and set `onboarding_unlocked_through = 0` — skipping the
+usual "pick your team / enter your upline's account number" step in
+`ProfileGate` entirely, since it's already known. The candidate's row on
+the Candidate Roadmap gets `linked_user_id` stamped so it can never be
+claimed by a second signup.
+
+**Session 0 only unlocks Resources.** `FEATURE_MIN_SESSION["/library"]`
+is explicitly `0` (every other tab defaults to 1), `BottomNav`/More filter
+accordingly, `AuthGate` sends a session-0 account straight to `/library`
+on app open instead of Onboarding/Today, and the nav bar itself is hidden
+(a bar with only a "More" tab would be confusing for someone whose whole
+app is one page).
+
+**Getting Launched unlocks the rest — gradually, not all at once.** The
+same "Mark Launched" button that already exists on the Candidate Roadmap
+now also bumps the linked account from session 0 straight to session 1
+(`handle_candidate_launched()` trigger on `candidates.launched`) — the
+exact same starting point every other brand-new signup already begins at.
+From there the normal upline-granted Onboarding-session unlock takes over
+completely unchanged; Launch is a floor, not a shortcut past onboarding.
+
 ### Milestone Alerts
 
 Separate from the milestone badges on a public profile, the Leaderboard

@@ -229,6 +229,7 @@ export type Candidate = {
   connected_date: string;
   launched: boolean;
   filtered_out: boolean;
+  linked_user_id: string | null;
   created_at: string;
   updated_at: string;
 };

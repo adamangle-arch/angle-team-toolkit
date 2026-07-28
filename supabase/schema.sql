@@ -103,6 +103,67 @@ create table if not exists candidates (
 -- table that already existed before it was added.
 alter table candidates add column if not exists connected_date date not null default current_date;
 
+-- Additive: candidate accounts. A rep can invite a candidate to a
+-- stripped-down version of the app (Resources only) via a shareable
+-- link carrying this candidate row's id - once they sign up,
+-- handle_new_user() below links their new account back to this exact
+-- row. Nullable and one-directional (a candidate row doesn't require an
+-- account at all, same as today) - most candidates will never have one.
+alter table candidates add column if not exists linked_user_id uuid references auth.users(id) on delete set null;
+
+-- Powers the pre-signup "you've been invited by {name}" greeting on the
+-- login screen - callable by the anon role since nobody's authenticated
+-- yet at that point. Deliberately minimal: just the two names already
+-- shown elsewhere as public info (get_public_profile), nothing private.
+create or replace function public.get_candidate_invite_info(p_candidate_id uuid)
+returns table (
+  candidate_name text,
+  inviter_first_name text,
+  inviter_last_name text,
+  already_linked boolean
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select c.name, p.first_name, p.last_name, (c.linked_user_id is not null)
+  from candidates c
+  join profiles p on p.id = c.user_id
+  where c.id = p_candidate_id;
+$$;
+
+grant execute on function public.get_candidate_invite_info(uuid) to anon, authenticated;
+
+-- The other half of candidate accounts: the moment a linked candidate
+-- gets marked Launched (the same "Mark Launched" button that already
+-- exists on the Candidate Roadmap), their account gets bumped from
+-- session 0 (candidate, Resources-only) to session 1 - the exact same
+-- starting point every other new signup already begins at, so the
+-- normal progressive Onboarding-session unlock takes over from there
+-- rather than dumping the whole app on them at once. greatest(), not a
+-- plain set, so this is a no-op if somehow already past session 1.
+create or replace function public.handle_candidate_launched()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.launched = true and old.launched = false and new.linked_user_id is not null then
+    update profiles
+    set onboarding_unlocked_through = greatest(onboarding_unlocked_through, 1)
+    where id = new.linked_user_id;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_candidate_launched on candidates;
+create trigger on_candidate_launched
+  after update of launched on candidates
+  for each row execute function public.handle_candidate_launched();
+
 -- ============================================================
 -- 3. A/B CONTACT LIST
 -- ============================================================
@@ -685,10 +746,48 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  v_candidate_id uuid;
+  v_inviter_id uuid;
+  v_inviter_team text;
 begin
-  insert into public.profiles (id, email, account_number)
-  values (new.id, new.email, public.generate_account_number())
+  -- Candidate accounts: a signup carrying a candidate_id in its auth
+  -- metadata (set via supabase.auth.signUp()'s options.data, from the
+  -- invite link on the Candidate Roadmap) auto-fills team/upline from
+  -- whoever invited them and starts at session 0 (Resources-only) rather
+  -- than session 1 - see get_candidate_invite_info() and
+  -- handle_candidate_launched() above for the rest of this flow. Only
+  -- honored if that candidate row hasn't already been claimed by an
+  -- earlier signup (linked_user_id is null) - an invite link is
+  -- one-time-use.
+  v_candidate_id := nullif(new.raw_user_meta_data ->> 'candidate_id', '')::uuid;
+
+  if v_candidate_id is not null then
+    select user_id into v_inviter_id
+    from candidates
+    where id = v_candidate_id and linked_user_id is null;
+  end if;
+
+  if v_inviter_id is not null then
+    select team into v_inviter_team from profiles where id = v_inviter_id;
+  end if;
+
+  insert into public.profiles (
+    id, email, account_number, team, upline_id, onboarding_unlocked_through
+  )
+  values (
+    new.id,
+    new.email,
+    public.generate_account_number(),
+    v_inviter_team,
+    v_inviter_id,
+    case when v_inviter_id is not null then 0 else 1 end
+  )
   on conflict (id) do nothing;
+
+  if v_inviter_id is not null then
+    update candidates set linked_user_id = new.id where id = v_candidate_id;
+  end if;
 
   -- Standing company-wide events (see section 15, COMPANY EVENTS) are a
   -- recurring rule, not a one-time backfill - anyone who signs up after

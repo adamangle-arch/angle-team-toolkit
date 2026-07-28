@@ -903,8 +903,16 @@ function CandidateCard({
   onUpdate: (id: string, patch: Partial<Candidate>) => void;
 }) {
   const [notes, setNotes] = useState(candidate.notes);
+  const [inviteCopied, setInviteCopied] = useState(false);
   const step = CANDIDATE_STEPS[candidate.current_step];
   const isSettled = candidate.launched || candidate.filtered_out;
+
+  async function copyInviteLink() {
+    const link = `${window.location.origin}/dashboard?candidate=${candidate.id}`;
+    await navigator.clipboard.writeText(link);
+    setInviteCopied(true);
+    setTimeout(() => setInviteCopied(false), 2000);
+  }
 
   return (
     <div className={`card space-y-3 ${isSettled ? "opacity-70" : ""}`}>
@@ -914,6 +922,13 @@ function CandidateCard({
           <p className="pill-amber mt-1">
             Step {candidate.current_step + 1}/{CANDIDATE_STEPS.length}: {step.label}
           </p>
+          {candidate.linked_user_id ? (
+            <p className="pill mt-1">🎉 Invited — has an account</p>
+          ) : (
+            <button className="pill mt-1" onClick={copyInviteLink}>
+              {inviteCopied ? "✓ Link copied!" : "🔗 Invite to App"}
+            </button>
+          )}
         </div>
         {!isSettled ? (
           <div className="flex shrink-0 flex-col gap-1.5">

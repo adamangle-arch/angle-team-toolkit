@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import PageHeader from "@/components/PageHeader";
+import FeatureGate from "@/components/FeatureGate";
 import NotificationOptIn from "@/components/NotificationOptIn";
 import { supabase } from "@/lib/supabaseClient";
 import type { SentNotification } from "@/lib/types";
@@ -48,7 +49,7 @@ export default function NotificationsPage() {
   }, []);
 
   return (
-    <>
+    <FeatureGate minSession={1}>
       <PageHeader title="Notifications" subtitle="Every push notification we've sent you" />
       <main className="page-main">
         <NotificationOptIn />
@@ -72,6 +73,6 @@ export default function NotificationsPage() {
           ))
         )}
       </main>
-    </>
+    </FeatureGate>
   );
 }

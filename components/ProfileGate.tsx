@@ -4,12 +4,15 @@ import { useState, type FormEvent } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabaseClient";
 import { TEAMS, isPrimaryUser } from "@/lib/constants";
+import type { Profile } from "@/lib/types";
 
 export default function ProfileGate({
   user,
+  profile,
   onComplete,
 }: {
   user: User;
+  profile: Profile;
   onComplete: () => void;
 }) {
   const [firstName, setFirstName] = useState("");
@@ -27,9 +30,21 @@ export default function ProfileGate({
   // for everyone else.
   const isAdmin = isPrimaryUser(user.email);
 
+  // Candidate accounts: signing up through an invite link already set
+  // team + upline_id server-side (handle_new_user(), keyed off whoever
+  // invited them) - re-asking for either here would be redundant at
+  // best and let them silently overwrite a correct value at worst, so
+  // both fields are skipped entirely when this is true.
+  const isInvitedCandidate = Boolean(profile.team && profile.upline_id);
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!firstName.trim() || !lastName.trim() || !team || (!isAdmin && !uplineNumber.trim())) return;
+    if (
+      !firstName.trim() ||
+      !lastName.trim() ||
+      (!isInvitedCandidate && (!team || (!isAdmin && !uplineNumber.trim())))
+    )
+      return;
     setError(null);
     setSaving(true);
 
@@ -38,7 +53,7 @@ export default function ProfileGate({
       .update({
         first_name: firstName.trim(),
         last_name: lastName.trim(),
-        team,
+        ...(isInvitedCandidate ? {} : { team }),
       })
       .eq("id", user.id);
 
@@ -48,13 +63,14 @@ export default function ProfileGate({
       return;
     }
 
-    // Required for everyone except admins - every other new signup has
-    // to be sponsored by someone already in the business, so this is how
-    // the sponsorship tree (upline visibility, Team tab) gets built from
-    // day one instead of being an easy-to-skip self-service step people
-    // forgot to do. Skipped entirely when left blank (admins only).
+    // Required for everyone except admins and invited candidates (who
+    // are already linked to their inviter's account by handle_new_user())
+    // - every other new signup has to be sponsored by someone already in
+    // the business, so this is how the sponsorship tree (upline
+    // visibility, Team tab) gets built from day one instead of being an
+    // easy-to-skip self-service step people forgot to do.
     const trimmedUpline = uplineNumber.trim();
-    if (trimmedUpline) {
+    if (!isInvitedCandidate && trimmedUpline) {
       const { error: uplineError } = await supabase.rpc("link_upline", {
         p_account_number: trimmedUpline,
       });
@@ -86,9 +102,13 @@ export default function ProfileGate({
     <div className="flex flex-1 flex-col items-center justify-center px-6">
       <div className="w-full max-w-xs space-y-4">
         <div className="text-center">
-          <p className="text-2xl font-bold text-white">Finish your profile</p>
+          <p className="text-2xl font-bold text-white">
+            {isInvitedCandidate ? "Welcome!" : "Finish your profile"}
+          </p>
           <p className="text-sm text-slate-400">
-            One-time setup so your activity counts toward the right team.
+            {isInvitedCandidate
+              ? "Just your name, and you're in."
+              : "One-time setup so your activity counts toward the right team."}
           </p>
         </div>
 
@@ -111,47 +131,51 @@ export default function ProfileGate({
             value={lastName}
             onChange={(e) => setLastName(e.target.value)}
           />
-          <select
-            required
-            className="select"
-            value={team}
-            onChange={(e) => setTeam(e.target.value)}
-          >
-            <option value="" disabled>
-              Select your team…
-            </option>
-            {TEAMS.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
-          <input
-            type="text"
-            required={!isAdmin}
-            inputMode="numeric"
-            className="input"
-            placeholder={
-              isAdmin
-                ? "Your upline's account number (optional)"
-                : "Your upline's account number"
-            }
-            value={uplineNumber}
-            onChange={(e) => setUplineNumber(e.target.value)}
-          />
-          <p className="-mt-1.5 text-xs text-slate-500">
-            {isAdmin
-              ? "Optional for admins — leave blank if you weren't sponsored by someone on the team."
-              : "Ask whoever brought you in for their account number — find it on their My Profile page."}
-          </p>
-          <input
-            type="email"
-            autoComplete="off"
-            className="input"
-            placeholder="Spouse's email (only if they're also on the team)"
-            value={spouseEmail}
-            onChange={(e) => setSpouseEmail(e.target.value)}
-          />
+          {!isInvitedCandidate && (
+            <>
+              <select
+                required
+                className="select"
+                value={team}
+                onChange={(e) => setTeam(e.target.value)}
+              >
+                <option value="" disabled>
+                  Select your team…
+                </option>
+                {TEAMS.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="text"
+                required={!isAdmin}
+                inputMode="numeric"
+                className="input"
+                placeholder={
+                  isAdmin
+                    ? "Your upline's account number (optional)"
+                    : "Your upline's account number"
+                }
+                value={uplineNumber}
+                onChange={(e) => setUplineNumber(e.target.value)}
+              />
+              <p className="-mt-1.5 text-xs text-slate-500">
+                {isAdmin
+                  ? "Optional for admins — leave blank if you weren't sponsored by someone on the team."
+                  : "Ask whoever brought you in for their account number — find it on their My Profile page."}
+              </p>
+              <input
+                type="email"
+                autoComplete="off"
+                className="input"
+                placeholder="Spouse's email (only if they're also on the team)"
+                value={spouseEmail}
+                onChange={(e) => setSpouseEmail(e.target.value)}
+              />
+            </>
+          )}
           {error && <p className="text-xs text-red-400">{error}</p>}
           <button
             className="btn-primary w-full"
@@ -159,8 +183,7 @@ export default function ProfileGate({
               saving ||
               !firstName.trim() ||
               !lastName.trim() ||
-              !team ||
-              (!isAdmin && !uplineNumber.trim())
+              (!isInvitedCandidate && (!team || (!isAdmin && !uplineNumber.trim())))
             }
           >
             {saving ? "Saving…" : "Continue"}
