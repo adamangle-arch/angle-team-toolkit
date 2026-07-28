@@ -231,6 +231,11 @@ export const ONBOARDING_SESSIONS: OnboardingSession[] = [
         detail:
           "Audio by Toby Ayers — your coach will send this to you on the LTD media app. Listen before your next meeting.",
       },
+      {
+        label: "🎥 Budgeting Talk",
+        detail: "Video by Michael and Ashley Koebel.",
+        url: "https://onedrive.live.com/?qt=allmyphotos&photosData=%2Fshare%2FC3BD18A001D78AD7%218727%3Fithint%3Dvideo%26e%3DeP7aU4%26migratedtospo%3Dtrue&cid=C3BD18A001D78AD7&id=C3BD18A001D78AD7%218727&redeem=aHR0cHM6Ly8xZHJ2Lm1zL3YvYy9jM2JkMThhMDAxZDc4YWQ3L0VkZUsxd0dnR0wwZ2dNTVhJZ0FBQUFBQlhDNURySjFva0FrNF9jYXRWQWs1aEE%5FZT1lUDdhVTQ&v=photos",
+      },
     ],
   },
   {
