@@ -37,22 +37,32 @@ export async function GET(request: Request) {
 
   const supabase = getSupabaseAdmin();
   const now = new Date();
-  const windowStart = new Date(now.getTime() + 25 * 60 * 1000).toISOString();
-  const windowEnd = new Date(now.getTime() + 35 * 60 * 1000).toISOString();
+  // Widest configurable reminder is 1 day (CALENDAR_REMINDER_OPTIONS in
+  // lib/constants.ts) - bounding the fetch to "now" through a bit past
+  // that keeps this from pulling in every future event ever scheduled;
+  // the actual per-event timing match happens in JS below since each
+  // event has its own target offset, not one shared for every row.
+  const fetchCutoff = new Date(now.getTime() + (1440 + 10) * 60 * 1000).toISOString();
 
-  // A 10-minute-wide window checked every ~5 minutes (see the pg_cron
-  // schedule in schema.sql's notes) gives every event at least one poll
-  // that lands inside it, with room to spare either side for clock drift
-  // or a slightly-late cron tick - reminder_sent is what actually
-  // prevents a double-send on the overlap, not the window's precision.
-  const { data: dueEvents } = await supabase
+  const { data: upcoming } = await supabase
     .from("calendar_events")
     .select("*")
     .eq("reminder_sent", false)
-    .gte("event_at", windowStart)
-    .lte("event_at", windowEnd);
+    .not("reminder_minutes_before", "is", null)
+    .gt("event_at", now.toISOString())
+    .lte("event_at", fetchCutoff);
 
-  const events = (dueEvents as CalendarEvent[]) ?? [];
+  // A ±5-minute band around each event's own configured offset, checked
+  // every ~5 minutes (see the pg_cron schedule in schema.sql's notes),
+  // gives every event at least one poll that lands inside its band, with
+  // margin either side for clock drift or a slightly-late cron tick -
+  // reminder_sent is what actually prevents a double-send on the
+  // overlap, not this band's precision.
+  const events = ((upcoming as CalendarEvent[]) ?? []).filter((e) => {
+    const minutesUntil = (new Date(e.event_at).getTime() - now.getTime()) / 60_000;
+    const target = e.reminder_minutes_before as number;
+    return minutesUntil <= target + 5 && minutesUntil > target - 5;
+  });
   if (events.length === 0) {
     return NextResponse.json({ sent: 0, skipped: 0, removed: 0, errors: [] });
   }
@@ -101,7 +111,14 @@ export async function GET(request: Request) {
       hour: "numeric",
       minute: "2-digit",
     });
-    const title = `📅 Starting in 30 minutes: ${event.title}`;
+    const minutesBefore = event.reminder_minutes_before as number;
+    const timeUntilLabel =
+      minutesBefore >= 1440
+        ? `${Math.round(minutesBefore / 1440)} day${minutesBefore >= 2880 ? "s" : ""}`
+        : minutesBefore >= 60
+          ? `${Math.round(minutesBefore / 60)} hour${minutesBefore >= 120 ? "s" : ""}`
+          : `${minutesBefore} minutes`;
+    const title = `📅 Starting in ${timeUntilLabel}: ${event.title}`;
     const body = candidateName
       ? `${time} — Candidate: ${candidateName}`
       : `${time}`;

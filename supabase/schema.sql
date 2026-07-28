@@ -2005,10 +2005,25 @@ create table if not exists calendar_events (
   created_at timestamptz not null default now()
 );
 
--- Additive: whether the 30-minutes-before push reminder has already gone
--- out for this event, so send-calendar-reminders' polling query doesn't
--- re-notify the same event on every run within its matching window.
+-- Additive: whether the push reminder has already gone out for this
+-- event, so send-calendar-reminders' polling query doesn't re-notify the
+-- same event on every run within its matching window.
 alter table calendar_events add column if not exists reminder_sent boolean not null default false;
+
+-- Additive: which category this event is (drives the color dot on each
+-- card so candidate meetings, team events, and personal reminders are
+-- tellable apart at a glance) and how long before it to send a push
+-- reminder - null means no reminder for this specific event. The column
+-- DEFAULT backfills existing rows to 30 (Postgres populates existing
+-- rows from an ADD COLUMN ... DEFAULT without a separate UPDATE), which
+-- matches the fixed-30-minutes behavior every already-scheduled event
+-- had before this became per-event configurable.
+alter table calendar_events add column if not exists event_type text not null default 'other';
+alter table calendar_events drop constraint if exists calendar_events_event_type_check;
+alter table calendar_events add constraint calendar_events_event_type_check check (
+  event_type in ('meeting', 'team', 'reminder', 'other')
+);
+alter table calendar_events add column if not exists reminder_minutes_before int default 30;
 
 -- Same shape as the "personal tables" policies above (streak_days,
 -- assistant_messages) - own + upline + admin can read, only the owner
@@ -2064,11 +2079,20 @@ grant execute on function public.get_downline_user_ids(uuid) to authenticated;
 -- owned by that member so it shows on their own calendar too, not just
 -- the creator's. Security definer because the normal insert_own RLS
 -- policy would otherwise only allow inserting rows for yourself.
+--
+-- Dropped and recreated (rather than a bare create or replace) since the
+-- parameter list changed - Postgres treats a different signature as a
+-- new overload, not a true replacement, which would leave the old
+-- 4-argument version callable and stale.
+drop function if exists public.broadcast_event_to_downline(text, text, timestamptz, uuid);
+
 create or replace function public.broadcast_event_to_downline(
   p_title text,
   p_notes text,
   p_event_at timestamptz,
-  p_candidate_id uuid default null
+  p_candidate_id uuid default null,
+  p_event_type text default 'other',
+  p_reminder_minutes_before int default 30
 )
 returns int
 language plpgsql
@@ -2078,15 +2102,20 @@ as $$
 declare
   v_count int;
 begin
-  insert into calendar_events (user_id, creator_id, title, notes, event_at, candidate_id, scope)
-  select d.user_id, auth.uid(), p_title, p_notes, p_event_at, p_candidate_id, 'downline'
+  insert into calendar_events (
+    user_id, creator_id, title, notes, event_at, candidate_id, scope,
+    event_type, reminder_minutes_before
+  )
+  select
+    d.user_id, auth.uid(), p_title, p_notes, p_event_at, p_candidate_id, 'downline',
+    p_event_type, p_reminder_minutes_before
   from public.get_downline_user_ids(auth.uid()) d;
   get diagnostics v_count = row_count;
   return v_count;
 end;
 $$;
 
-grant execute on function public.broadcast_event_to_downline(text, text, timestamptz, uuid) to authenticated;
+grant execute on function public.broadcast_event_to_downline(text, text, timestamptz, uuid, text, int) to authenticated;
 
 -- ============================================================
 -- 15. COMPANY EVENTS (standing, recurring team events)

@@ -1319,17 +1319,30 @@ Notifications page) is a single subscription that covers both this
 reminder and the stat-leader digest below — there's only one
 `push_subscriptions` row per device, not one per notification type.
 
-### Calendar event reminders (30 minutes before)
+### Calendar event reminders (custom timing) + color-coded event types
 
-Every Calendar event now gets a push notification 30 minutes before it
-starts — title, event time, and the linked candidate's name if there is
-one (same info the Upcoming/Recently Passed cards show). This needed a
-fundamentally different scheduling mechanism than the Daily Reminder and
-Stat Leader crons above, because of a hard platform limit worth knowing
-about: **Vercel's Hobby plan caps cron jobs at once per day, and not even
-minute-precise within that hour** — there's no way to get Vercel itself
-to check "is anything starting in 30 minutes" on the kind of 5-minute
-cadence this needs.
+Every Calendar event gets a push notification before it starts — title,
+event time, and the linked candidate's name if there is one (same info
+the Upcoming/Recently Passed cards show). How long before is a per-event
+choice now (`CALENDAR_REMINDER_OPTIONS` in `lib/constants.ts`): No
+reminder, 10 minutes, 30 minutes (the default for new events), 1 hour, or
+1 day — a new `calendar_events.reminder_minutes_before` column (nullable;
+`null` means no reminder for that event). Each event also gets a category
+(`CALENDAR_EVENT_TYPES`: Candidate Meeting, Team Event, Reminder, Other),
+each with its own color dot shown next to the title on every event card
+(`EventDot` in `app/calendar/page.tsx`) so a scan down Upcoming tells a
+QI1 apart from a team meeting apart from a personal follow-up at a
+glance, without reading every line. Both fields are selects right in the
+Add Event form; `broadcast_event_to_downline()` carries them through to
+every copy it creates too, so a broadcast team meeting shows up
+correctly color-coded (and reminder-configured) for everyone it goes to.
+
+Building the reminder itself needed a fundamentally different scheduling
+mechanism than the Daily Reminder and Stat Leader crons below, because of
+a hard platform limit worth knowing about: **Vercel's Hobby plan caps
+cron jobs at once per day, and not even minute-precise within that
+hour** — there's no way to get Vercel itself to check "is anything
+starting soon" on the kind of 5-minute cadence this needs.
 
 The fix: `/api/push/send-calendar-reminders` isn't wired into
 `vercel.json` at all — that limit only applies to Vercel's *own* cron
@@ -1359,12 +1372,15 @@ select cron.schedule(
 );
 ```
 
-The route itself queries for events starting 25-35 minutes from now (a
-10-minute-wide window checked every 5 minutes gives every event at least
-one poll inside it, with margin either side for clock drift or a
-slightly-late tick) and haven't had a reminder sent yet
-(`calendar_events.reminder_sent`, a new column) — that flag, not the
-window's precision, is what actually prevents a double-send on the
+The route fetches upcoming events that have a `reminder_minutes_before`
+set and haven't had a reminder sent yet (`calendar_events.reminder_sent`),
+then filters in JavaScript for whichever ones fall within ±5 minutes of
+*their own* configured offset — every event can ask for a different lead
+time, so this can't be a single shared date-range query the way the
+original fixed-30-minutes version was. A ±5-minute band checked every 5
+minutes gives every event at least one poll inside its band, with margin
+either side for clock drift or a slightly-late tick; `reminder_sent`, not
+the band's precision, is what actually prevents a double-send on the
 overlap. It's marked `true` the moment an event is processed, even if the
 rep has no push subscription yet or the send fails, so a stale event
 can't get retried forever on every single poll. Logged into

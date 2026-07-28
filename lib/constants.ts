@@ -14,6 +14,29 @@ export function isPrimaryUser(email: string | null | undefined): boolean {
 export const CALL_RATING_TYPES = ["QI1", "QI2", "FU1", "FU2", "Questionnaire"] as const;
 export type CallRatingType = (typeof CALL_RATING_TYPES)[number];
 
+// Calendar event categories, each with its own color dot so a scan down
+// the list tells candidate meetings apart from team events and personal
+// reminders at a glance — must match the check constraint on
+// calendar_events.event_type in supabase/schema.sql.
+export const CALENDAR_EVENT_TYPES = [
+  { key: "meeting", label: "Candidate Meeting", color: "#f59e0b" },
+  { key: "team", label: "Team Event", color: "#38bdf8" },
+  { key: "reminder", label: "Reminder", color: "#c084fc" },
+  { key: "other", label: "Other", color: "#94a3b8" },
+] as const;
+export type CalendarEventType = (typeof CALENDAR_EVENT_TYPES)[number]["key"];
+
+// Options for the per-event reminder picker - null means "no reminder"
+// for this event. send-calendar-reminders/route.ts matches against
+// whatever value is actually stored per event, not this list directly.
+export const CALENDAR_REMINDER_OPTIONS: { minutes: number | null; label: string }[] = [
+  { minutes: null, label: "No reminder" },
+  { minutes: 10, label: "10 minutes before" },
+  { minutes: 30, label: "30 minutes before" },
+  { minutes: 60, label: "1 hour before" },
+  { minutes: 1440, label: "1 day before" },
+];
+
 // The fixed list of teams someone can belong to. Must match the check
 // constraint on profiles.team in supabase/schema.sql.
 export const TEAMS = [

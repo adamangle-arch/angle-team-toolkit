@@ -1,4 +1,4 @@
-import type { PipelineStageKey, GoalMetric, GoalPeriod, CallRatingType } from "./constants";
+import type { PipelineStageKey, GoalMetric, GoalPeriod, CallRatingType, CalendarEventType } from "./constants";
 
 export type Profile = {
   id: string;
@@ -282,6 +282,8 @@ export type CalendarEvent = {
   scope: "private" | "downline";
   created_at: string;
   reminder_sent: boolean;
+  event_type: CalendarEventType;
+  reminder_minutes_before: number | null;
 };
 
 export type CompanyEvent = {

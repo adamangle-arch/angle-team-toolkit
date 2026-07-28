@@ -4,8 +4,27 @@ import { useEffect, useState } from "react";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
-import { isPrimaryUser } from "@/lib/constants";
+import {
+  isPrimaryUser,
+  CALENDAR_EVENT_TYPES,
+  CALENDAR_REMINDER_OPTIONS,
+  type CalendarEventType,
+} from "@/lib/constants";
 import type { CalendarEvent, CompanyEvent, Candidate, Profile } from "@/lib/types";
+
+function eventTypeColor(type: CalendarEventType): string {
+  return CALENDAR_EVENT_TYPES.find((t) => t.key === type)?.color ?? "#94a3b8";
+}
+
+function EventDot({ type }: { type: CalendarEventType }) {
+  return (
+    <span
+      className="mt-1 inline-block h-2 w-2 shrink-0 rounded-full"
+      style={{ backgroundColor: eventTypeColor(type) }}
+      aria-hidden="true"
+    />
+  );
+}
 
 function formatEventLabel(iso: string): string {
   const d = new Date(iso);
@@ -41,6 +60,8 @@ export default function CalendarPage() {
     return toLocalInputValue(d);
   });
   const [candidateId, setCandidateId] = useState("");
+  const [eventType, setEventType] = useState<CalendarEventType>("other");
+  const [reminderMinutes, setReminderMinutes] = useState<number | null>(30);
   const [broadcast, setBroadcast] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -176,6 +197,8 @@ export default function CalendarPage() {
       event_at: isoEventAt,
       candidate_id: linkedCandidate,
       scope: "private",
+      event_type: eventType,
+      reminder_minutes_before: reminderMinutes,
     });
 
     if (insertError) {
@@ -190,6 +213,8 @@ export default function CalendarPage() {
         p_notes: notes,
         p_event_at: isoEventAt,
         p_candidate_id: linkedCandidate,
+        p_event_type: eventType,
+        p_reminder_minutes_before: reminderMinutes,
       });
       if (broadcastError) {
         setSaveError(`Saved, but couldn't send it to your downline: ${broadcastError.message}`);
@@ -199,6 +224,8 @@ export default function CalendarPage() {
     setTitle("");
     setNotes("");
     setCandidateId("");
+    setEventType("other");
+    setReminderMinutes(30);
     setBroadcast(false);
     setSaving(false);
     loadEvents();
@@ -251,6 +278,32 @@ export default function CalendarPage() {
               </option>
             ))}
           </select>
+          <div className="flex gap-2">
+            <select
+              className="select flex-1"
+              value={eventType}
+              onChange={(e) => setEventType(e.target.value as CalendarEventType)}
+            >
+              {CALENDAR_EVENT_TYPES.map((t) => (
+                <option key={t.key} value={t.key}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+            <select
+              className="select flex-1"
+              value={reminderMinutes === null ? "none" : String(reminderMinutes)}
+              onChange={(e) =>
+                setReminderMinutes(e.target.value === "none" ? null : Number(e.target.value))
+              }
+            >
+              {CALENDAR_REMINDER_OPTIONS.map((opt) => (
+                <option key={opt.label} value={opt.minutes === null ? "none" : opt.minutes}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
           <textarea
             className="textarea"
             placeholder="Notes (e.g. 17, graduates this year — follow up after)"
@@ -345,9 +398,12 @@ export default function CalendarPage() {
                 upcoming.map((e) => (
                   <div key={e.id} className="rounded-lg bg-navy p-2 space-y-1">
                     <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="font-medium text-white">{e.title}</p>
-                        <p className="text-xs text-amber-light">{formatEventLabel(e.event_at)}</p>
+                      <div className="flex items-start gap-1.5">
+                        <EventDot type={e.event_type} />
+                        <div>
+                          <p className="font-medium text-white">{e.title}</p>
+                          <p className="text-xs text-amber-light">{formatEventLabel(e.event_at)}</p>
+                        </div>
                       </div>
                       <button
                         className="btn-icon !h-6 !w-6 text-xs shrink-0"
@@ -381,14 +437,17 @@ export default function CalendarPage() {
                     key={e.id}
                     className="flex items-center justify-between gap-2 rounded-lg bg-navy p-2"
                   >
-                    <div>
-                      <p className="text-sm text-slate-300">{e.title}</p>
-                      <p className="text-xs text-slate-500">{formatEventLabel(e.event_at)}</p>
-                      {candidateName(e.candidate_id) && (
-                        <p className="text-xs text-slate-500">
-                          Candidate: {candidateName(e.candidate_id)}
-                        </p>
-                      )}
+                    <div className="flex items-start gap-1.5">
+                      <EventDot type={e.event_type} />
+                      <div>
+                        <p className="text-sm text-slate-300">{e.title}</p>
+                        <p className="text-xs text-slate-500">{formatEventLabel(e.event_at)}</p>
+                        {candidateName(e.candidate_id) && (
+                          <p className="text-xs text-slate-500">
+                            Candidate: {candidateName(e.candidate_id)}
+                          </p>
+                        )}
+                      </div>
                     </div>
                     <button
                       className="btn-icon !h-6 !w-6 text-xs shrink-0"
