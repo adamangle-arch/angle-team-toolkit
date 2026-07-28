@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import PageHeader from "@/components/PageHeader";
-import FeatureGate from "@/components/FeatureGate";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import { isPrimaryUser } from "@/lib/constants";
@@ -238,7 +237,7 @@ export default function EventsPage() {
   }
 
   return (
-    <FeatureGate minSession={1}>
+    <>
       <PageHeader title="Team Events" subtitle="Photos and videos from our team events" />
       <main className="page-main">
         {isAdmin && (
@@ -454,6 +453,6 @@ export default function EventsPage() {
           )}
         </div>
       )}
-    </FeatureGate>
+    </>
   );
 }

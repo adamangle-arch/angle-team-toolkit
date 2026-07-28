@@ -150,11 +150,18 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     if (typeof window === "undefined") return;
     if (sessionStorage.getItem("atk_app_opened")) return;
     sessionStorage.setItem("atk_app_opened", "1");
-    const homePath = unlockedThrough <= 0 ? "/library" : onboardingComplete ? "/dashboard" : "/onboarding";
+    const homePath = onboardingComplete ? "/dashboard" : "/onboarding";
     if (pathname !== homePath) {
       router.replace(homePath);
     }
-  }, [fullyAuthed, onboardingComplete, unlockedThrough, pathname, router]);
+  }, [fullyAuthed, onboardingComplete, pathname, router]);
+
+  // /prospect is a public, unauthenticated view (a candidate enters their
+  // access code, no account involved) - it renders standalone rather than
+  // behind the normal sign-in wall.
+  if (pathname === "/prospect") {
+    return <>{children}</>;
+  }
 
   if (authError) {
     return (
@@ -208,7 +215,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     return (
       <>
         <ConfigWarning />
-        <ProfileGate user={user} profile={profile} onComplete={() => loadProfile(user.id)} />
+        <ProfileGate user={user} onComplete={() => loadProfile(user.id)} />
       </>
     );
   }
@@ -239,7 +246,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
       <QuoteOverlay />
       <RatingJobsProvider>
         {children}
-        {unlockedThrough > 0 && <BottomNav />}
+        <BottomNav />
       </RatingJobsProvider>
     </AuthContext.Provider>
   );

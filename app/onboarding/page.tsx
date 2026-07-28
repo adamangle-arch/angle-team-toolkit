@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
-import FeatureGate from "@/components/FeatureGate";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import {
@@ -97,7 +96,7 @@ export default function OnboardingPage() {
   }
 
   return (
-    <FeatureGate minSession={1}>
+    <>
       <PageHeader
         title="Onboarding"
         subtitle={`${unlockedCount}/${ONBOARDING_SESSIONS.length} sessions unlocked`}
@@ -218,6 +217,6 @@ export default function OnboardingPage() {
           })
         )}
       </main>
-    </FeatureGate>
+    </>
   );
 }

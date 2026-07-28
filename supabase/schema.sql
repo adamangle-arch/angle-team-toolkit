@@ -103,66 +103,93 @@ create table if not exists candidates (
 -- table that already existed before it was added.
 alter table candidates add column if not exists connected_date date not null default current_date;
 
--- Additive: candidate accounts. A rep can invite a candidate to a
--- stripped-down version of the app (Resources only) via a shareable
--- link carrying this candidate row's id - once they sign up,
--- handle_new_user() below links their new account back to this exact
--- row. Nullable and one-directional (a candidate row doesn't require an
--- account at all, same as today) - most candidates will never have one.
-alter table candidates add column if not exists linked_user_id uuid references auth.users(id) on delete set null;
+-- Superseded below by the access-code approach - a candidate never gets
+-- a real account pre-launch, so there's nothing to link and nothing to
+-- auto-unlock. Drops are safe no-ops if this was never applied.
+drop trigger if exists on_candidate_launched on candidates;
+drop function if exists public.handle_candidate_launched();
+drop function if exists public.get_candidate_invite_info(uuid);
+alter table candidates drop column if exists linked_user_id;
 
--- Powers the pre-signup "you've been invited by {name}" greeting on the
--- login screen - callable by the anon role since nobody's authenticated
--- yet at that point. Deliberately minimal: just the two names already
--- shown elsewhere as public info (get_public_profile), nothing private.
-create or replace function public.get_candidate_invite_info(p_candidate_id uuid)
+-- Prospect access: rather than a full account, a candidate gets a short
+-- shareable code (Candidate Roadmap -> reveal/copy on their card) that
+-- unlocks a read-only, unauthenticated view of whatever resources are
+-- assigned to their current step (see get_candidate_by_access_code()
+-- below and CANDIDATE_STEP_RESOURCES in lib/constants.ts) - no email,
+-- no password, nothing to sign up for until they're actually Launched,
+-- at which point they create a real account the normal way (plain
+-- signup, no auto-linking - see app/prospect/page.tsx).
+alter table candidates add column if not exists access_code text;
+
+-- Excludes visually-ambiguous characters (0/O, 1/I/L) since this gets
+-- read off a phone screen and typed back in by hand.
+create or replace function public.generate_candidate_access_code()
+returns text
+language plpgsql
+as $$
+declare
+  chars text := '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
+  code text;
+begin
+  loop
+    code := '';
+    for i in 1..6 loop
+      code := code || substr(chars, floor(random() * length(chars))::int + 1, 1);
+    end loop;
+    exit when not exists (select 1 from candidates where access_code = code);
+  end loop;
+  return code;
+end;
+$$;
+
+create or replace function public.set_candidate_access_code()
+returns trigger
+language plpgsql
+as $$
+begin
+  if new.access_code is null then
+    new.access_code := public.generate_candidate_access_code();
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_candidate_insert_access_code on candidates;
+create trigger on_candidate_insert_access_code
+  before insert on candidates
+  for each row execute function public.set_candidate_access_code();
+
+-- One-time backfill for candidates added before this existed.
+update candidates set access_code = public.generate_candidate_access_code() where access_code is null;
+
+alter table candidates drop constraint if exists candidates_access_code_key;
+alter table candidates add constraint candidates_access_code_key unique (access_code);
+
+-- Powers /prospect - callable by the anon role since nobody's
+-- authenticated at that point. Returns just enough to render their
+-- resources view (name, step, launched) plus the inviter's name for a
+-- "sent by {name}" greeting - nothing private.
+create or replace function public.get_candidate_by_access_code(p_code text)
 returns table (
+  candidate_id uuid,
   candidate_name text,
+  current_step int,
+  launched boolean,
   inviter_first_name text,
-  inviter_last_name text,
-  already_linked boolean
+  inviter_last_name text
 )
 language sql
 stable
 security definer
 set search_path = public
 as $$
-  select c.name, p.first_name, p.last_name, (c.linked_user_id is not null)
+  select c.id, c.name, c.current_step, c.launched, p.first_name, p.last_name
   from candidates c
   join profiles p on p.id = c.user_id
-  where c.id = p_candidate_id;
+  where upper(c.access_code) = upper(p_code);
 $$;
 
-grant execute on function public.get_candidate_invite_info(uuid) to anon, authenticated;
-
--- The other half of candidate accounts: the moment a linked candidate
--- gets marked Launched (the same "Mark Launched" button that already
--- exists on the Candidate Roadmap), their account gets bumped from
--- session 0 (candidate, Resources-only) to session 1 - the exact same
--- starting point every other new signup already begins at, so the
--- normal progressive Onboarding-session unlock takes over from there
--- rather than dumping the whole app on them at once. greatest(), not a
--- plain set, so this is a no-op if somehow already past session 1.
-create or replace function public.handle_candidate_launched()
-returns trigger
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  if new.launched = true and old.launched = false and new.linked_user_id is not null then
-    update profiles
-    set onboarding_unlocked_through = greatest(onboarding_unlocked_through, 1)
-    where id = new.linked_user_id;
-  end if;
-  return new;
-end;
-$$;
-
-drop trigger if exists on_candidate_launched on candidates;
-create trigger on_candidate_launched
-  after update of launched on candidates
-  for each row execute function public.handle_candidate_launched();
+grant execute on function public.get_candidate_by_access_code(text) to anon, authenticated;
 
 -- ============================================================
 -- 3. A/B CONTACT LIST
@@ -746,48 +773,10 @@ language plpgsql
 security definer
 set search_path = public
 as $$
-declare
-  v_candidate_id uuid;
-  v_inviter_id uuid;
-  v_inviter_team text;
 begin
-  -- Candidate accounts: a signup carrying a candidate_id in its auth
-  -- metadata (set via supabase.auth.signUp()'s options.data, from the
-  -- invite link on the Candidate Roadmap) auto-fills team/upline from
-  -- whoever invited them and starts at session 0 (Resources-only) rather
-  -- than session 1 - see get_candidate_invite_info() and
-  -- handle_candidate_launched() above for the rest of this flow. Only
-  -- honored if that candidate row hasn't already been claimed by an
-  -- earlier signup (linked_user_id is null) - an invite link is
-  -- one-time-use.
-  v_candidate_id := nullif(new.raw_user_meta_data ->> 'candidate_id', '')::uuid;
-
-  if v_candidate_id is not null then
-    select user_id into v_inviter_id
-    from candidates
-    where id = v_candidate_id and linked_user_id is null;
-  end if;
-
-  if v_inviter_id is not null then
-    select team into v_inviter_team from profiles where id = v_inviter_id;
-  end if;
-
-  insert into public.profiles (
-    id, email, account_number, team, upline_id, onboarding_unlocked_through
-  )
-  values (
-    new.id,
-    new.email,
-    public.generate_account_number(),
-    v_inviter_team,
-    v_inviter_id,
-    case when v_inviter_id is not null then 0 else 1 end
-  )
+  insert into public.profiles (id, email, account_number)
+  values (new.id, new.email, public.generate_account_number())
   on conflict (id) do nothing;
-
-  if v_inviter_id is not null then
-    update candidates set linked_user_id = new.id where id = v_candidate_id;
-  end if;
 
   -- Standing company-wide events (see section 15, COMPANY EVENTS) are a
   -- recurring rule, not a one-time backfill - anyone who signs up after

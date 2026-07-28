@@ -102,6 +102,49 @@ export const CANDIDATE_STEPS: { label: string; homework: string }[] = [
 // pipeline" — index 1 is QI1, so this is "QI1 booked or beyond."
 export const ACTIVE_PIPELINE_MIN_STEP = 1;
 
+export type CandidateStepResource = {
+  label: string;
+  detail: string;
+  url?: string;
+};
+
+// Prospect access (see app/prospect/page.tsx): whatever's assigned to a
+// candidate's current step - and every step before it - shows up
+// automatically in their code-gated resources view, so nobody has to
+// manually text over the intro video or testimonial audio at the right
+// moment. One entry per CANDIDATE_STEPS index above.
+//
+// PLACEHOLDER CONTENT - swap each of these for the real audio/video/link
+// once you send it over, same as ONBOARDING_SESSIONS below.
+export const CANDIDATE_STEP_RESOURCES: CandidateStepResource[][] = [
+  // 0. Yes
+  [],
+  // 1. QI1
+  [{ label: "🎥 Intro Video/Audio", detail: "Placeholder — swap in the real intro video/audio." }],
+  // 2. QI2
+  [{ label: "🎧 Testimonial Audio", detail: "Placeholder — swap in a real testimonial audio." }],
+  // 3. Audio & Reading (before Info Session 1)
+  [
+    { label: "🎧 Audio", detail: "Placeholder — swap in the assigned audio." },
+    { label: "📖 Reading", detail: "Placeholder — swap in the assigned reading." },
+  ],
+  // 4. Info Session 1
+  [],
+  // 5. FU1
+  [],
+  // 6. Audio & Reading (before Info Session 2)
+  [
+    { label: "🎧 Audio", detail: "Placeholder — swap in the second assigned audio." },
+    { label: "📖 Reading", detail: "Placeholder — swap in the second assigned reading." },
+  ],
+  // 7. Info Session 2
+  [],
+  // 8. FU2
+  [],
+  // 9. Offer Call
+  [],
+];
+
 // Goals: one target number per metric per period - a goal for Today, a
 // separate one for This Week, and a separate one for This Month, each
 // staying the same until manually changed (no live actual-vs-target

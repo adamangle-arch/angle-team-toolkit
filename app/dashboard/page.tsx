@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
-import FeatureGate from "@/components/FeatureGate";
 import { useAuth } from "@/components/AuthGate";
 import { minSessionFor } from "@/lib/onboarding-gate";
 import { supabase } from "@/lib/supabaseClient";
@@ -194,7 +193,7 @@ export default function DashboardPage() {
     : [];
 
   return (
-    <FeatureGate minSession={1}>
+    <>
       <PageHeader title="Today" subtitle={formatDateLabel(today)} />
       <main className="page-main">
         {loading ? (
@@ -378,6 +377,6 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
-    </FeatureGate>
+    </>
   );
 }
