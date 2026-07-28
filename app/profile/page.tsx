@@ -5,6 +5,7 @@ import PageHeader from "@/components/PageHeader";
 import ProfileForm from "@/components/ProfileForm";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
+import { TEAMS } from "@/lib/constants";
 import type { Profile, PublicProfile } from "@/lib/types";
 
 export default function MyProfilePage() {
@@ -22,6 +23,24 @@ export default function MyProfilePage() {
   const [uplineNumber, setUplineNumber] = useState("");
   const [linkingUpline, setLinkingUpline] = useState(false);
   const [uplineError, setUplineError] = useState<string | null>(null);
+
+  // "Picked the wrong team at signup" fix - team lives only on the
+  // profile row itself, and every leaderboard/stat function (individual
+  // leaders, team totals, Core 300, Ditto, etc.) joins against it live
+  // rather than storing a copy anywhere else, so changing it here is the
+  // entire fix - nothing else needs to move or be re-entered. Own local
+  // state (rather than binding straight to profile.team) so picking a
+  // different team in the dropdown doesn't apply until Save, same
+  // pattern as the Upline/Spouse cards below.
+  const [teamChoice, setTeamChoice] = useState<string>("");
+  const [syncedTeam, setSyncedTeam] = useState<string | null>(null);
+  if (profile && profile.team !== syncedTeam) {
+    setSyncedTeam(profile.team);
+    setTeamChoice(profile.team ?? "");
+  }
+  const [savingTeam, setSavingTeam] = useState(false);
+  const [teamError, setTeamError] = useState<string | null>(null);
+  const [teamSaved, setTeamSaved] = useState(false);
 
   async function reload() {
     const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
@@ -79,6 +98,22 @@ export default function MyProfilePage() {
     refreshProfile();
   }
 
+  async function handleSaveTeam() {
+    if (!teamChoice || teamChoice === profile?.team) return;
+    setSavingTeam(true);
+    setTeamError(null);
+    setTeamSaved(false);
+    const { error } = await supabase.from("profiles").update({ team: teamChoice }).eq("id", user.id);
+    setSavingTeam(false);
+    if (error) {
+      setTeamError(error.message);
+      return;
+    }
+    setTeamSaved(true);
+    await reload();
+    refreshProfile();
+  }
+
   async function handleLinkUpline() {
     const number = uplineNumber.trim();
     if (!number) return;
@@ -109,6 +144,41 @@ export default function MyProfilePage() {
           <div className="empty-state">Loading…</div>
         ) : (
           <>
+            <div className="card space-y-2">
+              <p className="section-title">My Team</p>
+              <p className="text-xs text-slate-400">
+                Picked the wrong team at signup? Change it here — every leaderboard entry and
+                team total reads your team live off this field, so switching it moves your
+                Pipeline, Volume, Core Run Streak, and Leaderboard stats over to the new team
+                right away. Nothing needs to be re-entered.
+              </p>
+              <div className="flex items-center gap-2">
+                <select
+                  className="select flex-1"
+                  value={teamChoice}
+                  onChange={(e) => {
+                    setTeamChoice(e.target.value);
+                    setTeamSaved(false);
+                  }}
+                >
+                  {TEAMS.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  className="btn-primary shrink-0"
+                  onClick={handleSaveTeam}
+                  disabled={savingTeam || !teamChoice || teamChoice === profile.team}
+                >
+                  {savingTeam ? "Saving…" : "Save"}
+                </button>
+              </div>
+              {teamError && <p className="text-xs text-red-400">{teamError}</p>}
+              {teamSaved && <p className="text-xs text-amber-light">Team updated.</p>}
+            </div>
+
             <div className="card space-y-2">
               <p className="section-title">My Account Number</p>
               <p className="text-xs text-slate-400">

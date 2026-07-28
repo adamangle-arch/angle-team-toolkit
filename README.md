@@ -228,6 +228,19 @@ full private breakdown — and all are callable by any signed-in user (`grant
 execute ... to authenticated`), since the Leaderboard is intentionally
 visible to everyone, not just primary users.
 
+**Changing your team after signup** — a "My Team" card at the top of **My
+Profile** lets anyone pick a different team from the same fixed `TEAMS`
+list, for whoever picked the wrong one by accident when they first signed
+up. This is a client-side-only feature and needed no schema changes:
+`team` is never duplicated onto `pipeline_periods`, `candidates`, or any
+other data table — every leaderboard/stat/team-totals function above
+joins against `profiles.team` live, at query time. So updating that one
+field is the entire fix; every one of that person's existing numbers
+reads as belonging to the new team on the very next query, with nothing
+to migrate or re-enter. Already covered by the existing `update_own` RLS
+policy on `profiles` (`id = auth.uid()`), same as every other
+self-editable profile field.
+
 ### Teams view: browsing past weeks/months
 
 The Team tab's admin-only **Teams** view (per-team pipeline totals) used
