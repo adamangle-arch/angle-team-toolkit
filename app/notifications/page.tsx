@@ -12,6 +12,11 @@ const KIND_LABELS: Record<SentNotification["kind"], string> = {
   monthly_stat_leaders: "Monthly leaders",
   core_run_reminder: "Core Run reminder",
   calendar_reminder: "Calendar reminder",
+  calendar_event_added: "New calendar event",
+  call_rating_submitted: "Call rating submitted",
+  core_run_completed: "Core Run completed",
+  pipeline_5plus: "5+ active pipeline",
+  onboarding_unlocked: "Onboarding unlocked",
 };
 
 function formatSentAt(iso: string): string {

@@ -138,7 +138,12 @@ export type SentNotification = {
     | "weekly_stat_leaders"
     | "monthly_stat_leaders"
     | "core_run_reminder"
-    | "calendar_reminder";
+    | "calendar_reminder"
+    | "calendar_event_added"
+    | "call_rating_submitted"
+    | "core_run_completed"
+    | "pipeline_5plus"
+    | "onboarding_unlocked";
   title: string;
   body: string;
   period_type: "daily" | "weekly" | "monthly" | null;

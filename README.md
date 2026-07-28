@@ -1387,6 +1387,71 @@ can't get retried forever on every single poll. Logged into
 `sent_notifications` under a new `calendar_reminder` kind, showing up in
 **Notifications** history same as every other push this app sends.
 
+### Event-triggered push notifications
+
+Five more pushes fire the instant something happens, rather than on any
+kind of schedule — a different shape of problem than the Daily Reminder,
+Stat Leader digest, or Calendar reminder above, all of which are cron-
+driven. These are triggered directly by a user action, so they all go
+through one shared route, **`/api/notify`**, authenticated the same
+way `/api/assistant/rate-call` is (the caller's own Supabase access token
+in an `Authorization: Bearer` header, not `CRON_SECRET`) — the route
+figures out who else needs to be told and what to say, then hands off to
+`notifyUsers()` in `lib/notifyEvent.ts` (the same send-and-log tail used
+everywhere else: push to every device on file, drop dead subscriptions on
+a 404/410, log one `sent_notifications` row per recipient). Client pages
+call it fire-and-forget through `fireNotifyEvent()` in
+`lib/notifyClient.ts` — a failed push notification should never surface as
+an error on an action that already saved successfully.
+
+The five, and who they notify:
+
+- **Calendar event added by upline/admin** (`calendar_event_added`) —
+  fires after `broadcast_event_to_downline()` (a rep sending something to
+  their whole downline) or `add_company_event()` (an admin's recurring
+  team event), notifying everyone the event just landed on.
+- **Downline call rating submitted** (`call_rating_submitted`) — fires in
+  `RatingJobsProvider` right after a finished Rate a Call analysis saves
+  successfully, notifying every level of the submitter's upline
+  (`get_upline_user_ids()`, the new mirror of `get_downline_user_ids()`
+  with the `is_upline_of` argument order swapped).
+- **Downline completes today's Core Run** (`core_run_completed`) — fires
+  in `app/streak/page.tsx`'s `saveToday()` the moment `qualifies()` flips
+  from false to true for *today* specifically (the same transition check
+  already used for the Trivia-unlocked banner), notifying the submitter's
+  upline.
+- **Downline reaches 5+ active pipeline candidates** (`pipeline_5plus`) —
+  fires from `updateCandidate()` in the Candidate Roadmap after any step
+  move, launch, or filter-out. A brand-new RPC,
+  `try_claim_pipeline_threshold_notification()`, atomically flips a
+  persisted `profiles.notified_5plus_pipeline` latch and reports back
+  whether *this* call is the one that just crossed the threshold — a
+  DB-backed flag rather than client-side state, so it survives page
+  reloads and isn't fooled by two devices independently recomputing the
+  same count. Resets to false if the count later drops back under 5, so
+  crossing up again later notifies again.
+- **Upline unlocks your next onboarding session** (`onboarding_unlocked`)
+  — fires from **Team**'s "Unlock Next Session" / "Unlock All Sessions"
+  buttons, notifying just that one downline member. The route
+  double-checks authorization server-side too (admin, or
+  `is_upline_of(you, them)`) before sending, rather than trusting that the
+  grant itself already succeeded.
+
+Run this once against `sent_notifications`'s kind check constraint to
+allow the five new values (safe to re-run — same drop/re-add pattern as
+every other constraint change in this file):
+
+```sql
+alter table sent_notifications drop constraint if exists sent_notifications_kind_check;
+alter table sent_notifications add constraint sent_notifications_kind_check check (
+  kind in (
+    'daily_stat_leaders', 'weekly_stat_leaders', 'monthly_stat_leaders', 'core_run_reminder',
+    'calendar_reminder', 'calendar_event_added', 'call_rating_submitted', 'core_run_completed',
+    'pipeline_5plus', 'onboarding_unlocked'
+  )
+);
+```
+
 ### Stat Leader Notifications
 
 On top of the Core Run reminder, a second cron route

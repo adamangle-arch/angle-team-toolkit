@@ -18,6 +18,7 @@ import {
 } from "@/lib/constants";
 import { groupCallRatingsByType } from "@/lib/call-ratings";
 import { buildSponsorshipChildren } from "@/lib/sponsorship-tree";
+import { fireNotifyEvent } from "@/lib/notifyClient";
 import SponsorshipTree from "@/components/SponsorshipTree";
 import {
   getMonthStartOffset,
@@ -379,6 +380,8 @@ export default function TeamPage() {
       setGrantingOnboarding(false);
       return;
     }
+    const newSessionNumber =
+      (profiles.find((p) => p.id === selectedId)?.onboarding_unlocked_through ?? 1) + 1;
     setProfiles((prev) =>
       prev.map((p) =>
         p.id === selectedId
@@ -386,6 +389,11 @@ export default function TeamPage() {
           : p
       )
     );
+    fireNotifyEvent({
+      kind: "onboarding_unlocked",
+      targetUserId: selectedId,
+      sessionNumber: newSessionNumber,
+    });
     setGrantingOnboarding(false);
   }
 
@@ -408,6 +416,11 @@ export default function TeamPage() {
         p.id === selectedId ? { ...p, onboarding_unlocked_through: ONBOARDING_SESSIONS.length } : p
       )
     );
+    fireNotifyEvent({
+      kind: "onboarding_unlocked",
+      targetUserId: selectedId,
+      sessionNumber: ONBOARDING_SESSIONS.length,
+    });
     setGrantingOnboarding(false);
   }
 

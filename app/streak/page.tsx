@@ -8,6 +8,7 @@ import FeatureGate from "@/components/FeatureGate";
 import { supabase } from "@/lib/supabaseClient";
 import { getToday, getWeekStart, getMonthStart, formatDateLabel } from "@/lib/dates";
 import { PIPELINE_STAGES, CANDIDATE_STEP_SHORT_LABELS, type PipelineStageKey } from "@/lib/constants";
+import { fireNotifyEvent } from "@/lib/notifyClient";
 import type { StreakDay, PipelinePeriod, MonthlyPv, Candidate, Profile } from "@/lib/types";
 
 // LTD Messaging's App Store listing. There's no public custom URL scheme
@@ -454,6 +455,7 @@ export default function StreakPage() {
     if (justUnlockedTrivia) {
       setShowTriviaUnlocked(true);
       notifyTriviaUnlocked();
+      fireNotifyEvent({ kind: "core_run_completed" });
     }
     const { data, error } = await supabase
       .from("streak_days")

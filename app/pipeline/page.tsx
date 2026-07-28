@@ -22,6 +22,7 @@ import {
   formatShortDateLabel,
   formatShortMonthLabel,
 } from "@/lib/dates";
+import { fireNotifyEvent } from "@/lib/notifyClient";
 import type { PipelinePeriod, Candidate, Profile } from "@/lib/types";
 
 type PeriodType = "daily" | "weekly" | "monthly";
@@ -418,6 +419,16 @@ export default function PipelinePage() {
       setUpdateError(error.message);
     } else {
       setUpdateError(null);
+      // Any step/launched/filtered_out change can cross the 5-active
+      // threshold - the RPC atomically claims the notification (server-
+      // persisted, not a client ref) so it only fires once per crossing,
+      // not once per page load.
+      const { data: justCrossed } = await supabase.rpc(
+        "try_claim_pipeline_threshold_notification"
+      );
+      if (justCrossed === true) {
+        fireNotifyEvent({ kind: "pipeline_5plus" });
+      }
     }
   }
 

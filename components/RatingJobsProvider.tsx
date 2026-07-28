@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { fireNotifyEvent } from "@/lib/notifyClient";
 import type { CallRatingType } from "@/lib/constants";
 import type { CallRating } from "@/lib/types";
 
@@ -137,6 +138,12 @@ export default function RatingJobsProvider({ children }: { children: React.React
       if (insertError) {
         throw new Error(`Rated it, but couldn't save it: ${insertError.message}`);
       }
+      fireNotifyEvent({
+        kind: "call_rating_submitted",
+        candidateName: input.candidateName || "a candidate",
+        callType: input.callType,
+        overallScore: json.overall_score ?? null,
+      });
       return row as CallRating;
     }
 

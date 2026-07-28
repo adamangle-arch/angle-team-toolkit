@@ -358,6 +358,14 @@ alter table profiles add column if not exists upline_id uuid references auth.use
 alter table profiles drop constraint if exists profiles_upline_not_self;
 alter table profiles add constraint profiles_upline_not_self check (upline_id is null or upline_id <> id);
 
+-- Additive: latch for the "downline hit 5+ active pipeline candidates"
+-- push notification (see try_claim_pipeline_threshold_notification below).
+-- Persisted rather than tracked client-side so it survives page reloads
+-- and isn't fooled by every device recomputing the count independently -
+-- flips back to false once the count drops below 5, so crossing up again
+-- later notifies again.
+alter table profiles add column if not exists notified_5plus_pipeline boolean not null default false;
+
 create or replace function public.generate_account_number()
 returns text
 language plpgsql
@@ -1247,6 +1255,44 @@ $$;
 
 grant execute on function public.get_my_active_pipeline_summary() to authenticated;
 
+-- Atomically flips the notified_5plus_pipeline latch and reports whether
+-- *this* call is the one that just crossed the threshold - the caller
+-- (app/pipeline/page.tsx, after any mutation that could change the active
+-- count) only sends the "downline hit 5+ pipeline" push when this
+-- returns true, so the notification fires once per crossing rather than
+-- once per page load. Resolves through the household owner, same as
+-- get_my_active_pipeline_summary, so either spouse's login can trip it.
+create or replace function public.try_claim_pipeline_threshold_notification()
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_owner uuid := coalesce((select household_id from profiles where id = auth.uid()), auth.uid());
+  v_count int;
+  v_already boolean;
+begin
+  select count(*)::int into v_count
+  from candidates
+  where user_id = v_owner and launched = false and filtered_out = false and current_step >= 1;
+
+  select notified_5plus_pipeline into v_already from profiles where id = v_owner;
+
+  if v_count >= 5 and not coalesce(v_already, false) then
+    update profiles set notified_5plus_pipeline = true where id = v_owner;
+    return true;
+  elsif v_count < 5 and coalesce(v_already, false) then
+    update profiles set notified_5plus_pipeline = false where id = v_owner;
+    return false;
+  else
+    return false;
+  end if;
+end;
+$$;
+
+grant execute on function public.try_claim_pipeline_threshold_notification() to authenticated;
+
 -- Detail lists behind the two pills above - tapping one shows exactly
 -- the candidates that make up that count. Kept as their own functions
 -- (rather than reusing plain RLS-scoped table selects) so the list
@@ -1696,7 +1742,8 @@ alter table sent_notifications drop constraint if exists sent_notifications_kind
 alter table sent_notifications add constraint sent_notifications_kind_check check (
   kind in (
     'daily_stat_leaders', 'weekly_stat_leaders', 'monthly_stat_leaders', 'core_run_reminder',
-    'calendar_reminder'
+    'calendar_reminder', 'calendar_event_added', 'call_rating_submitted', 'core_run_completed',
+    'pipeline_5plus', 'onboarding_unlocked'
   )
 );
 
@@ -2074,6 +2121,26 @@ as $$
 $$;
 
 grant execute on function public.get_downline_user_ids(uuid) to authenticated;
+
+-- The mirror of get_downline_user_ids: every upline (any level) of
+-- p_user_id, for the "notify my upline about X" push notifications -
+-- same household exclusion for the same reason (a linked spouse isn't
+-- really "upline," even if they also happen to satisfy is_upline_of).
+create or replace function public.get_upline_user_ids(p_user_id uuid)
+returns table (user_id uuid)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select id from profiles
+  where public.is_upline_of(id, p_user_id)
+    and coalesce(household_id, id) <> coalesce(
+      (select household_id from profiles where id = p_user_id), p_user_id
+    );
+$$;
+
+grant execute on function public.get_upline_user_ids(uuid) to authenticated;
 
 -- Inserts one copy of the event per downline member (any level), each
 -- owned by that member so it shows on their own calendar too, not just

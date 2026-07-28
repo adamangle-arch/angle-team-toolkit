@@ -11,6 +11,7 @@ import {
   type CalendarEventType,
 } from "@/lib/constants";
 import type { CalendarEvent, CompanyEvent, Candidate, Profile } from "@/lib/types";
+import { fireNotifyEvent } from "@/lib/notifyClient";
 
 function eventTypeColor(type: CalendarEventType): string {
   return CALENDAR_EVENT_TYPES.find((t) => t.key === type)?.color ?? "#94a3b8";
@@ -168,6 +169,12 @@ export default function CalendarPage() {
     if (error) {
       setCeSaveError(error.message);
     } else {
+      fireNotifyEvent({
+        kind: "calendar_event_added",
+        title: trimmedTitle,
+        eventAt: new Date(ceEventAt).toISOString(),
+        scope: "all",
+      });
       setCeTitle("");
       setCeNotes("");
       await loadCompanyEvents();
@@ -218,6 +225,13 @@ export default function CalendarPage() {
       });
       if (broadcastError) {
         setSaveError(`Saved, but couldn't send it to your downline: ${broadcastError.message}`);
+      } else {
+        fireNotifyEvent({
+          kind: "calendar_event_added",
+          title: trimmedTitle,
+          eventAt: isoEventAt,
+          scope: "downline",
+        });
       }
     }
 
