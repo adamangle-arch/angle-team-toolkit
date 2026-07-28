@@ -110,7 +110,11 @@ function withDerived(row: StreakDay): StreakDay {
     ...row,
     read: row.read_amount.trim() !== "",
     listen: row.listen_count > 0,
-    story_share: row.story_shares > 0,
+    // Some people log a conversation under Questions instead of Story
+    // Shares even though it was really the same "shared your story"
+    // moment - counting either one satisfies the qualifying check, not
+    // just Story Shares specifically.
+    story_share: row.story_shares > 0 || row.questions > 0,
   };
 }
 

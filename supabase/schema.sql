@@ -182,6 +182,15 @@ alter table streak_days add column if not exists listen_items text[] not null de
 alter table streak_days add column if not exists story_shares int not null default 0;
 alter table streak_days add column if not exists questions int not null default 0;
 alter table streak_days add column if not exists yeses int not null default 0;
+
+-- Some people log a conversation under Questions instead of Story
+-- Shares even though it was really the same "shared your story" moment
+-- - app/streak/page.tsx now derives story_share from either count being
+-- positive, not just story_shares. One-time backfill so already-saved
+-- days retroactively qualify too (streak continuity shouldn't depend on
+-- which counter someone happened to tap) - safe to re-run, it's a no-op
+-- once every affected row is already true.
+update streak_days set story_share = true where story_share = false and questions > 0;
 alter table streak_days add column if not exists meetings int not null default 0;
 -- Same one-at-a-time pattern as listen_items: each entry is a free-text
 -- detail of a meeting held that day (who/what), so the Daily Update

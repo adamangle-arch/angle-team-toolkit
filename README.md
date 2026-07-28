@@ -2316,7 +2316,10 @@ One deliberate non-fix: **Read/Listen/Story Share on the Core Run Streak
 dashboard card look like they could be quick-toggled directly from
 Today**, but they're not raw booleans — `read` is genuinely derived from
 whether `read_amount` is filled in, `listen` from `listen_count > 0`,
-`story_share` from `story_shares > 0`. Adding a bare toggle for any of
+`story_share` from `story_shares > 0 || questions > 0` (some people log a
+conversation under Questions instead of Story Shares even though it was
+really the same "shared your story" moment — either one satisfies it,
+not Story Shares specifically). Adding a bare toggle for any of
 these on the dashboard would create a real inconsistency (a checked box
 with no actual reading/listening/sharing behind it, silently reverted the
 next time `/streak` recomputes it from the underlying fields) — so this
