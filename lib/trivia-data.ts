@@ -206,4 +206,9 @@ export const TRIVIA_QUESTIONS: TriviaQuestion[] = [
     options: ["300 PV Personal Circle", "150 PV", "600 PV", "100 PV"],
     correctIndex: 0,
   },
+  {
+    question: 'In "10 Seconds Of Courage," what fear did Matt Grotewold have to overcome?',
+    options: ["Flying", "Public speaking", "Failure", "Rejection"],
+    correctIndex: 0,
+  },
 ];
