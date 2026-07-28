@@ -340,6 +340,12 @@ export const ONBOARDING_SESSIONS: OnboardingSession[] = [
     description: "Establish the daily habits that create long-term momentum.",
     resources: [
       {
+        label: "🎥 The Phases",
+        detail:
+          "Video by Alex Angle — how to establish the productive habits that create long-term momentum in your business.",
+        url: "https://youtu.be/evGVhOBtizs",
+      },
+      {
         label: "🎧 Homework: First Round Draft Pick",
         detail: "Audio by Mark and Meredith Nathan — listen to this for your Session 5 homework.",
         url: "https://www.dropbox.com/scl/fi/217gvovuxyyui3zpcl8gl/First-Round-Draft-Pick-S11-0054-AUD.mp3?rlkey=nr7rv7u9iunt9itl4obilhpy6&st=8h9cka6w&dl=0",
