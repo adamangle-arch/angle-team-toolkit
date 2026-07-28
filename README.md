@@ -899,8 +899,10 @@ added this," not just "this came from upline."
 
 ### Calendar views: Agenda, Day, and Month
 
-A three-way tab (`Agenda` / `Day` / `Month`) sits above the event list,
-mirroring the view switcher in a full calendar app:
+A three-way tab (`Agenda` / `Day` / `Month`) sits at the very top of the
+Calendar tab, right under the header — the first thing on screen, not
+something you scroll past a form to reach — mirroring the view switcher
+in a full calendar app:
 
 - **Agenda** — the original list view: Upcoming, soonest first, then
   Recently Passed. Still the default.
@@ -925,11 +927,25 @@ Both grids and the Agenda list read from the same merged, deduped event
 list — switching tabs doesn't refetch anything, it's the same data laid
 out three different ways.
 
-**Team Events (recurring)** — an admin-only card at the top of the
-Calendar tab for standing, company-wide events (Masterclasses, Summit,
-Major Conferences, etc.) that are meant for literally everyone, not just
-an admin's own downline. Unlike the broadcast checkbox above (a one-time
-push to whoever is currently downline), adding a recurring event here:
+### Adding an event: a floating "+" button, not an inline form
+
+The Add Event form (and, for admins, Team Events underneath it) used to
+be a permanently-open card at the top of the page, pushing the actual
+calendar views below the fold. It's now a **floating "+" button**
+(bottom-right, above the bottom nav — same spot and same idea as Google
+Calendar's own FAB) that opens a bottom sheet with the form. Saving a
+personal/downline/specific-people event closes the sheet automatically;
+if the event itself saved but the broadcast/send-to-specific-people step
+failed, the sheet stays open so that error doesn't disappear along with
+it. The sheet close button (✕) and tapping the backdrop both dismiss it
+without saving.
+
+**Team Events (recurring)** — an admin-only section inside that same
+sheet, below the personal Add Event form, for standing, company-wide
+events (Masterclasses, Summit, Major Conferences, etc.) that are meant
+for literally everyone, not just an admin's own downline. Unlike the
+broadcast checkbox above (a one-time push to whoever is currently
+downline), adding a recurring event here:
 
 - Immediately puts a copy on every **current** member's calendar
   (`add_company_event()`, security definer, admin-only).

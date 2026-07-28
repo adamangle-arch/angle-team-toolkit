@@ -178,6 +178,12 @@ export default function CalendarPage() {
   const [selectedRecipientIds, setSelectedRecipientIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  // The Add Event form (and, for admins, Team Events underneath it) now
+  // lives in a bottom-sheet opened from a floating "+" button - same
+  // "tap the FAB, fill the sheet, it dismisses on save" pattern as Google
+  // Calendar, rather than a permanently-inline card pushing the actual
+  // calendar views below the fold.
+  const [showAddModal, setShowAddModal] = useState(false);
 
   const isAdmin = isPrimaryUser(user.email);
   const [companyEvents, setCompanyEvents] = useState<CompanyEvent[]>([]);
@@ -396,6 +402,8 @@ export default function CalendarPage() {
       return;
     }
 
+    let secondaryError: string | null = null;
+
     if (broadcast) {
       const { error: broadcastError } = await supabase.rpc("broadcast_event_to_downline", {
         p_title: trimmedTitle,
@@ -406,7 +414,7 @@ export default function CalendarPage() {
         p_reminder_minutes_before: reminderMinutes,
       });
       if (broadcastError) {
-        setSaveError(`Saved, but couldn't send it to your downline: ${broadcastError.message}`);
+        secondaryError = `Saved, but couldn't send it to your downline: ${broadcastError.message}`;
       } else {
         fireNotifyEvent({
           kind: "calendar_event_added",
@@ -426,7 +434,7 @@ export default function CalendarPage() {
         p_reminder_minutes_before: reminderMinutes,
       });
       if (sendError) {
-        setSaveError(`Saved, but couldn't send it to the people you picked: ${sendError.message}`);
+        secondaryError = `Saved, but couldn't send it to the people you picked: ${sendError.message}`;
       } else {
         fireNotifyEvent({
           kind: "calendar_event_added",
@@ -447,6 +455,15 @@ export default function CalendarPage() {
     setSelectedRecipientIds([]);
     setSaving(false);
     loadEvents();
+
+    // Only dismiss the sheet on a clean save - if the broadcast/send-to-
+    // recipients step failed, the event itself still saved but the error
+    // needs to stay on screen instead of vanishing with the sheet.
+    if (secondaryError) {
+      setSaveError(secondaryError);
+    } else {
+      setShowAddModal(false);
+    }
   }
 
   async function deleteEvent(id: string) {
@@ -491,162 +508,6 @@ export default function CalendarPage() {
         subtitle="Meetings, sessions, and reminders — yours, your spouse's, and your downline's"
       />
       <main className="page-main">
-        <div className="card space-y-2">
-          <p className="section-title">Add Event</p>
-          <input
-            className="input"
-            placeholder="Title (e.g. QI1 with Jane)"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-          />
-          <input
-            type="datetime-local"
-            className="input"
-            value={eventAt}
-            onChange={(e) => setEventAt(e.target.value)}
-          />
-          <select
-            className="select"
-            value={candidateId}
-            onChange={(e) => setCandidateId(e.target.value)}
-          >
-            <option value="">No linked candidate</option>
-            {candidates.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-          <div className="flex gap-2">
-            <select
-              className="select flex-1"
-              value={eventType}
-              onChange={(e) => setEventType(e.target.value as CalendarEventType)}
-            >
-              {CALENDAR_EVENT_TYPES.map((t) => (
-                <option key={t.key} value={t.key}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
-            <select
-              className="select flex-1"
-              value={reminderMinutes === null ? "none" : String(reminderMinutes)}
-              onChange={(e) =>
-                setReminderMinutes(e.target.value === "none" ? null : Number(e.target.value))
-              }
-            >
-              {CALENDAR_REMINDER_OPTIONS.map((opt) => (
-                <option key={opt.label} value={opt.minutes === null ? "none" : opt.minutes}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <textarea
-            className="textarea"
-            placeholder="Notes (e.g. 17, graduates this year — follow up after)"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-          />
-          {hasDownline && (
-            <div className="space-y-1.5">
-              <label className="flex items-center gap-2 text-sm text-slate-300">
-                <input
-                  type="checkbox"
-                  checked={broadcast}
-                  onChange={(e) => {
-                    setBroadcast(e.target.checked);
-                    if (e.target.checked) setSelectedRecipientIds([]);
-                  }}
-                />
-                Add to all downline (team meeting, info session, master class, conference…)
-              </label>
-              {!broadcast && (
-                <div className="rounded-lg bg-navy p-2 space-y-1">
-                  <p className="text-xs text-slate-400">Or add for specific people:</p>
-                  <div className="max-h-40 space-y-1 overflow-y-auto">
-                    {downlineMembers.map((m) => (
-                      <label key={m.id} className="flex items-center gap-2 text-sm text-slate-300">
-                        <input
-                          type="checkbox"
-                          checked={selectedRecipientIds.includes(m.id)}
-                          onChange={(e) => toggleRecipient(m.id, e.target.checked)}
-                        />
-                        {m.name}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-          <button
-            className="btn-primary w-full"
-            onClick={addEvent}
-            disabled={saving || !title.trim()}
-          >
-            {saving ? "Saving…" : "Add Event"}
-          </button>
-          {saveError && <p className="text-xs text-red-400">{saveError}</p>}
-        </div>
-
-        {isAdmin && (
-          <div className="card space-y-2">
-            <p className="section-title">Team Events (recurring)</p>
-            <p className="text-xs text-slate-400">
-              Goes out to every current member right away, and automatically to anyone who
-              signs up later too — a standing rule, not a one-time send.
-            </p>
-            <input
-              className="input"
-              placeholder="Title (e.g. Masterclass)"
-              value={ceTitle}
-              onChange={(e) => setCeTitle(e.target.value)}
-            />
-            <input
-              type="datetime-local"
-              className="input"
-              value={ceEventAt}
-              onChange={(e) => setCeEventAt(e.target.value)}
-            />
-            <textarea
-              className="textarea"
-              placeholder="Notes (e.g. 4 PM – 7 PM)"
-              value={ceNotes}
-              onChange={(e) => setCeNotes(e.target.value)}
-            />
-            <button
-              className="btn-primary w-full"
-              onClick={addCompanyEvent}
-              disabled={ceSaving || !ceTitle.trim()}
-            >
-              {ceSaving ? "Saving…" : "Add Recurring Event"}
-            </button>
-            {ceSaveError && <p className="text-xs text-red-400">{ceSaveError}</p>}
-
-            {companyEvents.length > 0 && (
-              <div className="space-y-1.5 pt-1">
-                {companyEvents.map((e) => (
-                  <div key={e.id} className="flex items-center justify-between gap-2 rounded-lg bg-navy p-2">
-                    <div>
-                      <p className="text-sm text-slate-200">{e.title}</p>
-                      <p className="text-xs text-slate-500">{formatEventLabel(e.event_at)}</p>
-                    </div>
-                    <button
-                      className="btn-icon !h-6 !w-6 text-xs shrink-0"
-                      onClick={() => removeCompanyEvent(e.id)}
-                      aria-label={`Remove recurring event ${e.title}`}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
         <div className="card flex p-1">
           <button
             className={viewMode === "agenda" ? "toggle-pill-active" : "toggle-pill-inactive"}
@@ -868,6 +729,202 @@ export default function CalendarPage() {
           </>
         )}
       </main>
+
+      {/* Floating "+" button, Google Calendar-style - opens the Add Event
+          sheet instead of a permanently-inline form pushing the actual
+          calendar views below the fold. Wrapped in a full-width, pointer-
+          events-none strip capped at the app's own max-w-md column (same
+          trick BottomNav uses) so the button lands at the right edge of
+          the app itself, not the raw viewport edge on a wider screen. */}
+      <div className="pointer-events-none fixed inset-x-0 bottom-[calc(4.75rem+env(safe-area-inset-bottom)+1rem)] z-40 mx-auto w-full max-w-md px-4">
+        <div className="flex justify-end">
+          <button
+            className="pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full text-3xl font-bold text-navy shadow-lg transition active:scale-95"
+            style={{ background: "linear-gradient(135deg, var(--color-amber-light), var(--color-amber))" }}
+            onClick={() => setShowAddModal(true)}
+            aria-label="Add event"
+          >
+            +
+          </button>
+        </div>
+      </div>
+
+      {showAddModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-4 sm:items-center"
+          onClick={() => setShowAddModal(false)}
+        >
+          <div
+            className="max-h-[85vh] w-full max-w-md space-y-4 overflow-y-auto rounded-2xl bg-navy-lighter p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="section-title">Add Event</p>
+                <button
+                  className="btn-icon !h-7 !w-7 text-sm"
+                  onClick={() => setShowAddModal(false)}
+                  aria-label="Close"
+                >
+                  ✕
+                </button>
+              </div>
+              <input
+                className="input"
+                placeholder="Title (e.g. QI1 with Jane)"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+              />
+              <input
+                type="datetime-local"
+                className="input"
+                value={eventAt}
+                onChange={(e) => setEventAt(e.target.value)}
+              />
+              <select
+                className="select"
+                value={candidateId}
+                onChange={(e) => setCandidateId(e.target.value)}
+              >
+                <option value="">No linked candidate</option>
+                {candidates.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+              <div className="flex gap-2">
+                <select
+                  className="select flex-1"
+                  value={eventType}
+                  onChange={(e) => setEventType(e.target.value as CalendarEventType)}
+                >
+                  {CALENDAR_EVENT_TYPES.map((t) => (
+                    <option key={t.key} value={t.key}>
+                      {t.label}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  className="select flex-1"
+                  value={reminderMinutes === null ? "none" : String(reminderMinutes)}
+                  onChange={(e) =>
+                    setReminderMinutes(e.target.value === "none" ? null : Number(e.target.value))
+                  }
+                >
+                  {CALENDAR_REMINDER_OPTIONS.map((opt) => (
+                    <option key={opt.label} value={opt.minutes === null ? "none" : opt.minutes}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <textarea
+                className="textarea"
+                placeholder="Notes (e.g. 17, graduates this year — follow up after)"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+              />
+              {hasDownline && (
+                <div className="space-y-1.5">
+                  <label className="flex items-center gap-2 text-sm text-slate-300">
+                    <input
+                      type="checkbox"
+                      checked={broadcast}
+                      onChange={(e) => {
+                        setBroadcast(e.target.checked);
+                        if (e.target.checked) setSelectedRecipientIds([]);
+                      }}
+                    />
+                    Add to all downline (team meeting, info session, master class, conference…)
+                  </label>
+                  {!broadcast && (
+                    <div className="rounded-lg bg-navy p-2 space-y-1">
+                      <p className="text-xs text-slate-400">Or add for specific people:</p>
+                      <div className="max-h-40 space-y-1 overflow-y-auto">
+                        {downlineMembers.map((m) => (
+                          <label key={m.id} className="flex items-center gap-2 text-sm text-slate-300">
+                            <input
+                              type="checkbox"
+                              checked={selectedRecipientIds.includes(m.id)}
+                              onChange={(e) => toggleRecipient(m.id, e.target.checked)}
+                            />
+                            {m.name}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+              <button
+                className="btn-primary w-full"
+                onClick={addEvent}
+                disabled={saving || !title.trim()}
+              >
+                {saving ? "Saving…" : "Add Event"}
+              </button>
+              {saveError && <p className="text-xs text-red-400">{saveError}</p>}
+            </div>
+
+            {isAdmin && (
+              <div className="space-y-2 border-t border-white/10 pt-3">
+                <p className="section-title">Team Events (recurring)</p>
+                <p className="text-xs text-slate-400">
+                  Goes out to every current member right away, and automatically to anyone who
+                  signs up later too — a standing rule, not a one-time send.
+                </p>
+                <input
+                  className="input"
+                  placeholder="Title (e.g. Masterclass)"
+                  value={ceTitle}
+                  onChange={(e) => setCeTitle(e.target.value)}
+                />
+                <input
+                  type="datetime-local"
+                  className="input"
+                  value={ceEventAt}
+                  onChange={(e) => setCeEventAt(e.target.value)}
+                />
+                <textarea
+                  className="textarea"
+                  placeholder="Notes (e.g. 4 PM – 7 PM)"
+                  value={ceNotes}
+                  onChange={(e) => setCeNotes(e.target.value)}
+                />
+                <button
+                  className="btn-primary w-full"
+                  onClick={addCompanyEvent}
+                  disabled={ceSaving || !ceTitle.trim()}
+                >
+                  {ceSaving ? "Saving…" : "Add Recurring Event"}
+                </button>
+                {ceSaveError && <p className="text-xs text-red-400">{ceSaveError}</p>}
+
+                {companyEvents.length > 0 && (
+                  <div className="space-y-1.5 pt-1">
+                    {companyEvents.map((e) => (
+                      <div key={e.id} className="flex items-center justify-between gap-2 rounded-lg bg-navy p-2">
+                        <div>
+                          <p className="text-sm text-slate-200">{e.title}</p>
+                          <p className="text-xs text-slate-500">{formatEventLabel(e.event_at)}</p>
+                        </div>
+                        <button
+                          className="btn-icon !h-6 !w-6 text-xs shrink-0"
+                          onClick={() => removeCompanyEvent(e.id)}
+                          aria-label={`Remove recurring event ${e.title}`}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 }
