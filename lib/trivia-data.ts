@@ -238,7 +238,7 @@ export const TRIVIA_QUESTIONS: TriviaQuestion[] = [
   },
   {
     question: 'What\'s the PV goal under "Grow Your Income" in the 9 Core Steps?',
-    options: ["300 PV Personal Circle", "150 PV", "600 PV", "100 PV"],
+    options: ["300 PV", "150 PV", "600 PV", "100 PV"],
     correctIndex: 0,
     source: "More → Resources → Process → 9 Core Steps graphic.",
   },
