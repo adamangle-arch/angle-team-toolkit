@@ -39,6 +39,19 @@ export function useAuth(): AuthContextValue {
   return ctx;
 }
 
+const AUTH_TIMEOUT_MS = 15000;
+
+// Neither supabase-js call below has a built-in timeout, so a stalled
+// request (a dead connection, a weak signal) previously left the app
+// stuck on "Loading…" forever with no way out. Racing against a timeout
+// turns that into a recoverable error instead.
+function withTimeout<T>(promise: PromiseLike<T>, message: string): Promise<T> {
+  return Promise.race([
+    Promise.resolve(promise),
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(message)), AUTH_TIMEOUT_MS)),
+  ]);
+}
+
 export default function AuthGate({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -46,12 +59,18 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setUser(data.session?.user ?? null);
-      setLoading(false);
-    });
+    withTimeout(supabase.auth.getSession(), "Timed out checking your session — check your connection.")
+      .then(({ data }) => {
+        setUser(data.session?.user ?? null);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setAuthError(err instanceof Error ? err.message : "Could not check your session.");
+        setLoading(false);
+      });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
@@ -59,18 +78,26 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   }, []);
 
   async function loadProfile(uid: string) {
-    const { data } = await supabase.from("profiles").select("*").eq("id", uid).single();
-    setProfile((data as Profile) ?? null);
-    setProfileLoading(false);
+    try {
+      const { data, error } = await withTimeout(
+        supabase.from("profiles").select("*").eq("id", uid).single(),
+        "Timed out loading your profile — check your connection."
+      );
+      if (error) throw error;
+      setAuthError(null);
+      setProfile((data as Profile) ?? null);
+    } catch (err) {
+      setAuthError(err instanceof Error ? err.message : "Could not load your profile.");
+    } finally {
+      setProfileLoading(false);
+    }
   }
 
   useEffect(() => {
     if (!user) return;
     const uid = user.id;
     async function load() {
-      const { data } = await supabase.from("profiles").select("*").eq("id", uid).single();
-      setProfile((data as Profile) ?? null);
-      setProfileLoading(false);
+      await loadProfile(uid);
     }
     load();
   }, [user]);
@@ -116,6 +143,29 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
       router.replace(homePath);
     }
   }, [fullyAuthed, onboardingComplete, unlockedThrough, pathname, router]);
+
+  if (authError) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
+        <p className="text-sm text-slate-400">{authError}</p>
+        <button
+          className="btn-secondary"
+          onClick={() => {
+            setAuthError(null);
+            setLoading(true);
+            setProfileLoading(true);
+            if (user) {
+              loadProfile(user.id);
+            } else {
+              window.location.reload();
+            }
+          }}
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
