@@ -217,4 +217,9 @@ export const TRIVIA_QUESTIONS: TriviaQuestion[] = [
     options: ["Lighthouse Leadership", "Coastal Diamonds", "Beacon Summit", "Shoreline Leaders"],
     correctIndex: 0,
   },
+  {
+    question: "What was Manny Winston's occupation when he saw the Amway business at 19 years old?",
+    options: ["Bowling Alley", "Fast Food Restaurant", "Retail Store", "Landscaping Crew"],
+    correctIndex: 0,
+  },
 ];
