@@ -384,6 +384,11 @@ export default function CalendarPage() {
                     <div>
                       <p className="text-sm text-slate-300">{e.title}</p>
                       <p className="text-xs text-slate-500">{formatEventLabel(e.event_at)}</p>
+                      {candidateName(e.candidate_id) && (
+                        <p className="text-xs text-slate-500">
+                          Candidate: {candidateName(e.candidate_id)}
+                        </p>
+                      )}
                     </div>
                     <button
                       className="btn-icon !h-6 !w-6 text-xs shrink-0"

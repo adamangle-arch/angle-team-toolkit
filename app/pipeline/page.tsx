@@ -435,7 +435,14 @@ export default function PipelinePage() {
 
   // Filtered-out candidates disappear from the active roadmap once they're
   // filtered out — they only live on in the Candidate History tab.
-  const active = candidates.filter((c) => !c.launched && !c.filtered_out);
+  // Sorted furthest-along-first (not just newest-first) so the people
+  // closest to launching - the ones who most need attention - are the
+  // first thing you see, not buried under whoever was added most
+  // recently. Array.prototype.sort is stable, so candidates on the same
+  // step keep their existing (newest-first) relative order.
+  const active = candidates
+    .filter((c) => !c.launched && !c.filtered_out)
+    .sort((a, b) => b.current_step - a.current_step);
   const launched = candidates.filter((c) => c.launched);
   const activeInPipeline = active.filter((c) => c.current_step >= ACTIVE_PIPELINE_MIN_STEP);
   const activeInPipelineCount = activeInPipeline.length;

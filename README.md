@@ -319,6 +319,13 @@ the top of the Candidate Roadmap section, and the same threshold
 name + step summary of everyone it includes, without having to scroll
 through the full editable candidate cards below to see who's where.
 
+The active roadmap list is sorted **furthest-along-first** (highest
+`current_step` at the top), not just newest-added-first — the people
+closest to launching are the ones who most need attention, so they're
+the first thing you see instead of being buried under whoever was added
+most recently. Candidates on the same step keep their existing
+newest-first relative order (`Array.prototype.sort` is stable).
+
 Each candidate also has a **Connected** date (defaults to today when
 added, editable anytime). Marking a candidate "Filtered Out" removes them
 from the active roadmap board immediately — they're not deleted from the
@@ -767,7 +774,11 @@ separate Google Calendar for team scheduling:
   notes, and an optional link to a candidate (e.g. "QI1 with Jane" at a
   specific time, or a reminder like "17, graduates this year — follow up
   after"). Shows under Upcoming, sorted soonest-first; recently-passed
-  events stay visible below for a bit before you clean them up.
+  events stay visible below for a bit before you clean them up. **Recently
+  Passed** now shows the linked candidate's name too, same as Upcoming
+  already did — it used to drop straight to just title + time once an
+  event passed, so "who was this meeting even with" wasn't answerable
+  without tapping back into the event.
 - **Broadcasting to your downline** — if you have anyone below you,
   an "Add to all downline" checkbox appears when adding an event. Check
   it for team meetings, info sessions, master classes, or conferences
