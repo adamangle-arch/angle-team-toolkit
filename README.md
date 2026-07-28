@@ -1119,6 +1119,11 @@ an actual numbered step-by-step instead of a loose bag of targets
    to share your story, building towards 150 PV
 7. Attend weekly events
 
+**9 Core Steps** — the official Angle Diamond Team graphic (Grow Your
+Income / Self / Team) is a static image (`public/9-core-steps.jpg`,
+served via `next/image`) in its own card at the top of the Process tab —
+first thing anyone sees, ahead of the pre-launch stages below it.
+
 ### Global search
 
 A 🔍 icon in the header on every page (`components/PageHeader.tsx`) opens

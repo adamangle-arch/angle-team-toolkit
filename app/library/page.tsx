@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useMemo, useState } from "react";
+import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
 import { AUDIOS, FIRST_YEAR_BOOKS, ADVANCED_LIBRARY } from "@/lib/library-data";
@@ -371,6 +372,17 @@ function ScriptsSection({
 function ProcessSection() {
   return (
     <>
+      <div className="card space-y-2">
+        <p className="section-title">Angle Diamond Team — 9 Core Steps</p>
+        <Image
+          src="/9-core-steps.jpg"
+          alt="Angle Diamond Team 9 Core Steps: Grow Your Income (3-5 QI's/Week, 300 PV Personal Circle, 60% VCS), Grow Your Self (Read 20 Minutes/Day, Listen to 1 Audio/Day, Attend all Meetings), Grow Your Team (Be Accountable, Be Coachable, Communicate Daily using the Message App)"
+          width={1170}
+          height={733}
+          className="h-auto w-full rounded-xl"
+        />
+      </div>
+
       {PROCESS_STAGES.map((s) => (
         <div key={s.stage} className="card space-y-2">
           <p className="section-title">{s.stage}</p>

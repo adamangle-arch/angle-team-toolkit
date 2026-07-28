@@ -88,4 +88,26 @@ export const TRIVIA_QUESTIONS: TriviaQuestion[] = [
     options: ["Habits", "Environment", "Systems", "Discipline"],
     correctIndex: 2,
   },
+  {
+    question:
+      'In the audio "First Round Draft Pick," Mark Nathan says he will rock your face at what video game?',
+    options: ["Mario Kart", "Call of Duty", "Madden NFL", "Fortnite"],
+    correctIndex: 0,
+  },
+  {
+    question:
+      'In Think and Grow Rich, Napoleon Hill says, "Every adversity, every failure, every heartbreak, carries with it the ________."',
+    options: [
+      "seed of an equal or greater benefit",
+      "lesson you must learn to move forward",
+      "price you must pay for success",
+      "test of your true character",
+    ],
+    correctIndex: 0,
+  },
+  {
+    question: "Which of these is NOT one of the Angle Team's 9 Core Steps?",
+    options: ["Read 20 Minutes / Day", "Attend all Meetings", "Post on social media daily", "Be Coachable"],
+    correctIndex: 2,
+  },
 ];
