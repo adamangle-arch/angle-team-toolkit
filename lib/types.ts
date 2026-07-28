@@ -223,6 +223,7 @@ export type PipelinePeriod = {
 export type Candidate = {
   id: string;
   user_id: string;
+  creator_id: string;
   name: string;
   current_step: number;
   notes: string;

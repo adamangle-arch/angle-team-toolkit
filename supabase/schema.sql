@@ -99,6 +99,22 @@ create table if not exists candidates (
   updated_at timestamptz not null default now()
 );
 
+-- Additive: who actually added this candidate, as opposed to user_id
+-- (the shared household owner the row's business data is attributed to -
+-- see the household-linking notes elsewhere in this file). For a linked
+-- couple these differ: candidates.user_id resolves to whichever partner
+-- is the canonical owner, but the "sent by {name}" greeting on /prospect
+-- should show whoever actually texted the candidate their code, not
+-- necessarily their spouse. Same user_id/creator_id split calendar_events
+-- already uses for the same reason. Nullable-then-backfilled rather than
+-- NOT NULL DEFAULT auth.uid() outright, since auth.uid() evaluates to
+-- null with no JWT context (e.g. running this file by hand in the SQL
+-- editor) and would fail NOT NULL on every existing row during the
+-- ADD COLUMN itself.
+alter table candidates add column if not exists creator_id uuid default auth.uid() references auth.users(id) on delete set null;
+update candidates set creator_id = user_id where creator_id is null;
+alter table candidates alter column creator_id set not null;
+
 -- Additive: lets a re-run of this section pick up connected_date on a
 -- table that already existed before it was added.
 alter table candidates add column if not exists connected_date date not null default current_date;
@@ -185,7 +201,7 @@ set search_path = public
 as $$
   select c.id, c.name, c.current_step, c.launched, p.first_name, p.last_name
   from candidates c
-  join profiles p on p.id = c.user_id
+  join profiles p on p.id = c.creator_id
   where upper(c.access_code) = upper(p_code);
 $$;
 

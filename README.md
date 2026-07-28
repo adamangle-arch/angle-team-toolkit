@@ -1352,7 +1352,12 @@ invite flow.
 `get_candidate_by_access_code()` (callable by the unauthenticated `anon`
 role) looks them up by code and returns their name, current roadmap step,
 launched status, and the inviter's name — nothing private, no auth
-required. The app remembers a validated code in `localStorage` on their
+required. The inviter shown is whoever actually added the candidate
+(`candidates.creator_id`), not necessarily the household owner their
+business data is attributed to (`candidates.user_id`) — those differ for
+a linked couple, and the greeting should say whichever partner actually
+sent the code, not always default to whoever the shared numbers belong
+to. The app remembers a validated code in `localStorage` on their
 device so they don't have to retype it on repeat visits ("Not you? Enter
 a different code" resets it). The code screen and the normal sign-in
 screen (`LoginForm`) cross-link to each other — "Already a team member?
