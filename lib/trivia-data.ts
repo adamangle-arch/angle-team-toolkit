@@ -261,4 +261,16 @@ export const TRIVIA_QUESTIONS: TriviaQuestion[] = [
     correctIndex: 0,
     source: "Team history, not written up in the app — ask your upline or mentor.",
   },
+  {
+    question:
+      "What book on the First Year Reading list do we recommend you read chapters 2, 12, and 13 of, then read the rest if you enjoy those chapters?",
+    options: [
+      "The Magic of Thinking Big",
+      "The Go-Giver",
+      "The Compound Effect",
+      "Think and Grow Rich",
+    ],
+    correctIndex: 0,
+    source: "More → Onboarding → Session 4 reading requirement.",
+  },
 ];
