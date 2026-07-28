@@ -42,22 +42,6 @@ function qualifies(day: StreakDay): boolean {
   return day.read && day.listen && day.daily_update && day.story_share;
 }
 
-// Best-effort local notification reusing the permission/service worker
-// set up on the Notifications page - no server round-trip needed.
-async function notifyTriviaUnlocked() {
-  try {
-    if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
-    if (!("serviceWorker" in navigator)) return;
-    const registration = await navigator.serviceWorker.ready;
-    await registration.showNotification("Trivia Unlocked! 🎉", {
-      body: "You completed today's Core Run - go answer today's 5 trivia questions.",
-      icon: "/icon-192.png",
-    });
-  } catch {
-    // Notifications are a nice-to-have; ignore failures.
-  }
-}
-
 function addDays(dateStr: string, delta: number): string {
   const d = new Date(`${dateStr}T00:00:00`);
   d.setDate(d.getDate() + delta);
@@ -229,7 +213,7 @@ export default function StreakPage() {
   const [activeCandidates, setActiveCandidates] = useState<Candidate[]>([]);
   const [newCandidatesForDay, setNewCandidatesForDay] = useState<Candidate[]>([]);
   const [copied, setCopied] = useState(false);
-  const [showTriviaUnlocked, setShowTriviaUnlocked] = useState(false);
+  const [showGamesUnlocked, setShowGamesUnlocked] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const [downlineMemberCount, setDownlineMemberCount] = useState(0);
@@ -450,12 +434,12 @@ export default function StreakPage() {
   async function saveToday(patch: Partial<StreakDay>) {
     const merged = withDerived({ ...selectedRow, ...patch });
     const isToday = selectedDay === today;
-    const justUnlockedTrivia = isToday && !qualifies(selectedRow) && qualifies(merged);
+    const justUnlockedGames = isToday && !qualifies(selectedRow) && qualifies(merged);
     setHistory((prev) => ({ ...prev, [selectedDay]: merged }));
-    if (justUnlockedTrivia) {
-      setShowTriviaUnlocked(true);
-      notifyTriviaUnlocked();
+    if (justUnlockedGames) {
+      setShowGamesUnlocked(true);
       fireNotifyEvent({ kind: "core_run_completed" });
+      fireNotifyEvent({ kind: "games_unlocked" });
     }
     const { data, error } = await supabase
       .from("streak_days")
@@ -654,21 +638,22 @@ export default function StreakPage() {
         subtitle="Read • Listen • Daily Update • Story Share"
       />
       <main className="page-main">
-        {showTriviaUnlocked && (
+        {showGamesUnlocked && (
           <div className="card flex items-center justify-between gap-2 !border-amber bg-amber/10">
             <div>
-              <p className="section-title">🎉 Trivia Unlocked!</p>
+              <p className="section-title">🎉 Games Unlocked!</p>
               <p className="text-xs text-slate-300">
-                Today&apos;s Core Run is done — go answer today&apos;s 5 trivia questions.
+                Today&apos;s Core Run is done — Diamond Run, Diamond Chase, and Trivia are all
+                unlocked for today.
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              <Link href="/games?tab=trivia" className="btn-primary">
+              <Link href="/games" className="btn-primary">
                 Play
               </Link>
               <button
                 className="btn-icon"
-                onClick={() => setShowTriviaUnlocked(false)}
+                onClick={() => setShowGamesUnlocked(false)}
                 aria-label="Dismiss"
               >
                 ✕

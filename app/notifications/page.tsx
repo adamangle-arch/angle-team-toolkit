@@ -17,6 +17,7 @@ const KIND_LABELS: Record<SentNotification["kind"], string> = {
   core_run_completed: "Core Run completed",
   pipeline_5plus: "5+ active pipeline",
   onboarding_unlocked: "Onboarding unlocked",
+  games_unlocked: "Games unlocked",
 };
 
 function formatSentAt(iso: string): string {

@@ -1743,7 +1743,7 @@ alter table sent_notifications add constraint sent_notifications_kind_check chec
   kind in (
     'daily_stat_leaders', 'weekly_stat_leaders', 'monthly_stat_leaders', 'core_run_reminder',
     'calendar_reminder', 'calendar_event_added', 'call_rating_submitted', 'core_run_completed',
-    'pipeline_5plus', 'onboarding_unlocked'
+    'pipeline_5plus', 'onboarding_unlocked', 'games_unlocked'
   )
 );
 

@@ -751,7 +751,7 @@ back and add something you forgot ("don't want it to go away"), and
 being able to file the report for a day *after* midnight without losing
 that day's data once the calendar flips.
 
-The "Trivia Unlocked" alert only ever fires while editing today — going
+The "Games Unlocked" alert only ever fires while editing today — going
 back and completing a past day's Core Run doesn't re-trigger it.
 
 ### Goals ("Your goal today/this week/this month is...")
@@ -1490,7 +1490,7 @@ can't get retried forever on every single poll. Logged into
 
 ### Event-triggered push notifications
 
-Five more pushes fire the instant something happens, rather than on any
+Six more pushes fire the instant something happens, rather than on any
 kind of schedule — a different shape of problem than the Daily Reminder,
 Stat Leader digest, or Calendar reminder above, all of which are cron-
 driven. These are triggered directly by a user action, so they all go
@@ -1505,7 +1505,7 @@ call it fire-and-forget through `fireNotifyEvent()` in
 `lib/notifyClient.ts` — a failed push notification should never surface as
 an error on an action that already saved successfully.
 
-The five, and who they notify:
+The six, and who they notify:
 
 - **Calendar event added by upline/admin** (`calendar_event_added`) —
   fires after `broadcast_event_to_downline()` (a rep sending something to
@@ -1523,8 +1523,14 @@ The five, and who they notify:
 - **Downline completes today's Core Run** (`core_run_completed`) — fires
   in `app/streak/page.tsx`'s `saveToday()` the moment `qualifies()` flips
   from false to true for *today* specifically (the same transition check
-  already used for the Trivia-unlocked banner), notifying the submitter's
+  already used for the Games-unlocked banner), notifying the submitter's
   upline.
+- **You complete today's Core Run, unlocking all 3 games**
+  (`games_unlocked`) — fires from the exact same transition check as
+  `core_run_completed` above, but self-targeted (notifies you, not your
+  upline) — replaces what used to be a local-only, un-logged
+  `Notification.showNotification()` call scoped to whichever device
+  happened to be open at the time.
 - **Downline reaches 5+ active pipeline candidates** (`pipeline_5plus`) —
   fires from `updateCandidate()` in the Candidate Roadmap after any step
   move, launch, or filter-out. A brand-new RPC,
@@ -1543,7 +1549,7 @@ The five, and who they notify:
   grant itself already succeeded.
 
 Run this once against `sent_notifications`'s kind check constraint to
-allow the five new values (safe to re-run — same drop/re-add pattern as
+allow the six new values (safe to re-run — same drop/re-add pattern as
 every other constraint change in this file):
 
 ```sql
@@ -1552,7 +1558,7 @@ alter table sent_notifications add constraint sent_notifications_kind_check chec
   kind in (
     'daily_stat_leaders', 'weekly_stat_leaders', 'monthly_stat_leaders', 'core_run_reminder',
     'calendar_reminder', 'calendar_event_added', 'call_rating_submitted', 'core_run_completed',
-    'pipeline_5plus', 'onboarding_unlocked'
+    'pipeline_5plus', 'onboarding_unlocked', 'games_unlocked'
   )
 );
 ```
@@ -1642,14 +1648,24 @@ initial tab can be deep-linked via `?tab=diamond-run|diamond-chase|trivia`
   days scoring 5/5) is computed on the fly by `get_trivia_streak()` —
   same recursive-CTE approach as Core Run Streak — and surfaced on a
   `get_trivia_streak_leaderboard()`-powered leaderboard.
-  - **Trivia Unlocked alert** — the moment your Core Run for the day
+  - **Games Unlocked alert** — the moment your Core Run for the day
     flips from incomplete to complete, the Core Run Streak page
-    (`app/streak/page.tsx`) shows a dismissible "🎉 Trivia Unlocked!"
-    banner linking straight to `/games?tab=trivia`, and — if you've
-    already granted notification permission via the Daily Reminders
-    opt-in — fires a local `ServiceWorkerRegistration.showNotification()`
-    call too (no server round-trip, reuses the same service worker
-    registered for the existing push-reminder feature).
+    (`app/streak/page.tsx`) shows a dismissible "🎉 Games Unlocked!"
+    banner linking to `/games`. This used to say "Trivia Unlocked" and
+    link straight to the Trivia tab specifically, back when Trivia was
+    the only one of the three games gated behind today's Core Run — but
+    Diamond Run and Diamond Chase both gate on the exact same
+    `coreRunDone` check (see each game's own `unlockStatus` in
+    `components/games/DiamondRunGame.tsx` /
+    `DiamondChaseGame.tsx` / `TriviaGame.tsx`), so all three unlock at
+    once — the banner was just never updated to say so. It also used to
+    fire a local, device-only `ServiceWorkerRegistration.showNotification()`
+    call that never went through the server and never showed up on the
+    **Notifications** page; it's now a `games_unlocked` kind on the same
+    event-triggered `/api/notify` route as the five below (real push to
+    every device you've registered, logged into `sent_notifications`
+    like everything else), self-targeted since this one's for you, not
+    your upline.
 
 All three: plain HTML5 canvas (or plain DOM for Trivia), no game
 library, and no anti-cheat on scores — same trust level as any other

@@ -22,7 +22,8 @@ type Body =
   | { kind: "call_rating_submitted"; candidateName: string; callType: string; overallScore: number | null }
   | { kind: "core_run_completed" }
   | { kind: "pipeline_5plus" }
-  | { kind: "onboarding_unlocked"; targetUserId: string; sessionNumber: number };
+  | { kind: "onboarding_unlocked"; targetUserId: string; sessionNumber: number }
+  | { kind: "games_unlocked" };
 
 function fullName(p: { first_name: string | null; last_name: string | null } | null): string {
   if (!p) return "Someone";
@@ -153,6 +154,24 @@ export async function POST(request: Request) {
           title: "✅ Core Run complete",
           body: `${fullName(submitter)} completed today's Core Run`,
           url: "/streak",
+        });
+        return NextResponse.json(result);
+      }
+
+      case "games_unlocked": {
+        // Self-targeted, unlike every other kind here - this is "you just
+        // unlocked today's games," not something to tell anyone else.
+        // Goes through the same notifyUsers() tail as the rest (real push
+        // to every device on file, logged into sent_notifications) rather
+        // than the old client-only Notification.showNotification() call
+        // this replaced, which fired locally on just the one open device
+        // and never showed up in Notifications history.
+        const result = await notifyUsers({
+          userIds: [userId],
+          kind: "games_unlocked",
+          title: "🎮 Games Unlocked!",
+          body: "You completed today's Core Run — Diamond Run, Diamond Chase, and Trivia are all unlocked for today.",
+          url: "/games",
         });
         return NextResponse.json(result);
       }

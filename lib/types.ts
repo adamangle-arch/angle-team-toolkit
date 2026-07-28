@@ -143,7 +143,8 @@ export type SentNotification = {
     | "call_rating_submitted"
     | "core_run_completed"
     | "pipeline_5plus"
-    | "onboarding_unlocked";
+    | "onboarding_unlocked"
+    | "games_unlocked";
   title: string;
   body: string;
   period_type: "daily" | "weekly" | "monthly" | null;
