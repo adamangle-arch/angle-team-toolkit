@@ -1653,6 +1653,118 @@ create policy "delete_own_or_admin" on pipeline_periods for delete using (
   or public.is_app_admin()
 );
 
+-- Applies a delta to a single Daily Tally stage AND rolls the same delta
+-- up into that day's week and month totals, so logging something once
+-- on Daily is enough - Weekly and Monthly no longer need re-entering by
+-- hand. date_trunc('week', ...) is Monday-start in Postgres, matching
+-- lib/dates.ts's getWeekStart() convention exactly, so the week bucket
+-- this lands in is always the same one the app's own UI would compute.
+-- Same authorization as the update/insert policies above (own household,
+-- upline filling in for a downline, or admin) since this bypasses RLS as
+-- security definer. p_stage is checked against a fixed allowlist before
+-- ever reaching dynamic SQL, so there's no injection surface despite the
+-- column name being interpolated.
+create or replace function public.bump_pipeline_stage(
+  p_owner_id uuid,
+  p_period_start date,
+  p_stage text,
+  p_delta int
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_week_start date := date_trunc('week', p_period_start)::date;
+  v_month_start date := date_trunc('month', p_period_start)::date;
+begin
+  if p_stage not in (
+    'questions', 'yeses', 'qi1', 'qi2', 'is1', 'fu1', 'is2', 'fu2', 'questionnaire', 'launches'
+  ) then
+    raise exception 'Invalid pipeline stage: %', p_stage;
+  end if;
+
+  if not (
+    p_owner_id = auth.uid()
+    or p_owner_id = (select household_id from profiles where id = auth.uid())
+    or p_owner_id = (select id from profiles where household_id = auth.uid())
+    or public.is_upline_of(auth.uid(), p_owner_id)
+    or public.is_app_admin()
+  ) then
+    raise exception 'Not authorized to log pipeline stats for this account.';
+  end if;
+
+  execute format(
+    'insert into pipeline_periods (user_id, period_type, period_start, %1$I)
+     values ($1, $2, $3, greatest(0, $4))
+     on conflict (user_id, period_type, period_start)
+     do update set %1$I = greatest(0, pipeline_periods.%1$I + $4), updated_at = now()',
+    p_stage
+  ) using p_owner_id, 'daily', p_period_start, p_delta;
+
+  execute format(
+    'insert into pipeline_periods (user_id, period_type, period_start, %1$I)
+     values ($1, $2, $3, greatest(0, $4))
+     on conflict (user_id, period_type, period_start)
+     do update set %1$I = greatest(0, pipeline_periods.%1$I + $4), updated_at = now()',
+    p_stage
+  ) using p_owner_id, 'weekly', v_week_start, p_delta;
+
+  execute format(
+    'insert into pipeline_periods (user_id, period_type, period_start, %1$I)
+     values ($1, $2, $3, greatest(0, $4))
+     on conflict (user_id, period_type, period_start)
+     do update set %1$I = greatest(0, pipeline_periods.%1$I + $4), updated_at = now()',
+    p_stage
+  ) using p_owner_id, 'monthly', v_month_start, p_delta;
+end;
+$$;
+
+grant execute on function public.bump_pipeline_stage(uuid, date, text, int) to authenticated;
+
+-- The other half of the Pipeline <-> Core Run Streak sync: logging a
+-- Question or Yes on the Daily Tally also bumps that same day's Core Run
+-- Streak "Today's Activity" counter, and - since asking the question (or
+-- getting a yes) is itself a story-sharing moment - Story Shares goes up
+-- by the same amount too, on top of the existing story_share boolean
+-- already being satisfied by either count (see the OR below). Always
+-- targets the caller's own streak_days regardless of whose pipeline row
+-- was touched, since story-sharing is inherently personal - the caller
+-- only invokes this for their own Daily Tally edits, never while filling
+-- in for a downline.
+create or replace function public.mirror_pipeline_stage_to_streak(
+  p_period_start date,
+  p_stage text,
+  p_delta int
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if p_stage not in ('questions', 'yeses') then
+    raise exception 'Invalid streak-mirror stage: %', p_stage;
+  end if;
+
+  execute format(
+    'insert into streak_days (user_id, day, %1$I, story_shares)
+     values ($1, $2, greatest(0, $3), greatest(0, $3))
+     on conflict (user_id, day)
+     do update set %1$I = greatest(0, streak_days.%1$I + $3),
+                   story_shares = greatest(0, streak_days.story_shares + $3)',
+    p_stage
+  ) using auth.uid(), p_period_start, p_delta;
+
+  update streak_days
+  set story_share = (story_shares > 0 or questions > 0)
+  where user_id = auth.uid() and day = p_period_start;
+end;
+$$;
+
+grant execute on function public.mirror_pipeline_stage_to_streak(date, text, int) to authenticated;
+
 -- ============================================================
 -- 8. LEADERBOARD LIKES
 -- Anyone can "like" a specific leaderboard ranking so the team can cheer

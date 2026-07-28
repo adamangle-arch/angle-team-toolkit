@@ -483,6 +483,26 @@ export default function StreakPage() {
     }
   }
 
+  // Questions/Yeses are shared with the Pipeline Tracker's Daily Tally -
+  // logging one here also bumps that same day's Daily/Weekly/Monthly
+  // pipeline totals (bump_pipeline_stage), and since asking the question
+  // (or getting a yes) is itself a story-sharing moment, Story Shares
+  // goes up by the same amount too - on top of the existing story_share
+  // qualifying check already being satisfied by either count.
+  function logActivityCount(key: "questions" | "yeses", next: number) {
+    const delta = next - (selectedRow[key] as number);
+    const nextStoryShares = Math.max(0, selectedRow.story_shares + delta);
+    saveToday({ [key]: next, story_shares: nextStoryShares });
+    if (delta !== 0) {
+      supabase.rpc("bump_pipeline_stage", {
+        p_owner_id: ownerId,
+        p_period_start: selectedDay,
+        p_stage: key,
+        p_delta: delta,
+      });
+    }
+  }
+
   function saveAudios(items: string[]) {
     saveToday({
       listen_items: items,
@@ -833,12 +853,12 @@ export default function StreakPage() {
               <Counter
                 label="Questions"
                 value={selectedRow.questions}
-                onChange={(next) => saveToday({ questions: next })}
+                onChange={(next) => logActivityCount("questions", next)}
               />
               <Counter
                 label="Yeses"
                 value={selectedRow.yeses}
-                onChange={(next) => saveToday({ yeses: next })}
+                onChange={(next) => logActivityCount("yeses", next)}
               />
             </div>
 

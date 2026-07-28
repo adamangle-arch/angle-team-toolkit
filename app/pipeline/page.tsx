@@ -334,47 +334,95 @@ export default function PipelinePage() {
     if (!period) return;
     const previousValue = period[key] as number;
     const nextValue = Math.max(0, previousValue + delta);
+    const appliedDelta = nextValue - previousValue;
     setPeriod({ ...period, [key]: nextValue });
 
-    // A "draft" period (id === "") is a past period that was viewed but
-    // never had a real row - see the load effect above. The first edit to
-    // one of these needs to insert a brand-new row instead of updating one
-    // that doesn't exist yet (an .eq("id", "") update would silently match
-    // nothing and look like it worked while saving nothing at all).
-    if (!period.id) {
-      const { data: created, error } = await supabase
+    if (periodType !== "daily") {
+      // Weekly/Monthly, edited directly: no cascade - there's no smaller
+      // unit to attribute a rollup to, so this keeps the old plain
+      // insert-if-draft / update-by-id behavior.
+      //
+      // A "draft" period (id === "") is a past period that was viewed but
+      // never had a real row - see the load effect above. The first edit
+      // to one of these needs to insert a brand-new row instead of
+      // updating one that doesn't exist yet (an .eq("id", "") update
+      // would silently match nothing and look like it worked while
+      // saving nothing at all).
+      if (!period.id) {
+        const { data: created, error } = await supabase
+          .from("pipeline_periods")
+          .insert({
+            user_id: period.user_id,
+            period_type: period.period_type,
+            period_start: period.period_start,
+            [key]: nextValue,
+          })
+          .select("*")
+          .single();
+        if (error) {
+          setPeriod((prev) => (prev ? { ...prev, [key]: previousValue } : prev));
+          setUpdateError(error.message);
+        } else {
+          setPeriod(created as PipelinePeriod);
+          setUpdateError(null);
+        }
+        return;
+      }
+
+      const { error } = await supabase
         .from("pipeline_periods")
-        .insert({
-          user_id: period.user_id,
-          period_type: period.period_type,
-          period_start: period.period_start,
-          [key]: nextValue,
-        })
-        .select("*")
-        .single();
+        .update({ [key]: nextValue, updated_at: new Date().toISOString() })
+        .eq("id", period.id);
       if (error) {
+        // Revert the optimistic count - otherwise a failed save looks
+        // identical to a successful one and silently under/over-counts
+        // this period's stats.
         setPeriod((prev) => (prev ? { ...prev, [key]: previousValue } : prev));
         setUpdateError(error.message);
       } else {
-        setPeriod(created as PipelinePeriod);
         setUpdateError(null);
       }
       return;
     }
 
-    const { error } = await supabase
-      .from("pipeline_periods")
-      .update({ [key]: nextValue, updated_at: new Date().toISOString() })
-      .eq("id", period.id);
+    // Daily: goes through bump_pipeline_stage so this same edit also
+    // rolls up into this week's and this month's totals - no more
+    // re-entering the same number three times. Handles the draft-vs-
+    // existing-row distinction itself (upsert), so no separate insert
+    // path is needed here the way Weekly/Monthly still have above.
+    const { error } = await supabase.rpc("bump_pipeline_stage", {
+      p_owner_id: effectiveOwnerId,
+      p_period_start: period.period_start,
+      p_stage: key,
+      p_delta: appliedDelta,
+    });
     if (error) {
-      // Revert the optimistic count - otherwise a failed save looks
-      // identical to a successful one and silently under/over-counts
-      // this period's stats.
       setPeriod((prev) => (prev ? { ...prev, [key]: previousValue } : prev));
       setUpdateError(error.message);
-    } else {
-      setUpdateError(null);
+      return;
     }
+    setUpdateError(null);
+
+    // Questions/Yeses also mirror into Core Run Streak's own Today's
+    // Activity counters (and count toward Story Share) - only when
+    // editing your own tally, not filling in for a downline member,
+    // since that shouldn't touch the filler's own personal streak.
+    if ((key === "questions" || key === "yeses") && !actingFor && appliedDelta !== 0) {
+      await supabase.rpc("mirror_pipeline_stage_to_streak", {
+        p_period_start: period.period_start,
+        p_stage: key,
+        p_delta: appliedDelta,
+      });
+    }
+
+    const { data: refreshed } = await supabase
+      .from("pipeline_periods")
+      .select("*")
+      .eq("user_id", effectiveOwnerId)
+      .eq("period_type", "daily")
+      .eq("period_start", period.period_start)
+      .maybeSingle();
+    if (refreshed) setPeriod(refreshed as PipelinePeriod);
   }
 
   function setStageAbsolute(key: PipelineStageKey, value: number) {

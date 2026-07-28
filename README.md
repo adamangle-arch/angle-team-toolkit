@@ -698,6 +698,46 @@ write to a downline's contacts or candidates, only read them. `delete`
 stays owner/household/admin only on `pipeline_periods` too — filling in
 isn't deleting.
 
+### Daily Tally auto-rolls into Weekly/Monthly, and syncs with Core Run Streak
+
+Two related double-entry fixes, both new SQL functions:
+
+- **Daily → Weekly → Monthly rollup.** Editing any stage on the **Daily**
+  tab (Questions, Yeses, QI1, QI2, IS1, FU1, IS2, FU2, Questionnaire,
+  Launches) now also applies the same delta to that day's week and month
+  totals — `bump_pipeline_stage(p_owner_id, p_period_start, p_stage,
+  p_delta)` upserts all three rows (`daily`/`weekly`/`monthly`) in one
+  call, using Postgres's `date_trunc('week', ...)` (Monday-start, same
+  convention `lib/dates.ts`'s `getWeekStart()` already uses) and
+  `date_trunc('month', ...)` to find the right week/month row for that
+  day. `app/pipeline/page.tsx`'s `updateStage()` now calls this instead
+  of writing directly to the table whenever `periodType === "daily"` —
+  Weekly/Monthly tabs edited directly are unchanged (still a plain
+  update, no cascade, since there's no smaller unit to attribute a
+  rollup to). This only applies going forward; it doesn't retroactively
+  reconcile whatever Weekly/Monthly numbers already exist from manual
+  double-entry before this shipped.
+- **Questions/Yeses ↔ Core Run Streak sync.** These two stages also exist
+  as their own counters on Core Run Streak's "Today's Activity" card —
+  previously two entirely separate numbers you had to keep in sync by
+  hand. Now editing either updates the other for that same calendar day:
+  `mirror_pipeline_stage_to_streak(p_period_start, p_stage, p_delta)`
+  (called from Pipeline's `updateStage()`, mirrors the delta into the
+  caller's own `streak_days` row) and the equivalent JS-side logic in
+  `app/streak/page.tsx`'s new `logActivityCount()` (mirrors the delta
+  back into Pipeline via `bump_pipeline_stage`, so a Streak-side edit
+  still gets the full Daily/Weekly/Monthly rollup too). Since asking the
+  question (or getting a yes) is itself a story-sharing moment, **Story
+  Shares goes up by the same delta** in both directions too — not just
+  the existing `story_share > 0 or questions > 0` qualifying check, the
+  actual displayed count.
+  Two deliberate scope limits: this sync only ever targets the account
+  actually performing the edit — filling in for a downline's Pipeline
+  numbers never touches the filler's own Core Run Streak (that would be
+  attributing someone else's activity to the wrong person's streak), and
+  it's a live sync going forward only, not a backfill against whatever
+  the two counters already showed independently before this shipped.
+
 ### Deleting a downline's account
 
 An admin, or an upline at any level, can permanently delete a downline
