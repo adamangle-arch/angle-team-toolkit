@@ -23,7 +23,7 @@ language sql
 stable
 as $$
   select lower(coalesce(auth.jwt() ->> 'email', '')) = any(
-    array['adamangle@icloud.com', 'alexangle@me.com']
+    array['adamangle@icloud.com', 'alexangle@me.com', 'laurasangle@gmail.com']
   );
 $$;
 

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import { getToday } from "@/lib/dates";
+import { isPrimaryUser } from "@/lib/constants";
 import { TRIVIA_QUESTIONS, type TriviaQuestion } from "@/lib/trivia-data";
 import type { GameLeaderEntry } from "@/lib/types";
 
@@ -189,7 +190,10 @@ export default function TriviaGame() {
     }
   }
 
-  const unlocked = Boolean(unlockStatus?.coreRunDone);
+  // Admins aren't required to log a Core Run to unlock games - same
+  // "primary users see everything" carve-out used elsewhere in the app
+  // (e.g. Onboarding session gating).
+  const unlocked = isPrimaryUser(user.email) || Boolean(unlockStatus?.coreRunDone);
   const loading = loadingUnlock || loadingResult;
   const alreadyPlayedToday = todayResult !== null;
   const question = playing ? TRIVIA_QUESTIONS[questionOrder[step]] : null;

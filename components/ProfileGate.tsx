@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabaseClient";
-import { TEAMS } from "@/lib/constants";
+import { TEAMS, isPrimaryUser } from "@/lib/constants";
 
 export default function ProfileGate({
   user,
@@ -20,9 +20,16 @@ export default function ProfileGate({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  // Admins aren't sponsored by anyone on the team, so they shouldn't be
+  // blocked from finishing signup without an upline account number - they
+  // can still link one if they want (e.g. an admin who's also building
+  // their own downline), it's just not required for them the way it is
+  // for everyone else.
+  const isAdmin = isPrimaryUser(user.email);
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!firstName.trim() || !lastName.trim() || !team || !uplineNumber.trim()) return;
+    if (!firstName.trim() || !lastName.trim() || !team || (!isAdmin && !uplineNumber.trim())) return;
     setError(null);
     setSaving(true);
 
@@ -41,17 +48,21 @@ export default function ProfileGate({
       return;
     }
 
-    // Required, same as name/team - every new signup has to be sponsored
-    // by someone already in the business, so this is how the sponsorship
-    // tree (upline visibility, Team tab) gets built from day one instead
-    // of being an easy-to-skip self-service step people forgot to do.
-    const { error: uplineError } = await supabase.rpc("link_upline", {
-      p_account_number: uplineNumber.trim(),
-    });
-    if (uplineError) {
-      setSaving(false);
-      setError(`Upline account number: ${uplineError.message}`);
-      return;
+    // Required for everyone except admins - every other new signup has
+    // to be sponsored by someone already in the business, so this is how
+    // the sponsorship tree (upline visibility, Team tab) gets built from
+    // day one instead of being an easy-to-skip self-service step people
+    // forgot to do. Skipped entirely when left blank (admins only).
+    const trimmedUpline = uplineNumber.trim();
+    if (trimmedUpline) {
+      const { error: uplineError } = await supabase.rpc("link_upline", {
+        p_account_number: trimmedUpline,
+      });
+      if (uplineError) {
+        setSaving(false);
+        setError(`Upline account number: ${uplineError.message}`);
+        return;
+      }
     }
 
     // Optional - not everyone has a spouse also on the team, but if they
@@ -117,15 +128,21 @@ export default function ProfileGate({
           </select>
           <input
             type="text"
-            required
+            required={!isAdmin}
             inputMode="numeric"
             className="input"
-            placeholder="Your upline's account number"
+            placeholder={
+              isAdmin
+                ? "Your upline's account number (optional)"
+                : "Your upline's account number"
+            }
             value={uplineNumber}
             onChange={(e) => setUplineNumber(e.target.value)}
           />
           <p className="-mt-1.5 text-xs text-slate-500">
-            Ask whoever brought you in for their account number — find it on their My Profile page.
+            {isAdmin
+              ? "Optional for admins — leave blank if you weren't sponsored by someone on the team."
+              : "Ask whoever brought you in for their account number — find it on their My Profile page."}
           </p>
           <input
             type="email"
@@ -138,7 +155,13 @@ export default function ProfileGate({
           {error && <p className="text-xs text-red-400">{error}</p>}
           <button
             className="btn-primary w-full"
-            disabled={saving || !firstName.trim() || !lastName.trim() || !team || !uplineNumber.trim()}
+            disabled={
+              saving ||
+              !firstName.trim() ||
+              !lastName.trim() ||
+              !team ||
+              (!isAdmin && !uplineNumber.trim())
+            }
           >
             {saving ? "Saving…" : "Continue"}
           </button>

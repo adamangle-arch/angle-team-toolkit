@@ -1,7 +1,7 @@
 // Accounts that can see every team member's data (Team tab: Members +
 // Teams views). Must match the emails hardcoded in is_app_admin() in
 // supabase/schema.sql.
-export const PRIMARY_EMAILS = ["adamangle@icloud.com", "alexangle@me.com"];
+export const PRIMARY_EMAILS = ["adamangle@icloud.com", "alexangle@me.com", "laurasangle@gmail.com"];
 
 export function isPrimaryUser(email: string | null | undefined): boolean {
   const normalized = (email ?? "").trim().toLowerCase();

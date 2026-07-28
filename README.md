@@ -497,6 +497,14 @@ but wrong. Nothing changed about the RPCs themselves or My Profile's own
 link/unlink UI, which still exists for fixing a mistake or changing
 either link later.
 
+Admins (`isPrimaryUser`) are the one exception — they aren't sponsored by
+anyone on the team, so the upline field drops its `required` attribute
+and the field's own helper text changes to say it's optional for them.
+An admin can still fill it in and link an upline if they want (e.g. an
+admin who's also personally building a downline of their own) — `handleSubmit`
+only calls `link_upline()` at all when the field isn't blank, for anyone,
+admin or not.
+
 ### Upline visibility
 
 Every account gets a 6-digit `account_number` (shown at the top of **My
@@ -510,7 +518,7 @@ Once linked, the upline sees that person (and everyone below them,
 recursively — an upline's upline sees the whole downline chain) on the
 **Team** tab: Pipeline, Candidates, Contacts, Volume, Core Run Streak, and
 now their **Assistant conversations** too, the same access primary users
-(`adamangle@icloud.com`, `alexangle@me.com`) already have to everyone. The
+(`adamangle@icloud.com`, `alexangle@me.com`, `laurasangle@gmail.com`) already have to everyone. The
 **Team** tab is visible to every signed-in user now, not just primary
 users — non-admins just see their own downline (or nobody, until someone
 links to them) instead of the whole company, and don't get the
@@ -553,7 +561,7 @@ visibility shipped, so both were switched to the same
 already used — the authoritative "who's actually below me" source,
 unaffected by the `profiles` RLS change either way.
 
-Primary users (`adamangle@icloud.com`, `alexangle@me.com`) additionally see
+Primary users (`adamangle@icloud.com`, `alexangle@me.com`, `laurasangle@gmail.com`) additionally see
 everyone's `account_number` on the **Team** tab — next to each row in the
 Members list, and again on a selected member's detail view — since
 `profiles` RLS already lets an admin read every row, this is purely a
@@ -1175,7 +1183,7 @@ the next session" action by their upline, backed by
 a time, same authorization check as account deletion: upline-of or
 admin).
 
-Primary users (`adamangle@icloud.com`, `alexangle@me.com`) see every
+Primary users (`adamangle@icloud.com`, `alexangle@me.com`, `laurasangle@gmail.com`) see every
 session unlocked on their own Onboarding tab, regardless of their own
 `onboarding_unlocked_through` value — a client-side display check
 (`isPrimaryUser`), not a schema change, so admins can review the full
@@ -1615,6 +1623,12 @@ section tabs) — each game is its own component under
 initial tab can be deep-linked via `?tab=diamond-run|diamond-chase|trivia`
 (e.g. `/games?tab=trivia`), read with `useSearchParams()` inside a
 `<Suspense>` boundary per Next's docs.
+
+Admins don't have to complete that day's Core Run to unlock any of the
+three — each game's own `unlocked` check now short-circuits on
+`isPrimaryUser(user.email)` before falling back to the real
+`coreRunDone` check everyone else needs. Same carve-out pattern used for
+Onboarding session gating elsewhere in the app.
 
 - **Diamond Run** — a lightweight Flappy Bird-style game: tap to keep
   your diamond airborne and dodge classic green pipes. Playing is

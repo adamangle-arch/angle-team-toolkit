@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import { getToday } from "@/lib/dates";
+import { isPrimaryUser } from "@/lib/constants";
 import type { GameLeaderEntry } from "@/lib/types";
 
 type UnlockStatus = {
@@ -317,7 +318,10 @@ export default function DiamondRunGame() {
     return () => cancelAnimationFrame(animFrame.current);
   }, []);
 
-  const unlocked = Boolean(unlockStatus?.coreRunDone);
+  // Admins aren't required to log a Core Run to unlock games - same
+  // "primary users see everything" carve-out used elsewhere in the app
+  // (e.g. Onboarding session gating).
+  const unlocked = isPrimaryUser(user.email) || Boolean(unlockStatus?.coreRunDone);
 
   return (
     <>
