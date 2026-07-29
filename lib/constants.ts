@@ -152,13 +152,13 @@ export const CANDIDATE_STEP_RESOURCES: CandidateStepResource[][] = [
   // 4. FU1
   [
     {
-      label: "🎧 How Do You Want to Live",
-      detail: "Audio.",
+      label: "🎧 How Do You Want to Live?",
+      detail: "By Alex and Laura Angle.",
       url: "https://www.dropbox.com/scl/fi/y4p9por067phvvbqrth1c/How-Do-You-Want-to-LIve-S15-1349-AUD.mp3?rlkey=j4oac7vz8tn7l11uac6oen2nx&st=q3gf0eho&dl=0",
     },
     {
-      label: "🎧 Financial Stability in the 21st Century",
-      detail: "Audio.",
+      label: "🎧 Financial Stability of the 21st Century",
+      detail: "By Greg Duncan.",
       url: "https://www.dropbox.com/scl/fi/3nyufs0dzu18631ipdws4/NLA-Financial-Stability-in-the-21st-Century-L15-1347-AUD.mp3?rlkey=k6jfttm6qu2yu7vdeahjwjw7d&st=w6aj44pc&dl=0",
     },
   ],
