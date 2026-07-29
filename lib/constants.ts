@@ -132,7 +132,7 @@ export const CANDIDATE_STEP_RESOURCES: CandidateStepResource[][] = [
       label: "📄 Summary: Business of the 21st Century",
       detail: "By Robert Kiyosaki.",
       url: "https://www.dropbox.com/scl/fi/i8w3xa044x2ulwsdz3dhf/FILE_5085.pdf?rlkey=6usnhsbvivt23l5loggb528jr&st=9x5tos9p&dl=0",
-      estimate: "~10 min read",
+      estimate: "~20 min read",
     },
     {
       label: "📰 What Is Network Marketing?",
