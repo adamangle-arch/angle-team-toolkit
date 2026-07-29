@@ -3658,3 +3658,67 @@ delete from optional_resources where label = 'New Emeralds- Kopecky';
 update optional_resources
 set url = 'https://www.dropbox.com/scl/fi/9r1f9j6qkbcrxbu3j68jv/Emerald-Success-Story-Angle-L11-0221-AUD.mp3?rlkey=lvinm6ork0my2cbn31adf1hoy&st=d17413c8&dl=0'
 where label = '🎧 Emerald Success Story - Angle';
+
+-- One-time content cleanup pass, per a live review of the newly-added book
+-- PDFs: adds the missing 📖 prefix (one consistent emoji for every
+-- book, matching the podcast cleanup earlier), normalizes title-case
+-- capitalization, and adds a missing "The"/matches the exact wording of the
+-- corresponding FIRST_YEAR_BOOKS/ADVANCED_LIBRARY entry (lib/library-data.ts)
+-- where one exists, so the Books tab's auto-link (normalizeTitle() match)
+-- actually fires for those titles. Matches by each row's original label, so
+-- - like every other one-time content fix in this file - it's a no-op once
+-- already applied and safe to leave in on a re-run.
+update optional_resources set label = '📖 13 Things Mentally Strong People Do' where label = '13 things mentally strong people do';
+update optional_resources set label = '📖 The 5 Love Languages' where label = '5 love languages';
+update optional_resources set label = '📖 The 7 Habits of Highly Effective People' where label = '7 habits of highly effective people';
+update optional_resources set label = '📖 Acres of Diamonds' where label = 'Acres of diamonds';
+update optional_resources set label = '📖 Art of Dealing With People' where label = 'Art of dealing with people';
+update optional_resources set label = '📖 Atomic Habits' where label = 'Atomic Habits';
+update optional_resources set label = '📖 Business of the 21st Century' where label = 'Business of the 21st Century';
+update optional_resources set label = '📖 The Compound Effect' where label = 'Compound effect';
+update optional_resources set label = '📖 Crucial Conversations' where label = 'Crucial conversations';
+update optional_resources set label = '📖 Deep Work' where label = 'Deep work';
+update optional_resources set label = '📖 Developing the Leader Within You' where label = 'Developing the leader within you';
+update optional_resources set label = '📖 Emotional Intelligence 2.0' where label = 'Emotional intelligence 2.0';
+update optional_resources set label = '📖 The Energy Bus' where label = 'Energy Bus';
+update optional_resources set label = '📖 Fanatical Prospecting' where label = 'Fanatical prospecting';
+update optional_resources set label = '📖 How I Raised Myself From Failure to Success in Selling' where label = 'How I raised myself from failure to success in selling';
+update optional_resources set label = '📖 How to Have Confidence and Power Dealing With People' where label = 'How to have confidence and power dealing with people';
+update optional_resources set label = '📖 How to Make People Like You in 90 Seconds or Less' where label = 'How to make people like you in 90 seconds or less';
+update optional_resources set label = '📖 How to Talk to Absolutely Anybody' where label = 'How to talk to absolutely anybody';
+update optional_resources set label = '📖 How to Win Friends and Influence People' where label = 'How to win friends and influence people';
+update optional_resources set label = '📖 Make Your Bed' where label = 'Make your bed';
+update optional_resources set label = '📖 Man''s Search for Meaning' where label = 'Man’s search for meaning';
+update optional_resources set label = '📖 Max Out Your Life' where label = 'Max out your life';
+update optional_resources set label = '📖 Maximized Manhood' where label = 'Maximized manhood';
+update optional_resources set label = '📖 Million Dollar Makeover' where label = 'Million dollar makeover';
+update optional_resources set label = '📖 Outliers' where label = 'Outliers';
+update optional_resources set label = '📖 Outwitting the Devil' where label = 'Outwitting the devil';
+update optional_resources set label = '📖 Purpose Driven Life' where label = 'Purpose driven life';
+update optional_resources set label = '📖 Rich Dad Poor Dad' where label = 'Rich Dad Poor Dad';
+update optional_resources set label = '📖 Skill With People' where label = 'Skill with people';
+update optional_resources set label = '📖 Start With Why' where label = 'Start with why';
+update optional_resources set label = '📖 The Case for Christ' where label = 'The case for christ';
+update optional_resources set label = '📖 The Defining Decade' where label = 'The defining decade';
+update optional_resources set label = '📖 The Dream Is Everything' where label = 'The dream is everything';
+update optional_resources set label = '📖 The Four Year Career' where label = 'The four year career';
+update optional_resources set label = '📖 The Greatest Salesman in the World' where label = 'The greatest salesman in the world';
+update optional_resources set label = '📖 The Obstacle Is the Way' where label = 'The obstacle is the way';
+update optional_resources set label = '📖 The Road Less Traveled' where label = 'The road less traveled';
+update optional_resources set label = '📖 The Slight Edge' where label = 'The slight edge';
+update optional_resources set label = '📖 Think Again' where label = 'Think again';
+update optional_resources set label = '📖 Think and Grow Rich' where label = 'Think and Grow Rich';
+update optional_resources set label = '📖 Traction' where label = 'Traction';
+update optional_resources set label = '📖 What to Say When You Talk to Yourself' where label = 'What to say when you talk to yourself';
+update optional_resources set label = '📖 Wild at Heart' where label = 'Wild at heart';
+update optional_resources set label = '📖 Your Business Shouldn''t Need You' where label = 'Your business shouldn’t need you';
+update optional_resources set label = '📖 Your Next 5 Moves' where label = 'Your next 5 moves';
+
+-- "Magic of thinking big" had its link typed into the Estimate field instead
+-- of Link by mistake - moves it to url (where it belongs) and clears the
+-- bogus estimate, on top of the same title-case/matching/emoji fix as above.
+update optional_resources set
+  label = '📖 The Magic of Thinking Big',
+  url = 'https://librarykvbina.home.blog/wp-content/uploads/2019/12/the_magic_of_thinking_big.pdf',
+  estimate = null
+where label = 'Magic of thinking big';
