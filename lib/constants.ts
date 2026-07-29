@@ -168,7 +168,7 @@ export const CANDIDATE_STEP_RESOURCES: CandidateStepResource[][] = [
       label: "🎧 How Do You Want to Live?",
       detail: "By Alex and Laura Angle.",
       url: "https://www.dropbox.com/scl/fi/y4p9por067phvvbqrth1c/How-Do-You-Want-to-LIve-S15-1349-AUD.mp3?rlkey=j4oac7vz8tn7l11uac6oen2nx&st=q3gf0eho&dl=0",
-      estimate: "~20 min listen",
+      estimate: "~1 hr 12 min listen",
     },
     {
       label: "🎧 Financial Stability of the 21st Century",
@@ -189,7 +189,7 @@ export const CANDIDATE_STEP_RESOURCES: CandidateStepResource[][] = [
       label: "🎧 List Ditto Associate",
       detail: "A Successful Business Start — by Dirk and Laura Taylor.",
       url: "https://www.dropbox.com/scl/fi/aqva3wgmylgqtbrmq1cuk/NLA-List-Ditto-Associate-A-Successful-Business-Start-L15-1599-AUD.mp3?rlkey=q7qwyzqhltsvriaxjxxdnuvsw&st=xwloolsq&dl=0",
-      estimate: "~20 min listen",
+      estimate: "~42 min listen",
     },
   ],
   // 6. FU2
