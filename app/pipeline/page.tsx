@@ -27,7 +27,7 @@ import type { PipelinePeriod, Candidate, Profile } from "@/lib/types";
 
 type PeriodType = "daily" | "weekly" | "monthly";
 
-type DownlineOption = { id: string; ownerId: string; name: string };
+type DownlineOption = { id: string; ownerId: string; name: string; accountNumber: string | null };
 
 // offset = 0 is the current day/week/month, 1 is one back, etc. - mirrors
 // the same back-navigation already on the Team tab's Teams view and the
@@ -176,16 +176,20 @@ export default function PipelinePage() {
       }
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("id,first_name,last_name,household_id")
+        .select("id,first_name,last_name,household_id,account_number")
         .in("id", downlineIds);
       if (!cancelled) {
         const options = (
-          (profiles as Pick<Profile, "id" | "first_name" | "last_name" | "household_id">[]) ?? []
+          (profiles as Pick<
+            Profile,
+            "id" | "first_name" | "last_name" | "household_id" | "account_number"
+          >[]) ?? []
         )
           .map((p) => ({
             id: p.id,
             ownerId: p.household_id ?? p.id,
             name: [p.first_name, p.last_name].filter(Boolean).join(" ") || "Unnamed",
+            accountNumber: p.account_number ?? null,
           }))
           .sort((a, b) => a.name.localeCompare(b.name));
         setDownlineOptions(options);
@@ -637,6 +641,7 @@ export default function PipelinePage() {
                   {downlineOptions.map((d) => (
                     <option key={d.id} value={d.id}>
                       {d.name}
+                      {d.accountNumber ? ` (#${d.accountNumber})` : ""}
                     </option>
                   ))}
                 </select>
