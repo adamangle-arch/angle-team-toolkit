@@ -3,7 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
-import { CANDIDATE_STEPS, CANDIDATE_STEP_RESOURCES } from "@/lib/constants";
+import { CANDIDATE_STEP_RESOURCES } from "@/lib/constants";
 
 type CandidateInfo = {
   candidate_id: string;
@@ -142,7 +142,7 @@ export default function ProspectPage() {
         <p className="app-subtitle">Resources from {inviterName}</p>
       </header>
       <main className="page-main">
-        {info.launched ? (
+        {info.launched && (
           <div className="card space-y-2 text-center !border-amber bg-amber/10">
             <p className="text-lg font-semibold text-white">🎉 You&apos;re in!</p>
             <p className="text-sm text-slate-300">
@@ -151,13 +151,6 @@ export default function ProspectPage() {
             <Link href="/dashboard" className="btn-primary block w-full">
               Create Your Account
             </Link>
-          </div>
-        ) : (
-          <div className="card">
-            <p className="section-title">
-              Step {info.current_step + 1}/{CANDIDATE_STEPS.length}:{" "}
-              {CANDIDATE_STEPS[info.current_step].label}
-            </p>
           </div>
         )}
 

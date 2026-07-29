@@ -75,13 +75,13 @@ export const CANDIDATE_STEPS: { label: string; homework: string }[] = [
   { label: "QI1", homework: "Send the intro video/audio before the call." },
   { label: "QI2", homework: "Listen to a testimonial audio before the call." },
   {
-    label: "Info Session 1",
+    label: "IS1",
     homework: "Write down questions from the info session.",
   },
-  { label: "FU1", homework: "Follow up on questions from Info Session 1." },
+  { label: "FU1", homework: "Follow up on questions from IS1." },
   {
-    label: "Info Session 2",
-    homework: "Review Info Session 2 materials and next steps.",
+    label: "IS2",
+    homework: "Review IS2 materials and next steps.",
   },
   { label: "FU2", homework: "Follow up and prep for the offer call." },
   {
@@ -115,11 +115,11 @@ export const CANDIDATE_STEP_RESOURCES: CandidateStepResource[][] = [
   [{ label: "🎥 Intro Video/Audio", detail: "Placeholder — swap in the real intro video/audio." }],
   // 2. QI2
   [{ label: "🎧 Testimonial Audio", detail: "Placeholder — swap in a real testimonial audio." }],
-  // 3. Info Session 1
+  // 3. IS1
   [],
   // 4. FU1
   [],
-  // 5. Info Session 2
+  // 5. IS2
   [],
   // 6. FU2
   [],

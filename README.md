@@ -1370,7 +1370,11 @@ invite flow.
 `get_candidate_by_access_code()` (callable by the unauthenticated `anon`
 role) looks them up by code and returns their name, current roadmap step,
 launched status, and the inviter's name — nothing private, no auth
-required. The inviter shown is whoever actually added the candidate
+required. The step itself (`current_step`) is only ever used to decide
+*which resources* to show — the internal step label/jargon ("IS1", "FU2",
+etc.) is never displayed to the candidate, since they have no reason to
+know what any of that means. The inviter shown is whoever actually added
+the candidate
 (`candidates.creator_id`), not necessarily the household owner their
 business data is attributed to (`candidates.user_id`) — those differ for
 a linked couple, and the greeting should say whichever partner actually
