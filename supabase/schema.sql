@@ -3481,3 +3481,169 @@ update optional_resources set kind = 'other' where label in (
   '🎥 Customer Survey Training',
   '🎥 The Phases'
 ) and kind in ('audio', 'reading');
+
+-- One-time content cleanup pass, per a live review of what had been typed
+-- into the library so far: adds the missing 🎧 prefix (matching the
+-- already-seeded audio entries), normalizes capitalization, adds a trailing
+-- period to "Podcast by ..." details for consistency, reclassifies these to
+-- 'audio' (every one has "Podcast" in its detail - per instruction, anything
+-- labeled podcast belongs on the audio side), and reformats the estimate to
+-- match the "~N min/hr listen" convention used everywhere else instead of a
+-- bare duration. Matches by each row's original label, so - like every other
+-- one-time content fix in this file - it's a no-op once already applied and
+-- safe to leave in on a re-run.
+update optional_resources set
+  label = '🎧 Call Me Fanatical',
+  detail = 'Podcast by Larry Winters.',
+  estimate = '~1 hr 3 min listen',
+  kind = 'audio'
+where label = 'Call me Fanatical';
+
+update optional_resources set
+  label = '🎧 Career Day',
+  detail = 'Podcast by Alex and Laura Angle.',
+  estimate = '~27 min listen',
+  kind = 'audio'
+where label = 'Career Day';
+
+update optional_resources set
+  label = '🎧 Championing Your Dream',
+  detail = 'Podcast by Caryn McGrath.',
+  estimate = '~32 min listen',
+  kind = 'audio'
+where label = 'Championing your dream';
+
+update optional_resources set
+  label = '🎧 Decide to Be Legendary',
+  detail = 'Podcast by Alex and Laura Angle.',
+  estimate = '~54 min listen',
+  kind = 'audio'
+where label = 'Decide to be legendary';
+
+update optional_resources set
+  label = '🎧 Developing Leadership',
+  detail = 'Podcast by Dean and Marcie Whalen.',
+  estimate = '~1 hr 23 min listen',
+  kind = 'audio'
+where label = 'Developing Leadership';
+
+update optional_resources set
+  label = '🎧 Domesticated',
+  detail = 'Podcast by Matt and Alana Grotewold.',
+  estimate = '~44 min listen',
+  kind = 'audio'
+where label = 'Domesticated';
+
+update optional_resources set
+  label = '🎧 Dumpster Mentality',
+  detail = 'Podcast by Larry Winters.',
+  estimate = '~1 hr 10 min listen',
+  kind = 'audio'
+where label = 'Dumpster Mentality';
+
+update optional_resources set
+  label = '🎧 Emerald Success Story - Angle',
+  detail = 'Podcast by Alex and Laura Angle.',
+  estimate = '~59 min listen',
+  kind = 'audio'
+where label = 'Emerald Success Story- Angle';
+
+update optional_resources set
+  label = '🎧 Emerald Success Story - McGrath',
+  detail = 'Podcast.',
+  estimate = '~34 min listen',
+  kind = 'audio'
+where label = 'Emerald Success Story- McGrath';
+
+update optional_resources set
+  label = '🎧 Emerald Success Story - Wilkins',
+  detail = 'Podcast by Devon and Renae Wilkins.',
+  estimate = '~29 min listen',
+  kind = 'audio'
+where label = 'Emerald Success Story- Wilkins';
+
+update optional_resources set
+  label = '🎧 Extreme Freedom',
+  detail = 'Podcast by Paul and Morgan Kopecky.',
+  estimate = '~1 hr 11 min listen',
+  kind = 'audio'
+where label = 'Extreme Freedom';
+
+update optional_resources set
+  label = '🎧 Extreme Ownership',
+  detail = 'Podcast by Paul and Morgan Kopecky.',
+  estimate = '~57 min listen',
+  kind = 'audio'
+where label = 'Extreme Ownership';
+
+update optional_resources set
+  label = '🎧 Finally Moments',
+  detail = 'Podcast by Paul and Morgan Kopecky.',
+  estimate = '~28 min listen',
+  kind = 'audio'
+where label = 'Finally Moments';
+
+update optional_resources set
+  label = '🎧 Platinum to Ruby Decisions',
+  detail = 'Podcast by Manny Winston.',
+  estimate = '~23 min listen',
+  kind = 'audio'
+where label = 'Platinum to Ruby Decisions';
+
+update optional_resources set
+  label = '🎧 Ruby Success Story - Abbott',
+  detail = 'Podcast by Jason and Milynda Abbott.',
+  estimate = '~30 min listen',
+  kind = 'audio'
+where label = 'Ruby Success Story- Abbott';
+
+update optional_resources set
+  label = '🎧 Skydivers',
+  detail = 'Podcast by Alex and Laura Angle.',
+  estimate = '~58 min listen',
+  kind = 'audio'
+where label = 'Skydivers';
+
+update optional_resources set
+  label = '🎧 Snip Snip',
+  detail = 'Podcast by Brad and Julie Duncan.',
+  estimate = '~1 hr 12 min listen',
+  kind = 'audio'
+where label = 'Snip Snip';
+
+update optional_resources set
+  label = '🎧 The 4 Minute Mile',
+  detail = 'Podcast by Howie and Theresa Danzik.',
+  estimate = '~1 hr 12 min listen',
+  kind = 'audio'
+where label = 'The 4 Minute Mile';
+
+update optional_resources set
+  label = '🎧 The Journey Is the Prize',
+  detail = 'Podcast by Paul and Morgan Kopecky.',
+  estimate = '~49 min listen',
+  kind = 'audio'
+where label = 'The Journey is the Prize';
+
+update optional_resources set
+  label = '🎧 Tomorrow Is Too Late',
+  detail = 'Podcast by Joe and Marybeth Markiewicz.',
+  estimate = '~1 hr 1 min listen',
+  kind = 'audio'
+where label = 'Tomorrow is too Late';
+
+update optional_resources set
+  label = '🎧 Your Business Will Never Outgrow Your Self-Image',
+  detail = 'Podcast by Greg and Jacquie Francis.',
+  estimate = '~38 min listen',
+  kind = 'audio'
+where label = 'Your business will never outgrow your self image';
+
+-- Leaving the ALL-CAPS title as-is pending confirmation it's not deliberate -
+-- only fixing what isn't in question (still clearly audio, still a bare
+-- duration to reformat).
+update optional_resources set
+  detail = 'Podcast by Danny and Renate Snipes.',
+  estimate = '~34 min listen',
+  kind = 'audio'
+where label = 'WORDS';
