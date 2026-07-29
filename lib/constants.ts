@@ -118,7 +118,24 @@ export const CANDIDATE_STEP_RESOURCES: CandidateStepResource[][] = [
   // 1. QI1
   [{ label: "🎥 Intro Video/Audio", detail: "Placeholder — swap in the real intro video/audio." }],
   // 2. QI2
-  [{ label: "🎧 Testimonial Audio", detail: "Placeholder — swap in a real testimonial audio." }],
+  [
+    { label: "🎧 Testimonial Audio", detail: "Placeholder — swap in a real testimonial audio." },
+    {
+      label: "📄 Summary: Business of the 21st Century",
+      detail: "By Robert Kiyosaki.",
+      url: "https://www.dropbox.com/scl/fi/i8w3xa044x2ulwsdz3dhf/FILE_5085.pdf?rlkey=6usnhsbvivt23l5loggb528jr&st=9x5tos9p&dl=0",
+    },
+    {
+      label: "📰 What Is Network Marketing?",
+      detail: "Entrepreneur.com",
+      url: "https://www.entrepreneur.com/building-a-business/marketing/types-of-marketing/what-is-network-marketing",
+    },
+    {
+      label: "📰 Why Gen Z Is Betting on Direct Selling",
+      detail: "Entrepreneur.com — and why that matters for the future of work.",
+      url: "https://apac.entrepreneur.com/news-and-trends/why-gen-z-is-betting-on-direct-selling-and-why-that-matters/498981",
+    },
+  ],
   // 3. IS1
   [],
   // 4. FU1
