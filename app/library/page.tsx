@@ -183,18 +183,72 @@ function AudiosSection({
   );
 }
 
+// Strips a leading emoji (or any other non-letter/non-number clutter)
+// so a library label like "📖 The Go-Giver" normalizes down to the same
+// key as the plain book title "The Go-Giver" it's meant to match.
+function normalizeBookTitle(s: string): string {
+  return s
+    .replace(/^[^\p{L}\p{N}]+/gu, "")
+    .trim()
+    .toLowerCase();
+}
+
+function BookRow({ title, author, url }: { title: string; author: string; url?: string }) {
+  return (
+    <div className="flex items-center justify-between gap-2 text-sm">
+      {url ? (
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-amber-light underline decoration-dotted underline-offset-2"
+        >
+          {title}
+        </a>
+      ) : (
+        <span className="text-slate-200">{title}</span>
+      )}
+      {author && <span className="shrink-0 text-xs text-slate-500">{author}</span>}
+    </div>
+  );
+}
+
 function BooksSection() {
+  const [pdfLinks, setPdfLinks] = useState<Map<string, string>>(new Map());
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const { data } = await supabase
+        .from("optional_resources")
+        .select("label,url")
+        .eq("kind", "reading")
+        .not("url", "is", null);
+      if (!cancelled) {
+        const map = new Map<string, string>();
+        for (const row of (data as { label: string; url: string | null }[]) ?? []) {
+          if (row.url) map.set(normalizeBookTitle(row.label), row.url);
+        }
+        setPdfLinks(map);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <>
       <div className="card space-y-2">
         <p className="section-title">First Year Reading</p>
-        <p className="text-xs text-slate-400">Complete these before offering a new person a partnership.</p>
+        <p className="text-xs text-slate-400">
+          Complete these before offering a new person a partnership. Titles link to a PDF where
+          one&apos;s been added to the Optional Resources library.
+        </p>
         <div className="space-y-1">
           {FIRST_YEAR_BOOKS.map((b) => (
-            <div key={b.title} className="flex items-center justify-between text-sm">
-              <span className="text-slate-200">{b.title}</span>
-              <span className="text-xs text-slate-500">{b.author}</span>
-            </div>
+            <BookRow key={b.title} title={b.title} author={b.author} url={pdfLinks.get(normalizeBookTitle(b.title))} />
           ))}
         </div>
       </div>
@@ -211,10 +265,12 @@ function BooksSection() {
           </div>
           <div className="space-y-1">
             {group.books.map((b) => (
-              <div key={b.title} className="flex items-center justify-between text-sm">
-                <span className="text-slate-200">{b.title}</span>
-                {b.author && <span className="text-xs text-slate-500">{b.author}</span>}
-              </div>
+              <BookRow
+                key={b.title}
+                title={b.title}
+                author={b.author}
+                url={pdfLinks.get(normalizeBookTitle(b.title))}
+              />
             ))}
           </div>
         </div>

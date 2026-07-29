@@ -1614,6 +1614,18 @@ against either the title or the detail line (where the speaker/author
 usually is), so finding one specific resource in a growing library
 stays fast.
 
+**Books tab auto-links to a PDF once one's in the library.** The Books
+tab's "First Year Reading" and "Advanced Leadership Library" lists
+(`FIRST_YEAR_BOOKS`/`ADVANCED_LIBRARY` in `lib/library-data.ts`) are
+just titles/authors — most are real published books with no legal free
+copy to link to. But whenever a `reading`-kind library entry's title
+matches one of these book titles exactly (once you strip its leading
+emoji — see `normalizeBookTitle()` in `app/library/page.tsx`), that
+title becomes a clickable link straight to the PDF, no separate lookup
+needed. Add a book's PDF to the Optional Resources library with a title
+that matches the book's plain name (e.g. "📖 The Go-Giver" for "The
+Go-Giver") and the Books tab picks it up automatically.
+
 **The same library also feeds Onboarding.** Everyone starts from the same
 team-wide `ONBOARDING_SESSIONS` defaults (`lib/constants.ts`), but exactly
 like Candidate Resources, any IBO can hide a default just for their own
