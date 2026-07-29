@@ -354,6 +354,7 @@ export type OnboardingResource = {
   label: string;
   detail: string;
   url?: string;
+  estimate?: string;
 };
 
 export type OnboardingSession = {
@@ -361,6 +362,34 @@ export type OnboardingSession = {
   description: string;
   resources: OnboardingResource[];
 };
+
+export type OnboardingResourceOverrideEntry = {
+  session: number;
+  action: "add" | "remove";
+  label: string;
+  detail: string;
+  url: string | null;
+  estimate?: string | null;
+};
+
+// Merges an IBO's own customizations (see the "Onboarding Resources"
+// section of the Resources tab) into the team-wide defaults - same
+// remove-hides/add-tacks-on merge as effectiveResourcesForStep, but keyed
+// by onboarding session number (1-5) instead of candidate step.
+export function effectiveResourcesForSession(
+  session: number,
+  defaults: OnboardingResource[],
+  overrides: OnboardingResourceOverrideEntry[]
+): OnboardingResource[] {
+  const removedLabels = new Set(
+    overrides.filter((o) => o.session === session && o.action === "remove").map((o) => o.label)
+  );
+  const kept = defaults.filter((r) => !removedLabels.has(r.label));
+  const added = overrides
+    .filter((o) => o.session === session && o.action === "add")
+    .map((o) => ({ label: o.label, detail: o.detail, url: o.url ?? undefined, estimate: o.estimate ?? undefined }));
+  return [...kept, ...added];
+}
 
 // Session 4 ("Sharing Your Story") shouldn't unlock until someone has put
 // real work into their A/B list - not the full 100 Session 2 asks for

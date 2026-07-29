@@ -28,7 +28,14 @@ import {
   formatWebinarTime,
 } from "@/lib/dates";
 import { fireNotifyEvent } from "@/lib/notifyClient";
-import type { PipelinePeriod, Candidate, CandidateSpecificResource, OptionalResource, Profile } from "@/lib/types";
+import type {
+  PipelinePeriod,
+  Candidate,
+  CandidateSpecificResource,
+  MemberResource,
+  OptionalResource,
+  Profile,
+} from "@/lib/types";
 
 type PeriodType = "daily" | "weekly" | "monthly";
 
@@ -1473,6 +1480,190 @@ function CandidateResourceSender({ candidateId }: { candidateId: string }) {
 // kind of thing an upline should be able to do for a downline's prospect
 // without waiting on them - so this view is deliberately minimal, read
 // -only except for CandidateResourceSender.
+// Sending a resource directly to a team member is different from
+// DownlineCandidateResources/CandidateResourceSender below - this isn't
+// about one of their prospects, it's for someone already on the team and
+// onboarded, any time you want ("here's something I want you to see"),
+// not gated to a candidate step or onboarding session. Writes to
+// member_resources, keyed to the recipient's own auth id; they see it on
+// their own Onboarding page under "🎁 Sent To You".
+function MemberResourceSender({ recipientId, recipientName }: { recipientId: string; recipientName: string }) {
+  const [sent, setSent] = useState<MemberResource[]>([]);
+  const [libraryResources, setLibraryResources] = useState<OptionalResource[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [adding, setAdding] = useState(false);
+  const [label, setLabel] = useState("");
+  const [detail, setDetail] = useState("");
+  const [url, setUrl] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      const [{ data }, { data: libraryRows }] = await Promise.all([
+        supabase
+          .from("member_resources")
+          .select("*")
+          .eq("recipient_id", recipientId)
+          .order("created_at", { ascending: true }),
+        supabase.from("optional_resources").select("*").order("label", { ascending: true }),
+      ]);
+      if (!cancelled) {
+        setSent((data as MemberResource[]) ?? []);
+        setLibraryResources((libraryRows as OptionalResource[]) ?? []);
+        setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [recipientId]);
+
+  async function send() {
+    const trimmedLabel = label.trim();
+    if (!trimmedLabel) return;
+    setSaving(true);
+    setError(null);
+    const { data, error } = await supabase
+      .from("member_resources")
+      .insert({
+        recipient_id: recipientId,
+        label: trimmedLabel,
+        detail: detail.trim(),
+        url: url.trim() || null,
+      })
+      .select("*")
+      .single();
+    setSaving(false);
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    setSent((prev) => [...prev, data as MemberResource]);
+    setLabel("");
+    setDetail("");
+    setUrl("");
+    setAdding(false);
+  }
+
+  async function sendFromLibrary(resource: OptionalResource) {
+    setError(null);
+    const { data, error } = await supabase
+      .from("member_resources")
+      .insert({
+        recipient_id: recipientId,
+        label: resource.label,
+        detail: resource.detail,
+        url: resource.url,
+        estimate: resource.estimate,
+      })
+      .select("*")
+      .single();
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    setSent((prev) => [...prev, data as MemberResource]);
+    setAdding(false);
+  }
+
+  async function remove(id: string) {
+    const previous = sent;
+    setSent((prev) => prev.filter((r) => r.id !== id));
+    const { error } = await supabase.from("member_resources").delete().eq("id", id);
+    if (error) {
+      setSent(previous);
+      setError(error.message);
+    }
+  }
+
+  return (
+    <div className="card space-y-2">
+      <p className="section-title">Send a Resource to {recipientName} Directly</p>
+      <p className="text-xs text-slate-400">
+        For {recipientName} themselves — not one of their prospects. Shows up on their own
+        Onboarding page under &quot;Sent To You,&quot; any time, not tied to a session.
+      </p>
+      {error && <p className="text-xs text-red-400">{error}</p>}
+      {!loading &&
+        sent.map((r) => (
+          <div key={r.id} className="flex items-center justify-between gap-2 rounded-lg bg-navy px-3 py-2">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium text-white">{r.label}</p>
+              {(r.detail || r.estimate) && (
+                <p className="truncate text-xs text-slate-500">
+                  {r.detail}
+                  {r.estimate && <span> · {r.estimate}</span>}
+                </p>
+              )}
+            </div>
+            <button className="btn-icon shrink-0" onClick={() => remove(r.id)} aria-label={`Remove ${r.label}`}>
+              ✕
+            </button>
+          </div>
+        ))}
+      {adding ? (
+        <div className="space-y-2 rounded-lg bg-navy px-3 py-2">
+          {libraryResources.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium text-slate-300">Pick from library:</p>
+              <select
+                className="select"
+                value=""
+                onChange={(e) => {
+                  const resource = libraryResources.find((r) => r.id === e.target.value);
+                  if (resource) sendFromLibrary(resource);
+                }}
+              >
+                <option value="">Choose a saved resource…</option>
+                {libraryResources.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.label}
+                  </option>
+                ))}
+              </select>
+              <p className="text-center text-xs text-slate-500">— or type your own —</p>
+            </div>
+          )}
+          <input
+            className="input"
+            placeholder="Label (e.g. 🎧 Audio Name)"
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+          />
+          <input
+            className="input"
+            placeholder="Detail (optional)"
+            value={detail}
+            onChange={(e) => setDetail(e.target.value)}
+          />
+          <input
+            className="input"
+            placeholder="Link (optional)"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+          />
+          <div className="flex gap-2">
+            <button className="btn-secondary flex-1" onClick={() => setAdding(false)}>
+              Cancel
+            </button>
+            <button className="btn-primary flex-1" onClick={send} disabled={saving || !label.trim()}>
+              {saving ? "Sending…" : "Send"}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button className="btn-secondary w-full" onClick={() => setAdding(true)}>
+          + Send a Resource
+        </button>
+      )}
+    </div>
+  );
+}
+
 function DownlineCandidateResources({ actingFor }: { actingFor: DownlineOption }) {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1501,6 +1692,8 @@ function DownlineCandidateResources({ actingFor }: { actingFor: DownlineOption }
 
   return (
     <>
+      <MemberResourceSender recipientId={actingFor.id} recipientName={actingFor.name} />
+
       <div className="card space-y-1">
         <p className="section-title">Send a Resource to {actingFor.name}&apos;s Prospects</p>
         <p className="text-xs text-slate-400">

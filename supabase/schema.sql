@@ -420,6 +420,36 @@ $$;
 
 grant execute on function public.get_candidate_specific_resources(text) to anon, authenticated;
 
+-- Per-IBO customization of the onboarding-resources defaults
+-- (ONBOARDING_SESSIONS in lib/constants.ts) - same "team-wide baseline,
+-- freely edited per-IBO" pattern as candidate_resource_overrides above:
+-- action='remove' hides a default resource for this owner (matched by
+-- its exact label), action='add' is a resource this owner tacked on
+-- beyond the defaults for that session - either typed by hand or picked
+-- from the shared Optional Resources library (estimate carries through
+-- either way). Same household-shareable pattern as
+-- candidate_resource_overrides (see the RLS loop further down). No anon
+-- RPC needed here (unlike the candidate-resources tables above) - the
+-- Onboarding page is authenticated, so it reads this table directly
+-- under normal RLS.
+create table if not exists onboarding_resource_overrides (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  session int not null check (session between 1 and 5),
+  action text not null check (action in ('add', 'remove')),
+  label text not null,
+  detail text not null default '',
+  url text,
+  estimate text,
+  created_at timestamptz not null default now()
+);
+
+-- member_resources (a one-off resource sent directly to an already-
+-- onboarded team member) is defined further down, right after
+-- is_upline_of() - its RLS policies call that function directly (not
+-- inside a dynamic execute format() block like the loop below), so it
+-- has to come after is_upline_of actually exists.
+
 -- ============================================================
 -- 3. A/B CONTACT LIST
 -- ============================================================
@@ -768,6 +798,50 @@ as $$
     select 1 from chain c join viewer_unit u on u.id = c.upline_id
   );
 $$;
+
+-- A one-off resource sent directly to a team member who's already
+-- onboarded and active - not tied to a candidate or an onboarding
+-- session, just "here's something I want you to see," any time. Keyed
+-- to the recipient's own auth id rather than a household id -
+-- onboarding progress (like account_number, first_name) is tracked
+-- per-person even inside a linked household, so a send is to one
+-- specific person, not their whole household. Only an upline (any
+-- level) or admin can send one; the recipient, any upline of the
+-- recipient, or an admin can see and remove it. Defined here (rather
+-- than alongside the other resource tables further up) because its
+-- policies call is_upline_of() directly and need it to already exist.
+create table if not exists member_resources (
+  id uuid primary key default gen_random_uuid(),
+  recipient_id uuid not null references auth.users(id) on delete cascade,
+  label text not null,
+  detail text not null default '',
+  url text,
+  estimate text,
+  sent_by uuid not null default auth.uid() references auth.users(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+alter table member_resources enable row level security;
+
+drop policy if exists "select_recipient_or_upline_or_admin" on member_resources;
+create policy "select_recipient_or_upline_or_admin" on member_resources for select using (
+  recipient_id = auth.uid()
+  or public.is_upline_of(auth.uid(), recipient_id)
+  or public.is_app_admin()
+);
+
+drop policy if exists "insert_upline_or_admin" on member_resources;
+create policy "insert_upline_or_admin" on member_resources for insert with check (
+  public.is_upline_of(auth.uid(), recipient_id)
+  or public.is_app_admin()
+);
+
+drop policy if exists "delete_recipient_or_upline_or_admin" on member_resources;
+create policy "delete_recipient_or_upline_or_admin" on member_resources for delete using (
+  recipient_id = auth.uid()
+  or public.is_upline_of(auth.uid(), recipient_id)
+  or public.is_app_admin()
+);
 
 alter table profiles enable row level security;
 
@@ -1916,7 +1990,7 @@ begin
   for t in
     select unnest(array[
       'candidates', 'contacts', 'monthly_pv', 'customer_sales',
-      'candidate_resource_overrides'
+      'candidate_resource_overrides', 'onboarding_resource_overrides'
     ])
   loop
     execute format('alter table %I enable row level security;', t);
@@ -3262,3 +3336,18 @@ for update using (public.is_app_admin()) with check (public.is_app_admin());
 drop policy if exists "optional_resources_delete_admin" on optional_resources;
 create policy "optional_resources_delete_admin" on optional_resources
 for delete using (public.is_app_admin());
+
+-- One-time seed so this doesn't have to be re-typed in the app - safe to
+-- re-run (the whole point of this file), since it only inserts when a
+-- row with this exact label doesn't already exist. Feel free to delete
+-- this block once it's landed, or add more the same way, or just use the
+-- Optional Resources Library card in the app going forward.
+insert into optional_resources (label, detail, url, estimate)
+select
+  'New Emeralds - Kopecky',
+  '',
+  'https://www.dropbox.com/scl/fi/4p8rkrsgsyjt4d87mq64m/New-Emeralds-Kopecky-S07-1054-AUD.mp3?rlkey=w6uqbsw3wfdzbog8j9pfgfdt3&st=dejo2pdp&dl=0',
+  '38:48'
+where not exists (
+  select 1 from optional_resources where label = 'New Emeralds - Kopecky'
+);

@@ -12,8 +12,18 @@ import { PRODUCTS, PV_REFERENCE, STARTER_STACKS } from "@/lib/product-data";
 import { SCRIPTS } from "@/lib/scripts-data";
 import { PROCESS_STAGES, QUESTIONNAIRE_QUESTIONS, FIRST_MONTH_STEPS } from "@/lib/process-data";
 import { SAMPLE_BAG_GUIDE, SURVEY_QUESTIONS, SURVEY_APPOINTMENT_FLOW } from "@/lib/acquisition-data";
-import { CANDIDATE_STEPS, CANDIDATE_STEP_RESOURCES, isPrimaryUser } from "@/lib/constants";
-import type { CandidateResourceOverride, InfoSessionSpeaker, OptionalResource } from "@/lib/types";
+import {
+  CANDIDATE_STEPS,
+  CANDIDATE_STEP_RESOURCES,
+  ONBOARDING_SESSIONS,
+  isPrimaryUser,
+} from "@/lib/constants";
+import type {
+  CandidateResourceOverride,
+  InfoSessionSpeaker,
+  OnboardingResourceOverride,
+  OptionalResource,
+} from "@/lib/types";
 
 type Section =
   | "audios"
@@ -23,6 +33,7 @@ type Section =
   | "scripts"
   | "process"
   | "candidate_resources"
+  | "onboarding_resources"
   | "first_month"
   | "acquisition";
 
@@ -37,6 +48,7 @@ type Section =
 const SECTIONS: { key: Section; label: string }[] = [
   { key: "process", label: "Process" },
   { key: "candidate_resources", label: "Candidate Resources" },
+  { key: "onboarding_resources", label: "Onboarding Resources" },
   { key: "first_month", label: "Perfect First Month" },
   { key: "audios", label: "Audios" },
   { key: "books", label: "Books" },
@@ -82,6 +94,7 @@ function LibraryTabs() {
       {section === "scripts" && <ScriptsSection query={query} setQuery={setQuery} />}
       {section === "process" && <ProcessSection />}
       {section === "candidate_resources" && <CandidateResourcesSection />}
+      {section === "onboarding_resources" && <OnboardingResourcesSection />}
       {section === "first_month" && <FirstMonthSection />}
       {section === "acquisition" && <AcquisitionSection />}
     </>
@@ -717,6 +730,306 @@ function CandidateResourcesSection() {
               </div>
             ) : (
               <button className="btn-secondary w-full" onClick={() => openAddForm(step)}>
+                + Add Resource
+              </button>
+            )}
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+// Same "team-wide default, freely edited per-IBO, optionally picked from
+// a shared library" pattern as CandidateResourcesSection above, but for
+// onboarding sessions instead of candidate steps - see
+// onboarding_resource_overrides in supabase/schema.sql. The library
+// management widget itself (OptionalResourcesAdmin) lives on the
+// Candidate Resources tab, not duplicated here - this section just reads
+// the same shared optional_resources table for its own "pick from
+// library" pickers.
+function OnboardingResourcesSection() {
+  const { ownerId } = useAuth();
+  const [overrides, setOverrides] = useState<OnboardingResourceOverride[]>([]);
+  const [libraryResources, setLibraryResources] = useState<OptionalResource[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [addingSession, setAddingSession] = useState<number | null>(null);
+  const [newLabel, setNewLabel] = useState("");
+  const [newDetail, setNewDetail] = useState("");
+  const [newUrl, setNewUrl] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      const [{ data }, { data: libraryRows }] = await Promise.all([
+        supabase
+          .from("onboarding_resource_overrides")
+          .select("*")
+          .eq("user_id", ownerId)
+          .order("created_at", { ascending: true }),
+        supabase.from("optional_resources").select("*").order("label", { ascending: true }),
+      ]);
+      if (!cancelled) {
+        setOverrides((data as OnboardingResourceOverride[]) ?? []);
+        setLibraryResources((libraryRows as OptionalResource[]) ?? []);
+        setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [ownerId]);
+
+  function openAddForm(session: number) {
+    setAddingSession(session);
+    setNewLabel("");
+    setNewDetail("");
+    setNewUrl("");
+    setError(null);
+  }
+
+  async function hideDefault(session: number, label: string) {
+    setError(null);
+    const { data, error } = await supabase
+      .from("onboarding_resource_overrides")
+      .insert({ user_id: ownerId, session, action: "remove", label })
+      .select("*")
+      .single();
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    setOverrides((prev) => [...prev, data as OnboardingResourceOverride]);
+  }
+
+  async function deleteOverride(id: string) {
+    const previous = overrides;
+    setOverrides((prev) => prev.filter((o) => o.id !== id));
+    const { error } = await supabase.from("onboarding_resource_overrides").delete().eq("id", id);
+    if (error) {
+      setOverrides(previous);
+      setError(error.message);
+    }
+  }
+
+  async function addResource(session: number) {
+    const label = newLabel.trim();
+    if (!label) return;
+    setSaving(true);
+    setError(null);
+    const { data, error } = await supabase
+      .from("onboarding_resource_overrides")
+      .insert({
+        user_id: ownerId,
+        session,
+        action: "add",
+        label,
+        detail: newDetail.trim(),
+        url: newUrl.trim() || null,
+      })
+      .select("*")
+      .single();
+    setSaving(false);
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    setOverrides((prev) => [...prev, data as OnboardingResourceOverride]);
+    setAddingSession(null);
+  }
+
+  async function addFromLibrary(session: number, resource: OptionalResource) {
+    setError(null);
+    const { data, error } = await supabase
+      .from("onboarding_resource_overrides")
+      .insert({
+        user_id: ownerId,
+        session,
+        action: "add",
+        label: resource.label,
+        detail: resource.detail,
+        url: resource.url,
+        estimate: resource.estimate,
+      })
+      .select("*")
+      .single();
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    setOverrides((prev) => [...prev, data as OnboardingResourceOverride]);
+    setAddingSession(null);
+  }
+
+  if (loading) {
+    return <div className="empty-state">Loading…</div>;
+  }
+
+  return (
+    <>
+      <div className="card space-y-1">
+        <p className="section-title">Onboarding Resources</p>
+        <p className="text-xs text-slate-400">
+          What every new team member sees on their Onboarding page, at each of the 5 sessions.
+          These are the team-wide defaults — hide any you don&apos;t want new people to see, or add
+          your own; either way it only affects your own downline&apos;s onboarding, not anyone
+          else&apos;s.
+        </p>
+      </div>
+
+      {error && (
+        <div className="card">
+          <p className="text-xs text-red-400">{error}</p>
+        </div>
+      )}
+
+      {ONBOARDING_SESSIONS.map((sessionInfo, i) => {
+        const sessionNumber = i + 1;
+        const removedLabels = new Set(
+          overrides
+            .filter((o) => o.session === sessionNumber && o.action === "remove")
+            .map((o) => o.label)
+        );
+        const added = overrides.filter((o) => o.session === sessionNumber && o.action === "add");
+        const defaults = sessionInfo.resources;
+
+        return (
+          <div key={sessionInfo.title} className="card space-y-2">
+            <p className="section-title">{sessionInfo.title}</p>
+
+            {defaults.length === 0 && added.length === 0 && (
+              <p className="text-sm text-slate-400">Nothing at this session.</p>
+            )}
+
+            {defaults.map((r) => {
+              const hidden = removedLabels.has(r.label);
+              return (
+                <div
+                  key={r.label}
+                  className={`flex items-center justify-between gap-2 rounded-lg bg-navy px-3 py-2 ${
+                    hidden ? "opacity-50" : ""
+                  }`}
+                >
+                  <div className="min-w-0">
+                    <p
+                      className={`truncate text-sm font-medium ${
+                        hidden ? "text-slate-500 line-through" : "text-white"
+                      }`}
+                    >
+                      {r.label}
+                    </p>
+                    <p className="truncate text-xs text-slate-500">{r.detail}</p>
+                  </div>
+                  {hidden ? (
+                    <button
+                      className="pill shrink-0"
+                      onClick={() => {
+                        const row = overrides.find(
+                          (o) =>
+                            o.session === sessionNumber && o.action === "remove" && o.label === r.label
+                        );
+                        if (row) deleteOverride(row.id);
+                      }}
+                    >
+                      Restore
+                    </button>
+                  ) : (
+                    <button
+                      className="btn-icon shrink-0"
+                      onClick={() => hideDefault(sessionNumber, r.label)}
+                      aria-label={`Hide ${r.label}`}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+
+            {added.map((o) => (
+              <div
+                key={o.id}
+                className="flex items-center justify-between gap-2 rounded-lg bg-navy px-3 py-2"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-white">{o.label}</p>
+                  {(o.detail || o.estimate) && (
+                    <p className="truncate text-xs text-slate-500">
+                      {o.detail}
+                      {o.estimate && <span> · {o.estimate}</span>}
+                    </p>
+                  )}
+                </div>
+                <button
+                  className="btn-icon shrink-0"
+                  onClick={() => deleteOverride(o.id)}
+                  aria-label={`Remove ${o.label}`}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+
+            {addingSession === sessionNumber ? (
+              <div className="space-y-2 rounded-lg bg-navy px-3 py-2">
+                {libraryResources.length > 0 && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-medium text-slate-300">Pick from library:</p>
+                    <select
+                      className="select"
+                      value=""
+                      onChange={(e) => {
+                        const resource = libraryResources.find((r) => r.id === e.target.value);
+                        if (resource) addFromLibrary(sessionNumber, resource);
+                      }}
+                    >
+                      <option value="">Choose a saved resource…</option>
+                      {libraryResources.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.label}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-center text-xs text-slate-500">— or type your own —</p>
+                  </div>
+                )}
+                <input
+                  className="input"
+                  placeholder="Label (e.g. 🎧 Audio Name)"
+                  value={newLabel}
+                  onChange={(e) => setNewLabel(e.target.value)}
+                />
+                <input
+                  className="input"
+                  placeholder="Detail (e.g. By So-and-so)"
+                  value={newDetail}
+                  onChange={(e) => setNewDetail(e.target.value)}
+                />
+                <input
+                  className="input"
+                  placeholder="Link (optional)"
+                  value={newUrl}
+                  onChange={(e) => setNewUrl(e.target.value)}
+                />
+                <div className="flex gap-2">
+                  <button className="btn-secondary flex-1" onClick={() => setAddingSession(null)}>
+                    Cancel
+                  </button>
+                  <button
+                    className="btn-primary flex-1"
+                    onClick={() => addResource(sessionNumber)}
+                    disabled={saving || !newLabel.trim()}
+                  >
+                    {saving ? "Adding…" : "Add"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button className="btn-secondary w-full" onClick={() => openAddForm(sessionNumber)}>
                 + Add Resource
               </button>
             )}

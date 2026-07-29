@@ -1600,6 +1600,34 @@ themselves (not just the library), so a resource added or sent from the
 library shows its time estimate on `/prospect` next to "Just For You" and
 per-step resources, same as the team-wide defaults already do.
 
+**The same library also feeds Onboarding.** Everyone starts from the same
+team-wide `ONBOARDING_SESSIONS` defaults (`lib/constants.ts`), but exactly
+like Candidate Resources, any IBO can hide a default just for their own
+downline's onboarding or add their own — typed by hand or picked from the
+same Optional Resources library — from a new **Onboarding Resources**
+section of the Resources tab (right after Candidate Resources).
+`onboarding_resource_overrides` is the same household-shareable,
+remove-hides/add-tacks-on pattern as `candidate_resource_overrides`, just
+keyed by onboarding session (1-5) instead of candidate step -
+`effectiveResourcesForSession()` in `lib/constants.ts` does the merge, and
+the Onboarding page reads it directly (no anon RPC needed here, since
+Onboarding — unlike `/prospect` — is already behind auth).
+
+**Sending a resource straight to a team member, any time.** Candidate
+Resources and Onboarding Resources above are both about defaults for
+everyone at a given step/session. Sometimes you just want to hand one
+specific already-onboarded person something — not tied to a session, not
+waiting for them to reach some step. On the Pipeline Tracker's Tally tab,
+picking someone in the existing **"Filling In For"** dropdown now also
+shows a **"Send a Resource to {name} Directly"** box (same freehand-or-
+pick-from-library form as everywhere else) right above their prospects
+list — backed by a new `member_resources` table, keyed to that person's
+own account id (not a household id, since onboarding progress is tracked
+per-person even inside a linked household). Only an upline (any level) or
+admin can send one; the recipient sees everything ever sent to them in a
+**"🎁 Sent To You"** card at the top of their own Onboarding page, with a
+✕ to dismiss each one once they've seen it.
+
 ### Milestone Alerts
 
 Separate from the milestone badges on a public profile, the Leaderboard

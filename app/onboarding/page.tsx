@@ -9,8 +9,11 @@ import {
   ONBOARDING_SESSIONS,
   SESSION_4_CONTACT_MINIMUM,
   SESSION_4_READING_REQUIREMENT,
+  effectiveResourcesForSession,
   isPrimaryUser,
+  type OnboardingResourceOverrideEntry,
 } from "@/lib/constants";
+import type { MemberResource } from "@/lib/types";
 
 // A resource url starting with "/" is a link to somewhere else in the
 // app (e.g. a Resources tab) rather than an external video/doc link -
@@ -28,28 +31,39 @@ export default function OnboardingPage() {
   const [chaptersConfirmed, setChaptersConfirmed] = useState(false);
   const [confirmingChapters, setConfirmingChapters] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
+  const [resourceOverrides, setResourceOverrides] = useState<OnboardingResourceOverrideEntry[]>([]);
+  const [sentResources, setSentResources] = useState<MemberResource[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
-      const [{ data: profileData }, { count }] = await Promise.all([
-        supabase
-          .from("profiles")
-          .select("onboarding_unlocked_through,thinking_big_chapters_confirmed")
-          .eq("id", user.id)
-          .single(),
-        supabase
-          .from("contacts")
-          .select("id", { count: "exact", head: true })
-          .eq("user_id", ownerId)
-          .in("category", ["A", "B"]),
-      ]);
+      const [{ data: profileData }, { count }, { data: overrideRows }, { data: sentRows }] =
+        await Promise.all([
+          supabase
+            .from("profiles")
+            .select("onboarding_unlocked_through,thinking_big_chapters_confirmed")
+            .eq("id", user.id)
+            .single(),
+          supabase
+            .from("contacts")
+            .select("id", { count: "exact", head: true })
+            .eq("user_id", ownerId)
+            .in("category", ["A", "B"]),
+          supabase.from("onboarding_resource_overrides").select("*").eq("user_id", ownerId),
+          supabase
+            .from("member_resources")
+            .select("*")
+            .eq("recipient_id", user.id)
+            .order("created_at", { ascending: true }),
+        ]);
       if (!cancelled) {
         setUnlockedThrough(profileData?.onboarding_unlocked_through ?? 1);
         setChaptersConfirmed(profileData?.thinking_big_chapters_confirmed ?? false);
         setNetworkContactCount(count ?? 0);
+        setResourceOverrides((overrideRows as OnboardingResourceOverrideEntry[]) ?? []);
+        setSentResources((sentRows as MemberResource[]) ?? []);
         setLoading(false);
       }
     }
@@ -59,6 +73,13 @@ export default function OnboardingPage() {
       cancelled = true;
     };
   }, [user.id, ownerId]);
+
+  async function dismissSentResource(id: string) {
+    const previous = sentResources;
+    setSentResources((prev) => prev.filter((r) => r.id !== id));
+    const { error } = await supabase.from("member_resources").delete().eq("id", id);
+    if (error) setSentResources(previous);
+  }
 
   async function toggleChaptersConfirmed() {
     const next = !chaptersConfirmed;
@@ -102,6 +123,46 @@ export default function OnboardingPage() {
         subtitle={`${unlockedCount}/${ONBOARDING_SESSIONS.length} sessions unlocked`}
       />
       <main className="page-main">
+        {sentResources.length > 0 && (
+          <div className="card space-y-1.5">
+            <p className="section-title">🎁 Sent To You</p>
+            <p className="text-xs text-slate-400">
+              Resources your upline has sent you directly — not tied to any session.
+            </p>
+            {sentResources.map((r) => (
+              <div key={r.id} className="flex items-center justify-between gap-2 rounded-lg bg-navy px-3 py-2">
+                <div className="min-w-0">
+                  {r.url ? (
+                    <a
+                      href={r.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="truncate text-sm font-medium text-amber-light underline decoration-dotted underline-offset-2"
+                    >
+                      {r.label}
+                    </a>
+                  ) : (
+                    <p className="truncate text-sm font-medium text-white">{r.label}</p>
+                  )}
+                  {(r.detail || r.estimate) && (
+                    <p className="truncate text-xs text-slate-500">
+                      {r.detail}
+                      {r.estimate && <span> · {r.estimate}</span>}
+                    </p>
+                  )}
+                </div>
+                <button
+                  className="btn-icon shrink-0"
+                  onClick={() => dismissSentResource(r.id)}
+                  aria-label={`Dismiss ${r.label}`}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         {!isAdmin && !onboardingComplete && (
           <div className="card space-y-2 !border-amber bg-amber/10">
             <p className="section-title">🔓 More to Unlock</p>
@@ -149,6 +210,11 @@ export default function OnboardingPage() {
           ONBOARDING_SESSIONS.map((session, i) => {
             const sessionNumber = i + 1;
             const unlocked = isAdmin || sessionNumber <= unlockedThrough;
+            const resources = effectiveResourcesForSession(
+              sessionNumber,
+              session.resources,
+              resourceOverrides
+            );
             return (
               <div key={session.title} className="card space-y-2">
                 <div className="flex items-center justify-between gap-2">
@@ -160,7 +226,7 @@ export default function OnboardingPage() {
                 <p className="text-sm text-slate-400">{session.description}</p>
                 {unlocked ? (
                   <div className="space-y-1.5">
-                    {session.resources.map((r) => (
+                    {resources.map((r) => (
                       <div key={r.label} className="rounded-lg bg-navy px-3 py-2">
                         {r.url && isInternalLink(r.url) ? (
                           <Link
@@ -181,7 +247,10 @@ export default function OnboardingPage() {
                         ) : (
                           <p className="text-sm font-medium text-white">{r.label}</p>
                         )}
-                        <p className="text-xs text-slate-400">{r.detail}</p>
+                        <p className="text-xs text-slate-400">
+                          {r.detail}
+                          {r.estimate && <span> · {r.estimate}</span>}
+                        </p>
                       </div>
                     ))}
                   </div>

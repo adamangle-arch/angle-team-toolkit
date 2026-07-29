@@ -289,6 +289,29 @@ export type OptionalResource = {
   created_at: string;
 };
 
+export type OnboardingResourceOverride = {
+  id: string;
+  user_id: string;
+  session: number;
+  action: "add" | "remove";
+  label: string;
+  detail: string;
+  url: string | null;
+  estimate: string | null;
+  created_at: string;
+};
+
+export type MemberResource = {
+  id: string;
+  recipient_id: string;
+  label: string;
+  detail: string;
+  url: string | null;
+  estimate: string | null;
+  sent_by: string;
+  created_at: string;
+};
+
 export type Contact = {
   id: string;
   user_id: string;
