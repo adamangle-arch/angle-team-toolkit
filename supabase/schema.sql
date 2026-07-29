@@ -2983,59 +2983,20 @@ $$;
 
 grant execute on function public.get_candidate_by_access_code(text) to anon, authenticated;
 
--- Candidate self-service writes below are all anon-callable and scoped
--- purely by access_code - there's no session/account at this point, so
--- p_code is the only thing standing in for "who is this."
-create or replace function public.set_candidate_info_session_mode(p_code text, p_step text, p_mode text)
-returns void
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  if p_mode not in ('in_person', 'virtual') then
-    raise exception 'invalid mode';
-  end if;
-  if p_step = 'is1' then
-    update candidates set is1_session_mode = p_mode where upper(access_code) = upper(p_code);
-  elsif p_step = 'is2' then
-    update candidates set is2_session_mode = p_mode where upper(access_code) = upper(p_code);
-  else
-    raise exception 'invalid step';
-  end if;
-end;
-$$;
+-- Choosing in-person vs. virtual, and which specific webinar, is the
+-- IBO's call (they're the one who knows how the actual conversation
+-- with the candidate went) - made directly on the Candidate Roadmap as
+-- a normal authenticated update to their own candidates row, covered by
+-- the existing candidates RLS (owner/household/admin), no RPC needed.
+-- These two anon RPCs from an earlier version of this feature (where
+-- the candidate picked their own mode/webinar in /prospect) are no
+-- longer used - dropped here in case that version was ever run.
+drop function if exists public.set_candidate_info_session_mode(text, text, text);
+drop function if exists public.select_candidate_virtual_webinar(text, text, text);
 
-grant execute on function public.set_candidate_info_session_mode(text, text, text) to anon, authenticated;
-
--- Only succeeds (returns true) the first time - once a candidate has
--- registered for a specific webinar, that pick is permanent, same as an
--- actual webinar-platform registration would be.
-create or replace function public.select_candidate_virtual_webinar(p_code text, p_step text, p_slot_key text)
-returns boolean
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  v_rows int;
-begin
-  if p_step = 'is1' then
-    update candidates set is1_webinar_slot = p_slot_key, is1_webinar_selected_at = now()
-    where upper(access_code) = upper(p_code) and is1_webinar_slot is null;
-  elsif p_step = 'is2' then
-    update candidates set is2_webinar_slot = p_slot_key, is2_webinar_selected_at = now()
-    where upper(access_code) = upper(p_code) and is2_webinar_slot is null;
-  else
-    raise exception 'invalid step';
-  end if;
-  get diagnostics v_rows = row_count;
-  return v_rows > 0;
-end;
-$$;
-
-grant execute on function public.select_candidate_virtual_webinar(text, text, text) to anon, authenticated;
-
+-- Candidate self-service: marking it watched is the one part only the
+-- candidate can honestly report, so this stays anon-callable and scoped
+-- purely by access_code, same as the other /prospect RPCs.
 create or replace function public.mark_candidate_virtual_watched(p_code text, p_step text)
 returns void
 language plpgsql

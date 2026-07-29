@@ -945,23 +945,79 @@ export default function PipelinePage() {
   );
 }
 
-// Read-only summary of what the candidate has self-reported from
-// /prospect for one IS1/IS2 occurrence - the IBO can see it, but only
-// the candidate themselves sets it (see set_candidate_info_session_mode,
-// select_candidate_virtual_webinar, mark_candidate_virtual_watched).
-function infoSessionStatusLine(
-  mode: "in_person" | "virtual" | null,
-  webinarSlot: string | null,
-  watched: boolean
-): string {
-  if (watched) return "✅ Watched";
-  if (mode === "in_person") return "🏢 Attending in person";
-  if (mode === "virtual") {
-    const slot = webinarSlot ? VIRTUAL_WEBINAR_SLOTS.find((s) => s.key === webinarSlot) : null;
-    if (slot) return `💻 Registered with ${slot.presenter} — next ${formatWebinarTime(nextWebinarOccurrence(slot))}`;
-    return "💻 Watching virtually — hasn't picked a time yet";
-  }
-  return "Hasn't chosen in-person or virtual yet";
+// The IBO decides in-person vs. virtual, and which specific webinar,
+// for each candidate - not the candidate themselves, since they don't
+// know the jargon and the IBO is the one who knows how the conversation
+// with them actually went. This just writes straight to the candidates
+// row (candidate.is1_/is2_* fields), same as any other roadmap edit -
+// /prospect only reads it back and lets the candidate mark it watched.
+function InfoSessionPicker({
+  label,
+  mode,
+  webinarSlot,
+  watched,
+  onSetMode,
+  onSetSlot,
+}: {
+  label: string;
+  mode: "in_person" | "virtual" | null;
+  webinarSlot: string | null;
+  watched: boolean;
+  onSetMode: (mode: "in_person" | "virtual") => void;
+  onSetSlot: (slotKey: string | null) => void;
+}) {
+  const nextSlots = useMemo(
+    () =>
+      VIRTUAL_WEBINAR_SLOTS.map((slot) => ({ slot, at: nextWebinarOccurrence(slot) })).sort(
+        (a, b) => a.at.getTime() - b.at.getTime()
+      ),
+    []
+  );
+  const upcomingSlots = nextSlots.slice(0, 4);
+  const selectedSlot = webinarSlot ? VIRTUAL_WEBINAR_SLOTS.find((s) => s.key === webinarSlot) : undefined;
+  const selectedIsUpcoming = selectedSlot && upcomingSlots.some(({ slot }) => slot.key === selectedSlot.key);
+
+  return (
+    <div className="space-y-1.5 rounded-lg bg-navy px-3 py-2">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold text-slate-200">{label} Info Session</span>
+        {watched && <span className="text-xs text-amber-light">✅ Watched</span>}
+      </div>
+      <div className="flex gap-1 rounded-lg bg-white/5 p-1">
+        <button
+          className={mode === "in_person" ? "toggle-pill-active" : "toggle-pill-inactive"}
+          onClick={() => onSetMode("in_person")}
+        >
+          🏢 In Person
+        </button>
+        <button
+          className={mode === "virtual" ? "toggle-pill-active" : "toggle-pill-inactive"}
+          onClick={() => onSetMode("virtual")}
+        >
+          💻 Virtual
+        </button>
+      </div>
+      {mode === "virtual" && (
+        <select
+          className="select"
+          value={webinarSlot ?? ""}
+          onChange={(e) => onSetSlot(e.target.value || null)}
+        >
+          <option value="">Pick a time…</option>
+          {upcomingSlots.map(({ slot, at }) => (
+            <option key={slot.key} value={slot.key}>
+              {slot.presenter} — {formatWebinarTime(at)}
+            </option>
+          ))}
+          {selectedSlot && !selectedIsUpcoming && (
+            <option value={selectedSlot.key}>
+              {selectedSlot.presenter} — {formatWebinarTime(nextWebinarOccurrence(selectedSlot))}
+            </option>
+          )}
+        </select>
+      )}
+    </div>
+  );
 }
 
 function CandidateCard({
@@ -1062,16 +1118,46 @@ function CandidateCard({
           </label>
 
           {candidate.current_step >= 3 && (
-            <div className="rounded-lg bg-navy px-3 py-2 text-xs text-slate-300">
-              <span className="font-semibold text-slate-200">IS1: </span>
-              {infoSessionStatusLine(candidate.is1_session_mode, candidate.is1_webinar_slot, candidate.is1_watched)}
-            </div>
+            <InfoSessionPicker
+              label="IS1"
+              mode={candidate.is1_session_mode}
+              webinarSlot={candidate.is1_webinar_slot}
+              watched={candidate.is1_watched}
+              onSetMode={(mode) =>
+                onUpdate(candidate.id, {
+                  is1_session_mode: mode,
+                  is1_webinar_slot: mode === "in_person" ? null : candidate.is1_webinar_slot,
+                  is1_webinar_selected_at: mode === "in_person" ? null : candidate.is1_webinar_selected_at,
+                })
+              }
+              onSetSlot={(slotKey) =>
+                onUpdate(candidate.id, {
+                  is1_webinar_slot: slotKey,
+                  is1_webinar_selected_at: slotKey ? new Date().toISOString() : null,
+                })
+              }
+            />
           )}
           {candidate.current_step >= 5 && (
-            <div className="rounded-lg bg-navy px-3 py-2 text-xs text-slate-300">
-              <span className="font-semibold text-slate-200">IS2: </span>
-              {infoSessionStatusLine(candidate.is2_session_mode, candidate.is2_webinar_slot, candidate.is2_watched)}
-            </div>
+            <InfoSessionPicker
+              label="IS2"
+              mode={candidate.is2_session_mode}
+              webinarSlot={candidate.is2_webinar_slot}
+              watched={candidate.is2_watched}
+              onSetMode={(mode) =>
+                onUpdate(candidate.id, {
+                  is2_session_mode: mode,
+                  is2_webinar_slot: mode === "in_person" ? null : candidate.is2_webinar_slot,
+                  is2_webinar_selected_at: mode === "in_person" ? null : candidate.is2_webinar_selected_at,
+                })
+              }
+              onSetSlot={(slotKey) =>
+                onUpdate(candidate.id, {
+                  is2_webinar_slot: slotKey,
+                  is2_webinar_selected_at: slotKey ? new Date().toISOString() : null,
+                })
+              }
+            />
           )}
 
           {!isSettled ? (

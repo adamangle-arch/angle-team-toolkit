@@ -1,14 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
-import {
-  CANDIDATE_STEP_RESOURCES,
-  VIRTUAL_WEBINAR_SLOTS,
-  type CandidateStepResource,
-  type WebinarSlot,
-} from "@/lib/constants";
+import { CANDIDATE_STEP_RESOURCES, VIRTUAL_WEBINAR_SLOTS, type CandidateStepResource } from "@/lib/constants";
 import { nextWebinarOccurrence, formatWebinarTime } from "@/lib/dates";
 
 type SessionMode = "in_person" | "virtual" | null;
@@ -93,23 +88,10 @@ export default function ProspectPage() {
   const [specificResources, setSpecificResources] = useState<SpecificResource[]>([]);
   const [flyer, setFlyer] = useState<InfoSessionFlyer | null>(null);
   const [verifiedCode, setVerifiedCode] = useState("");
-  const [sessionSaving, setSessionSaving] = useState(false);
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [checkedStorage, setCheckedStorage] = useState(false);
-
-  // Fixed weekly recurring slots, so "next 4" only changes with the
-  // calendar, not with anything about this candidate - safe to compute
-  // once up front rather than after the early returns below (hooks must
-  // run in the same order on every render).
-  const nextWebinarSlots = useMemo(
-    () =>
-      VIRTUAL_WEBINAR_SLOTS.map((slot) => ({ slot, at: nextWebinarOccurrence(slot) }))
-        .sort((a, b) => a.at.getTime() - b.at.getTime())
-        .slice(0, 4),
-    []
-  );
 
   async function lookup(codeToTry: string, persist: boolean) {
     const trimmed = codeToTry.trim();
@@ -138,39 +120,6 @@ export default function ProspectPage() {
     setFlyer((flyerRow as InfoSessionFlyer) ?? null);
     setVerifiedCode(trimmed);
     if (persist) localStorage.setItem(STORAGE_KEY, trimmed);
-  }
-
-  async function setSessionMode(step: "is1" | "is2", mode: "in_person" | "virtual") {
-    if (!info) return;
-    setSessionError(null);
-    setInfo({ ...info, [step === "is1" ? "is1_session_mode" : "is2_session_mode"]: mode });
-    const { error } = await supabase.rpc("set_candidate_info_session_mode", {
-      p_code: verifiedCode,
-      p_step: step,
-      p_mode: mode,
-    });
-    if (error) setSessionError(error.message);
-  }
-
-  async function selectWebinar(step: "is1" | "is2", slotKey: string) {
-    setSessionError(null);
-    setSessionSaving(true);
-    const { data, error } = await supabase.rpc("select_candidate_virtual_webinar", {
-      p_code: verifiedCode,
-      p_step: step,
-      p_slot_key: slotKey,
-    });
-    setSessionSaving(false);
-    if (error) {
-      setSessionError(error.message);
-      return;
-    }
-    if (!data) {
-      setSessionError("That didn't go through — try refreshing the page.");
-      return;
-    }
-    if (!info) return;
-    setInfo({ ...info, [step === "is1" ? "is1_webinar_slot" : "is2_webinar_slot"]: slotKey });
   }
 
   async function markWatched(step: "is1" | "is2") {
@@ -284,11 +233,7 @@ export default function ProspectPage() {
             webinarSlot={infoSessionStep === "is1" ? info.is1_webinar_slot : info.is2_webinar_slot}
             watched={infoSessionStep === "is1" ? info.is1_watched : info.is2_watched}
             flyer={flyer}
-            nextSlots={nextWebinarSlots}
-            saving={sessionSaving}
             error={sessionError}
-            onSetMode={(mode) => setSessionMode(infoSessionStep, mode)}
-            onSelectWebinar={(slotKey) => selectWebinar(infoSessionStep, slotKey)}
             onMarkWatched={() => markWatched(infoSessionStep)}
           />
         )}
@@ -361,27 +306,25 @@ export default function ProspectPage() {
   );
 }
 
+// The IBO decides in-person vs. virtual (and, for virtual, which specific
+// webinar) from the Candidate Roadmap - not asked here, since the
+// candidate doesn't know the jargon and the IBO is the one who actually
+// knows how the conversation with them went. This card is read-only
+// except for "I've watched it," which only the candidate can honestly
+// report.
 function InfoSessionCard({
   mode,
   webinarSlot,
   watched,
   flyer,
-  nextSlots,
-  saving,
   error,
-  onSetMode,
-  onSelectWebinar,
   onMarkWatched,
 }: {
   mode: SessionMode;
   webinarSlot: string | null;
   watched: boolean;
   flyer: InfoSessionFlyer | null;
-  nextSlots: { slot: WebinarSlot; at: Date }[];
-  saving: boolean;
   error: string | null;
-  onSetMode: (mode: "in_person" | "virtual") => void;
-  onSelectWebinar: (slotKey: string) => void;
   onMarkWatched: () => void;
 }) {
   if (watched) {
@@ -392,60 +335,26 @@ function InfoSessionCard({
     );
   }
 
+  if (mode === null) return null;
+
   const selectedSlot = webinarSlot ? VIRTUAL_WEBINAR_SLOTS.find((s) => s.key === webinarSlot) ?? null : null;
 
   return (
     <div className="card space-y-3">
       <p className="section-title">🎤 Info Session</p>
 
-      {mode === null && (
-        <>
-          <p className="text-sm text-slate-300">Will you be there in person, or watching virtually?</p>
-          <div className="flex gap-2">
-            <button className="btn-secondary flex-1" onClick={() => onSetMode("in_person")}>
-              🏢 In Person
-            </button>
-            <button className="btn-secondary flex-1" onClick={() => onSetMode("virtual")}>
-              💻 Virtual
-            </button>
-          </div>
-        </>
-      )}
-
-      {mode === "in_person" && (
-        <>
-          {flyer?.image_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={flyer.image_url} alt="This week's Info Session" className="w-full rounded-xl" />
-          ) : (
-            <p className="text-sm text-slate-400">Details for this week&apos;s session are coming soon.</p>
-          )}
-          <button className="w-full text-center text-xs text-slate-500" onClick={() => onSetMode("virtual")}>
-            Watching virtually instead? Tap here
-          </button>
-        </>
-      )}
+      {mode === "in_person" &&
+        (flyer?.image_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={flyer.image_url} alt="This week's Info Session" className="w-full rounded-xl" />
+        ) : (
+          <p className="text-sm text-slate-400">Details for this week&apos;s session are coming soon.</p>
+        ))}
 
       {mode === "virtual" && !selectedSlot && (
-        <>
-          <p className="text-sm text-slate-300">Pick whichever time works best for you:</p>
-          <div className="space-y-1.5">
-            {nextSlots.map(({ slot, at }) => (
-              <button
-                key={slot.key}
-                className="btn-secondary flex w-full items-center justify-between"
-                onClick={() => onSelectWebinar(slot.key)}
-                disabled={saving}
-              >
-                <span>{slot.presenter}</span>
-                <span className="text-xs text-slate-400">{formatWebinarTime(at)}</span>
-              </button>
-            ))}
-          </div>
-          <button className="w-full text-center text-xs text-slate-500" onClick={() => onSetMode("in_person")}>
-            Coming in person instead? Tap here
-          </button>
-        </>
+        <p className="text-sm text-slate-400">
+          Your contact will send you the specific time for this soon.
+        </p>
       )}
 
       {mode === "virtual" && selectedSlot && (
