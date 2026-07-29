@@ -265,6 +265,7 @@ export type CandidateResourceOverride = {
   label: string;
   detail: string;
   url: string | null;
+  estimate: string | null;
   created_at: string;
 };
 
@@ -274,7 +275,17 @@ export type CandidateSpecificResource = {
   label: string;
   detail: string;
   url: string | null;
+  estimate: string | null;
   sent_by: string;
+  created_at: string;
+};
+
+export type OptionalResource = {
+  id: string;
+  label: string;
+  detail: string;
+  url: string | null;
+  estimate: string | null;
   created_at: string;
 };
 

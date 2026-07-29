@@ -219,6 +219,7 @@ export type CandidateResourceOverrideEntry = {
   label: string;
   detail: string;
   url: string | null;
+  estimate?: string | null;
 };
 
 // Merges a candidate owner's own customizations (see the "Candidate
@@ -238,7 +239,7 @@ export function effectiveResourcesForStep(
   const defaults = CANDIDATE_STEP_RESOURCES[step].filter((r) => !removedLabels.has(r.label));
   const added = overrides
     .filter((o) => o.step === step && o.action === "add")
-    .map((o) => ({ label: o.label, detail: o.detail, url: o.url ?? undefined }));
+    .map((o) => ({ label: o.label, detail: o.detail, url: o.url ?? undefined, estimate: o.estimate ?? undefined }));
   return [...defaults, ...added];
 }
 

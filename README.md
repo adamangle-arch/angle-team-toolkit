@@ -1534,8 +1534,8 @@ rather than sharing one - picking one doesn't touch the other.
   — one shared pointer for the whole team, not per-IBO, since it's one
   physical weekly event), so a repeat speaker is picking their name
   again, never re-uploading the same image.
-- **Virtual** shows a dropdown of the next 4 upcoming slots across a
-  fixed set of recurring weekly webinars (`VIRTUAL_WEBINAR_SLOTS` in
+- **Virtual** shows a dropdown of all 12 recurring weekly webinar slots
+  (soonest first) across a fixed set of shows (`VIRTUAL_WEBINAR_SLOTS` in
   `lib/constants.ts` — presenter, day/hour in Eastern time, and the
   registration link), computed live via `nextWebinarOccurrence()` in
   `lib/dates.ts` (a small Eastern-time-aware "what's the next occurrence
@@ -1567,6 +1567,38 @@ checklist (✅/⬜ per resource) — read-only from the IBO's side, since only
 the candidate can honestly report what they've done, but now it's
 obvious at a glance who's actually doing the work and what's still
 outstanding, instead of having to ask.
+
+**Optional Resources library — a shared catalog to pick from instead of
+retyping.** The per-IBO "add" overrides and one-off "Just For You" sends
+above both start from a blank form — fine occasionally, tedious if you
+want to share the same podcast with several candidates or add it to your
+own defaults for good. `optional_resources` is a small, admin-managed,
+read-only-to-everyone-else table (label, detail, optional link, optional
+estimate) — a permanent library the whole team draws from, exactly like
+the Info Session speaker library above. Anywhere you'd normally type a
+resource by hand, if the library has anything in it you'll see a "Pick
+from library:" dropdown above the freehand fields:
+
+- **Candidate Resources section (Resources tab)** — picking one from the
+  library for a given step inserts an `add` row into
+  `candidate_resource_overrides` immediately (via `addFromLibrary()`),
+  carrying its `estimate` along — same end result as typing it by hand,
+  just faster, and it becomes part of your own automatic defaults for
+  every candidate at that step going forward.
+- **"Send a Resource" (Candidate Roadmap, per candidate)** — picking one
+  inserts straight into `candidate_specific_resources` for that one
+  candidate only (via `sendFromLibrary()`), same one-off behavior as
+  typing it by hand.
+
+Managing what's actually *in* the library is admin-only: a "📚 Optional
+Resources Library" card at the top of the Candidate Resources section
+(same spot as the speaker library) lets an admin add (label/detail/
+link/estimate) or remove entries — every IBO reads the same shared list,
+nobody else can edit it. `estimate` was also added to
+`candidate_resource_overrides` and `candidate_specific_resources`
+themselves (not just the library), so a resource added or sent from the
+library shows its time estimate on `/prospect` next to "Just For You" and
+per-step resources, same as the team-wide defaults already do.
 
 ### Milestone Alerts
 

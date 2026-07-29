@@ -13,7 +13,7 @@ import { SCRIPTS } from "@/lib/scripts-data";
 import { PROCESS_STAGES, QUESTIONNAIRE_QUESTIONS, FIRST_MONTH_STEPS } from "@/lib/process-data";
 import { SAMPLE_BAG_GUIDE, SURVEY_QUESTIONS, SURVEY_APPOINTMENT_FLOW } from "@/lib/acquisition-data";
 import { CANDIDATE_STEPS, CANDIDATE_STEP_RESOURCES, isPrimaryUser } from "@/lib/constants";
-import type { CandidateResourceOverride, InfoSessionSpeaker } from "@/lib/types";
+import type { CandidateResourceOverride, InfoSessionSpeaker, OptionalResource } from "@/lib/types";
 
 type Section =
   | "audios"
@@ -437,6 +437,7 @@ function ProcessSection() {
 function CandidateResourcesSection() {
   const { ownerId, user } = useAuth();
   const [overrides, setOverrides] = useState<CandidateResourceOverride[]>([]);
+  const [libraryResources, setLibraryResources] = useState<OptionalResource[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [addingStep, setAddingStep] = useState<number | null>(null);
@@ -449,13 +450,17 @@ function CandidateResourcesSection() {
     let cancelled = false;
     async function load() {
       setLoading(true);
-      const { data } = await supabase
-        .from("candidate_resource_overrides")
-        .select("*")
-        .eq("user_id", ownerId)
-        .order("created_at", { ascending: true });
+      const [{ data }, { data: libraryRows }] = await Promise.all([
+        supabase
+          .from("candidate_resource_overrides")
+          .select("*")
+          .eq("user_id", ownerId)
+          .order("created_at", { ascending: true }),
+        supabase.from("optional_resources").select("*").order("label", { ascending: true }),
+      ]);
       if (!cancelled) {
         setOverrides((data as CandidateResourceOverride[]) ?? []);
+        setLibraryResources((libraryRows as OptionalResource[]) ?? []);
         setLoading(false);
       }
     }
@@ -523,6 +528,29 @@ function CandidateResourcesSection() {
     setAddingStep(null);
   }
 
+  async function addFromLibrary(step: number, resource: OptionalResource) {
+    setError(null);
+    const { data, error } = await supabase
+      .from("candidate_resource_overrides")
+      .insert({
+        user_id: ownerId,
+        step,
+        action: "add",
+        label: resource.label,
+        detail: resource.detail,
+        url: resource.url,
+        estimate: resource.estimate,
+      })
+      .select("*")
+      .single();
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    setOverrides((prev) => [...prev, data as CandidateResourceOverride]);
+    setAddingStep(null);
+  }
+
   if (loading) {
     return <div className="empty-state">Loading…</div>;
   }
@@ -530,6 +558,7 @@ function CandidateResourcesSection() {
   return (
     <>
       {isPrimaryUser(user.email) && <InfoSessionSpeakerAdmin />}
+      {isPrimaryUser(user.email) && <OptionalResourcesAdmin onChange={setLibraryResources} />}
 
       <div className="card space-y-1">
         <p className="section-title">Candidate Resources</p>
@@ -615,7 +644,12 @@ function CandidateResourcesSection() {
               >
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-white">{o.label}</p>
-                  {o.detail && <p className="truncate text-xs text-slate-500">{o.detail}</p>}
+                  {(o.detail || o.estimate) && (
+                    <p className="truncate text-xs text-slate-500">
+                      {o.detail}
+                      {o.estimate && <span> · {o.estimate}</span>}
+                    </p>
+                  )}
                 </div>
                 <button
                   className="btn-icon shrink-0"
@@ -628,7 +662,28 @@ function CandidateResourcesSection() {
             ))}
 
             {addingStep === step ? (
-              <div className="space-y-1.5 rounded-lg bg-navy px-3 py-2">
+              <div className="space-y-2 rounded-lg bg-navy px-3 py-2">
+                {libraryResources.length > 0 && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-medium text-slate-300">Pick from library:</p>
+                    <select
+                      className="select"
+                      value=""
+                      onChange={(e) => {
+                        const resource = libraryResources.find((r) => r.id === e.target.value);
+                        if (resource) addFromLibrary(step, resource);
+                      }}
+                    >
+                      <option value="">Choose a saved resource…</option>
+                      {libraryResources.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.label}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-center text-xs text-slate-500">— or type your own —</p>
+                  </div>
+                )}
                 <input
                   className="input"
                   placeholder="Label (e.g. 🎧 Audio Name)"
@@ -823,6 +878,149 @@ function InfoSessionSpeakerAdmin() {
           {uploading ? "Uploading…" : "Upload Flyer"}
           <input type="file" accept="image/*" className="hidden" onChange={handleAddFile} disabled={uploading} />
         </label>
+      </div>
+
+      {error && <p className="text-xs text-red-400">{error}</p>}
+    </div>
+  );
+}
+
+// A shared, admin-managed library of podcasts/articles/etc. any IBO can pick
+// from (see optional_resources in supabase/schema.sql) instead of retyping
+// the title/detail/link from scratch every time they want to send one -
+// either as a one-off to a candidate or added to their own auto-send defaults.
+function OptionalResourcesAdmin({
+  onChange,
+}: {
+  onChange: (resources: OptionalResource[]) => void;
+}) {
+  const [resources, setResources] = useState<OptionalResource[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [newLabel, setNewLabel] = useState("");
+  const [newDetail, setNewDetail] = useState("");
+  const [newUrl, setNewUrl] = useState("");
+  const [newEstimate, setNewEstimate] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function load() {
+      const { data } = await supabase.from("optional_resources").select("*").order("label", { ascending: true });
+      setResources((data as OptionalResource[]) ?? []);
+      setLoading(false);
+    }
+    load();
+  }, []);
+
+  async function addToLibrary() {
+    const label = newLabel.trim();
+    if (!label) return;
+    setSaving(true);
+    setError(null);
+    const { data, error } = await supabase
+      .from("optional_resources")
+      .insert({
+        label,
+        detail: newDetail.trim(),
+        url: newUrl.trim() || null,
+        estimate: newEstimate.trim() || null,
+      })
+      .select("*")
+      .single();
+    setSaving(false);
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    const updated = [...resources, data as OptionalResource].sort((a, b) => a.label.localeCompare(b.label));
+    setResources(updated);
+    onChange(updated);
+    setNewLabel("");
+    setNewDetail("");
+    setNewUrl("");
+    setNewEstimate("");
+  }
+
+  async function deleteResource(id: string) {
+    const previous = resources;
+    const updated = resources.filter((r) => r.id !== id);
+    setResources(updated);
+    onChange(updated);
+    const { error } = await supabase.from("optional_resources").delete().eq("id", id);
+    if (error) {
+      setResources(previous);
+      onChange(previous);
+      setError(error.message);
+    }
+  }
+
+  if (loading) return null;
+
+  return (
+    <div className="card space-y-3">
+      <div>
+        <p className="section-title">📚 Optional Resources Library</p>
+        <p className="text-xs text-slate-400">
+          Podcasts, articles, and other resources any IBO can pick from — as a one-off send to a
+          candidate, or added to their own automatic defaults — instead of typing the details from
+          scratch each time.
+        </p>
+      </div>
+
+      {resources.length > 0 && (
+        <div className="space-y-1.5">
+          {resources.map((r) => (
+            <div key={r.id} className="flex items-center justify-between gap-2 rounded-lg bg-navy px-3 py-2">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-white">{r.label}</p>
+                {(r.detail || r.estimate) && (
+                  <p className="truncate text-xs text-slate-500">
+                    {r.detail}
+                    {r.estimate && <span> · {r.estimate}</span>}
+                  </p>
+                )}
+              </div>
+              <button
+                className="btn-icon shrink-0"
+                onClick={() => deleteResource(r.id)}
+                aria-label={`Remove ${r.label}`}
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="space-y-1.5 rounded-lg bg-navy px-3 py-2">
+        <p className="text-xs font-medium text-slate-300">Add to library</p>
+        <input
+          className="input"
+          placeholder="Label (e.g. 🎧 Emerald Success Story - McGrath)"
+          value={newLabel}
+          onChange={(e) => setNewLabel(e.target.value)}
+        />
+        <input
+          className="input"
+          placeholder="Detail (optional)"
+          value={newDetail}
+          onChange={(e) => setNewDetail(e.target.value)}
+        />
+        <input
+          className="input"
+          placeholder="Link (optional)"
+          value={newUrl}
+          onChange={(e) => setNewUrl(e.target.value)}
+        />
+        <input
+          className="input"
+          placeholder="Estimate (e.g. 34 min listen)"
+          value={newEstimate}
+          onChange={(e) => setNewEstimate(e.target.value)}
+        />
+        <button className="btn-primary w-full" onClick={addToLibrary} disabled={saving || !newLabel.trim()}>
+          {saving ? "Adding…" : "+ Add to Library"}
+        </button>
       </div>
 
       {error && <p className="text-xs text-red-400">{error}</p>}

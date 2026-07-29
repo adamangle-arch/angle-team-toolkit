@@ -44,6 +44,7 @@ type SpecificResource = {
   label: string;
   detail: string;
   url: string | null;
+  estimate: string | null;
 };
 
 function formatEventAt(iso: string): string {
@@ -274,6 +275,7 @@ export default function ProspectPage() {
                 label={r.label}
                 detail={r.detail}
                 url={r.url}
+                estimate={r.estimate ?? undefined}
                 completed={completedLabels.has(r.label)}
                 onToggle={() => toggleResourceCompletion(r.label)}
               />

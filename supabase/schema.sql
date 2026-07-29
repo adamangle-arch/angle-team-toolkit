@@ -287,24 +287,34 @@ create table if not exists candidate_resource_overrides (
   created_at timestamptz not null default now()
 );
 
+-- Additive: carries a resource's estimated read/listen time through when
+-- an "add" override was created by picking from the shared Optional
+-- Resources library (see optional_resources further down) - null for a
+-- freehand-typed add, same as a default CANDIDATE_STEP_RESOURCES entry
+-- with no estimate.
+alter table candidate_resource_overrides add column if not exists estimate text;
+
 -- Powers /prospect's resource list - callable by anon for the same
 -- reason get_candidate_by_access_code is. Returns every override for
 -- the candidate's owner so the client can merge adds/removes into
--- CANDIDATE_STEP_RESOURCES per step.
+-- CANDIDATE_STEP_RESOURCES per step. Dropped first since the return
+-- shape changed (added estimate).
+drop function if exists public.get_candidate_resource_overrides(text);
 create or replace function public.get_candidate_resource_overrides(p_code text)
 returns table (
   step int,
   action text,
   label text,
   detail text,
-  url text
+  url text,
+  estimate text
 )
 language sql
 stable
 security definer
 set search_path = public
 as $$
-  select o.step, o.action, o.label, o.detail, o.url
+  select o.step, o.action, o.label, o.detail, o.url, o.estimate
   from candidate_resource_overrides o
   join candidates c on c.user_id = o.user_id
   where upper(c.access_code) = upper(p_code)
@@ -333,6 +343,12 @@ create table if not exists candidate_specific_resources (
   sent_by uuid not null default auth.uid() references auth.users(id) on delete set null,
   created_at timestamptz not null default now()
 );
+
+-- Additive: carries a resource's estimated read/listen time through when
+-- this one-off send was picked from the shared Optional Resources
+-- library (see optional_resources further down) rather than typed in by
+-- hand - null for a freehand send.
+alter table candidate_specific_resources add column if not exists estimate text;
 
 alter table candidate_specific_resources enable row level security;
 
@@ -379,20 +395,23 @@ create policy "delete_own_or_upline_or_admin" on candidate_specific_resources fo
 );
 
 -- Powers /prospect's "Just For You" section - callable by anon for the
--- same reason get_candidate_by_access_code is.
+-- same reason get_candidate_by_access_code is. Dropped first since the
+-- return shape changed (added estimate).
+drop function if exists public.get_candidate_specific_resources(text);
 create or replace function public.get_candidate_specific_resources(p_code text)
 returns table (
   id uuid,
   label text,
   detail text,
-  url text
+  url text,
+  estimate text
 )
 language sql
 stable
 security definer
 set search_path = public
 as $$
-  select r.id, r.label, r.detail, r.url
+  select r.id, r.label, r.detail, r.url, r.estimate
   from candidate_specific_resources r
   join candidates c on c.id = r.candidate_id
   where upper(c.access_code) = upper(p_code)
@@ -3208,3 +3227,38 @@ end;
 $$;
 
 grant execute on function public.toggle_candidate_resource_completion(text, text) to anon, authenticated;
+
+-- ============================================================
+-- Optional Resources: a shared, admin-managed library of podcasts/
+-- articles/etc. that any IBO can choose to send - either as a one-off to
+-- a specific candidate (candidate_specific_resources) or added to their
+-- own automatic per-step defaults (candidate_resource_overrides) - so
+-- picking one is a couple of taps instead of retyping the title/detail/
+-- link from scratch every time. Read-only for every IBO; only an admin
+-- manages what's actually in the library.
+-- ============================================================
+create table if not exists optional_resources (
+  id uuid primary key default gen_random_uuid(),
+  label text not null,
+  detail text not null default '',
+  url text,
+  estimate text,
+  created_at timestamptz not null default now()
+);
+
+alter table optional_resources enable row level security;
+
+drop policy if exists "optional_resources_read_all" on optional_resources;
+create policy "optional_resources_read_all" on optional_resources for select using (true);
+
+drop policy if exists "optional_resources_insert_admin" on optional_resources;
+create policy "optional_resources_insert_admin" on optional_resources
+for insert with check (public.is_app_admin());
+
+drop policy if exists "optional_resources_update_admin" on optional_resources;
+create policy "optional_resources_update_admin" on optional_resources
+for update using (public.is_app_admin()) with check (public.is_app_admin());
+
+drop policy if exists "optional_resources_delete_admin" on optional_resources;
+create policy "optional_resources_delete_admin" on optional_resources
+for delete using (public.is_app_admin());

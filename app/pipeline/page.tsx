@@ -28,7 +28,7 @@ import {
   formatWebinarTime,
 } from "@/lib/dates";
 import { fireNotifyEvent } from "@/lib/notifyClient";
-import type { PipelinePeriod, Candidate, CandidateSpecificResource, Profile } from "@/lib/types";
+import type { PipelinePeriod, Candidate, CandidateSpecificResource, OptionalResource, Profile } from "@/lib/types";
 
 type PeriodType = "daily" | "weekly" | "monthly";
 
@@ -1291,6 +1291,7 @@ function CandidateResourceProgress({ candidate }: { candidate: Candidate }) {
 // you're viewing while filling in for a downline.
 function CandidateResourceSender({ candidateId }: { candidateId: string }) {
   const [resources, setResources] = useState<CandidateSpecificResource[]>([]);
+  const [libraryResources, setLibraryResources] = useState<OptionalResource[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [label, setLabel] = useState("");
@@ -1303,13 +1304,17 @@ function CandidateResourceSender({ candidateId }: { candidateId: string }) {
     let cancelled = false;
     async function load() {
       setLoading(true);
-      const { data } = await supabase
-        .from("candidate_specific_resources")
-        .select("*")
-        .eq("candidate_id", candidateId)
-        .order("created_at", { ascending: true });
+      const [{ data }, { data: libraryRows }] = await Promise.all([
+        supabase
+          .from("candidate_specific_resources")
+          .select("*")
+          .eq("candidate_id", candidateId)
+          .order("created_at", { ascending: true }),
+        supabase.from("optional_resources").select("*").order("label", { ascending: true }),
+      ]);
       if (!cancelled) {
         setResources((data as CandidateSpecificResource[]) ?? []);
+        setLibraryResources((libraryRows as OptionalResource[]) ?? []);
         setLoading(false);
       }
     }
@@ -1346,6 +1351,27 @@ function CandidateResourceSender({ candidateId }: { candidateId: string }) {
     setAdding(false);
   }
 
+  async function sendFromLibrary(resource: OptionalResource) {
+    setError(null);
+    const { data, error } = await supabase
+      .from("candidate_specific_resources")
+      .insert({
+        candidate_id: candidateId,
+        label: resource.label,
+        detail: resource.detail,
+        url: resource.url,
+        estimate: resource.estimate,
+      })
+      .select("*")
+      .single();
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    setResources((prev) => [...prev, data as CandidateSpecificResource]);
+    setAdding(false);
+  }
+
   async function remove(id: string) {
     const previous = resources;
     setResources((prev) => prev.filter((r) => r.id !== id));
@@ -1365,7 +1391,12 @@ function CandidateResourceSender({ candidateId }: { candidateId: string }) {
           <div key={r.id} className="flex items-center justify-between gap-2 rounded-lg bg-navy px-3 py-2">
             <div className="min-w-0">
               <p className="truncate text-sm font-medium text-white">{r.label}</p>
-              {r.detail && <p className="truncate text-xs text-slate-500">{r.detail}</p>}
+              {(r.detail || r.estimate) && (
+                <p className="truncate text-xs text-slate-500">
+                  {r.detail}
+                  {r.estimate && <span> · {r.estimate}</span>}
+                </p>
+              )}
             </div>
             <button
               className="btn-icon shrink-0"
@@ -1377,7 +1408,28 @@ function CandidateResourceSender({ candidateId }: { candidateId: string }) {
           </div>
         ))}
       {adding ? (
-        <div className="space-y-1.5 rounded-lg bg-navy px-3 py-2">
+        <div className="space-y-2 rounded-lg bg-navy px-3 py-2">
+          {libraryResources.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium text-slate-300">Pick from library:</p>
+              <select
+                className="select"
+                value=""
+                onChange={(e) => {
+                  const resource = libraryResources.find((r) => r.id === e.target.value);
+                  if (resource) sendFromLibrary(resource);
+                }}
+              >
+                <option value="">Choose a saved resource…</option>
+                {libraryResources.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.label}
+                  </option>
+                ))}
+              </select>
+              <p className="text-center text-xs text-slate-500">— or type your own —</p>
+            </div>
+          )}
           <input
             className="input"
             placeholder="Label (e.g. 🎧 Audio Name)"
