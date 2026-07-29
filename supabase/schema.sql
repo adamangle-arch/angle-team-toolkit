@@ -243,7 +243,13 @@ alter table candidates add constraint candidates_access_code_key unique (access_
 -- Powers /prospect - callable by the anon role since nobody's
 -- authenticated at that point. Returns just enough to render their
 -- resources view (name, step, launched) plus the inviter's name for a
--- "sent by {name}" greeting - nothing private.
+-- "sent by {name}" greeting - nothing private. Dropped first: this same
+-- function gets redefined further down with a wider return shape (adds
+-- IS1/IS2 columns), and `create or replace` can't change a function's
+-- return type - without this drop, re-running the whole file a second
+-- time fails with "cannot change return type of existing function"
+-- (42P13) as soon as it hits this first, narrower definition.
+drop function if exists public.get_candidate_by_access_code(text);
 create or replace function public.get_candidate_by_access_code(p_code text)
 returns table (
   candidate_id uuid,
