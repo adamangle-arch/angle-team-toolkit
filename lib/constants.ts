@@ -198,7 +198,7 @@ export const CANDIDATE_STEP_RESOURCES: CandidateStepResource[][] = [
       label: "🎧 Dissatisfied",
       detail: "By Manny Winston.",
       url: "https://www.dropbox.com/scl/fi/0qwvy8fjneyujka5ktol4/Dissatisfied-L16-1961-AUD.mp3?rlkey=bfht15w18iks4d3ol055sh320&st=yjzjnrzh&dl=0",
-      estimate: "~20 min listen",
+      estimate: "~26 min listen",
     },
     {
       label: "🎧 At the Highest Level",
