@@ -1452,6 +1452,12 @@ customization below):
 | 8. Questionnaire | *(none yet)* |
 | 9. Offer Call | *(none yet)* |
 
+Each default also carries a rough `estimate` (e.g. "~20 min listen",
+"~2 hr read") shown next to it in `/prospect` — these are best-guess
+approximations, not measured from the actual files (there's no way to
+read an external file's real length from here), so treat them as
+ballpark and correct any you know the real runtime for.
+
 **Per-IBO customization.** The table above is a team-wide default, but any
 IBO can hide a default just for their own candidates or add their own
 resource at any step, from the new **Candidate Resources** section of the
@@ -1548,6 +1554,19 @@ rather than sharing one - picking one doesn't touch the other.
   actually watched it. Tapping it swaps the whole card for a plain
   "✅ Info Session complete" line, permanently — there's no way to reopen
   or rewatch it from there.
+
+**Candidates check resources off as they finish them.** Every resource
+card in `/prospect` — team-wide defaults, per-IBO additions, and one-off
+"Just For You" sends alike — has a checkbox the candidate taps once
+they've actually gone through it. Unlike Info Session's "watched" flag,
+this is a plain toggle (`candidate_resource_completions`, keyed by
+candidate + the resource's label): unchecking a mis-tap is just as easy
+as checking it. Expanding a candidate's card on the Candidate Roadmap
+shows a "📋 Resources: X/Y completed" line that expands into the full
+checklist (✅/⬜ per resource) — read-only from the IBO's side, since only
+the candidate can honestly report what they've done, but now it's
+obvious at a glance who's actually doing the work and what's still
+outstanding, instead of having to ask.
 
 ### Milestone Alerts
 

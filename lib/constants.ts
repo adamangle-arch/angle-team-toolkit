@@ -102,6 +102,10 @@ export type CandidateStepResource = {
   label: string;
   detail: string;
   url?: string;
+  // Rough, best-guess reading/listening time - there's no way to measure
+  // an external file's actual length from here, so treat these as
+  // approximate and correct any you know the real runtime for.
+  estimate?: string;
 };
 
 // Prospect access (see app/prospect/page.tsx): whatever's assigned to a
@@ -128,16 +132,19 @@ export const CANDIDATE_STEP_RESOURCES: CandidateStepResource[][] = [
       label: "📄 Summary: Business of the 21st Century",
       detail: "By Robert Kiyosaki.",
       url: "https://www.dropbox.com/scl/fi/i8w3xa044x2ulwsdz3dhf/FILE_5085.pdf?rlkey=6usnhsbvivt23l5loggb528jr&st=9x5tos9p&dl=0",
+      estimate: "~10 min read",
     },
     {
       label: "📰 What Is Network Marketing?",
       detail: "Entrepreneur.com",
       url: "https://www.entrepreneur.com/building-a-business/marketing/types-of-marketing/what-is-network-marketing",
+      estimate: "~5 min read",
     },
     {
       label: "📰 Why Gen Z Is Betting on Direct Selling",
       detail: "Entrepreneur.com — and why that matters for the future of work.",
       url: "https://apac.entrepreneur.com/news-and-trends/why-gen-z-is-betting-on-direct-selling-and-why-that-matters/498981",
+      estimate: "~5 min read",
     },
   ],
   // 3. IS1
@@ -146,11 +153,13 @@ export const CANDIDATE_STEP_RESOURCES: CandidateStepResource[][] = [
       label: "🎧 Digital Flea Market of Dreams",
       detail: "Podcast by John Resch.",
       url: "https://www.dropbox.com/scl/fi/hweysii7kmg5bouqffb0h/Digital-Flea-Market-of-Dreams.m4a?rlkey=1xj0oe66ffhew7i34rx7aau5d&st=0ako2bu6&dl=0",
+      estimate: "~30 min listen",
     },
     {
       label: "📖 The Go-Giver",
       detail: "A Little Story About a Powerful Business Idea.",
       url: "https://static1.squarespace.com/static/60393221d492e05ee012873d/t/6a0a719fcc48ee3edc7304e8/1779069345436/The+Go-Giver_+A+Little+Story+About+a+Powerful+Business+Idea.pdf",
+      estimate: "~2 hr read",
     },
   ],
   // 4. FU1
@@ -159,11 +168,13 @@ export const CANDIDATE_STEP_RESOURCES: CandidateStepResource[][] = [
       label: "🎧 How Do You Want to Live?",
       detail: "By Alex and Laura Angle.",
       url: "https://www.dropbox.com/scl/fi/y4p9por067phvvbqrth1c/How-Do-You-Want-to-LIve-S15-1349-AUD.mp3?rlkey=j4oac7vz8tn7l11uac6oen2nx&st=q3gf0eho&dl=0",
+      estimate: "~20 min listen",
     },
     {
       label: "🎧 Financial Stability of the 21st Century",
       detail: "By Greg Duncan.",
       url: "https://www.dropbox.com/scl/fi/3nyufs0dzu18631ipdws4/NLA-Financial-Stability-in-the-21st-Century-L15-1347-AUD.mp3?rlkey=k6jfttm6qu2yu7vdeahjwjw7d&st=w6aj44pc&dl=0",
+      estimate: "~20 min listen",
     },
   ],
   // 5. IS2
@@ -172,11 +183,13 @@ export const CANDIDATE_STEP_RESOURCES: CandidateStepResource[][] = [
       label: "📄 The 25 Laws of Doing the Impossible",
       detail: "By Patrick Bet-David.",
       url: "https://www.patrickbetdavid.com/wp-content/uploads/2014/09/Doing-the-Impossible-by-Patrick-Bet-David.pdf",
+      estimate: "~15 min read",
     },
     {
       label: "🎧 List Ditto Associate",
       detail: "A Successful Business Start — by Dirk and Laura Taylor.",
       url: "https://www.dropbox.com/scl/fi/aqva3wgmylgqtbrmq1cuk/NLA-List-Ditto-Associate-A-Successful-Business-Start-L15-1599-AUD.mp3?rlkey=q7qwyzqhltsvriaxjxxdnuvsw&st=xwloolsq&dl=0",
+      estimate: "~20 min listen",
     },
   ],
   // 6. FU2
@@ -185,11 +198,13 @@ export const CANDIDATE_STEP_RESOURCES: CandidateStepResource[][] = [
       label: "🎧 Dissatisfied",
       detail: "By Manny Winston.",
       url: "https://www.dropbox.com/scl/fi/0qwvy8fjneyujka5ktol4/Dissatisfied-L16-1961-AUD.mp3?rlkey=bfht15w18iks4d3ol055sh320&st=yjzjnrzh&dl=0",
+      estimate: "~20 min listen",
     },
     {
       label: "🎧 At the Highest Level",
       detail: "By Mark Nathan.",
       url: "https://www.dropbox.com/scl/fi/uqu8f0lafz9pgt3n8lmln/NLA-At-the-Highest-Level-L14-1058-AUD.mp3?rlkey=3dns0ztlonxxb825akxy2ef88&st=y06uv48f&dl=0",
+      estimate: "~20 min listen",
     },
   ],
   // 7. Questionnaire
@@ -197,6 +212,35 @@ export const CANDIDATE_STEP_RESOURCES: CandidateStepResource[][] = [
   // 8. Offer Call
   [],
 ];
+
+export type CandidateResourceOverrideEntry = {
+  step: number;
+  action: "add" | "remove";
+  label: string;
+  detail: string;
+  url: string | null;
+};
+
+// Merges a candidate owner's own customizations (see the "Candidate
+// Resources" section of the Resources tab) into the team-wide defaults -
+// a "remove" hides a default with that exact label for this step, an
+// "add" is a resource this owner tacked on beyond the defaults. Shared
+// between app/prospect/page.tsx (the candidate's own view) and
+// app/pipeline/page.tsx (the IBO's read-only progress view), so both
+// sides always agree on exactly which resources a candidate has.
+export function effectiveResourcesForStep(
+  step: number,
+  overrides: CandidateResourceOverrideEntry[]
+): CandidateStepResource[] {
+  const removedLabels = new Set(
+    overrides.filter((o) => o.step === step && o.action === "remove").map((o) => o.label)
+  );
+  const defaults = CANDIDATE_STEP_RESOURCES[step].filter((r) => !removedLabels.has(r.label));
+  const added = overrides
+    .filter((o) => o.step === step && o.action === "add")
+    .map((o) => ({ label: o.label, detail: o.detail, url: o.url ?? undefined }));
+  return [...defaults, ...added];
+}
 
 // Info Session (IS1 and IS2 steps): a candidate either attends in person
 // (this week's flyer - see info_session_flyer in supabase/schema.sql,

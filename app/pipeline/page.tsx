@@ -11,6 +11,8 @@ import {
   CANDIDATE_STEPS,
   ACTIVE_PIPELINE_MIN_STEP,
   VIRTUAL_WEBINAR_SLOTS,
+  effectiveResourcesForStep,
+  type CandidateResourceOverrideEntry,
   type PipelineStageKey,
 } from "@/lib/constants";
 import {
@@ -1194,7 +1196,92 @@ function CandidateCard({
             }}
           />
 
+          <CandidateResourceProgress candidate={candidate} />
+
           <CandidateResourceSender candidateId={candidate.id} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Read-only view of which of a candidate's resources they've checked off
+// as done in /prospect - self-reported by the candidate (see
+// toggle_candidate_resource_completion in supabase/schema.sql), never
+// editable from here. Recomputes the same effective resource list
+// /prospect shows (team-wide defaults for steps 0..current_step, merged
+// with this owner's overrides, plus any one-off "Just For You" sends)
+// so the count and checklist always match what the candidate actually
+// saw, not just what's been completed.
+function CandidateResourceProgress({ candidate }: { candidate: Candidate }) {
+  const [overrides, setOverrides] = useState<CandidateResourceOverrideEntry[]>([]);
+  const [specific, setSpecific] = useState<{ label: string; detail: string }[]>([]);
+  const [completedLabels, setCompletedLabels] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      const [{ data: overrideRows }, { data: specificRows }, { data: completionRows }] = await Promise.all([
+        supabase.from("candidate_resource_overrides").select("*").eq("user_id", candidate.user_id),
+        supabase.from("candidate_specific_resources").select("label,detail").eq("candidate_id", candidate.id),
+        supabase.from("candidate_resource_completions").select("resource_label").eq("candidate_id", candidate.id),
+      ]);
+      if (!cancelled) {
+        setOverrides((overrideRows as CandidateResourceOverrideEntry[]) ?? []);
+        setSpecific((specificRows as { label: string; detail: string }[]) ?? []);
+        setCompletedLabels(
+          new Set(((completionRows as { resource_label: string }[]) ?? []).map((r) => r.resource_label))
+        );
+        setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [candidate.id, candidate.user_id]);
+
+  const resources = useMemo(() => {
+    const stepResources = Array.from({ length: candidate.current_step + 1 }, (_, step) => step).flatMap(
+      (step) => effectiveResourcesForStep(step, overrides)
+    );
+    return [...stepResources, ...specific];
+  }, [candidate.current_step, overrides, specific]);
+
+  if (loading || resources.length === 0) return null;
+
+  const doneCount = resources.filter((r) => completedLabels.has(r.label)).length;
+
+  return (
+    <div className="space-y-1.5 rounded-lg bg-navy px-3 py-2">
+      <div
+        className="flex cursor-pointer items-center justify-between"
+        role="button"
+        tabIndex={0}
+        onClick={() => setExpanded((e) => !e)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setExpanded((exp) => !exp);
+          }
+        }}
+        aria-expanded={expanded}
+      >
+        <span className="text-xs font-semibold text-slate-200">
+          📋 Resources: {doneCount}/{resources.length} completed
+        </span>
+        <span className="text-slate-500">{expanded ? "▾" : "▸"}</span>
+      </div>
+      {expanded && (
+        <div className="space-y-1 pt-1">
+          {resources.map((r, i) => (
+            <p key={i} className="text-xs text-slate-400">
+              {completedLabels.has(r.label) ? "✅" : "⬜"} {r.label}
+            </p>
+          ))}
         </div>
       )}
     </div>
@@ -1418,7 +1505,8 @@ function DownlineCandidateRow({ candidate }: { candidate: Candidate }) {
       </div>
 
       {expanded && (
-        <div className="pt-3">
+        <div className="space-y-3 pt-3">
+          <CandidateResourceProgress candidate={candidate} />
           <CandidateResourceSender candidateId={candidate.id} />
         </div>
       )}

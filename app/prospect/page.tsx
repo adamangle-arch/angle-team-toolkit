@@ -3,7 +3,11 @@
 import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
-import { CANDIDATE_STEP_RESOURCES, VIRTUAL_WEBINAR_SLOTS, type CandidateStepResource } from "@/lib/constants";
+import {
+  VIRTUAL_WEBINAR_SLOTS,
+  effectiveResourcesForStep,
+  type CandidateResourceOverrideEntry,
+} from "@/lib/constants";
 import { nextWebinarOccurrence, formatWebinarTime } from "@/lib/dates";
 
 type SessionMode = "in_person" | "virtual" | null;
@@ -35,35 +39,12 @@ type UpcomingEvent = {
   event_at: string;
 };
 
-type ResourceOverride = {
-  step: number;
-  action: "add" | "remove";
-  label: string;
-  detail: string;
-  url: string | null;
-};
-
 type SpecificResource = {
   id: string;
   label: string;
   detail: string;
   url: string | null;
 };
-
-// Merges this candidate's owner's own customizations (see the "Candidate
-// Resources" section of the Resources tab) into the team-wide defaults -
-// a "remove" hides a default with that exact label for this step, an
-// "add" is a resource this owner tacked on beyond the defaults.
-function effectiveResourcesForStep(step: number, overrides: ResourceOverride[]): CandidateStepResource[] {
-  const removedLabels = new Set(
-    overrides.filter((o) => o.step === step && o.action === "remove").map((o) => o.label)
-  );
-  const defaults = CANDIDATE_STEP_RESOURCES[step].filter((r) => !removedLabels.has(r.label));
-  const added = overrides
-    .filter((o) => o.step === step && o.action === "add")
-    .map((o) => ({ label: o.label, detail: o.detail, url: o.url ?? undefined }));
-  return [...defaults, ...added];
-}
 
 function formatEventAt(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
@@ -84,9 +65,10 @@ export default function ProspectPage() {
   const [code, setCode] = useState("");
   const [info, setInfo] = useState<CandidateInfo | null>(null);
   const [events, setEvents] = useState<UpcomingEvent[]>([]);
-  const [overrides, setOverrides] = useState<ResourceOverride[]>([]);
+  const [overrides, setOverrides] = useState<CandidateResourceOverrideEntry[]>([]);
   const [specificResources, setSpecificResources] = useState<SpecificResource[]>([]);
   const [flyer, setFlyer] = useState<InfoSessionFlyer | null>(null);
+  const [completedLabels, setCompletedLabels] = useState<Set<string>>(new Set());
   const [verifiedCode, setVerifiedCode] = useState("");
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -98,14 +80,21 @@ export default function ProspectPage() {
     if (!trimmed) return;
     setLoading(true);
     setFormError(null);
-    const [{ data, error }, { data: eventRows }, { data: overrideRows }, { data: specificRows }, { data: flyerRow }] =
-      await Promise.all([
-        supabase.rpc("get_candidate_by_access_code", { p_code: trimmed }).maybeSingle(),
-        supabase.rpc("get_candidate_upcoming_events", { p_code: trimmed }),
-        supabase.rpc("get_candidate_resource_overrides", { p_code: trimmed }),
-        supabase.rpc("get_candidate_specific_resources", { p_code: trimmed }),
-        supabase.rpc("get_current_info_session_flyer").maybeSingle(),
-      ]);
+    const [
+      { data, error },
+      { data: eventRows },
+      { data: overrideRows },
+      { data: specificRows },
+      { data: flyerRow },
+      { data: completionRows },
+    ] = await Promise.all([
+      supabase.rpc("get_candidate_by_access_code", { p_code: trimmed }).maybeSingle(),
+      supabase.rpc("get_candidate_upcoming_events", { p_code: trimmed }),
+      supabase.rpc("get_candidate_resource_overrides", { p_code: trimmed }),
+      supabase.rpc("get_candidate_specific_resources", { p_code: trimmed }),
+      supabase.rpc("get_current_info_session_flyer").maybeSingle(),
+      supabase.rpc("get_candidate_resource_completions", { p_code: trimmed }),
+    ]);
     setLoading(false);
     setCheckedStorage(true);
     if (error || !data) {
@@ -115,9 +104,12 @@ export default function ProspectPage() {
     }
     setInfo(data as CandidateInfo);
     setEvents((eventRows as UpcomingEvent[]) ?? []);
-    setOverrides((overrideRows as ResourceOverride[]) ?? []);
+    setOverrides((overrideRows as CandidateResourceOverrideEntry[]) ?? []);
     setSpecificResources((specificRows as SpecificResource[]) ?? []);
     setFlyer((flyerRow as InfoSessionFlyer) ?? null);
+    setCompletedLabels(
+      new Set(((completionRows as { resource_label: string }[]) ?? []).map((r) => r.resource_label))
+    );
     setVerifiedCode(trimmed);
     if (persist) localStorage.setItem(STORAGE_KEY, trimmed);
   }
@@ -131,6 +123,28 @@ export default function ProspectPage() {
       p_step: step,
     });
     if (error) setSessionError(error.message);
+  }
+
+  async function toggleResourceCompletion(label: string) {
+    const wasCompleted = completedLabels.has(label);
+    setCompletedLabels((prev) => {
+      const next = new Set(prev);
+      if (wasCompleted) next.delete(label);
+      else next.add(label);
+      return next;
+    });
+    const { error } = await supabase.rpc("toggle_candidate_resource_completion", {
+      p_code: verifiedCode,
+      p_label: label,
+    });
+    if (error) {
+      setCompletedLabels((prev) => {
+        const next = new Set(prev);
+        if (wasCompleted) next.add(label);
+        else next.delete(label);
+        return next;
+      });
+    }
   }
 
   useEffect(() => {
@@ -255,21 +269,14 @@ export default function ProspectPage() {
           <div className="space-y-1.5">
             <p className="section-title">🎁 Just For You</p>
             {specificResources.map((r) => (
-              <div key={r.id} className="card space-y-1">
-                {r.url ? (
-                  <a
-                    href={r.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm font-medium text-amber-light underline decoration-dotted underline-offset-2"
-                  >
-                    {r.label}
-                  </a>
-                ) : (
-                  <p className="text-sm font-medium text-white">{r.label}</p>
-                )}
-                <p className="text-xs text-slate-400">{r.detail}</p>
-              </div>
+              <ResourceRow
+                key={r.id}
+                label={r.label}
+                detail={r.detail}
+                url={r.url}
+                completed={completedLabels.has(r.label)}
+                onToggle={() => toggleResourceCompletion(r.label)}
+              />
             ))}
           </div>
         )}
@@ -293,21 +300,15 @@ export default function ProspectPage() {
           </div>
         ) : (
           unlockedResources.map((r, i) => (
-            <div key={i} className="card space-y-1">
-              {r.url ? (
-                <a
-                  href={r.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm font-medium text-amber-light underline decoration-dotted underline-offset-2"
-                >
-                  {r.label}
-                </a>
-              ) : (
-                <p className="text-sm font-medium text-white">{r.label}</p>
-              )}
-              <p className="text-xs text-slate-400">{r.detail}</p>
-            </div>
+            <ResourceRow
+              key={i}
+              label={r.label}
+              detail={r.detail}
+              url={r.url}
+              estimate={r.estimate}
+              completed={completedLabels.has(r.label)}
+              onToggle={() => toggleResourceCompletion(r.label)}
+            />
           ))
         )}
 
@@ -391,6 +392,62 @@ function InfoSessionCard({
       )}
 
       {error && <p className="text-xs text-red-400">{error}</p>}
+    </div>
+  );
+}
+
+// Lets the candidate check a resource off as done - a plain toggle (not
+// a one-way lock like Info Session's "watched"), since unchecking a
+// mis-tap should be just as easy as checking it. Completion is keyed by
+// label (see candidate_resource_completions in supabase/schema.sql), so
+// it works the same whether the resource is a team-wide default, a
+// per-IBO addition, or a one-off "Just For You" send.
+function ResourceRow({
+  label,
+  detail,
+  url,
+  estimate,
+  completed,
+  onToggle,
+}: {
+  label: string;
+  detail: string;
+  url?: string | null;
+  estimate?: string;
+  completed: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div className={`card flex items-start gap-3 ${completed ? "opacity-60" : ""}`}>
+      <input
+        type="checkbox"
+        className="mt-1 h-5 w-5 shrink-0 accent-amber"
+        checked={completed}
+        onChange={onToggle}
+        aria-label={completed ? `Mark "${label}" as not done` : `Mark "${label}" as done`}
+      />
+      <div className="min-w-0 flex-1 space-y-1">
+        {url ? (
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`text-sm font-medium underline decoration-dotted underline-offset-2 ${
+              completed ? "text-slate-400 line-through" : "text-amber-light"
+            }`}
+          >
+            {label}
+          </a>
+        ) : (
+          <p className={`text-sm font-medium ${completed ? "text-slate-400 line-through" : "text-white"}`}>
+            {label}
+          </p>
+        )}
+        <p className="text-xs text-slate-400">
+          {detail}
+          {estimate && <span className="text-slate-500"> · {estimate}</span>}
+        </p>
+      </div>
     </div>
   );
 }

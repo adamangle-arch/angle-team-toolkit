@@ -3114,3 +3114,97 @@ using (bucket_id = 'info-session-flyer' and public.is_app_admin());
 drop policy if exists "info_session_flyer_bucket_delete_admin" on storage.objects;
 create policy "info_session_flyer_bucket_delete_admin" on storage.objects for delete
 using (bucket_id = 'info-session-flyer' and public.is_app_admin());
+
+-- ============================================================
+-- Candidate resource completion tracking: lets the candidate check off
+-- each resource (default step resources, per-IBO overrides, and
+-- candidate-specific sends alike) as they finish it, so both they and
+-- their IBO can see what's actually been done vs. still outstanding.
+-- Keyed by the resource's label rather than a foreign key, since
+-- default/override resources aren't rows in any table (they're plain
+-- data in lib/constants.ts) - label is already the unique identifier
+-- candidate_resource_overrides' own "remove" matching relies on, so
+-- reusing it here doesn't introduce a new assumption.
+-- ============================================================
+create table if not exists candidate_resource_completions (
+  id uuid primary key default gen_random_uuid(),
+  candidate_id uuid not null references candidates(id) on delete cascade,
+  resource_label text not null,
+  completed_at timestamptz not null default now(),
+  unique (candidate_id, resource_label)
+);
+
+alter table candidate_resource_completions enable row level security;
+
+-- Read-only for the IBO/upline/admin side - same self/household/upline/
+-- admin visibility as candidate_specific_resources, via a join back to
+-- the candidate's own row.
+drop policy if exists "select_own_or_upline_or_admin" on candidate_resource_completions;
+create policy "select_own_or_upline_or_admin" on candidate_resource_completions for select using (
+  exists (
+    select 1 from candidates c
+    where c.id = candidate_resource_completions.candidate_id
+      and (
+        c.user_id = auth.uid()
+        or c.user_id = (select household_id from profiles where id = auth.uid())
+        or public.is_upline_of(auth.uid(), c.user_id)
+        or public.is_app_admin()
+      )
+  )
+);
+
+-- Powers /prospect's checkboxes - callable by anon for the same reason
+-- every other /prospect RPC is.
+create or replace function public.get_candidate_resource_completions(p_code text)
+returns table (resource_label text)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select r.resource_label
+  from candidate_resource_completions r
+  join candidates c on c.id = r.candidate_id
+  where upper(c.access_code) = upper(p_code);
+$$;
+
+grant execute on function public.get_candidate_resource_completions(text) to anon, authenticated;
+
+-- Toggles one resource on/off for this candidate - unlike Info Session's
+-- "watched" flag, this is meant to stay correctable (a candidate can
+-- un-check something they clicked by mistake), so it's a plain toggle
+-- rather than a one-way lock. Returns the resource's new completed
+-- state so the client doesn't need a second round trip to confirm it.
+create or replace function public.toggle_candidate_resource_completion(p_code text, p_label text)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_candidate_id uuid;
+  v_existed boolean;
+begin
+  select id into v_candidate_id from candidates where upper(access_code) = upper(p_code);
+  if v_candidate_id is null then
+    raise exception 'invalid code';
+  end if;
+
+  select exists(
+    select 1 from candidate_resource_completions
+    where candidate_id = v_candidate_id and resource_label = p_label
+  ) into v_existed;
+
+  if v_existed then
+    delete from candidate_resource_completions
+    where candidate_id = v_candidate_id and resource_label = p_label;
+    return false;
+  else
+    insert into candidate_resource_completions (candidate_id, resource_label)
+    values (v_candidate_id, p_label);
+    return true;
+  end if;
+end;
+$$;
+
+grant execute on function public.toggle_candidate_resource_completion(text, text) to anon, authenticated;
