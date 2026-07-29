@@ -183,7 +183,7 @@ export const CANDIDATE_STEP_RESOURCES: CandidateStepResource[][] = [
       label: "📄 The 25 Laws of Doing the Impossible",
       detail: "By Patrick Bet-David.",
       url: "https://www.patrickbetdavid.com/wp-content/uploads/2014/09/Doing-the-Impossible-by-Patrick-Bet-David.pdf",
-      estimate: "~15 min read",
+      estimate: "~2 hr read",
     },
     {
       label: "🎧 List Ditto Associate",
@@ -204,7 +204,7 @@ export const CANDIDATE_STEP_RESOURCES: CandidateStepResource[][] = [
       label: "🎧 At the Highest Level",
       detail: "By Mark Nathan.",
       url: "https://www.dropbox.com/scl/fi/uqu8f0lafz9pgt3n8lmln/NLA-At-the-Highest-Level-L14-1058-AUD.mp3?rlkey=3dns0ztlonxxb825akxy2ef88&st=y06uv48f&dl=0",
-      estimate: "~20 min listen",
+      estimate: "~50 min listen",
     },
   ],
   // 7. Questionnaire
