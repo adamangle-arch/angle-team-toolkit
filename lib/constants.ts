@@ -137,7 +137,18 @@ export const CANDIDATE_STEP_RESOURCES: CandidateStepResource[][] = [
     },
   ],
   // 3. IS1
-  [],
+  [
+    {
+      label: "🎧 Digital Flea Market of Dreams",
+      detail: "Podcast by John Resch.",
+      url: "https://www.dropbox.com/scl/fi/hweysii7kmg5bouqffb0h/Digital-Flea-Market-of-Dreams.m4a?rlkey=1xj0oe66ffhew7i34rx7aau5d&st=0ako2bu6&dl=0",
+    },
+    {
+      label: "📖 The Go-Giver",
+      detail: "A Little Story About a Powerful Business Idea.",
+      url: "https://static1.squarespace.com/static/60393221d492e05ee012873d/t/6a0a719fcc48ee3edc7304e8/1779069345436/The+Go-Giver_+A+Little+Story+About+a+Powerful+Business+Idea.pdf",
+    },
+  ],
   // 4. FU1
   [],
   // 5. IS2
