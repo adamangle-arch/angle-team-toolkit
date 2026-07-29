@@ -266,6 +266,53 @@ $$;
 
 grant execute on function public.get_candidate_by_access_code(text) to anon, authenticated;
 
+-- Per-IBO customization of the prospect-resources defaults
+-- (CANDIDATE_STEP_RESOURCES in lib/constants.ts) - the default set is a
+-- team-wide baseline, but a specific IBO may want to swap in something
+-- different for their own candidates at a given step. Same
+-- household-shareable pattern as candidates/contacts (see the RLS loop
+-- further down) - user_id is the household owner, not necessarily
+-- whoever clicked the button. action='remove' hides a default resource
+-- for this owner (label must match that default's exact label);
+-- action='add' is a resource this owner is adding on top of the
+-- defaults, using label/detail/url as-is.
+create table if not exists candidate_resource_overrides (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  step int not null check (step between 0 and 8),
+  action text not null check (action in ('add', 'remove')),
+  label text not null,
+  detail text not null default '',
+  url text,
+  created_at timestamptz not null default now()
+);
+
+-- Powers /prospect's resource list - callable by anon for the same
+-- reason get_candidate_by_access_code is. Returns every override for
+-- the candidate's owner so the client can merge adds/removes into
+-- CANDIDATE_STEP_RESOURCES per step.
+create or replace function public.get_candidate_resource_overrides(p_code text)
+returns table (
+  step int,
+  action text,
+  label text,
+  detail text,
+  url text
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select o.step, o.action, o.label, o.detail, o.url
+  from candidate_resource_overrides o
+  join candidates c on c.user_id = o.user_id
+  where upper(c.access_code) = upper(p_code)
+  order by o.step;
+$$;
+
+grant execute on function public.get_candidate_resource_overrides(text) to anon, authenticated;
+
 -- ============================================================
 -- 3. A/B CONTACT LIST
 -- ============================================================
@@ -1745,9 +1792,10 @@ begin
 end $$;
 
 -- ============================================================
--- Household-shareable tables: candidates, contacts, PV, and customer
--- sales are the "same business" data — a user_id here can be either the
--- caller's own id OR the id they've linked to via link_spouse()
+-- Household-shareable tables: candidates, contacts, PV, customer sales,
+-- and candidate resource overrides are the "same business" data — a
+-- user_id here can be either the caller's own id OR the id they've
+-- linked to via link_spouse()
 -- (household_id), so a linked pair reads/writes one shared set of rows
 -- instead of two separate ones. Also readable (read-only) by an upline
 -- at any level, or admin. (pipeline_periods used to be in this loop too
@@ -1760,7 +1808,8 @@ declare
 begin
   for t in
     select unnest(array[
-      'candidates', 'contacts', 'monthly_pv', 'customer_sales'
+      'candidates', 'contacts', 'monthly_pv', 'customer_sales',
+      'candidate_resource_overrides'
     ])
   loop
     execute format('alter table %I enable row level security;', t);

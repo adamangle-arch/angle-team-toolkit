@@ -235,6 +235,17 @@ export type Candidate = {
   updated_at: string;
 };
 
+export type CandidateResourceOverride = {
+  id: string;
+  user_id: string;
+  step: number;
+  action: "add" | "remove";
+  label: string;
+  detail: string;
+  url: string | null;
+  created_at: string;
+};
+
 export type Contact = {
   id: string;
   user_id: string;

@@ -1,15 +1,19 @@
 "use client";
 
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
+import { useAuth } from "@/components/AuthGate";
+import { supabase } from "@/lib/supabaseClient";
 import { AUDIOS, FIRST_YEAR_BOOKS, ADVANCED_LIBRARY } from "@/lib/library-data";
 import { LEADERS } from "@/lib/leaders-data";
 import { PRODUCTS, PV_REFERENCE, STARTER_STACKS } from "@/lib/product-data";
 import { SCRIPTS } from "@/lib/scripts-data";
 import { PROCESS_STAGES, QUESTIONNAIRE_QUESTIONS, FIRST_MONTH_STEPS } from "@/lib/process-data";
 import { SAMPLE_BAG_GUIDE, SURVEY_QUESTIONS, SURVEY_APPOINTMENT_FLOW } from "@/lib/acquisition-data";
+import { CANDIDATE_STEPS, CANDIDATE_STEP_RESOURCES } from "@/lib/constants";
+import type { CandidateResourceOverride } from "@/lib/types";
 
 type Section =
   | "audios"
@@ -18,17 +22,21 @@ type Section =
   | "products"
   | "scripts"
   | "process"
+  | "candidate_resources"
   | "first_month"
   | "acquisition";
 
 // "Process" leads the list (and is the default tab) so it's the first
 // thing a new person sees on Resources - what to actually do, not
-// buried behind Audios/Leaders/Products. "Perfect First Month" is its
-// own pill right after Process (not a card inside it), since it's a
-// distinct next step once someone's launched, not part of the
-// pre-launch interview process.
+// buried behind Audios/Leaders/Products. "Candidate Resources" sits
+// right after it since it's the other half of running that same
+// interview process - what a candidate actually receives at each step.
+// "Perfect First Month" is its own pill right after those (not a card
+// inside Process), since it's a distinct next step once someone's
+// launched, not part of the pre-launch interview process.
 const SECTIONS: { key: Section; label: string }[] = [
   { key: "process", label: "Process" },
+  { key: "candidate_resources", label: "Candidate Resources" },
   { key: "first_month", label: "Perfect First Month" },
   { key: "audios", label: "Audios" },
   { key: "books", label: "Books" },
@@ -73,6 +81,7 @@ function LibraryTabs() {
       {section === "products" && <ProductsSection query={query} setQuery={setQuery} />}
       {section === "scripts" && <ScriptsSection query={query} setQuery={setQuery} />}
       {section === "process" && <ProcessSection />}
+      {section === "candidate_resources" && <CandidateResourcesSection />}
       {section === "first_month" && <FirstMonthSection />}
       {section === "acquisition" && <AcquisitionSection />}
     </>
@@ -414,6 +423,249 @@ function ProcessSection() {
           </p>
         ))}
       </div>
+    </>
+  );
+}
+
+// What a candidate automatically receives at each roadmap step (see
+// /prospect) - CANDIDATE_STEP_RESOURCES in lib/constants.ts is the
+// team-wide default, but any IBO can hide a default just for their own
+// candidates or add their own on top, without touching anyone else's.
+// Each row here is a candidate_resource_overrides insert/delete scoped to
+// ownerId - "remove" hides a default (matched by its exact label),
+// "add" is a resource this IBO tacked on beyond the defaults.
+function CandidateResourcesSection() {
+  const { ownerId } = useAuth();
+  const [overrides, setOverrides] = useState<CandidateResourceOverride[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [addingStep, setAddingStep] = useState<number | null>(null);
+  const [newLabel, setNewLabel] = useState("");
+  const [newDetail, setNewDetail] = useState("");
+  const [newUrl, setNewUrl] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      const { data } = await supabase
+        .from("candidate_resource_overrides")
+        .select("*")
+        .eq("user_id", ownerId)
+        .order("created_at", { ascending: true });
+      if (!cancelled) {
+        setOverrides((data as CandidateResourceOverride[]) ?? []);
+        setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [ownerId]);
+
+  function openAddForm(step: number) {
+    setAddingStep(step);
+    setNewLabel("");
+    setNewDetail("");
+    setNewUrl("");
+    setError(null);
+  }
+
+  async function hideDefault(step: number, label: string) {
+    setError(null);
+    const { data, error } = await supabase
+      .from("candidate_resource_overrides")
+      .insert({ user_id: ownerId, step, action: "remove", label })
+      .select("*")
+      .single();
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    setOverrides((prev) => [...prev, data as CandidateResourceOverride]);
+  }
+
+  async function deleteOverride(id: string) {
+    const previous = overrides;
+    setOverrides((prev) => prev.filter((o) => o.id !== id));
+    const { error } = await supabase.from("candidate_resource_overrides").delete().eq("id", id);
+    if (error) {
+      setOverrides(previous);
+      setError(error.message);
+    }
+  }
+
+  async function addResource(step: number) {
+    const label = newLabel.trim();
+    if (!label) return;
+    setSaving(true);
+    setError(null);
+    const { data, error } = await supabase
+      .from("candidate_resource_overrides")
+      .insert({
+        user_id: ownerId,
+        step,
+        action: "add",
+        label,
+        detail: newDetail.trim(),
+        url: newUrl.trim() || null,
+      })
+      .select("*")
+      .single();
+    setSaving(false);
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    setOverrides((prev) => [...prev, data as CandidateResourceOverride]);
+    setAddingStep(null);
+  }
+
+  if (loading) {
+    return <div className="empty-state">Loading…</div>;
+  }
+
+  return (
+    <>
+      <div className="card space-y-1">
+        <p className="section-title">Candidate Resources</p>
+        <p className="text-xs text-slate-400">
+          What a candidate automatically receives at each step of the interview process, once
+          you&apos;ve shared their access code (Candidate Roadmap → 🔑 Code). These are the
+          team-wide defaults — hide any you don&apos;t want to send, or add your own; either way it
+          only affects your own candidates.
+        </p>
+      </div>
+
+      {error && (
+        <div className="card">
+          <p className="text-xs text-red-400">{error}</p>
+        </div>
+      )}
+
+      {CANDIDATE_STEPS.map((stepInfo, step) => {
+        const removedLabels = new Set(
+          overrides.filter((o) => o.step === step && o.action === "remove").map((o) => o.label)
+        );
+        const added = overrides.filter((o) => o.step === step && o.action === "add");
+        const defaults = CANDIDATE_STEP_RESOURCES[step];
+
+        return (
+          <div key={step} className="card space-y-2">
+            <p className="section-title">
+              {step + 1}. {stepInfo.label}
+            </p>
+
+            {defaults.length === 0 && added.length === 0 && (
+              <p className="text-sm text-slate-400">Nothing at this step.</p>
+            )}
+
+            {defaults.map((r) => {
+              const hidden = removedLabels.has(r.label);
+              return (
+                <div
+                  key={r.label}
+                  className={`flex items-center justify-between gap-2 rounded-lg bg-navy px-3 py-2 ${
+                    hidden ? "opacity-50" : ""
+                  }`}
+                >
+                  <div className="min-w-0">
+                    <p
+                      className={`truncate text-sm font-medium ${
+                        hidden ? "text-slate-500 line-through" : "text-white"
+                      }`}
+                    >
+                      {r.label}
+                    </p>
+                    <p className="truncate text-xs text-slate-500">{r.detail}</p>
+                  </div>
+                  {hidden ? (
+                    <button
+                      className="pill shrink-0"
+                      onClick={() => {
+                        const row = overrides.find(
+                          (o) => o.step === step && o.action === "remove" && o.label === r.label
+                        );
+                        if (row) deleteOverride(row.id);
+                      }}
+                    >
+                      Restore
+                    </button>
+                  ) : (
+                    <button
+                      className="btn-icon shrink-0"
+                      onClick={() => hideDefault(step, r.label)}
+                      aria-label={`Hide ${r.label}`}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+
+            {added.map((o) => (
+              <div
+                key={o.id}
+                className="flex items-center justify-between gap-2 rounded-lg bg-navy px-3 py-2"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-white">{o.label}</p>
+                  {o.detail && <p className="truncate text-xs text-slate-500">{o.detail}</p>}
+                </div>
+                <button
+                  className="btn-icon shrink-0"
+                  onClick={() => deleteOverride(o.id)}
+                  aria-label={`Remove ${o.label}`}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+
+            {addingStep === step ? (
+              <div className="space-y-1.5 rounded-lg bg-navy px-3 py-2">
+                <input
+                  className="input"
+                  placeholder="Label (e.g. 🎧 Audio Name)"
+                  value={newLabel}
+                  onChange={(e) => setNewLabel(e.target.value)}
+                />
+                <input
+                  className="input"
+                  placeholder="Detail (e.g. By So-and-so)"
+                  value={newDetail}
+                  onChange={(e) => setNewDetail(e.target.value)}
+                />
+                <input
+                  className="input"
+                  placeholder="Link (optional)"
+                  value={newUrl}
+                  onChange={(e) => setNewUrl(e.target.value)}
+                />
+                <div className="flex gap-2">
+                  <button className="btn-secondary flex-1" onClick={() => setAddingStep(null)}>
+                    Cancel
+                  </button>
+                  <button
+                    className="btn-primary flex-1"
+                    onClick={() => addResource(step)}
+                    disabled={saving || !newLabel.trim()}
+                  >
+                    {saving ? "Adding…" : "Add"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button className="btn-secondary w-full" onClick={() => openAddForm(step)}>
+                + Add Resource
+              </button>
+            )}
+          </div>
+        );
+      })}
     </>
   );
 }

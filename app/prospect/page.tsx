@@ -3,7 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
-import { CANDIDATE_STEP_RESOURCES } from "@/lib/constants";
+import { CANDIDATE_STEP_RESOURCES, type CandidateStepResource } from "@/lib/constants";
 
 type CandidateInfo = {
   candidate_id: string;
@@ -20,6 +20,29 @@ type UpcomingEvent = {
   notes: string;
   event_at: string;
 };
+
+type ResourceOverride = {
+  step: number;
+  action: "add" | "remove";
+  label: string;
+  detail: string;
+  url: string | null;
+};
+
+// Merges this candidate's owner's own customizations (see the "Candidate
+// Resources" section of the Resources tab) into the team-wide defaults -
+// a "remove" hides a default with that exact label for this step, an
+// "add" is a resource this owner tacked on beyond the defaults.
+function effectiveResourcesForStep(step: number, overrides: ResourceOverride[]): CandidateStepResource[] {
+  const removedLabels = new Set(
+    overrides.filter((o) => o.step === step && o.action === "remove").map((o) => o.label)
+  );
+  const defaults = CANDIDATE_STEP_RESOURCES[step].filter((r) => !removedLabels.has(r.label));
+  const added = overrides
+    .filter((o) => o.step === step && o.action === "add")
+    .map((o) => ({ label: o.label, detail: o.detail, url: o.url ?? undefined }));
+  return [...defaults, ...added];
+}
 
 function formatEventAt(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
@@ -40,6 +63,7 @@ export default function ProspectPage() {
   const [code, setCode] = useState("");
   const [info, setInfo] = useState<CandidateInfo | null>(null);
   const [events, setEvents] = useState<UpcomingEvent[]>([]);
+  const [overrides, setOverrides] = useState<ResourceOverride[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [checkedStorage, setCheckedStorage] = useState(false);
@@ -49,9 +73,10 @@ export default function ProspectPage() {
     if (!trimmed) return;
     setLoading(true);
     setFormError(null);
-    const [{ data, error }, { data: eventRows }] = await Promise.all([
+    const [{ data, error }, { data: eventRows }, { data: overrideRows }] = await Promise.all([
       supabase.rpc("get_candidate_by_access_code", { p_code: trimmed }).maybeSingle(),
       supabase.rpc("get_candidate_upcoming_events", { p_code: trimmed }),
+      supabase.rpc("get_candidate_resource_overrides", { p_code: trimmed }),
     ]);
     setLoading(false);
     setCheckedStorage(true);
@@ -62,6 +87,7 @@ export default function ProspectPage() {
     }
     setInfo(data as CandidateInfo);
     setEvents((eventRows as UpcomingEvent[]) ?? []);
+    setOverrides((overrideRows as ResourceOverride[]) ?? []);
     if (persist) localStorage.setItem(STORAGE_KEY, trimmed);
   }
 
@@ -131,8 +157,8 @@ export default function ProspectPage() {
     [info.inviter_first_name, info.inviter_last_name].filter(Boolean).join(" ") || "Your contact";
   const firstName = info.candidate_name.split(" ")[0] || info.candidate_name;
 
-  const unlockedResources = CANDIDATE_STEP_RESOURCES.slice(0, info.current_step + 1).flatMap(
-    (resources, step) => resources.map((r) => ({ ...r, step }))
+  const unlockedResources = Array.from({ length: info.current_step + 1 }, (_, step) => step).flatMap((step) =>
+    effectiveResourcesForStep(step, overrides).map((r) => ({ ...r, step }))
   );
 
   return (

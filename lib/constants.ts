@@ -107,19 +107,23 @@ export type CandidateStepResource = {
 // Prospect access (see app/prospect/page.tsx): whatever's assigned to a
 // candidate's current step - and every step before it - shows up
 // automatically in their code-gated resources view, so nobody has to
-// manually text over the intro video or testimonial audio at the right
-// moment. One entry per CANDIDATE_STEPS index above.
+// manually text over an audio or article at the right moment. One entry
+// per CANDIDATE_STEPS index above.
 //
-// PLACEHOLDER CONTENT - swap each of these for the real audio/video/link
-// once you send it over, same as ONBOARDING_SESSIONS below.
+// This is the team-wide DEFAULT set. An individual IBO can hide any of
+// these defaults for their own candidates, or add their own at any step,
+// from the "Candidate Resources" section of the Resources tab - see
+// candidate_resource_overrides in supabase/schema.sql and
+// get_candidate_resource_overrides() for how those per-IBO
+// adds/removals get merged with this list at read time.
 export const CANDIDATE_STEP_RESOURCES: CandidateStepResource[][] = [
   // 0. Yes
   [],
-  // 1. QI1
-  [{ label: "🎥 Intro Video/Audio", detail: "Placeholder — swap in the real intro video/audio." }],
+  // 1. QI1 - nothing yet: candidates don't get their access code until
+  // QI2 is booked, so there's no one to receive anything at this step.
+  [],
   // 2. QI2
   [
-    { label: "🎧 Testimonial Audio", detail: "Placeholder — swap in a real testimonial audio." },
     {
       label: "📄 Summary: Business of the 21st Century",
       detail: "By Robert Kiyosaki.",
@@ -171,12 +175,23 @@ export const CANDIDATE_STEP_RESOURCES: CandidateStepResource[][] = [
     },
     {
       label: "🎧 List Ditto Associate",
-      detail: "A Successful Business Start.",
+      detail: "A Successful Business Start — by Dirk and Laura Taylor.",
       url: "https://www.dropbox.com/scl/fi/aqva3wgmylgqtbrmq1cuk/NLA-List-Ditto-Associate-A-Successful-Business-Start-L15-1599-AUD.mp3?rlkey=q7qwyzqhltsvriaxjxxdnuvsw&st=xwloolsq&dl=0",
     },
   ],
   // 6. FU2
-  [],
+  [
+    {
+      label: "🎧 Dissatisfied",
+      detail: "By Manny Winston.",
+      url: "https://www.dropbox.com/scl/fi/0qwvy8fjneyujka5ktol4/Dissatisfied-L16-1961-AUD.mp3?rlkey=bfht15w18iks4d3ol055sh320&st=yjzjnrzh&dl=0",
+    },
+    {
+      label: "🎧 At the Highest Level",
+      detail: "By Mark Nathan.",
+      url: "https://www.dropbox.com/scl/fi/uqu8f0lafz9pgt3n8lmln/NLA-At-the-Highest-Level-L14-1058-AUD.mp3?rlkey=3dns0ztlonxxb825akxy2ef88&st=y06uv48f&dl=0",
+    },
+  ],
   // 7. Questionnaire
   [],
   // 8. Offer Call

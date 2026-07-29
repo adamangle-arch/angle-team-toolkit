@@ -1437,9 +1437,33 @@ Scheduling QI1, an Info Session, whatever, the normal way is all it takes.
 candidate's step on the Roadmap (the same buttons/flow as today), whatever
 is assigned to that step *and every step before it* shows up in their
 `/prospect` view immediately, cumulatively, with no manual sending
-required. **The content in `CANDIDATE_STEP_RESOURCES` right now is
-placeholder text** ("swap in the real intro video/audio," etc.) — replace
-each entry with the actual audio/video/link before relying on this.
+required. The default set right now (team-wide, before any per-IBO
+customization below):
+
+| Step | Default resources |
+| --- | --- |
+| 1. Yes | *(none — no QI1 booked yet)* |
+| 2. QI1 | *(none — candidates don't get their code until QI2 is booked)* |
+| 3. QI2 | Summary of *Business of the 21st Century* (Robert Kiyosaki) · "What Is Network Marketing?" (Entrepreneur.com) · "Why Gen Z Is Betting on Direct Selling" (Entrepreneur.com) |
+| 4. IS1 | *Digital Flea Market of Dreams* podcast (John Resch) · *The Go-Giver* |
+| 5. FU1 | "How Do You Want to Live?" (Alex and Laura Angle) · "Financial Stability of the 21st Century" (Greg Duncan) |
+| 6. IS2 | *The 25 Laws of Doing the Impossible* (Patrick Bet-David) · "List Ditto Associate" (Dirk and Laura Taylor) |
+| 7. FU2 | "Dissatisfied" (Manny Winston) · "At the Highest Level" (Mark Nathan) |
+| 8. Questionnaire | *(none yet)* |
+| 9. Offer Call | *(none yet)* |
+
+**Per-IBO customization.** The table above is a team-wide default, but any
+IBO can hide a default just for their own candidates or add their own
+resource at any step, from the new **Candidate Resources** section of the
+Resources tab (right after Process) — without touching anyone else's
+candidates. This is backed by `candidate_resource_overrides` (household-
+shareable, same RLS pattern as `candidates`/`contacts`): a `remove` row
+hides a default for that step (matched by its exact label), an `add` row
+is a resource that IBO tacked on beyond the defaults. `/prospect` merges
+these in via `get_candidate_resource_overrides()` (anon-callable, looked
+up by the candidate's access code) — `effectiveResourcesForStep()` in
+`app/prospect/page.tsx` does the actual defaults-minus-removed-plus-added
+merge before rendering.
 
 **Getting Launched hands them off to a real signup — no auto-linking.**
 Once you mark a candidate Launched, their `/prospect` view swaps to a
