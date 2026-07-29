@@ -3357,3 +3357,86 @@ select
 where not exists (
   select 1 from optional_resources where label = 'New Emeralds - Kopecky'
 );
+
+-- One-time seed: every default Candidate/Onboarding resource that has a
+-- real link, copied into the shared library so any IBO can also send one
+-- of these (e.g. an onboarding resource to a candidate, or vice versa) when
+-- there's a gap between meetings - not just the items IBOs have typed in by
+-- hand so far. Safe to re-run (only inserts when a row with this exact label
+-- doesn't already exist). Internal in-app links (e.g. /library?tab=...) are
+-- deliberately excluded - not something to send to a candidate or teammate.
+insert into optional_resources (label, detail, url, estimate)
+select '📄 Summary: Business of the 21st Century', 'By Robert Kiyosaki.', 'https://www.dropbox.com/scl/fi/i8w3xa044x2ulwsdz3dhf/FILE_5085.pdf?rlkey=6usnhsbvivt23l5loggb528jr&st=9x5tos9p&dl=0', '~20 min read'
+where not exists (select 1 from optional_resources where label = '📄 Summary: Business of the 21st Century');
+
+insert into optional_resources (label, detail, url, estimate)
+select '📰 What Is Network Marketing?', 'Entrepreneur.com', 'https://www.entrepreneur.com/building-a-business/marketing/types-of-marketing/what-is-network-marketing', '~5 min read'
+where not exists (select 1 from optional_resources where label = '📰 What Is Network Marketing?');
+
+insert into optional_resources (label, detail, url, estimate)
+select '📰 Why Gen Z Is Betting on Direct Selling', 'Entrepreneur.com — and why that matters for the future of work.', 'https://apac.entrepreneur.com/news-and-trends/why-gen-z-is-betting-on-direct-selling-and-why-that-matters/498981', '~5 min read'
+where not exists (select 1 from optional_resources where label = '📰 Why Gen Z Is Betting on Direct Selling');
+
+insert into optional_resources (label, detail, url, estimate)
+select '🎧 Digital Flea Market of Dreams', 'Podcast by John Resch.', 'https://www.dropbox.com/scl/fi/hweysii7kmg5bouqffb0h/Digital-Flea-Market-of-Dreams.m4a?rlkey=1xj0oe66ffhew7i34rx7aau5d&st=0ako2bu6&dl=0', '~17 min listen'
+where not exists (select 1 from optional_resources where label = '🎧 Digital Flea Market of Dreams');
+
+insert into optional_resources (label, detail, url, estimate)
+select '📖 The Go-Giver', 'A Little Story About a Powerful Business Idea.', 'https://static1.squarespace.com/static/60393221d492e05ee012873d/t/6a0a719fcc48ee3edc7304e8/1779069345436/The+Go-Giver_+A+Little+Story+About+a+Powerful+Business+Idea.pdf', '~2 hr read'
+where not exists (select 1 from optional_resources where label = '📖 The Go-Giver');
+
+insert into optional_resources (label, detail, url, estimate)
+select '🎧 How Do You Want to Live?', 'By Alex and Laura Angle.', 'https://www.dropbox.com/scl/fi/y4p9por067phvvbqrth1c/How-Do-You-Want-to-LIve-S15-1349-AUD.mp3?rlkey=j4oac7vz8tn7l11uac6oen2nx&st=q3gf0eho&dl=0', '~1 hr 12 min listen'
+where not exists (select 1 from optional_resources where label = '🎧 How Do You Want to Live?');
+
+insert into optional_resources (label, detail, url, estimate)
+select '🎧 Financial Stability of the 21st Century', 'By Greg Duncan.', 'https://www.dropbox.com/scl/fi/3nyufs0dzu18631ipdws4/NLA-Financial-Stability-in-the-21st-Century-L15-1347-AUD.mp3?rlkey=k6jfttm6qu2yu7vdeahjwjw7d&st=w6aj44pc&dl=0', '~1 hr 19 min listen'
+where not exists (select 1 from optional_resources where label = '🎧 Financial Stability of the 21st Century');
+
+insert into optional_resources (label, detail, url, estimate)
+select '📄 The 25 Laws of Doing the Impossible', 'By Patrick Bet-David.', 'https://www.patrickbetdavid.com/wp-content/uploads/2014/09/Doing-the-Impossible-by-Patrick-Bet-David.pdf', '~2 hr read'
+where not exists (select 1 from optional_resources where label = '📄 The 25 Laws of Doing the Impossible');
+
+insert into optional_resources (label, detail, url, estimate)
+select '🎧 List Ditto Associate', 'A Successful Business Start — by Dirk and Laura Taylor.', 'https://www.dropbox.com/scl/fi/aqva3wgmylgqtbrmq1cuk/NLA-List-Ditto-Associate-A-Successful-Business-Start-L15-1599-AUD.mp3?rlkey=q7qwyzqhltsvriaxjxxdnuvsw&st=xwloolsq&dl=0', '~42 min listen'
+where not exists (select 1 from optional_resources where label = '🎧 List Ditto Associate');
+
+insert into optional_resources (label, detail, url, estimate)
+select '🎧 Dissatisfied', 'By Manny Winston.', 'https://www.dropbox.com/scl/fi/0qwvy8fjneyujka5ktol4/Dissatisfied-L16-1961-AUD.mp3?rlkey=bfht15w18iks4d3ol055sh320&st=yjzjnrzh&dl=0', '~26 min listen'
+where not exists (select 1 from optional_resources where label = '🎧 Dissatisfied');
+
+insert into optional_resources (label, detail, url, estimate)
+select '🎧 At the Highest Level', 'By Mark Nathan.', 'https://www.dropbox.com/scl/fi/uqu8f0lafz9pgt3n8lmln/NLA-At-the-Highest-Level-L14-1058-AUD.mp3?rlkey=3dns0ztlonxxb825akxy2ef88&st=y06uv48f&dl=0', '~50 min listen'
+where not exists (select 1 from optional_resources where label = '🎧 At the Highest Level');
+
+insert into optional_resources (label, detail, url, estimate)
+select '🎧 Excited to Confident', 'Audio by Alex and Laura Angle — listen before your Budget Session.', 'https://www.dropbox.com/scl/fi/nem1bqacjnfo4r3mtgraa/Excited-to-Confident-L22-3613-AUD.mp3?rlkey=0z1shlbvk28ndg7tfuk0p64za&st=revpnfob&dl=0', null
+where not exists (select 1 from optional_resources where label = '🎧 Excited to Confident');
+
+insert into optional_resources (label, detail, url, estimate)
+select '📋 Homework: Budget Worksheet & Audio', 'Listen to the audio explaining how to fill out the budget, then bring your completed budget to your next meeting with your coach.', 'https://www.dropbox.com/scl/fo/9provgioq5ijeudeaebt1/ACExQWjHLo9nFbsXm8gUBYE?rlkey=k2kadsk4wmc9h0am8nn13lxl1&st=8u9146yf&dl=0', null
+where not exists (select 1 from optional_resources where label = '📋 Homework: Budget Worksheet & Audio');
+
+insert into optional_resources (label, detail, url, estimate)
+select '🎥 Budgeting Talk', 'Video by Michael and Ashley Koebel.', 'https://onedrive.live.com/?qt=allmyphotos&photosData=%2Fshare%2FC3BD18A001D78AD7%218727%3Fithint%3Dvideo%26e%3DeP7aU4%26migratedtospo%3Dtrue&cid=C3BD18A001D78AD7&id=C3BD18A001D78AD7%218727&redeem=aHR0cHM6Ly8xZHJ2Lm1zL3YvYy9jM2JkMThhMDAxZDc4YWQ3L0VkZUsxd0dnR0wwZ2dNTVhJZ0FBQUFBQlhDNURySjFva0FrNF9jYXRWQWs1aEE%5FZT1lUDdhVTQ&v=photos', null
+where not exists (select 1 from optional_resources where label = '🎥 Budgeting Talk');
+
+insert into optional_resources (label, detail, url, estimate)
+select '📄 List Builder Worksheet', 'The official worksheet — work through it name by name: sources to start with, first names, occupations, professionals you rely on, and lifestyle prompts.', 'https://www.dropbox.com/scl/fi/uk77jor2r0zbqjqewy81c/List-Builder.jpg?rlkey=5ddroczo5hp2mhzlqdb9mbzsz&st=vel3s2wu&dl=0', null
+where not exists (select 1 from optional_resources where label = '📄 List Builder Worksheet');
+
+insert into optional_resources (label, detail, url, estimate)
+select '🎧 Crush Your List', 'Audio by Jim Mueller and John Resch — listen before working through your worksheet.', 'https://www.dropbox.com/scl/fi/u0882axmar8z7hqasf110/Crudh-your-List.m4a?rlkey=rjqmmqtn30vqpkwi1liyjosgk&st=ikn3lgnt&dl=0', null
+where not exists (select 1 from optional_resources where label = '🎧 Crush Your List');
+
+insert into optional_resources (label, detail, url, estimate)
+select '🎥 Customer Survey Training', 'Video by Laura Angle — watch before doing customer surveys.', 'https://www.youtube.com/watch?v=-4e9twlrGDk', null
+where not exists (select 1 from optional_resources where label = '🎥 Customer Survey Training');
+
+insert into optional_resources (label, detail, url, estimate)
+select '🎥 The Phases', 'Video by Alex Angle — how to establish the productive habits that create long-term momentum in your business.', 'https://youtu.be/evGVhOBtizs', null
+where not exists (select 1 from optional_resources where label = '🎥 The Phases');
+
+insert into optional_resources (label, detail, url, estimate)
+select '🎧 Homework: First Round Draft Pick', 'Audio by Mark and Meredith Nathan — listen to this for your Session 5 homework.', 'https://www.dropbox.com/scl/fi/217gvovuxyyui3zpcl8gl/First-Round-Draft-Pick-S11-0054-AUD.mp3?rlkey=nr7rv7u9iunt9itl4obilhpy6&st=8h9cka6w&dl=0', null
+where not exists (select 1 from optional_resources where label = '🎧 Homework: First Round Draft Pick');
