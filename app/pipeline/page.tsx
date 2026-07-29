@@ -975,9 +975,6 @@ function InfoSessionPicker({
       ),
     []
   );
-  const upcomingSlots = nextSlots.slice(0, 4);
-  const selectedSlot = webinarSlot ? VIRTUAL_WEBINAR_SLOTS.find((s) => s.key === webinarSlot) : undefined;
-  const selectedIsUpcoming = selectedSlot && upcomingSlots.some(({ slot }) => slot.key === selectedSlot.key);
 
   return (
     <div className="space-y-1.5 rounded-lg bg-navy px-3 py-2">
@@ -1006,16 +1003,11 @@ function InfoSessionPicker({
           onChange={(e) => onSetSlot(e.target.value || null)}
         >
           <option value="">Pick a time…</option>
-          {upcomingSlots.map(({ slot, at }) => (
+          {nextSlots.map(({ slot, at }) => (
             <option key={slot.key} value={slot.key}>
               {slot.presenter} — {formatWebinarTime(at)}
             </option>
           ))}
-          {selectedSlot && !selectedIsUpcoming && (
-            <option value={selectedSlot.key}>
-              {selectedSlot.presenter} — {formatWebinarTime(nextWebinarOccurrence(selectedSlot))}
-            </option>
-          )}
         </select>
       )}
     </div>
