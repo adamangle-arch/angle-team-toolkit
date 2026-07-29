@@ -1170,6 +1170,12 @@ function InfoSessionSpeakerAdmin() {
   );
 }
 
+const KIND_GROUPS: { key: OptionalResourceKind; label: string }[] = [
+  { key: "audio", label: "🎧 Audio" },
+  { key: "reading", label: "📖 Reading" },
+  { key: "other", label: "📋 Other" },
+];
+
 // A shared, admin-managed library of podcasts/articles/etc. any IBO can pick
 // from (see optional_resources in supabase/schema.sql) instead of retyping
 // the title/detail/link from scratch every time they want to send one -
@@ -1267,13 +1273,13 @@ function OptionalResourcesAdmin({
         </p>
       </div>
 
-      {(["audio", "reading"] as const).map((kind) => {
-        const group = resources.filter((r) => r.kind === kind);
+      {KIND_GROUPS.map(({ key, label }) => {
+        const group = resources.filter((r) => r.kind === key);
         if (group.length === 0) return null;
         return (
-          <div key={kind} className="space-y-1.5">
+          <div key={key} className="space-y-1.5">
             <p className="text-xs font-semibold text-slate-400">
-              {kind === "audio" ? "🎧 Audios" : "📖 Reading"} ({group.length})
+              {label} ({group.length})
             </p>
             {group.map((r) => (
               <div key={r.id} className="flex items-center justify-between gap-2 rounded-lg bg-navy px-3 py-2">
@@ -1287,12 +1293,17 @@ function OptionalResourcesAdmin({
                   )}
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  <button
-                    className="pill"
-                    onClick={() => setResourceKind(r.id, kind === "audio" ? "reading" : "audio")}
+                  <select
+                    className="select w-auto pr-6 text-xs"
+                    value={r.kind}
+                    onChange={(e) => setResourceKind(r.id, e.target.value as OptionalResourceKind)}
                   >
-                    Mark {kind === "audio" ? "📖 Reading" : "🎧 Audio"}
-                  </button>
+                    {KIND_GROUPS.map((g) => (
+                      <option key={g.key} value={g.key}>
+                        {g.label}
+                      </option>
+                    ))}
+                  </select>
                   <button className="btn-icon" onClick={() => deleteResource(r.id)} aria-label={`Remove ${r.label}`}>
                     ✕
                   </button>
@@ -1305,21 +1316,17 @@ function OptionalResourcesAdmin({
 
       <div className="space-y-1.5 rounded-lg bg-navy px-3 py-2">
         <p className="text-xs font-medium text-slate-300">Add to library</p>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            className={newKind === "audio" ? "toggle-pill-active" : "toggle-pill-inactive"}
-            onClick={() => setNewKind("audio")}
-          >
-            🎧 Audio
-          </button>
-          <button
-            type="button"
-            className={newKind === "reading" ? "toggle-pill-active" : "toggle-pill-inactive"}
-            onClick={() => setNewKind("reading")}
-          >
-            📖 Reading
-          </button>
+        <div className="flex flex-wrap gap-2">
+          {KIND_GROUPS.map((g) => (
+            <button
+              key={g.key}
+              type="button"
+              className={newKind === g.key ? "toggle-pill-active" : "toggle-pill-inactive"}
+              onClick={() => setNewKind(g.key)}
+            >
+              {g.label}
+            </button>
+          ))}
         </div>
         <input
           className="input"

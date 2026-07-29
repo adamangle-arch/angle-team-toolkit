@@ -3,12 +3,18 @@
 import { useState } from "react";
 import type { OptionalResource, OptionalResourceKind } from "@/lib/types";
 
+const KIND_TABS: { key: OptionalResourceKind; label: string }[] = [
+  { key: "audio", label: "🎧 Audio" },
+  { key: "reading", label: "📖 Reading" },
+  { key: "other", label: "📋 Other" },
+];
+
 // The "pick from library" widget shown everywhere a resource can be
 // picked from the shared Optional Resources library (Candidate
 // Resources, Onboarding Resources, and both one-off "Send a Resource"
-// boxes) - split into Audios/Reading tabs plus a search box (title or
-// speaker/detail) instead of one long alphabetical dropdown, since the
-// library's grown past a handful of hand-typed entries.
+// boxes) - split into Audios/Reading/Other tabs plus a search box
+// (title or speaker/detail) instead of one long alphabetical dropdown,
+// since the library's grown past a handful of hand-typed entries.
 export default function LibraryResourcePicker({
   resources,
   onPick,
@@ -18,9 +24,6 @@ export default function LibraryResourcePicker({
 }) {
   const [kind, setKind] = useState<OptionalResourceKind>("audio");
   const [query, setQuery] = useState("");
-
-  const audioCount = resources.filter((r) => r.kind === "audio").length;
-  const readingCount = resources.filter((r) => r.kind === "reading").length;
 
   const q = query.trim().toLowerCase();
   const filtered = resources.filter((r) => {
@@ -32,21 +35,20 @@ export default function LibraryResourcePicker({
   return (
     <div className="space-y-1.5">
       <p className="text-xs font-medium text-slate-300">Pick from library:</p>
-      <div className="flex gap-2">
-        <button
-          type="button"
-          className={kind === "audio" ? "toggle-pill-active" : "toggle-pill-inactive"}
-          onClick={() => setKind("audio")}
-        >
-          🎧 Audios ({audioCount})
-        </button>
-        <button
-          type="button"
-          className={kind === "reading" ? "toggle-pill-active" : "toggle-pill-inactive"}
-          onClick={() => setKind("reading")}
-        >
-          📖 Reading ({readingCount})
-        </button>
+      <div className="flex flex-wrap gap-2">
+        {KIND_TABS.map((tab) => {
+          const count = resources.filter((r) => r.kind === tab.key).length;
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              className={kind === tab.key ? "toggle-pill-active" : "toggle-pill-inactive"}
+              onClick={() => setKind(tab.key)}
+            >
+              {tab.label} ({count})
+            </button>
+          );
+        })}
       </div>
       <input
         className="input"

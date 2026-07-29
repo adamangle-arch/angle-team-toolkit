@@ -1600,17 +1600,19 @@ themselves (not just the library), so a resource added or sent from the
 library shows its time estimate on `/prospect` next to "Just For You" and
 per-step resources, same as the team-wide defaults already do.
 
-**Browsing the library: Audios vs. Reading, plus search.** Every library
-entry has a `kind` (`audio` or `reading`), set from a toggle both when an
-admin adds a new one and per-entry ("Mark 📖 Reading"/"Mark 🎧 Audio") on
-any existing one, so a miscategorized entry is a tap to fix, not a
-re-add. Everywhere a resource is picked from the library — Candidate
-Resources, Onboarding Resources, and both one-off "Send a Resource"
-boxes — now shares one `LibraryResourcePicker` component
-(`components/LibraryResourcePicker.tsx`) instead of a single long
-dropdown: Audios/Reading tabs plus a live search box matching against
-either the title or the detail line (where the speaker/author usually
-is), so finding one specific resource in a growing library stays fast.
+**Browsing the library: Audio / Reading / Other, plus search.** Every
+library entry has a `kind` (`audio`, `reading`, or `other` — for
+anything that isn't cleanly one or the other, like a worksheet or a
+video), set from a toggle both when an admin adds a new one and via a
+per-entry dropdown on any existing one, so a miscategorized entry is a
+couple of taps to fix, not a re-add. Everywhere a resource is picked
+from the library — Candidate Resources, Onboarding Resources, and both
+one-off "Send a Resource" boxes — now shares one `LibraryResourcePicker`
+component (`components/LibraryResourcePicker.tsx`) instead of a single
+long dropdown: Audio/Reading/Other tabs plus a live search box matching
+against either the title or the detail line (where the speaker/author
+usually is), so finding one specific resource in a growing library
+stays fast.
 
 **The same library also feeds Onboarding.** Everyone starts from the same
 team-wide `ONBOARDING_SESSIONS` defaults (`lib/constants.ts`), but exactly

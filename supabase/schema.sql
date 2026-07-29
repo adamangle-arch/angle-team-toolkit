@@ -3326,14 +3326,16 @@ create table if not exists optional_resources (
   created_at timestamptz not null default now()
 );
 
--- Splits the library into two easy-to-browse groups (Audios vs Reading)
--- instead of one long alphabetical list, now that it's grown past a
--- handful of hand-typed entries - existing rows default to 'reading';
--- reclassify any of those from the Optional Resources Library card in
--- the app.
+-- Splits the library into easy-to-browse groups (Audios / Reading /
+-- Other) instead of one long alphabetical list, now that it's grown
+-- past a handful of hand-typed entries - existing rows default to
+-- 'reading'; reclassify any of those from the Optional Resources
+-- Library card in the app. 'other' is for anything that isn't cleanly
+-- one or the other - a worksheet, a video, something bundled with both
+-- a document and an audio.
 alter table optional_resources add column if not exists kind text not null default 'reading';
 alter table optional_resources drop constraint if exists optional_resources_kind_check;
-alter table optional_resources add constraint optional_resources_kind_check check (kind in ('audio', 'reading'));
+alter table optional_resources add constraint optional_resources_kind_check check (kind in ('audio', 'reading', 'other'));
 
 alter table optional_resources enable row level security;
 
@@ -3453,11 +3455,10 @@ where not exists (select 1 from optional_resources where label = '🎧 Homework:
 -- One-time classification pass for the New Emeralds + 19-default seed
 -- rows above: the `kind` column didn't exist yet when they were first
 -- inserted, so ALTER TABLE ... ADD COLUMN backfilled all of them to the
--- 'reading' default. Everything actually audio/video gets flipped to
--- 'audio' here just this once; anything left alone (Summary of Business
--- of the 21st Century, What Is Network Marketing?, Why Gen Z, The
--- Go-Giver, The 25 Laws, List Builder Worksheet) is genuinely text/
--- reading, so the default was already correct for those.
+-- 'reading' default. Podcasts/pure audio get flipped to 'audio' here
+-- just this once; anything left alone (Summary of Business of the 21st
+-- Century, What Is Network Marketing?, Why Gen Z, The Go-Giver, The 25
+-- Laws) is genuinely text/reading, so the default was already correct.
 update optional_resources set kind = 'audio' where label in (
   'New Emeralds - Kopecky',
   '🎧 Digital Flea Market of Dreams',
@@ -3467,10 +3468,16 @@ update optional_resources set kind = 'audio' where label in (
   '🎧 Dissatisfied',
   '🎧 At the Highest Level',
   '🎧 Excited to Confident',
-  '📋 Homework: Budget Worksheet & Audio',
-  '🎥 Budgeting Talk',
   '🎧 Crush Your List',
-  '🎥 Customer Survey Training',
-  '🎥 The Phases',
   '🎧 Homework: First Round Draft Pick'
 ) and kind = 'reading';
+
+-- Same one-time pass: worksheets and videos aren't cleanly audio or
+-- reading, so they land in 'other' instead.
+update optional_resources set kind = 'other' where label in (
+  '📋 Homework: Budget Worksheet & Audio',
+  '📄 List Builder Worksheet',
+  '🎥 Budgeting Talk',
+  '🎥 Customer Survey Training',
+  '🎥 The Phases'
+) and kind in ('audio', 'reading');
