@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
+import FeatureGate from "@/components/FeatureGate";
 import LibraryResourcePicker from "@/components/LibraryResourcePicker";
 import { supabase } from "@/lib/supabaseClient";
 import { AUDIOS, FIRST_YEAR_BOOKS, ADVANCED_LIBRARY } from "@/lib/library-data";
@@ -105,14 +106,14 @@ function LibraryTabs() {
 
 export default function LibraryPage() {
   return (
-    <>
+    <FeatureGate minSession={5}>
       <PageHeader title="Resources" subtitle="Everything the team needs to reference" />
       <main className="page-main">
         <Suspense fallback={<div className="empty-state">Loading…</div>}>
           <LibraryTabs />
         </Suspense>
       </main>
-    </>
+    </FeatureGate>
   );
 }
 
@@ -142,6 +143,30 @@ function AudiosSection({
   query: string;
   setQuery: (v: string) => void;
 }) {
+  const [audioLinks, setAudioLinks] = useState<Map<string, string>>(new Map());
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const { data } = await supabase
+        .from("optional_resources")
+        .select("label,url")
+        .eq("kind", "audio")
+        .not("url", "is", null);
+      if (!cancelled) {
+        const map = new Map<string, string>();
+        for (const row of (data as { label: string; url: string | null }[]) ?? []) {
+          if (row.url) map.set(normalizeTitle(row.label), row.url);
+        }
+        setAudioLinks(map);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return AUDIOS;
@@ -161,22 +186,36 @@ function AudiosSection({
         {filtered.length} audio{filtered.length === 1 ? "" : "s"}
       </p>
       <div className="space-y-2">
-        {filtered.map((audio) => (
-          <div key={audio.title} className="card space-y-1.5">
-            <div>
-              <p className="font-semibold text-white">{audio.title}</p>
-              <p className="text-xs text-slate-400">{audio.speaker}</p>
+        {filtered.map((audio) => {
+          const url = audioLinks.get(normalizeTitle(audio.title));
+          return (
+            <div key={audio.title} className="card space-y-1.5">
+              <div>
+                {url ? (
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-semibold text-amber-light underline decoration-dotted underline-offset-2"
+                  >
+                    {audio.title}
+                  </a>
+                ) : (
+                  <p className="font-semibold text-white">{audio.title}</p>
+                )}
+                <p className="text-xs text-slate-400">{audio.speaker}</p>
+              </div>
+              <p className="text-sm text-slate-300">{audio.summary}</p>
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {audio.tags.map((t) => (
+                  <span key={t} className="pill">
+                    {t}
+                  </span>
+                ))}
+              </div>
             </div>
-            <p className="text-sm text-slate-300">{audio.summary}</p>
-            <div className="flex flex-wrap gap-1.5 pt-1">
-              {audio.tags.map((t) => (
-                <span key={t} className="pill">
-                  {t}
-                </span>
-              ))}
-            </div>
-          </div>
-        ))}
+          );
+        })}
         {filtered.length === 0 && <div className="empty-state">No audios match that search.</div>}
       </div>
     </>
@@ -184,9 +223,10 @@ function AudiosSection({
 }
 
 // Strips a leading emoji (or any other non-letter/non-number clutter)
-// so a library label like "📖 The Go-Giver" normalizes down to the same
-// key as the plain book title "The Go-Giver" it's meant to match.
-function normalizeBookTitle(s: string): string {
+// so a library label like "📖 The Go-Giver" or "🎧 Skydivers" normalizes
+// down to the same key as the plain title ("The Go-Giver", "Skydivers")
+// it's meant to match, whether that's a book or a fixed AUDIOS entry.
+function normalizeTitle(s: string): string {
   return s
     .replace(/^[^\p{L}\p{N}]+/gu, "")
     .trim()
@@ -227,7 +267,7 @@ function BooksSection() {
       if (!cancelled) {
         const map = new Map<string, string>();
         for (const row of (data as { label: string; url: string | null }[]) ?? []) {
-          if (row.url) map.set(normalizeBookTitle(row.label), row.url);
+          if (row.url) map.set(normalizeTitle(row.label), row.url);
         }
         setPdfLinks(map);
       }
@@ -248,7 +288,7 @@ function BooksSection() {
         </p>
         <div className="space-y-1">
           {FIRST_YEAR_BOOKS.map((b) => (
-            <BookRow key={b.title} title={b.title} author={b.author} url={pdfLinks.get(normalizeBookTitle(b.title))} />
+            <BookRow key={b.title} title={b.title} author={b.author} url={pdfLinks.get(normalizeTitle(b.title))} />
           ))}
         </div>
       </div>
@@ -269,7 +309,7 @@ function BooksSection() {
                 key={b.title}
                 title={b.title}
                 author={b.author}
-                url={pdfLinks.get(normalizeBookTitle(b.title))}
+                url={pdfLinks.get(normalizeTitle(b.title))}
               />
             ))}
           </div>

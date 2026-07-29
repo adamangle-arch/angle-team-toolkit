@@ -1313,11 +1313,17 @@ schema — this is purely additive gating on top of it):
 
 | Unlocks at session | Tabs |
 | --- | --- |
-| 1 (signup) | Today, Calendar, Leaderboard, Onboarding, Resources, My Profile, Search, More |
+| 1 (signup) | Today, Calendar, Leaderboard, Onboarding, My Profile, Search, More |
 | 2 (List Building done) | + Contacts, Volume |
 | 3 (Customers done) | *(nothing new)* |
 | 4 (Sharing Your Story done) | + Pipeline, History |
-| 5 (30-Day Core Run done) | + Run Streak, Goals, Team, Games, Assistant |
+| 5 (30-Day Core Run done) | + Resources, Run Streak, Goals, Team, Games, Assistant |
+
+Resources used to be available from signup, but moved to session 5 once
+its Books/Audios tabs started auto-linking to real PDFs/audio files
+(see below) — it stopped being a safe "browse everything on day one"
+area and became something to earn by actually finishing onboarding
+rather than self-serving ahead of it.
 
 The mapping lives in one place, `lib/onboarding-gate.ts`'s
 `FEATURE_MIN_SESSION`, and is read by three call sites: `BottomNav` and
@@ -1620,11 +1626,15 @@ tab's "First Year Reading" and "Advanced Leadership Library" lists
 just titles/authors — most are real published books with no legal free
 copy to link to. But whenever a `reading`-kind library entry's title
 matches one of these book titles exactly (once you strip its leading
-emoji — see `normalizeBookTitle()` in `app/library/page.tsx`), that
+emoji — see `normalizeTitle()` in `app/library/page.tsx`), that
 title becomes a clickable link straight to the PDF, no separate lookup
 needed. Add a book's PDF to the Optional Resources library with a title
 that matches the book's plain name (e.g. "📖 The Go-Giver" for "The
-Go-Giver") and the Books tab picks it up automatically.
+Go-Giver") and the Books tab picks it up automatically. The Audios tab
+works the same way against `AUDIOS` in `lib/library-data.ts`, matching
+`audio`-kind library entries instead of `reading`-kind ones — add
+"🎧 Skydivers" to the library and the fixed Skydivers card on the
+Audios tab links straight to it.
 
 **The same library also feeds Onboarding.** Everyone starts from the same
 team-wide `ONBOARDING_SESSIONS` defaults (`lib/constants.ts`), but exactly
