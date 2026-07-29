@@ -153,7 +153,7 @@ export const CANDIDATE_STEP_RESOURCES: CandidateStepResource[][] = [
       label: "🎧 Digital Flea Market of Dreams",
       detail: "Podcast by John Resch.",
       url: "https://www.dropbox.com/scl/fi/hweysii7kmg5bouqffb0h/Digital-Flea-Market-of-Dreams.m4a?rlkey=1xj0oe66ffhew7i34rx7aau5d&st=0ako2bu6&dl=0",
-      estimate: "~30 min listen",
+      estimate: "~17 min listen",
     },
     {
       label: "📖 The Go-Giver",
@@ -174,7 +174,7 @@ export const CANDIDATE_STEP_RESOURCES: CandidateStepResource[][] = [
       label: "🎧 Financial Stability of the 21st Century",
       detail: "By Greg Duncan.",
       url: "https://www.dropbox.com/scl/fi/3nyufs0dzu18631ipdws4/NLA-Financial-Stability-in-the-21st-Century-L15-1347-AUD.mp3?rlkey=k6jfttm6qu2yu7vdeahjwjw7d&st=w6aj44pc&dl=0",
-      estimate: "~20 min listen",
+      estimate: "~1 hr 19 min listen",
     },
   ],
   // 5. IS2
