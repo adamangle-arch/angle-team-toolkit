@@ -163,7 +163,18 @@ export const CANDIDATE_STEP_RESOURCES: CandidateStepResource[][] = [
     },
   ],
   // 5. IS2
-  [],
+  [
+    {
+      label: "📄 The 25 Laws of Doing the Impossible",
+      detail: "By Patrick Bet-David.",
+      url: "https://www.patrickbetdavid.com/wp-content/uploads/2014/09/Doing-the-Impossible-by-Patrick-Bet-David.pdf",
+    },
+    {
+      label: "🎧 List Ditto Associate",
+      detail: "A Successful Business Start.",
+      url: "https://www.dropbox.com/scl/fi/aqva3wgmylgqtbrmq1cuk/NLA-List-Ditto-Associate-A-Successful-Business-Start-L15-1599-AUD.mp3?rlkey=q7qwyzqhltsvriaxjxxdnuvsw&st=xwloolsq&dl=0",
+    },
+  ],
   // 6. FU2
   [],
   // 7. Questionnaire
