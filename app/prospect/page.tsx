@@ -274,6 +274,19 @@ export default function ProspectPage() {
           </div>
         )}
 
+        {!info.launched && unlockedResources.length > 0 && (
+          <div className="card space-y-1.5 !border-amber bg-amber/10">
+            <p className="text-sm font-semibold text-white">📋 Before You Meet Again</p>
+            <p className="text-xs text-slate-300">
+              Make sure you&apos;ve gone through everything below before you catch back up with{" "}
+              {inviterName}. You&apos;ll keep getting more resources like these as you move through
+              this process — they&apos;re here to inform you, but they&apos;re also part of how we
+              gauge how serious someone is about this. Coming back having actually done the work
+              says a lot.
+            </p>
+          </div>
+        )}
+
         {unlockedResources.length === 0 ? (
           <div className="card">
             <p className="text-sm text-slate-400">Nothing here yet — check back soon.</p>
