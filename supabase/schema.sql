@@ -1199,7 +1199,7 @@ grant execute on function public.get_public_profile(uuid) to authenticated;
 -- spotlight naturally disappears the next day instead of lingering.
 drop function if exists public.get_new_members(int);
 
-create function public.get_new_members()
+create or replace function public.get_new_members()
 returns table (
   user_id uuid,
   first_name text,
@@ -1806,7 +1806,7 @@ drop function if exists public.get_daily_sales_leaderboard();
 -- existing function's return type.
 drop function if exists public.get_daily_sales_feed();
 
-create function public.get_daily_sales_feed()
+create or replace function public.get_daily_sales_feed()
 returns table (
   sale_id uuid,
   user_id uuid,
