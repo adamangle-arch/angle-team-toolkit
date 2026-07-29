@@ -3018,19 +3018,51 @@ $$;
 
 grant execute on function public.mark_candidate_virtual_watched(text, text) to anon, authenticated;
 
--- Single admin-managed "this week's Info Session flyer" for whoever's
--- speaking at the in-person session - one shared row for the whole team
--- (not per-IBO), since it's one physical weekly event. The image itself
--- is uploaded as a ready-made graphic (see the info-session-flyer
--- storage bucket below), not built from structured fields.
+-- A permanent library of Info Session speaker flyers - each speaker's
+-- graphic is uploaded once, ever, and stays saved here so a new week
+-- with a repeat speaker is just picking their name again, not
+-- re-uploading the same image. Admin-managed since it's one shared
+-- library for the whole team, not per-IBO.
+create table if not exists info_session_speakers (
+  id uuid primary key default gen_random_uuid(),
+  name text not null unique,
+  image_url text not null,
+  created_at timestamptz not null default now()
+);
+
+alter table info_session_speakers enable row level security;
+
+drop policy if exists "info_session_speakers_read_all" on info_session_speakers;
+create policy "info_session_speakers_read_all" on info_session_speakers for select using (true);
+
+drop policy if exists "info_session_speakers_insert_admin" on info_session_speakers;
+create policy "info_session_speakers_insert_admin" on info_session_speakers
+for insert with check (public.is_app_admin());
+
+drop policy if exists "info_session_speakers_update_admin" on info_session_speakers;
+create policy "info_session_speakers_update_admin" on info_session_speakers
+for update using (public.is_app_admin()) with check (public.is_app_admin());
+
+drop policy if exists "info_session_speakers_delete_admin" on info_session_speakers;
+create policy "info_session_speakers_delete_admin" on info_session_speakers
+for delete using (public.is_app_admin());
+
+-- Single admin-managed "who's speaking this week" pointer into the
+-- library above - one shared row for the whole team (not per-IBO),
+-- since it's one physical weekly event. Was previously its own
+-- image_url/speaker_name pair uploaded fresh every week; now it's just
+-- a pointer, so picking the speaker is the only weekly action.
 create table if not exists info_session_flyer (
   id boolean primary key default true,
-  image_url text,
-  speaker_name text,
+  speaker_id uuid references info_session_speakers(id) on delete set null,
   updated_by uuid references auth.users(id) on delete set null,
   updated_at timestamptz not null default now(),
   constraint info_session_flyer_singleton check (id)
 );
+
+alter table info_session_flyer drop column if exists image_url;
+alter table info_session_flyer drop column if exists speaker_name;
+alter table info_session_flyer add column if not exists speaker_id uuid references info_session_speakers(id) on delete set null;
 
 insert into info_session_flyer (id) values (true) on conflict (id) do nothing;
 
@@ -3043,7 +3075,9 @@ drop policy if exists "info_session_flyer_update_admin" on info_session_flyer;
 create policy "info_session_flyer_update_admin" on info_session_flyer
 for update using (public.is_app_admin()) with check (public.is_app_admin());
 
--- Powers /prospect's in-person flyer card - callable by anon.
+-- Powers /prospect's in-person flyer card - callable by anon. Return
+-- shape is unchanged from the old per-week version, so nothing on the
+-- reading side needed to change, only how the image gets there.
 create or replace function public.get_current_info_session_flyer()
 returns table (image_url text, speaker_name text)
 language sql
@@ -3051,13 +3085,16 @@ stable
 security definer
 set search_path = public
 as $$
-  select image_url, speaker_name from info_session_flyer where id = true;
+  select s.image_url, s.name
+  from info_session_flyer f
+  join info_session_speakers s on s.id = f.speaker_id
+  where f.id = true;
 $$;
 
 grant execute on function public.get_current_info_session_flyer() to anon, authenticated;
 
--- Public-read storage bucket for the flyer image, admin-only upload -
--- same pattern as event-media.
+-- Public-read storage bucket for speaker flyer images, admin-only
+-- upload - same pattern as event-media.
 insert into storage.buckets (id, name, public)
 values ('info-session-flyer', 'info-session-flyer', true)
 on conflict (id) do nothing;

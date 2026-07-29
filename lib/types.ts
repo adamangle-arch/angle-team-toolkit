@@ -250,6 +250,13 @@ export type InfoSessionFlyer = {
   speaker_name: string | null;
 };
 
+export type InfoSessionSpeaker = {
+  id: string;
+  name: string;
+  image_url: string;
+  created_at: string;
+};
+
 export type CandidateResourceOverride = {
   id: string;
   user_id: string;

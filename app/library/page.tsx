@@ -13,7 +13,7 @@ import { SCRIPTS } from "@/lib/scripts-data";
 import { PROCESS_STAGES, QUESTIONNAIRE_QUESTIONS, FIRST_MONTH_STEPS } from "@/lib/process-data";
 import { SAMPLE_BAG_GUIDE, SURVEY_QUESTIONS, SURVEY_APPOINTMENT_FLOW } from "@/lib/acquisition-data";
 import { CANDIDATE_STEPS, CANDIDATE_STEP_RESOURCES, isPrimaryUser } from "@/lib/constants";
-import type { CandidateResourceOverride, InfoSessionFlyer } from "@/lib/types";
+import type { CandidateResourceOverride, InfoSessionSpeaker } from "@/lib/types";
 
 type Section =
   | "audios"
@@ -529,7 +529,7 @@ function CandidateResourcesSection() {
 
   return (
     <>
-      {isPrimaryUser(user.email) && <InfoSessionFlyerAdmin />}
+      {isPrimaryUser(user.email) && <InfoSessionSpeakerAdmin />}
 
       <div className="card space-y-1">
         <p className="section-title">Candidate Resources</p>
@@ -672,104 +672,159 @@ function CandidateResourcesSection() {
   );
 }
 
-// One shared row for the whole team (see info_session_flyer in
-// supabase/schema.sql), not per-IBO - there's one physical weekly Info
-// Session with a rotating speaker, so whoever updates it here updates it
-// for every IBO's IS1/IS2 candidates attending in person. Uploading a new
-// image just overwrites the same storage path (upsert), same as an
-// avatar photo re-upload.
-function InfoSessionFlyerAdmin() {
-  const [flyer, setFlyer] = useState<InfoSessionFlyer | null>(null);
-  const [speakerName, setSpeakerName] = useState("");
+// A permanent library of speaker flyers (see info_session_speakers in
+// supabase/schema.sql) - each one is uploaded once, ever, and stays
+// saved, so a repeat speaker is just picked from the list again instead
+// of re-uploading the same graphic every week. "This week" is a
+// separate pointer (info_session_flyer.speaker_id) into that library -
+// one shared row/library for the whole team (not per-IBO), since it's
+// one physical weekly event.
+function InfoSessionSpeakerAdmin() {
+  const [speakers, setSpeakers] = useState<InfoSessionSpeaker[]>([]);
+  const [currentSpeakerId, setCurrentSpeakerId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [newName, setNewName] = useState("");
   const [uploading, setUploading] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [savingCurrent, setSavingCurrent] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
-      const { data } = await supabase.from("info_session_flyer").select("*").eq("id", true).maybeSingle();
-      const row = (data as InfoSessionFlyer) ?? null;
-      setFlyer(row);
-      setSpeakerName(row?.speaker_name ?? "");
+      const [{ data: speakerRows }, { data: flyerRow }] = await Promise.all([
+        supabase.from("info_session_speakers").select("*").order("name", { ascending: true }),
+        supabase.from("info_session_flyer").select("speaker_id").eq("id", true).maybeSingle(),
+      ]);
+      setSpeakers((speakerRows as InfoSessionSpeaker[]) ?? []);
+      setCurrentSpeakerId((flyerRow as { speaker_id: string | null } | null)?.speaker_id ?? null);
       setLoading(false);
     }
     load();
   }, []);
 
-  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleAddFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    const name = newName.trim();
+    if (!name) {
+      setError("Enter the speaker's name first.");
+      e.target.value = "";
+      return;
+    }
     setError(null);
     setUploading(true);
+    const id = crypto.randomUUID();
     const ext = file.name.split(".").pop() || "jpg";
-    const path = `current.${ext}`;
-    const { error: uploadError } = await supabase.storage
-      .from("info-session-flyer")
-      .upload(path, file, { upsert: true });
+    const path = `speakers/${id}.${ext}`;
+    const { error: uploadError } = await supabase.storage.from("info-session-flyer").upload(path, file);
     if (uploadError) {
       setError(uploadError.message);
       setUploading(false);
+      e.target.value = "";
       return;
     }
     const { data: pub } = supabase.storage.from("info-session-flyer").getPublicUrl(path);
-    const imageUrl = `${pub.publicUrl}?t=${Date.now()}`;
-    const { error: updateError } = await supabase
-      .from("info_session_flyer")
-      .update({ image_url: imageUrl })
-      .eq("id", true);
+    const { data, error: insertError } = await supabase
+      .from("info_session_speakers")
+      .insert({ id, name, image_url: pub.publicUrl })
+      .select("*")
+      .single();
     setUploading(false);
-    if (updateError) {
-      setError(updateError.message);
+    e.target.value = "";
+    if (insertError) {
+      setError(insertError.message);
       return;
     }
-    setFlyer((prev) => ({ image_url: imageUrl, speaker_name: prev?.speaker_name ?? null }));
+    setSpeakers((prev) => [...prev, data as InfoSessionSpeaker].sort((a, b) => a.name.localeCompare(b.name)));
+    setNewName("");
   }
 
-  async function saveSpeakerName() {
-    setSaving(true);
-    setError(null);
-    const trimmed = speakerName.trim() || null;
-    const { error: updateError } = await supabase
-      .from("info_session_flyer")
-      .update({ speaker_name: trimmed })
-      .eq("id", true);
-    setSaving(false);
-    if (updateError) {
-      setError(updateError.message);
+  async function deleteSpeaker(id: string) {
+    const previous = speakers;
+    setSpeakers((prev) => prev.filter((s) => s.id !== id));
+    const { error: deleteError } = await supabase.from("info_session_speakers").delete().eq("id", id);
+    if (deleteError) {
+      setSpeakers(previous);
+      setError(deleteError.message);
       return;
     }
-    setFlyer((prev) => (prev ? { ...prev, speaker_name: trimmed } : prev));
+    if (currentSpeakerId === id) setCurrentSpeakerId(null);
+  }
+
+  async function selectCurrentSpeaker(id: string) {
+    setSavingCurrent(true);
+    setError(null);
+    setCurrentSpeakerId(id || null);
+    const { error: updateError } = await supabase
+      .from("info_session_flyer")
+      .update({ speaker_id: id || null })
+      .eq("id", true);
+    setSavingCurrent(false);
+    if (updateError) setError(updateError.message);
   }
 
   if (loading) return null;
 
   return (
-    <div className="card space-y-2">
-      <p className="section-title">🎤 This Week&apos;s Info Session Flyer</p>
-      <p className="text-xs text-slate-400">
-        Shown to every IS1/IS2 candidate who&apos;s attending in person — upload the same graphic
-        you already design each week, whoever&apos;s speaking.
-      </p>
-      {flyer?.image_url && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={flyer.image_url} alt="Current Info Session flyer" className="w-full rounded-xl" />
-      )}
-      <label className="btn-secondary block w-full cursor-pointer text-center">
-        {uploading ? "Uploading…" : flyer?.image_url ? "Replace Flyer" : "Upload Flyer"}
-        <input type="file" accept="image/*" className="hidden" onChange={handleUpload} disabled={uploading} />
+    <div className="card space-y-3">
+      <div>
+        <p className="section-title">🎤 Info Session Speaker</p>
+        <p className="text-xs text-slate-400">
+          Shown to every IS1/IS2 candidate attending in person. Upload each speaker&apos;s flyer
+          once — it&apos;s saved here for good, so picking who&apos;s speaking each week is all
+          that&apos;s left to do.
+        </p>
+      </div>
+
+      <label className="flex items-center gap-2 text-xs text-slate-400">
+        <span className="shrink-0 font-medium text-slate-300">This week:</span>
+        <select
+          className="select"
+          value={currentSpeakerId ?? ""}
+          onChange={(e) => selectCurrentSpeaker(e.target.value)}
+          disabled={savingCurrent || speakers.length === 0}
+        >
+          <option value="">— none selected —</option>
+          {speakers.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+            </option>
+          ))}
+        </select>
       </label>
-      <div className="flex gap-2">
+
+      {speakers.length > 0 && (
+        <div className="space-y-1.5">
+          {speakers.map((s) => (
+            <div key={s.id} className="flex items-center gap-2 rounded-lg bg-navy px-3 py-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={s.image_url} alt={s.name} className="h-10 w-10 shrink-0 rounded-lg object-cover" />
+              <p className="min-w-0 flex-1 truncate text-sm font-medium text-white">{s.name}</p>
+              <button
+                className="btn-icon shrink-0"
+                onClick={() => deleteSpeaker(s.id)}
+                aria-label={`Remove ${s.name}`}
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="space-y-1.5 rounded-lg bg-navy px-3 py-2">
+        <p className="text-xs font-medium text-slate-300">Add a new speaker</p>
         <input
           className="input"
-          placeholder="Speaker name (optional label)"
-          value={speakerName}
-          onChange={(e) => setSpeakerName(e.target.value)}
+          placeholder="Speaker name"
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
         />
-        <button className="btn-secondary shrink-0" onClick={saveSpeakerName} disabled={saving}>
-          {saving ? "Saving…" : "Save"}
-        </button>
+        <label className="btn-secondary block w-full cursor-pointer text-center">
+          {uploading ? "Uploading…" : "Upload Flyer"}
+          <input type="file" accept="image/*" className="hidden" onChange={handleAddFile} disabled={uploading} />
+        </label>
       </div>
+
       {error && <p className="text-xs text-red-400">{error}</p>}
     </div>
   );

@@ -1517,14 +1517,17 @@ mode/pick/watched state (`is1_*` / `is2_*` columns on `candidates`)
 rather than sharing one - picking one doesn't touch the other.
 
 - **In Person** needs nothing else from you - `/prospect` automatically
-  shows whichever flyer graphic is currently live. `info_session_flyer`
-  is one shared row for the whole team (not per-IBO, since it's one
-  physical weekly event with a rotating speaker), updated from an
-  admin-only "🎤 This Week's Info Session Flyer" card at the top of the
-  Resources tab's Candidate Resources section. Upload the same designed
-  graphic you already make each week; it's just an image in the
-  `info-session-flyer` storage bucket (public-read, admin-only write —
-  same pattern as `event-media`), no in-app template.
+  shows whichever flyer graphic is currently live. Behind it is a
+  permanent, admin-only speaker library ("🎤 Info Session Speaker" card
+  at the top of the Resources tab's Candidate Resources section):
+  `info_session_speakers` — upload each speaker's flyer graphic *once,
+  ever*, and it's saved for good in the `info-session-flyer` storage
+  bucket (public-read, admin-only write — same pattern as
+  `event-media`). A separate "This week:" dropdown just points at
+  whichever saved speaker is presenting (`info_session_flyer.speaker_id`
+  — one shared pointer for the whole team, not per-IBO, since it's one
+  physical weekly event), so a repeat speaker is picking their name
+  again, never re-uploading the same image.
 - **Virtual** shows a dropdown of the next 4 upcoming slots across a
   fixed set of recurring weekly webinars (`VIRTUAL_WEBINAR_SLOTS` in
   `lib/constants.ts` — presenter, day/hour in Eastern time, and the
