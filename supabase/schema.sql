@@ -3722,3 +3722,9 @@ update optional_resources set
   url = 'https://librarykvbina.home.blog/wp-content/uploads/2019/12/the_magic_of_thinking_big.pdf',
   estimate = null
 where label = 'Magic of thinking big';
+
+-- The Think and Grow Rich PDF link went bad - pulling the library entry
+-- until there's a working replacement (the plain title stays on the
+-- Books tab either way, via FIRST_YEAR_BOOKS - it just won't be a link
+-- until something's re-added here with a working url).
+delete from optional_resources where label = '📖 Think and Grow Rich';
