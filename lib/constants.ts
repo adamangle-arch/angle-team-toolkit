@@ -83,7 +83,11 @@ export const CANDIDATE_STEPS: { label: string; homework: string }[] = [
     label: "IS2",
     homework: "Review IS2 materials and next steps.",
   },
-  { label: "FU2", homework: "Follow up and prep for the offer call." },
+  { label: "FU2", homework: "Follow up and prep for the Questionnaire." },
+  {
+    label: "Questionnaire",
+    homework: "Complete the official Pre-Launch Questionnaire together.",
+  },
   {
     label: "Offer Call",
     homework: "Decide together and confirm next steps.",
@@ -123,7 +127,9 @@ export const CANDIDATE_STEP_RESOURCES: CandidateStepResource[][] = [
   [],
   // 6. FU2
   [],
-  // 7. Offer Call
+  // 7. Questionnaire
+  [],
+  // 8. Offer Call
   [],
 ];
 
@@ -181,6 +187,7 @@ export const CANDIDATE_STEP_SHORT_LABELS = [
   "FU1",
   "IS2",
   "FU2",
+  "Questionnaire",
   "Offer Call",
 ] as const;
 

@@ -340,7 +340,7 @@ most recently. Candidates on the same step keep their existing
 newest-first relative order (`Array.prototype.sort` is stable).
 
 A horizontally-scrolling row of pills above the active list — All, then
-each of the 8 roadmap steps by name ("1. Yes", "2. QI1", …) — narrows it
+each of the 9 roadmap steps by name ("1. Yes", "2. QI1", …) — narrows it
 down to one step, so finding everyone stuck at a specific point in the
 process doesn't mean scrolling past everyone else. It only shows up once
 there's at least one active candidate.
@@ -363,16 +363,16 @@ meant for a candidate who genuinely didn't pan out), this is a real,
 confirmed, unrecoverable delete meant for a test/fake entry that
 shouldn't exist in the history at all.
 
-**Upgrading an existing project:** two one-time data migrations (not part
-of the reusable schema.sql patches) as the roadmap steps have changed
-shape over time:
+**Upgrading an existing project:** three one-time data migrations (not
+part of the reusable schema.sql patches) as the roadmap steps have
+changed shape over time:
 ```sql
 -- 1. Made room for the new "Yes" step at index 0.
 update candidates set current_step = current_step + 1;
 
 -- 2. Removed the two "Audio & Reading" entries (they were homework
 -- reminders, not real process steps) - shifts everyone after them down
--- and merges anyone who was sitting on one forward into the Info Session
+-- and merges anyone who was sitting on one forward into the IS1/IS2
 -- that followed it.
 update candidates set current_step = case current_step
   when 3 then 3
@@ -384,9 +384,13 @@ update candidates set current_step = case current_step
   when 9 then 7
   else current_step
 end;
+
+-- 3. Added Questionnaire between FU2 and Offer Call - only Offer Call
+-- (the last step) needs to move, everyone else's index is unaffected.
+update candidates set current_step = 8 where current_step = 7;
 ```
 Run whichever of these your existing data hasn't already gone through —
-if you're setting this up fresh, skip both.
+if you're setting this up fresh, skip all three.
 
 ### Contact Builder (was "A/B Contact List")
 
