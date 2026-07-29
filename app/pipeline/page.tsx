@@ -156,7 +156,6 @@ export default function PipelinePage() {
 
   const [trendStage, setTrendStage] = useState<PipelineStageKey>("questions");
   const [trendHistory, setTrendHistory] = useState<PipelinePeriod[]>([]);
-  const [showActiveSummary, setShowActiveSummary] = useState(false);
 
   // History tab - reuses the same `candidates` already loaded for the
   // Candidate Roadmap tab (every candidate for this owner, not just
@@ -539,8 +538,7 @@ export default function PipelinePage() {
     .filter((c) => !c.launched && !c.filtered_out)
     .sort((a, b) => b.current_step - a.current_step);
   const launched = candidates.filter((c) => c.launched);
-  const activeInPipeline = active.filter((c) => c.current_step >= ACTIVE_PIPELINE_MIN_STEP);
-  const activeInPipelineCount = activeInPipeline.length;
+  const activeInPipelineCount = active.filter((c) => c.current_step >= ACTIVE_PIPELINE_MIN_STEP).length;
 
   const filteredActive =
     roadmapStepFilter === "all" ? active : active.filter((c) => c.current_step === roadmapStepFilter);
@@ -748,29 +746,8 @@ export default function PipelinePage() {
             <>
               <div className="flex items-center justify-between px-1 pt-2">
                 <p className="section-title">Candidate Roadmap</p>
-                <button
-                  className="pill pill-amber"
-                  onClick={() => setShowActiveSummary((s) => !s)}
-                >
-                  {activeInPipelineCount} active in pipeline
-                </button>
+                <span className="pill pill-amber">{activeInPipelineCount} active in pipeline</span>
               </div>
-
-              {showActiveSummary && (
-                <div className="card space-y-1.5">
-                  <p className="section-title">Who&apos;s Active</p>
-                  {activeInPipeline.length === 0 ? (
-                    <p className="text-sm text-slate-400">No one active in the pipeline right now.</p>
-                  ) : (
-                    activeInPipeline.map((c) => (
-                      <div key={c.id} className="flex items-center justify-between text-sm">
-                        <span className="text-slate-200">{c.name}</span>
-                        <span className="pill">{CANDIDATE_STEPS[c.current_step].label}</span>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
 
               <div className="card space-y-2">
                 <p className="section-title">Add Candidate</p>
@@ -978,10 +955,12 @@ function CandidateCard({
   onMoveStep: (candidate: Candidate, delta: number) => void;
   onUpdate: (id: string, patch: Partial<Candidate>) => void;
 }) {
+  const [expanded, setExpanded] = useState(false);
   const [notes, setNotes] = useState(candidate.notes);
   const [codeCopied, setCodeCopied] = useState(false);
   const step = CANDIDATE_STEPS[candidate.current_step];
   const isSettled = candidate.launched || candidate.filtered_out;
+  const statusLabel = candidate.launched ? "Launched 🎉" : candidate.filtered_out ? "Filtered Out" : step.label;
 
   async function copyAccessCode() {
     const message = `Check out these resources: ${window.location.origin}/prospect — your code is ${candidate.access_code}`;
@@ -990,81 +969,115 @@ function CandidateCard({
     setTimeout(() => setCodeCopied(false), 2000);
   }
 
+  // Collapsed by default and just one line - a full roster of active
+  // candidates used to mean scrolling past every name's full notes,
+  // Connected date, and action buttons to find anyone. Tapping the row
+  // expands it for the less-frequent stuff (notes, Connected date,
+  // Launched/Filtered Out); Back/Advance stay one tap away either way
+  // since moving someone forward is the single most common action here.
   return (
-    <div className={`card space-y-3 ${isSettled ? "opacity-70" : ""}`}>
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <p className="font-semibold text-white">{candidate.name}</p>
-          <p className="pill-amber mt-1">
-            Step {candidate.current_step + 1}/{CANDIDATE_STEPS.length}: {step.label}
-          </p>
+    <div className={`card space-y-0 ${isSettled ? "opacity-70" : ""}`}>
+      <div
+        className="flex w-full cursor-pointer items-center justify-between gap-2 text-left"
+        role="button"
+        tabIndex={0}
+        onClick={() => setExpanded((e) => !e)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setExpanded((exp) => !exp);
+          }
+        }}
+        aria-expanded={expanded}
+      >
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-semibold text-white">{candidate.name}</p>
+          <p className="truncate text-xs text-amber-light">{statusLabel}</p>
+        </div>
+        <div className="flex shrink-0 items-center gap-1.5">
+          {!isSettled && (
+            <>
+              <button
+                className="btn-icon"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onMoveStep(candidate, -1);
+                }}
+                disabled={candidate.current_step === 0}
+                aria-label={`Move ${candidate.name} back a step`}
+              >
+                ←
+              </button>
+              <button
+                className="btn-icon"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onMoveStep(candidate, 1);
+                }}
+                disabled={candidate.current_step === CANDIDATE_STEPS.length - 1}
+                aria-label={`Advance ${candidate.name} a step`}
+              >
+                →
+              </button>
+            </>
+          )}
+          <span className="pl-0.5 text-slate-500">{expanded ? "▾" : "▸"}</span>
+        </div>
+      </div>
+
+      {expanded && (
+        <div className="space-y-3 pt-3">
           {candidate.access_code && (
-            <button className="pill mt-1" onClick={copyAccessCode}>
+            <button className="pill" onClick={copyAccessCode}>
               {codeCopied ? "✓ Copied!" : `🔑 Code: ${candidate.access_code}`}
             </button>
           )}
+
+          <label className="flex items-center gap-2 text-xs text-slate-400">
+            <span className="shrink-0 font-medium text-slate-300">Connected:</span>
+            <input
+              type="date"
+              className="input"
+              value={candidate.connected_date}
+              onChange={(e) => onUpdate(candidate.id, { connected_date: e.target.value })}
+            />
+          </label>
+
+          {!isSettled ? (
+            <div className="flex items-center gap-2">
+              <button
+                className="btn-primary flex-1"
+                onClick={() => onUpdate(candidate.id, { launched: true, filtered_out: false })}
+              >
+                Mark Launched
+              </button>
+              <button
+                className="btn-danger flex-1"
+                onClick={() => onUpdate(candidate.id, { filtered_out: true, launched: false })}
+              >
+                Filtered Out
+              </button>
+            </div>
+          ) : (
+            <button
+              className="btn-secondary w-full"
+              onClick={() => onUpdate(candidate.id, { launched: false, filtered_out: false })}
+            >
+              Restore
+            </button>
+          )}
+
+          <textarea
+            className="textarea"
+            placeholder="Notes…"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            onBlur={() => {
+              if (notes !== candidate.notes) onUpdate(candidate.id, { notes });
+            }}
+          />
         </div>
-        {!isSettled ? (
-          <div className="flex shrink-0 flex-col gap-1.5">
-            <button
-              className="btn-primary"
-              onClick={() => onUpdate(candidate.id, { launched: true, filtered_out: false })}
-            >
-              Mark Launched
-            </button>
-            <button
-              className="btn-danger"
-              onClick={() => onUpdate(candidate.id, { filtered_out: true, launched: false })}
-            >
-              Filtered Out
-            </button>
-          </div>
-        ) : (
-          <button
-            className="btn-secondary shrink-0"
-            onClick={() => onUpdate(candidate.id, { launched: false, filtered_out: false })}
-          >
-            Restore
-          </button>
-        )}
-      </div>
-
-      <label className="flex items-center gap-2 text-xs text-slate-400">
-        <span className="shrink-0 font-medium text-slate-300">Connected:</span>
-        <input
-          type="date"
-          className="input"
-          value={candidate.connected_date}
-          onChange={(e) => onUpdate(candidate.id, { connected_date: e.target.value })}
-        />
-      </label>
-
-      <div className="flex items-center gap-2">
-        <button
-          className="btn-secondary flex-1"
-          onClick={() => onMoveStep(candidate, -1)}
-          disabled={candidate.current_step === 0}
-        >
-          ← Back
-        </button>
-        <button
-          className="btn-primary flex-1"
-          onClick={() => onMoveStep(candidate, 1)}
-          disabled={candidate.current_step === CANDIDATE_STEPS.length - 1}
-        >
-          Advance →
-        </button>
-      </div>
-
-      <textarea
-        className="textarea"
-        placeholder="Notes…"
-        value={notes}
-        onChange={(e) => setNotes(e.target.value)}
-        onBlur={() => {
-          if (notes !== candidate.notes) onUpdate(candidate.id, { notes });
-        }}
-      />
+      )}
     </div>
   );
 }

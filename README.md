@@ -326,11 +326,9 @@ The active Candidate Roadmap lives on the **Pipeline Tracker** tab,
 underneath the pipeline counters. A new candidate starts at step 0, **Yes**
 (they said yes, but no QI1 is booked yet) — advancing them to step 1, QI1,
 is what makes them count as "active in the pipeline." That count shows at
-the top of the Candidate Roadmap section, and the same threshold
+the top of the Candidate Roadmap section — the same threshold
 (`ACTIVE_PIPELINE_MIN_STEP` in `lib/constants.ts`) is what the Leaderboard's
-5+ Active Candidates section uses. Tap the count itself to expand a quick
-name + step summary of everyone it includes, without having to scroll
-through the full editable candidate cards below to see who's where.
+5+ Active Candidates section uses.
 
 The active roadmap list is sorted **furthest-along-first** (highest
 `current_step` at the top), not just newest-added-first — the people
@@ -339,19 +337,28 @@ the first thing you see instead of being buried under whoever was added
 most recently. Candidates on the same step keep their existing
 newest-first relative order (`Array.prototype.sort` is stable).
 
+**Each candidate is a single-line row, collapsed by default** — name and
+current step/status, nothing else — with ← and → icon buttons right on
+that row for Back/Advance, since moving someone forward is by far the
+most common action here. Tapping the row (anywhere except those two
+buttons) expands it in place for the less-frequent stuff: the access
+code, Connected date, Mark Launched/Filtered Out (or Restore), and notes.
+A roster of 20+ active candidates used to mean scrolling past everyone's
+full notes and buttons to find one name — now it's 20 one-line rows,
+expand only the one you're actually working on.
+
 A horizontally-scrolling row of pills above the active list — All, then
 each of the 9 roadmap steps by name ("1. Yes", "2. QI1", …) — narrows it
 down to one step, so finding everyone stuck at a specific point in the
 process doesn't mean scrolling past everyone else. It only shows up once
 there's at least one active candidate.
 
-Each candidate also has a **Connected** date (defaults to today when
-added, editable anytime). Marking a candidate "Filtered Out" removes them
-from the active roadmap board immediately — they're not deleted from the
-database, just hidden from the working list. Every candidate you've ever
-added (active, launched, or filtered out, and exactly which step they
-filtered out at) lives on its own **Candidate History** tab, with a
-Restore option for anything settled by mistake.
+Marking a candidate "Filtered Out" removes them from the active roadmap
+board immediately — they're not deleted from the database, just hidden
+from the working list. Every candidate you've ever added (active,
+launched, or filtered out, and exactly which step they filtered out at)
+lives on its own **Candidate History** tab, with a Restore option for
+anything settled by mistake.
 
 Candidate History is divided by month (by `connected_date`), one month at
 a time, with ← → arrows to page back up to 12 months — same bounded
