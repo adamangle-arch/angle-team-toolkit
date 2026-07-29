@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
+import LibraryResourcePicker from "@/components/LibraryResourcePicker";
 import { supabase } from "@/lib/supabaseClient";
 import { AUDIOS, FIRST_YEAR_BOOKS, ADVANCED_LIBRARY } from "@/lib/library-data";
 import { LEADERS } from "@/lib/leaders-data";
@@ -23,6 +24,7 @@ import type {
   InfoSessionSpeaker,
   OnboardingResourceOverride,
   OptionalResource,
+  OptionalResourceKind,
 } from "@/lib/types";
 
 type Section =
@@ -677,25 +679,10 @@ function CandidateResourcesSection() {
             {addingStep === step ? (
               <div className="space-y-2 rounded-lg bg-navy px-3 py-2">
                 {libraryResources.length > 0 && (
-                  <div className="space-y-1.5">
-                    <p className="text-xs font-medium text-slate-300">Pick from library:</p>
-                    <select
-                      className="select"
-                      value=""
-                      onChange={(e) => {
-                        const resource = libraryResources.find((r) => r.id === e.target.value);
-                        if (resource) addFromLibrary(step, resource);
-                      }}
-                    >
-                      <option value="">Choose a saved resource…</option>
-                      {libraryResources.map((r) => (
-                        <option key={r.id} value={r.id}>
-                          {r.label}
-                        </option>
-                      ))}
-                    </select>
-                    <p className="text-center text-xs text-slate-500">— or type your own —</p>
-                  </div>
+                  <LibraryResourcePicker
+                    resources={libraryResources}
+                    onPick={(resource) => addFromLibrary(step, resource)}
+                  />
                 )}
                 <input
                   className="input"
@@ -977,25 +964,10 @@ function OnboardingResourcesSection() {
             {addingSession === sessionNumber ? (
               <div className="space-y-2 rounded-lg bg-navy px-3 py-2">
                 {libraryResources.length > 0 && (
-                  <div className="space-y-1.5">
-                    <p className="text-xs font-medium text-slate-300">Pick from library:</p>
-                    <select
-                      className="select"
-                      value=""
-                      onChange={(e) => {
-                        const resource = libraryResources.find((r) => r.id === e.target.value);
-                        if (resource) addFromLibrary(sessionNumber, resource);
-                      }}
-                    >
-                      <option value="">Choose a saved resource…</option>
-                      {libraryResources.map((r) => (
-                        <option key={r.id} value={r.id}>
-                          {r.label}
-                        </option>
-                      ))}
-                    </select>
-                    <p className="text-center text-xs text-slate-500">— or type your own —</p>
-                  </div>
+                  <LibraryResourcePicker
+                    resources={libraryResources}
+                    onPick={(resource) => addFromLibrary(sessionNumber, resource)}
+                  />
                 )}
                 <input
                   className="input"
@@ -1213,6 +1185,7 @@ function OptionalResourcesAdmin({
   const [newDetail, setNewDetail] = useState("");
   const [newUrl, setNewUrl] = useState("");
   const [newEstimate, setNewEstimate] = useState("");
+  const [newKind, setNewKind] = useState<OptionalResourceKind>("audio");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -1237,6 +1210,7 @@ function OptionalResourcesAdmin({
         detail: newDetail.trim(),
         url: newUrl.trim() || null,
         estimate: newEstimate.trim() || null,
+        kind: newKind,
       })
       .select("*")
       .single();
@@ -1267,6 +1241,19 @@ function OptionalResourcesAdmin({
     }
   }
 
+  async function setResourceKind(id: string, kind: OptionalResourceKind) {
+    const previous = resources;
+    const updated = resources.map((r) => (r.id === id ? { ...r, kind } : r));
+    setResources(updated);
+    onChange(updated);
+    const { error } = await supabase.from("optional_resources").update({ kind }).eq("id", id);
+    if (error) {
+      setResources(previous);
+      onChange(previous);
+      setError(error.message);
+    }
+  }
+
   if (loading) return null;
 
   return (
@@ -1280,33 +1267,60 @@ function OptionalResourcesAdmin({
         </p>
       </div>
 
-      {resources.length > 0 && (
-        <div className="space-y-1.5">
-          {resources.map((r) => (
-            <div key={r.id} className="flex items-center justify-between gap-2 rounded-lg bg-navy px-3 py-2">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-white">{r.label}</p>
-                {(r.detail || r.estimate) && (
-                  <p className="truncate text-xs text-slate-500">
-                    {r.detail}
-                    {r.estimate && <span> · {r.estimate}</span>}
-                  </p>
-                )}
+      {(["audio", "reading"] as const).map((kind) => {
+        const group = resources.filter((r) => r.kind === kind);
+        if (group.length === 0) return null;
+        return (
+          <div key={kind} className="space-y-1.5">
+            <p className="text-xs font-semibold text-slate-400">
+              {kind === "audio" ? "🎧 Audios" : "📖 Reading"} ({group.length})
+            </p>
+            {group.map((r) => (
+              <div key={r.id} className="flex items-center justify-between gap-2 rounded-lg bg-navy px-3 py-2">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-white">{r.label}</p>
+                  {(r.detail || r.estimate) && (
+                    <p className="truncate text-xs text-slate-500">
+                      {r.detail}
+                      {r.estimate && <span> · {r.estimate}</span>}
+                    </p>
+                  )}
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <button
+                    className="pill"
+                    onClick={() => setResourceKind(r.id, kind === "audio" ? "reading" : "audio")}
+                  >
+                    Mark {kind === "audio" ? "📖 Reading" : "🎧 Audio"}
+                  </button>
+                  <button className="btn-icon" onClick={() => deleteResource(r.id)} aria-label={`Remove ${r.label}`}>
+                    ✕
+                  </button>
+                </div>
               </div>
-              <button
-                className="btn-icon shrink-0"
-                onClick={() => deleteResource(r.id)}
-                aria-label={`Remove ${r.label}`}
-              >
-                ✕
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        );
+      })}
 
       <div className="space-y-1.5 rounded-lg bg-navy px-3 py-2">
         <p className="text-xs font-medium text-slate-300">Add to library</p>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            className={newKind === "audio" ? "toggle-pill-active" : "toggle-pill-inactive"}
+            onClick={() => setNewKind("audio")}
+          >
+            🎧 Audio
+          </button>
+          <button
+            type="button"
+            className={newKind === "reading" ? "toggle-pill-active" : "toggle-pill-inactive"}
+            onClick={() => setNewKind("reading")}
+          >
+            📖 Reading
+          </button>
+        </div>
         <input
           className="input"
           placeholder="Label (e.g. 🎧 Emerald Success Story - McGrath)"

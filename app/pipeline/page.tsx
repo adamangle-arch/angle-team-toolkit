@@ -5,6 +5,7 @@ import PageHeader from "@/components/PageHeader";
 import TrendChart from "@/components/TrendChart";
 import { useAuth } from "@/components/AuthGate";
 import FeatureGate from "@/components/FeatureGate";
+import LibraryResourcePicker from "@/components/LibraryResourcePicker";
 import { supabase } from "@/lib/supabaseClient";
 import {
   PIPELINE_STAGES,
@@ -1417,25 +1418,7 @@ function CandidateResourceSender({ candidateId }: { candidateId: string }) {
       {adding ? (
         <div className="space-y-2 rounded-lg bg-navy px-3 py-2">
           {libraryResources.length > 0 && (
-            <div className="space-y-1.5">
-              <p className="text-xs font-medium text-slate-300">Pick from library:</p>
-              <select
-                className="select"
-                value=""
-                onChange={(e) => {
-                  const resource = libraryResources.find((r) => r.id === e.target.value);
-                  if (resource) sendFromLibrary(resource);
-                }}
-              >
-                <option value="">Choose a saved resource…</option>
-                {libraryResources.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.label}
-                  </option>
-                ))}
-              </select>
-              <p className="text-center text-xs text-slate-500">— or type your own —</p>
-            </div>
+            <LibraryResourcePicker resources={libraryResources} onPick={sendFromLibrary} />
           )}
           <input
             className="input"
@@ -1608,25 +1591,7 @@ function MemberResourceSender({ recipientId, recipientName }: { recipientId: str
       {adding ? (
         <div className="space-y-2 rounded-lg bg-navy px-3 py-2">
           {libraryResources.length > 0 && (
-            <div className="space-y-1.5">
-              <p className="text-xs font-medium text-slate-300">Pick from library:</p>
-              <select
-                className="select"
-                value=""
-                onChange={(e) => {
-                  const resource = libraryResources.find((r) => r.id === e.target.value);
-                  if (resource) sendFromLibrary(resource);
-                }}
-              >
-                <option value="">Choose a saved resource…</option>
-                {libraryResources.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.label}
-                  </option>
-                ))}
-              </select>
-              <p className="text-center text-xs text-slate-500">— or type your own —</p>
-            </div>
+            <LibraryResourcePicker resources={libraryResources} onPick={sendFromLibrary} />
           )}
           <input
             className="input"

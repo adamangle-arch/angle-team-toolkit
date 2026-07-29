@@ -280,12 +280,15 @@ export type CandidateSpecificResource = {
   created_at: string;
 };
 
+export type OptionalResourceKind = "audio" | "reading";
+
 export type OptionalResource = {
   id: string;
   label: string;
   detail: string;
   url: string | null;
   estimate: string | null;
+  kind: OptionalResourceKind;
   created_at: string;
 };
 

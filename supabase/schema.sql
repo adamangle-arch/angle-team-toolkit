@@ -3326,6 +3326,15 @@ create table if not exists optional_resources (
   created_at timestamptz not null default now()
 );
 
+-- Splits the library into two easy-to-browse groups (Audios vs Reading)
+-- instead of one long alphabetical list, now that it's grown past a
+-- handful of hand-typed entries - existing rows default to 'reading';
+-- reclassify any of those from the Optional Resources Library card in
+-- the app.
+alter table optional_resources add column if not exists kind text not null default 'reading';
+alter table optional_resources drop constraint if exists optional_resources_kind_check;
+alter table optional_resources add constraint optional_resources_kind_check check (kind in ('audio', 'reading'));
+
 alter table optional_resources enable row level security;
 
 drop policy if exists "optional_resources_read_all" on optional_resources;
@@ -3440,3 +3449,28 @@ where not exists (select 1 from optional_resources where label = '🎥 The Phase
 insert into optional_resources (label, detail, url, estimate)
 select '🎧 Homework: First Round Draft Pick', 'Audio by Mark and Meredith Nathan — listen to this for your Session 5 homework.', 'https://www.dropbox.com/scl/fi/217gvovuxyyui3zpcl8gl/First-Round-Draft-Pick-S11-0054-AUD.mp3?rlkey=nr7rv7u9iunt9itl4obilhpy6&st=8h9cka6w&dl=0', null
 where not exists (select 1 from optional_resources where label = '🎧 Homework: First Round Draft Pick');
+
+-- One-time classification pass for the New Emeralds + 19-default seed
+-- rows above: the `kind` column didn't exist yet when they were first
+-- inserted, so ALTER TABLE ... ADD COLUMN backfilled all of them to the
+-- 'reading' default. Everything actually audio/video gets flipped to
+-- 'audio' here just this once; anything left alone (Summary of Business
+-- of the 21st Century, What Is Network Marketing?, Why Gen Z, The
+-- Go-Giver, The 25 Laws, List Builder Worksheet) is genuinely text/
+-- reading, so the default was already correct for those.
+update optional_resources set kind = 'audio' where label in (
+  'New Emeralds - Kopecky',
+  '🎧 Digital Flea Market of Dreams',
+  '🎧 How Do You Want to Live?',
+  '🎧 Financial Stability of the 21st Century',
+  '🎧 List Ditto Associate',
+  '🎧 Dissatisfied',
+  '🎧 At the Highest Level',
+  '🎧 Excited to Confident',
+  '📋 Homework: Budget Worksheet & Audio',
+  '🎥 Budgeting Talk',
+  '🎧 Crush Your List',
+  '🎥 Customer Survey Training',
+  '🎥 The Phases',
+  '🎧 Homework: First Round Draft Pick'
+) and kind = 'reading';
