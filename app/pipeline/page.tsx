@@ -23,7 +23,7 @@ import {
   formatShortMonthLabel,
 } from "@/lib/dates";
 import { fireNotifyEvent } from "@/lib/notifyClient";
-import type { PipelinePeriod, Candidate, Profile } from "@/lib/types";
+import type { PipelinePeriod, Candidate, CandidateSpecificResource, Profile } from "@/lib/types";
 
 type PeriodType = "daily" | "weekly" | "monthly";
 
@@ -737,11 +737,7 @@ export default function PipelinePage() {
 
         {tab === "roadmap" &&
           (actingFor ? (
-            <div className="empty-state">
-              Switch back to &quot;Me&quot; on the Tally tab to see the Candidate Roadmap — filling
-              in only covers {actingFor.name}&apos;s pipeline numbers, not their individual
-              candidates.
-            </div>
+            <DownlineCandidateResources actingFor={actingFor} />
           ) : (
             <>
               <div className="flex items-center justify-between px-1 pt-2">
@@ -1076,6 +1072,233 @@ function CandidateCard({
               if (notes !== candidate.notes) onUpdate(candidate.id, { notes });
             }}
           />
+
+          <CandidateResourceSender candidateId={candidate.id} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// A one-off resource for this one candidate specifically, separate from
+// the team-wide per-step defaults (see the Resources tab's Candidate
+// Resources section) - always visible to them right away in /prospect,
+// not gated behind reaching a step, since sending it is a deliberate
+// right-now decision. RLS on candidate_resource_overrides permits this
+// for the candidate's own household owner, any upline of that owner, or
+// admin - reused as-is here and in DownlineCandidateResources below, so
+// this same component works whether it's your own candidate or one
+// you're viewing while filling in for a downline.
+function CandidateResourceSender({ candidateId }: { candidateId: string }) {
+  const [resources, setResources] = useState<CandidateSpecificResource[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [adding, setAdding] = useState(false);
+  const [label, setLabel] = useState("");
+  const [detail, setDetail] = useState("");
+  const [url, setUrl] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      const { data } = await supabase
+        .from("candidate_specific_resources")
+        .select("*")
+        .eq("candidate_id", candidateId)
+        .order("created_at", { ascending: true });
+      if (!cancelled) {
+        setResources((data as CandidateSpecificResource[]) ?? []);
+        setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [candidateId]);
+
+  async function send() {
+    const trimmedLabel = label.trim();
+    if (!trimmedLabel) return;
+    setSaving(true);
+    setError(null);
+    const { data, error } = await supabase
+      .from("candidate_specific_resources")
+      .insert({
+        candidate_id: candidateId,
+        label: trimmedLabel,
+        detail: detail.trim(),
+        url: url.trim() || null,
+      })
+      .select("*")
+      .single();
+    setSaving(false);
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    setResources((prev) => [...prev, data as CandidateSpecificResource]);
+    setLabel("");
+    setDetail("");
+    setUrl("");
+    setAdding(false);
+  }
+
+  async function remove(id: string) {
+    const previous = resources;
+    setResources((prev) => prev.filter((r) => r.id !== id));
+    const { error } = await supabase.from("candidate_specific_resources").delete().eq("id", id);
+    if (error) {
+      setResources(previous);
+      setError(error.message);
+    }
+  }
+
+  return (
+    <div className="space-y-2 border-t border-white/10 pt-3">
+      <p className="section-title">📎 Just For Them</p>
+      {error && <p className="text-xs text-red-400">{error}</p>}
+      {!loading &&
+        resources.map((r) => (
+          <div key={r.id} className="flex items-center justify-between gap-2 rounded-lg bg-navy px-3 py-2">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium text-white">{r.label}</p>
+              {r.detail && <p className="truncate text-xs text-slate-500">{r.detail}</p>}
+            </div>
+            <button
+              className="btn-icon shrink-0"
+              onClick={() => remove(r.id)}
+              aria-label={`Remove ${r.label}`}
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+      {adding ? (
+        <div className="space-y-1.5 rounded-lg bg-navy px-3 py-2">
+          <input
+            className="input"
+            placeholder="Label (e.g. 🎧 Audio Name)"
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+          />
+          <input
+            className="input"
+            placeholder="Detail (optional)"
+            value={detail}
+            onChange={(e) => setDetail(e.target.value)}
+          />
+          <input
+            className="input"
+            placeholder="Link (optional)"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+          />
+          <div className="flex gap-2">
+            <button className="btn-secondary flex-1" onClick={() => setAdding(false)}>
+              Cancel
+            </button>
+            <button className="btn-primary flex-1" onClick={send} disabled={saving || !label.trim()}>
+              {saving ? "Sending…" : "Send"}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button className="btn-secondary w-full" onClick={() => setAdding(true)}>
+          + Send a Resource
+        </button>
+      )}
+    </div>
+  );
+}
+
+// Filling in for a downline only ever covers their pipeline numbers
+// (Tally tab) - their roadmap steps, notes, and launch status stay
+// theirs to manage, not something an upline should be nudging around.
+// Sending a resource is different: low-stakes, helpful, and exactly the
+// kind of thing an upline should be able to do for a downline's prospect
+// without waiting on them - so this view is deliberately minimal, read
+// -only except for CandidateResourceSender.
+function DownlineCandidateResources({ actingFor }: { actingFor: DownlineOption }) {
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      const { data } = await supabase
+        .from("candidates")
+        .select("*")
+        .eq("user_id", actingFor.ownerId)
+        .eq("launched", false)
+        .eq("filtered_out", false)
+        .order("current_step", { ascending: false });
+      if (!cancelled) {
+        setCandidates((data as Candidate[]) ?? []);
+        setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [actingFor.ownerId]);
+
+  return (
+    <>
+      <div className="card space-y-1">
+        <p className="section-title">Send a Resource to {actingFor.name}&apos;s Prospects</p>
+        <p className="text-xs text-slate-400">
+          As their upline, you can send a specific podcast, book, or article straight to one of
+          their prospects — it shows up in that person&apos;s resources right away.
+          {actingFor.name}&apos;s roadmap steps and notes stay theirs to manage — switch back to
+          &quot;Me&quot; on the Tally tab for that.
+        </p>
+      </div>
+
+      {loading ? (
+        <div className="empty-state">Loading…</div>
+      ) : candidates.length === 0 ? (
+        <div className="empty-state">No active candidates for {actingFor.name} right now.</div>
+      ) : (
+        candidates.map((c) => <DownlineCandidateRow key={c.id} candidate={c} />)
+      )}
+    </>
+  );
+}
+
+function DownlineCandidateRow({ candidate }: { candidate: Candidate }) {
+  const [expanded, setExpanded] = useState(false);
+  const step = CANDIDATE_STEPS[candidate.current_step];
+
+  return (
+    <div className="card space-y-0">
+      <div
+        className="flex w-full cursor-pointer items-center justify-between gap-2 text-left"
+        role="button"
+        tabIndex={0}
+        onClick={() => setExpanded((e) => !e)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setExpanded((exp) => !exp);
+          }
+        }}
+        aria-expanded={expanded}
+      >
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-semibold text-white">{candidate.name}</p>
+          <p className="truncate text-xs text-amber-light">{step.label}</p>
+        </div>
+        <span className="text-slate-500">{expanded ? "▾" : "▸"}</span>
+      </div>
+
+      {expanded && (
+        <div className="pt-3">
+          <CandidateResourceSender candidateId={candidate.id} />
         </div>
       )}
     </div>

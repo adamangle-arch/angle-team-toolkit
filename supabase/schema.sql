@@ -313,6 +313,94 @@ $$;
 
 grant execute on function public.get_candidate_resource_overrides(text) to anon, authenticated;
 
+-- A one-off resource sent to one specific candidate, as opposed to
+-- candidate_resource_overrides above (which applies to every candidate an
+-- IBO has at a given step). Always shows in that candidate's /prospect
+-- view regardless of their current_step, since sending it is a
+-- deliberate, right-now action, not something to gate behind reaching a
+-- step. Keyed off candidate_id rather than a household owner's user_id -
+-- RLS below checks permission via a join back to the candidate's own
+-- row, which is what lets an upline (any level, not just the person who
+-- actually invited the candidate) send a resource to a downline's
+-- prospect, the same "upline can act on a downline's behalf" principle
+-- pipeline_periods already uses for filling in numbers.
+create table if not exists candidate_specific_resources (
+  id uuid primary key default gen_random_uuid(),
+  candidate_id uuid not null references candidates(id) on delete cascade,
+  label text not null,
+  detail text not null default '',
+  url text,
+  sent_by uuid not null default auth.uid() references auth.users(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+alter table candidate_specific_resources enable row level security;
+
+drop policy if exists "select_own_or_upline_or_admin" on candidate_specific_resources;
+create policy "select_own_or_upline_or_admin" on candidate_specific_resources for select using (
+  exists (
+    select 1 from candidates c
+    where c.id = candidate_specific_resources.candidate_id
+      and (
+        c.user_id = auth.uid()
+        or c.user_id = (select household_id from profiles where id = auth.uid())
+        or public.is_upline_of(auth.uid(), c.user_id)
+        or public.is_app_admin()
+      )
+  )
+);
+
+drop policy if exists "insert_own_or_upline_or_admin" on candidate_specific_resources;
+create policy "insert_own_or_upline_or_admin" on candidate_specific_resources for insert with check (
+  exists (
+    select 1 from candidates c
+    where c.id = candidate_specific_resources.candidate_id
+      and (
+        c.user_id = auth.uid()
+        or c.user_id = (select household_id from profiles where id = auth.uid())
+        or public.is_upline_of(auth.uid(), c.user_id)
+        or public.is_app_admin()
+      )
+  )
+);
+
+drop policy if exists "delete_own_or_upline_or_admin" on candidate_specific_resources;
+create policy "delete_own_or_upline_or_admin" on candidate_specific_resources for delete using (
+  exists (
+    select 1 from candidates c
+    where c.id = candidate_specific_resources.candidate_id
+      and (
+        c.user_id = auth.uid()
+        or c.user_id = (select household_id from profiles where id = auth.uid())
+        or public.is_upline_of(auth.uid(), c.user_id)
+        or public.is_app_admin()
+      )
+  )
+);
+
+-- Powers /prospect's "Just For You" section - callable by anon for the
+-- same reason get_candidate_by_access_code is.
+create or replace function public.get_candidate_specific_resources(p_code text)
+returns table (
+  id uuid,
+  label text,
+  detail text,
+  url text
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select r.id, r.label, r.detail, r.url
+  from candidate_specific_resources r
+  join candidates c on c.id = r.candidate_id
+  where upper(c.access_code) = upper(p_code)
+  order by r.created_at;
+$$;
+
+grant execute on function public.get_candidate_specific_resources(text) to anon, authenticated;
+
 -- ============================================================
 -- 3. A/B CONTACT LIST
 -- ============================================================

@@ -29,6 +29,13 @@ type ResourceOverride = {
   url: string | null;
 };
 
+type SpecificResource = {
+  id: string;
+  label: string;
+  detail: string;
+  url: string | null;
+};
+
 // Merges this candidate's owner's own customizations (see the "Candidate
 // Resources" section of the Resources tab) into the team-wide defaults -
 // a "remove" hides a default with that exact label for this step, an
@@ -64,6 +71,7 @@ export default function ProspectPage() {
   const [info, setInfo] = useState<CandidateInfo | null>(null);
   const [events, setEvents] = useState<UpcomingEvent[]>([]);
   const [overrides, setOverrides] = useState<ResourceOverride[]>([]);
+  const [specificResources, setSpecificResources] = useState<SpecificResource[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [checkedStorage, setCheckedStorage] = useState(false);
@@ -73,10 +81,11 @@ export default function ProspectPage() {
     if (!trimmed) return;
     setLoading(true);
     setFormError(null);
-    const [{ data, error }, { data: eventRows }, { data: overrideRows }] = await Promise.all([
+    const [{ data, error }, { data: eventRows }, { data: overrideRows }, { data: specificRows }] = await Promise.all([
       supabase.rpc("get_candidate_by_access_code", { p_code: trimmed }).maybeSingle(),
       supabase.rpc("get_candidate_upcoming_events", { p_code: trimmed }),
       supabase.rpc("get_candidate_resource_overrides", { p_code: trimmed }),
+      supabase.rpc("get_candidate_specific_resources", { p_code: trimmed }),
     ]);
     setLoading(false);
     setCheckedStorage(true);
@@ -88,6 +97,7 @@ export default function ProspectPage() {
     setInfo(data as CandidateInfo);
     setEvents((eventRows as UpcomingEvent[]) ?? []);
     setOverrides((overrideRows as ResourceOverride[]) ?? []);
+    setSpecificResources((specificRows as SpecificResource[]) ?? []);
     if (persist) localStorage.setItem(STORAGE_KEY, trimmed);
   }
 
@@ -188,6 +198,29 @@ export default function ProspectPage() {
                 <p className="text-sm font-medium text-white">{e.title}</p>
                 <p className="text-xs text-amber-light">{formatEventAt(e.event_at)}</p>
                 {e.notes && <p className="text-xs text-slate-400">{e.notes}</p>}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {specificResources.length > 0 && (
+          <div className="space-y-1.5">
+            <p className="section-title">🎁 Just For You</p>
+            {specificResources.map((r) => (
+              <div key={r.id} className="card space-y-1">
+                {r.url ? (
+                  <a
+                    href={r.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm font-medium text-amber-light underline decoration-dotted underline-offset-2"
+                  >
+                    {r.label}
+                  </a>
+                ) : (
+                  <p className="text-sm font-medium text-white">{r.label}</p>
+                )}
+                <p className="text-xs text-slate-400">{r.detail}</p>
               </div>
             ))}
           </div>

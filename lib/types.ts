@@ -246,6 +246,16 @@ export type CandidateResourceOverride = {
   created_at: string;
 };
 
+export type CandidateSpecificResource = {
+  id: string;
+  candidate_id: string;
+  label: string;
+  detail: string;
+  url: string | null;
+  sent_by: string;
+  created_at: string;
+};
+
 export type Contact = {
   id: string;
   user_id: string;

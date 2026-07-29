@@ -1465,6 +1465,37 @@ up by the candidate's access code) — `effectiveResourcesForStep()` in
 `app/prospect/page.tsx` does the actual defaults-minus-removed-plus-added
 merge before rendering.
 
+**Sending a one-off resource to a specific candidate.** The team-wide
+defaults and per-IBO overrides above are both about *steps* — every
+candidate at that step gets that resource. Sometimes you want to send one
+particular podcast or book to one particular person without it applying
+to anyone else and without moving them through a step. Expanding any
+candidate's card on the **Candidate Roadmap** now shows a "Send a
+Resource" mini-form (label + detail + optional URL) plus a list of
+whatever's already been sent to them, each with its own Remove — backed
+by `candidate_specific_resources`, keyed directly to that one
+`candidate_id` (no step, no `user_id` scoping). `/prospect` shows these
+in an unconditional "🎁 Just For You" card list — via
+`get_candidate_specific_resources()` (anon-callable, same access-code
+lookup pattern) — regardless of what step the candidate is on.
+
+**Anyone in your upline can send one too — even without being the
+inviter.** Whoever actually added the candidate is recorded as
+`creator_id`, but a resource send shouldn't be limited to that one
+person — any upline at any level should be able to drop a resource on a
+downline's candidate without needing to be that candidate's direct
+inviter. The **"Filling In For"** picker (also used for entering someone
+else's pipeline numbers) now doubles as this: pick a downline, and the
+Roadmap tab shows a read-only list of that person's active candidates
+(name + current step, no roadmap-editing controls — notes/step/launch
+stay off-limits) with the same "Send a Resource" mini-form for each. This
+is deliberately narrower than the write access "Filling In For" already
+has for pipeline numbers — sending a resource is the only thing an upline
+can do here on someone else's candidate. `candidate_specific_resources`'
+RLS allows insert/select/delete for the candidate's own household, any
+upline of that household (`is_upline_of()`, the same recursive
+upline-chain check used everywhere else in the app), or an app admin.
+
 **Getting Launched hands them off to a real signup — no auto-linking.**
 Once you mark a candidate Launched, their `/prospect` view swaps to a
 "🎉 You're in! Create your account" card linking to the normal `/dashboard`
