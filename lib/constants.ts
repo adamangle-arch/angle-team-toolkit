@@ -198,6 +198,40 @@ export const CANDIDATE_STEP_RESOURCES: CandidateStepResource[][] = [
   [],
 ];
 
+// Info Session (IS1 and IS2 steps): a candidate either attends in person
+// (this week's flyer - see info_session_flyer in supabase/schema.sql,
+// admin-managed since it's one shared weekly event for the whole team)
+// or watches one of these fixed, recurring weekly virtual webinars. Each
+// slot repeats every week at the same Eastern-time day/hour - see
+// nextWebinarOccurrence() in lib/dates.ts for how "the next 4 available"
+// gets computed from these at render time. IS1 and IS2 are two separate
+// real sessions a candidate attends at two different points in the
+// process, so a candidate tracks its own independent mode/slot/watched
+// state for each (is1_* / is2_* columns on candidates).
+export type WebinarSlot = {
+  key: string;
+  presenter: string;
+  dayOfWeek: number; // 0 = Sunday ... 6 = Saturday
+  hour: number; // 24-hour, America/New_York
+  minute: number;
+  url: string;
+};
+
+export const VIRTUAL_WEBINAR_SLOTS: WebinarSlot[] = [
+  { key: "angle-mon-8pm", presenter: "Angle", dayOfWeek: 1, hour: 20, minute: 0, url: "https://my.demio.com/ref/nvtqS4vThpCENoRa" },
+  { key: "angle-mon-10pm", presenter: "Angle", dayOfWeek: 1, hour: 22, minute: 0, url: "https://my.demio.com/ref/Iv1Rqa7pWz8RO7sA" },
+  { key: "tucker-tue-8pm", presenter: "Tucker", dayOfWeek: 2, hour: 20, minute: 0, url: "https://my.demio.com/ref/jpulZageGwVUkWCA" },
+  { key: "mcgrath-wed-8pm", presenter: "McGrath", dayOfWeek: 3, hour: 20, minute: 0, url: "https://my.demio.com/ref/Iucw3ro87EXMMKpc" },
+  { key: "mcgrath-wed-10pm", presenter: "McGrath", dayOfWeek: 3, hour: 22, minute: 0, url: "https://my.demio.com/ref/qpzzsa37RO2odlQS" },
+  { key: "angle-thu-7pm", presenter: "Angle", dayOfWeek: 4, hour: 19, minute: 0, url: "https://my.demio.com/ref/P7qAG7Bh6v2lBvgo" },
+  { key: "angle-thu-9pm", presenter: "Angle", dayOfWeek: 4, hour: 21, minute: 0, url: "https://my.demio.com/ref/elvICLmsBoLVZJrl" },
+  { key: "tucker-fri-7pm", presenter: "Tucker", dayOfWeek: 5, hour: 19, minute: 0, url: "https://my.demio.com/ref/Hqca6G6gHCcDKVQ0" },
+  { key: "white-sat-1pm", presenter: "White", dayOfWeek: 6, hour: 13, minute: 0, url: "https://my.demio.com/ref/mnLPvecjzMEBHvNw" },
+  { key: "angle-sat-3pm", presenter: "Angle", dayOfWeek: 6, hour: 15, minute: 0, url: "https://my.demio.com/ref/cISIlBoFrv6iuhR3" },
+  { key: "mcgrath-sun-5pm", presenter: "McGrath", dayOfWeek: 0, hour: 17, minute: 0, url: "https://my.demio.com/ref/tv6ioRqN1ACh0Nf5" },
+  { key: "mcgrath-sun-8pm", presenter: "McGrath", dayOfWeek: 0, hour: 20, minute: 0, url: "https://my.demio.com/ref/JeFs77UGWoyNHD6E" },
+];
+
 // Goals: one target number per metric per period - a goal for Today, a
 // separate one for This Week, and a separate one for This Month, each
 // staying the same until manually changed (no live actual-vs-target

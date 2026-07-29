@@ -231,8 +231,23 @@ export type Candidate = {
   launched: boolean;
   filtered_out: boolean;
   access_code: string | null;
+  is1_session_mode: "in_person" | "virtual" | null;
+  is1_webinar_slot: string | null;
+  is1_webinar_selected_at: string | null;
+  is1_watched: boolean;
+  is1_watched_at: string | null;
+  is2_session_mode: "in_person" | "virtual" | null;
+  is2_webinar_slot: string | null;
+  is2_webinar_selected_at: string | null;
+  is2_watched: boolean;
+  is2_watched_at: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type InfoSessionFlyer = {
+  image_url: string | null;
+  speaker_name: string | null;
 };
 
 export type CandidateResourceOverride = {

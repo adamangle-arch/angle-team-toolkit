@@ -1504,6 +1504,44 @@ they pick their own team and type in your account number themselves, the
 same as anyone else joining the team; there's no session/account carried
 over from the code-based view, since there was never an account to carry.
 
+**Info Session (IS1/IS2): in person or virtual, self-scheduled.** At
+either info session step, `/prospect` shows a "🎤 Info Session" card
+asking the candidate whether they'll attend in person or watch virtually
+— they pick it themselves, no jargon, and can switch back and forth
+freely until they've actually locked in a virtual time. IS1 and IS2 are
+two separate real-world sessions a candidate attends at two different
+points in the process, so each tracks its own independent mode/pick/
+watched state (`is1_*` / `is2_*` columns on `candidates`) rather than
+sharing one.
+
+- **In person** shows whichever flyer graphic is currently live —
+  `info_session_flyer` is one shared row for the whole team (not
+  per-IBO, since it's one physical weekly event with a rotating
+  speaker), updated from a new admin-only "🎤 This Week's Info Session
+  Flyer" card at the top of the Resources tab's Candidate Resources
+  section. Upload the same designed graphic you already make each week;
+  it's just an image in the `info-session-flyer` storage bucket
+  (public-read, admin-only write — same pattern as `event-media`), no
+  in-app template.
+- **Virtual** shows the next 4 upcoming slots across a fixed set of
+  recurring weekly webinars (`VIRTUAL_WEBINAR_SLOTS` in
+  `lib/constants.ts` — presenter, day/hour in Eastern time, and the
+  registration link), computed live via `nextWebinarOccurrence()` in
+  `lib/dates.ts` (a small Eastern-time-aware "what's the next
+  occurrence of this weekly slot" helper, since candidates may be in any
+  timezone but the webinars run on a fixed Eastern schedule). Once they
+  tap one, `select_candidate_virtual_webinar()` locks it in permanently
+  — a second attempt is a no-op, same as an actual webinar-platform
+  registration would be — then shows a join link and an "I've watched it"
+  button. Marking it watched removes the join link/button entirely and
+  replaces the whole card with a plain "✅ Info Session complete" line,
+  so there's no way to reopen or rewatch it.
+- **Visible to you too.** Expanding a candidate's card on the Candidate
+  Roadmap once they've reached IS1 (and again once they've reached IS2)
+  shows a read-only line with their chosen mode, webinar pick, and
+  watched status — self-reported by the candidate through `/prospect`,
+  not editable from your side.
+
 ### Milestone Alerts
 
 Separate from the milestone badges on a public profile, the Leaderboard

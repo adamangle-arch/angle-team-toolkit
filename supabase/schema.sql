@@ -2928,3 +2928,191 @@ with check (bucket_id = 'event-media' and public.is_app_admin());
 drop policy if exists "event_media_bucket_delete_admin" on storage.objects;
 create policy "event_media_bucket_delete_admin" on storage.objects for delete
 using (bucket_id = 'event-media' and public.is_app_admin());
+
+-- ============================================================
+-- Info Session (IS1/IS2): in person vs. virtual, and if virtual,
+-- picking one of a fixed set of recurring weekly webinar slots (see
+-- VIRTUAL_WEBINAR_SLOTS in lib/constants.ts) and marking it watched.
+-- IS1 and IS2 are two separate real-world sessions a candidate attends
+-- at two different points in the process, so each gets its own
+-- independent set of columns rather than sharing one.
+-- ============================================================
+alter table candidates add column if not exists is1_session_mode text check (is1_session_mode in ('in_person', 'virtual'));
+alter table candidates add column if not exists is1_webinar_slot text;
+alter table candidates add column if not exists is1_webinar_selected_at timestamptz;
+alter table candidates add column if not exists is1_watched boolean not null default false;
+alter table candidates add column if not exists is1_watched_at timestamptz;
+
+alter table candidates add column if not exists is2_session_mode text check (is2_session_mode in ('in_person', 'virtual'));
+alter table candidates add column if not exists is2_webinar_slot text;
+alter table candidates add column if not exists is2_webinar_selected_at timestamptz;
+alter table candidates add column if not exists is2_watched boolean not null default false;
+alter table candidates add column if not exists is2_watched_at timestamptz;
+
+-- get_candidate_by_access_code now also returns IS1/IS2 state so
+-- /prospect can render the right card - dropped first since the return
+-- table shape is changing.
+drop function if exists public.get_candidate_by_access_code(text);
+create or replace function public.get_candidate_by_access_code(p_code text)
+returns table (
+  candidate_id uuid,
+  candidate_name text,
+  current_step int,
+  launched boolean,
+  inviter_first_name text,
+  inviter_last_name text,
+  is1_session_mode text,
+  is1_webinar_slot text,
+  is1_watched boolean,
+  is2_session_mode text,
+  is2_webinar_slot text,
+  is2_watched boolean
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select c.id, c.name, c.current_step, c.launched, p.first_name, p.last_name,
+    c.is1_session_mode, c.is1_webinar_slot, c.is1_watched,
+    c.is2_session_mode, c.is2_webinar_slot, c.is2_watched
+  from candidates c
+  join profiles p on p.id = c.creator_id
+  where upper(c.access_code) = upper(p_code);
+$$;
+
+grant execute on function public.get_candidate_by_access_code(text) to anon, authenticated;
+
+-- Candidate self-service writes below are all anon-callable and scoped
+-- purely by access_code - there's no session/account at this point, so
+-- p_code is the only thing standing in for "who is this."
+create or replace function public.set_candidate_info_session_mode(p_code text, p_step text, p_mode text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if p_mode not in ('in_person', 'virtual') then
+    raise exception 'invalid mode';
+  end if;
+  if p_step = 'is1' then
+    update candidates set is1_session_mode = p_mode where upper(access_code) = upper(p_code);
+  elsif p_step = 'is2' then
+    update candidates set is2_session_mode = p_mode where upper(access_code) = upper(p_code);
+  else
+    raise exception 'invalid step';
+  end if;
+end;
+$$;
+
+grant execute on function public.set_candidate_info_session_mode(text, text, text) to anon, authenticated;
+
+-- Only succeeds (returns true) the first time - once a candidate has
+-- registered for a specific webinar, that pick is permanent, same as an
+-- actual webinar-platform registration would be.
+create or replace function public.select_candidate_virtual_webinar(p_code text, p_step text, p_slot_key text)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_rows int;
+begin
+  if p_step = 'is1' then
+    update candidates set is1_webinar_slot = p_slot_key, is1_webinar_selected_at = now()
+    where upper(access_code) = upper(p_code) and is1_webinar_slot is null;
+  elsif p_step = 'is2' then
+    update candidates set is2_webinar_slot = p_slot_key, is2_webinar_selected_at = now()
+    where upper(access_code) = upper(p_code) and is2_webinar_slot is null;
+  else
+    raise exception 'invalid step';
+  end if;
+  get diagnostics v_rows = row_count;
+  return v_rows > 0;
+end;
+$$;
+
+grant execute on function public.select_candidate_virtual_webinar(text, text, text) to anon, authenticated;
+
+create or replace function public.mark_candidate_virtual_watched(p_code text, p_step text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if p_step = 'is1' then
+    update candidates set is1_watched = true, is1_watched_at = coalesce(is1_watched_at, now())
+    where upper(access_code) = upper(p_code);
+  elsif p_step = 'is2' then
+    update candidates set is2_watched = true, is2_watched_at = coalesce(is2_watched_at, now())
+    where upper(access_code) = upper(p_code);
+  else
+    raise exception 'invalid step';
+  end if;
+end;
+$$;
+
+grant execute on function public.mark_candidate_virtual_watched(text, text) to anon, authenticated;
+
+-- Single admin-managed "this week's Info Session flyer" for whoever's
+-- speaking at the in-person session - one shared row for the whole team
+-- (not per-IBO), since it's one physical weekly event. The image itself
+-- is uploaded as a ready-made graphic (see the info-session-flyer
+-- storage bucket below), not built from structured fields.
+create table if not exists info_session_flyer (
+  id boolean primary key default true,
+  image_url text,
+  speaker_name text,
+  updated_by uuid references auth.users(id) on delete set null,
+  updated_at timestamptz not null default now(),
+  constraint info_session_flyer_singleton check (id)
+);
+
+insert into info_session_flyer (id) values (true) on conflict (id) do nothing;
+
+alter table info_session_flyer enable row level security;
+
+drop policy if exists "info_session_flyer_read_all" on info_session_flyer;
+create policy "info_session_flyer_read_all" on info_session_flyer for select using (true);
+
+drop policy if exists "info_session_flyer_update_admin" on info_session_flyer;
+create policy "info_session_flyer_update_admin" on info_session_flyer
+for update using (public.is_app_admin()) with check (public.is_app_admin());
+
+-- Powers /prospect's in-person flyer card - callable by anon.
+create or replace function public.get_current_info_session_flyer()
+returns table (image_url text, speaker_name text)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select image_url, speaker_name from info_session_flyer where id = true;
+$$;
+
+grant execute on function public.get_current_info_session_flyer() to anon, authenticated;
+
+-- Public-read storage bucket for the flyer image, admin-only upload -
+-- same pattern as event-media.
+insert into storage.buckets (id, name, public)
+values ('info-session-flyer', 'info-session-flyer', true)
+on conflict (id) do nothing;
+
+drop policy if exists "info_session_flyer_bucket_public_read" on storage.objects;
+create policy "info_session_flyer_bucket_public_read" on storage.objects for select
+using (bucket_id = 'info-session-flyer');
+
+drop policy if exists "info_session_flyer_bucket_insert_admin" on storage.objects;
+create policy "info_session_flyer_bucket_insert_admin" on storage.objects for insert
+with check (bucket_id = 'info-session-flyer' and public.is_app_admin());
+
+drop policy if exists "info_session_flyer_bucket_update_admin" on storage.objects;
+create policy "info_session_flyer_bucket_update_admin" on storage.objects for update
+using (bucket_id = 'info-session-flyer' and public.is_app_admin());
+
+drop policy if exists "info_session_flyer_bucket_delete_admin" on storage.objects;
+create policy "info_session_flyer_bucket_delete_admin" on storage.objects for delete
+using (bucket_id = 'info-session-flyer' and public.is_app_admin());

@@ -106,3 +106,82 @@ export function formatShortMonthLabel(dateStr: string): string {
   const d = new Date(`${dateStr}T00:00:00`);
   return d.toLocaleDateString(undefined, { month: "short" });
 }
+
+// Virtual Info Session webinar slots (see VIRTUAL_WEBINAR_SLOTS in
+// lib/constants.ts) repeat weekly at a fixed Eastern-time day/hour,
+// regardless of the candidate's own device timezone. Everything below
+// exists to answer "when does this slot next occur" without a timezone
+// database library - Intl.DateTimeFormat already knows the EST/EDT
+// offset for any date, so a guess-and-correct loop against it is enough.
+const EASTERN_TZ = "America/New_York";
+const WEEKDAY_INDEX: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+
+function getEasternParts(date: Date) {
+  const map: Record<string, string> = {};
+  for (const part of new Intl.DateTimeFormat("en-US", {
+    timeZone: EASTERN_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    weekday: "short",
+  }).formatToParts(date)) {
+    map[part.type] = part.value;
+  }
+  return {
+    year: Number(map.year),
+    month: Number(map.month),
+    day: Number(map.day),
+    hour: Number(map.hour) % 24,
+    minute: Number(map.minute),
+    weekday: WEEKDAY_INDEX[map.weekday],
+  };
+}
+
+// Converts an Eastern-time wall-clock moment to the correct UTC instant.
+// A naive Date.UTC guess treats those numbers as UTC, which is off by
+// whatever the EST/EDT offset happens to be that day - re-checking what
+// the guess actually renders as in Eastern time and nudging by the
+// difference converges in at most two passes.
+function easternWallClockToUtc(year: number, month: number, day: number, hour: number, minute: number): Date {
+  let guess = new Date(Date.UTC(year, month - 1, day, hour, minute));
+  for (let i = 0; i < 3; i++) {
+    const observed = getEasternParts(guess);
+    const observedUtc = Date.UTC(observed.year, observed.month - 1, observed.day, observed.hour, observed.minute);
+    const targetUtc = Date.UTC(year, month - 1, day, hour, minute);
+    const diff = targetUtc - observedUtc;
+    if (diff === 0) break;
+    guess = new Date(guess.getTime() + diff);
+  }
+  return guess;
+}
+
+// Next time (from `from`) a recurring weekly Eastern-time slot occurs -
+// today if it hasn't happened yet, otherwise next week.
+export function nextWebinarOccurrence(
+  slot: { dayOfWeek: number; hour: number; minute: number },
+  from: Date = new Date()
+): Date {
+  const now = getEasternParts(from);
+  const dayDiff = (slot.dayOfWeek - now.weekday + 7) % 7;
+  let candidate = easternWallClockToUtc(now.year, now.month, now.day + dayDiff, slot.hour, slot.minute);
+  if (candidate.getTime() <= from.getTime()) {
+    candidate = easternWallClockToUtc(now.year, now.month, now.day + dayDiff + 7, slot.hour, slot.minute);
+  }
+  return candidate;
+}
+
+export function formatWebinarTime(date: Date): string {
+  return (
+    date.toLocaleString("en-US", {
+      timeZone: EASTERN_TZ,
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    }) + " ET"
+  );
+}

@@ -10,6 +10,7 @@ import {
   PIPELINE_STAGES,
   CANDIDATE_STEPS,
   ACTIVE_PIPELINE_MIN_STEP,
+  VIRTUAL_WEBINAR_SLOTS,
   type PipelineStageKey,
 } from "@/lib/constants";
 import {
@@ -21,6 +22,8 @@ import {
   formatWeekRangeLabel,
   formatShortDateLabel,
   formatShortMonthLabel,
+  nextWebinarOccurrence,
+  formatWebinarTime,
 } from "@/lib/dates";
 import { fireNotifyEvent } from "@/lib/notifyClient";
 import type { PipelinePeriod, Candidate, CandidateSpecificResource, Profile } from "@/lib/types";
@@ -942,6 +945,25 @@ export default function PipelinePage() {
   );
 }
 
+// Read-only summary of what the candidate has self-reported from
+// /prospect for one IS1/IS2 occurrence - the IBO can see it, but only
+// the candidate themselves sets it (see set_candidate_info_session_mode,
+// select_candidate_virtual_webinar, mark_candidate_virtual_watched).
+function infoSessionStatusLine(
+  mode: "in_person" | "virtual" | null,
+  webinarSlot: string | null,
+  watched: boolean
+): string {
+  if (watched) return "✅ Watched";
+  if (mode === "in_person") return "🏢 Attending in person";
+  if (mode === "virtual") {
+    const slot = webinarSlot ? VIRTUAL_WEBINAR_SLOTS.find((s) => s.key === webinarSlot) : null;
+    if (slot) return `💻 Registered with ${slot.presenter} — next ${formatWebinarTime(nextWebinarOccurrence(slot))}`;
+    return "💻 Watching virtually — hasn't picked a time yet";
+  }
+  return "Hasn't chosen in-person or virtual yet";
+}
+
 function CandidateCard({
   candidate,
   onMoveStep,
@@ -1038,6 +1060,19 @@ function CandidateCard({
               onChange={(e) => onUpdate(candidate.id, { connected_date: e.target.value })}
             />
           </label>
+
+          {candidate.current_step >= 3 && (
+            <div className="rounded-lg bg-navy px-3 py-2 text-xs text-slate-300">
+              <span className="font-semibold text-slate-200">IS1: </span>
+              {infoSessionStatusLine(candidate.is1_session_mode, candidate.is1_webinar_slot, candidate.is1_watched)}
+            </div>
+          )}
+          {candidate.current_step >= 5 && (
+            <div className="rounded-lg bg-navy px-3 py-2 text-xs text-slate-300">
+              <span className="font-semibold text-slate-200">IS2: </span>
+              {infoSessionStatusLine(candidate.is2_session_mode, candidate.is2_webinar_slot, candidate.is2_watched)}
+            </div>
+          )}
 
           {!isSettled ? (
             <div className="flex items-center gap-2">
