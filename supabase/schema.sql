@@ -3647,3 +3647,14 @@ update optional_resources set
   estimate = '~34 min listen',
   kind = 'audio'
 where label = 'WORDS';
+
+-- Confirmed a true accidental duplicate of the already-seeded
+-- "New Emeralds - Kopecky" (same recording, this row just had the
+-- McGrath file's link instead) - safe to re-run, no-ops once removed.
+delete from optional_resources where label = 'New Emeralds- Kopecky';
+
+-- Confirmed "Snip Snip"'s link was the correct one all along; this row
+-- had the wrong (Snip Snip's) link - swapped in the real Angle recording.
+update optional_resources
+set url = 'https://www.dropbox.com/scl/fi/9r1f9j6qkbcrxbu3j68jv/Emerald-Success-Story-Angle-L11-0221-AUD.mp3?rlkey=lvinm6ork0my2cbn31adf1hoy&st=d17413c8&dl=0'
+where label = '🎧 Emerald Success Story - Angle';
