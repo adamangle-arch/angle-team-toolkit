@@ -7,7 +7,12 @@ import { useAuth } from "@/components/AuthGate";
 import FeatureGate from "@/components/FeatureGate";
 import { supabase } from "@/lib/supabaseClient";
 import { getToday, getWeekStart, getMonthStart, formatDateLabel } from "@/lib/dates";
-import { PIPELINE_STAGES, CANDIDATE_STEP_SHORT_LABELS, type PipelineStageKey } from "@/lib/constants";
+import {
+  PIPELINE_STAGES,
+  CANDIDATE_STEP_SHORT_LABELS,
+  ACTIVE_PIPELINE_MIN_STEP,
+  type PipelineStageKey,
+} from "@/lib/constants";
 import { fireNotifyEvent } from "@/lib/notifyClient";
 import type { StreakDay, PipelinePeriod, MonthlyPv, Candidate, Profile } from "@/lib/types";
 
@@ -321,6 +326,7 @@ export default function StreakPage() {
           .select("*")
           .eq("launched", false)
           .eq("filtered_out", false)
+          .gte("current_step", ACTIVE_PIPELINE_MIN_STEP)
           .in("user_id", ownerIds),
       ]);
       if (cancelled) return;
@@ -400,7 +406,11 @@ export default function StreakPage() {
 
   // Who's currently active in the Candidate Roadmap - always "right
   // now" regardless of which day the summary is for, since there's no
-  // historical snapshot of pipeline state to go back to.
+  // historical snapshot of pipeline state to go back to. Same
+  // ACTIVE_PIPELINE_MIN_STEP threshold as the Roadmap tab and
+  // get_my_active_candidates() - "active in the pipeline" means a QI1 is
+  // actually booked (current_step >= 1), not just a "Yes" with nothing
+  // scheduled yet.
   useEffect(() => {
     async function load() {
       const { data } = await supabase
@@ -409,6 +419,7 @@ export default function StreakPage() {
         .eq("user_id", ownerId)
         .eq("launched", false)
         .eq("filtered_out", false)
+        .gte("current_step", ACTIVE_PIPELINE_MIN_STEP)
         .order("current_step", { ascending: false });
       setActiveCandidates((data as Candidate[]) ?? []);
     }
