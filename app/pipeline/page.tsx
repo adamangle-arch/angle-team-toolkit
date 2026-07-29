@@ -49,6 +49,18 @@ function pct(numerator: number, denominator: number): string {
   return `${Math.round((numerator / denominator) * 100)}%`;
 }
 
+// A device with a wrong clock/timezone can compute an invalid "current
+// week/month" date (e.g. a Sunday instead of Monday) - pipeline_periods_
+// weekly_monday_check / _monthly_first_check (schema.sql) now reject that
+// outright rather than silently creating an orphaned row nobody could
+// ever see again. Translate that specific failure into something
+// actionable instead of a raw DB error.
+function friendlyPeriodError(message: string): string {
+  return message.includes("_monday_check") || message.includes("_first_check")
+    ? "Your device's date or time zone looks incorrect, which is stopping this period from loading correctly. Please check your device's date/time settings and reload."
+    : message;
+}
+
 // Tapping the count itself opens a direct numeric entry - catching up
 // after a live event (e.g. entering 15 Yeses at once) used to mean 15
 // separate taps on "+", one at a time.
@@ -269,7 +281,7 @@ export default function PipelinePage() {
 
       if (!cancelled) {
         if (insertError) {
-          setLoadError(insertError.message);
+          setLoadError(friendlyPeriodError(insertError.message));
         } else {
           setPeriod(created as PipelinePeriod);
         }
@@ -369,7 +381,7 @@ export default function PipelinePage() {
           .single();
         if (error) {
           setPeriod((prev) => (prev ? { ...prev, [key]: previousValue } : prev));
-          setUpdateError(error.message);
+          setUpdateError(friendlyPeriodError(error.message));
         } else {
           setPeriod(created as PipelinePeriod);
           setUpdateError(null);

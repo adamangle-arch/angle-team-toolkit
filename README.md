@@ -770,6 +770,31 @@ Two related double-entry fixes, both new SQL functions:
   it's a live sync going forward only, not a backfill against whatever
   the two counters already showed independently before this shipped.
 
+### Guarding against a bad device clock corrupting Weekly/Monthly
+
+A real incident: a device with a wrong date/timezone computed an invalid
+"current week" locally (a Sunday instead of the Monday every week is
+supposed to start on) and silently created a second `pipeline_periods`
+row under that bad date — every other device (with a correct clock) kept
+reading/writing the correctly-dated row and never saw the stray one, so
+the person's real numbers looked like they'd vanished even though they
+were saved fine, just under an orphaned, effectively invisible row.
+
+Two constraints on `pipeline_periods` now make that specific corruption
+impossible to write at all, from any client, regardless of that client's
+clock: `pipeline_periods_weekly_monday_check` requires a `weekly` row's
+`period_start` to actually be a Monday, and `_monthly_first_check`
+requires a `monthly` row's to be the 1st of the month. A one-time repair
+(in `schema.sql`, safe to re-run) merges any already-corrupted row's
+numbers into the period it should have been before the constraints are
+added, rather than losing them. If a client's clock is ever wrong enough
+to trip one of these going forward, `friendlyPeriodError()` in
+`app/pipeline/page.tsx` turns the resulting database error into "check
+your device's date/time settings" instead of a raw, confusing message —
+it can't silently corrupt data anymore, but a genuinely wrong device
+clock still can't log the *correct* period either, which isn't
+fixable from the server side.
+
 ### Deleting a downline's account
 
 An admin, or an upline at any level, can permanently delete a downline

@@ -70,6 +70,65 @@ create table if not exists pipeline_periods (
   unique (user_id, period_type, period_start)
 );
 
+-- A device with a wrong clock/timezone can compute an invalid "current
+-- week/month" locally (e.g. treat a Sunday as if it were the Monday
+-- week-start) and silently write a "weekly"/"monthly" row under that bad
+-- date - a real incident: it creates a second, permanently-orphaned row
+-- for what should be one continuous period, since every other device
+-- (with a correct clock) keeps reading/writing the correctly-dated row
+-- and never sees the stray one. One-time repair first (merges any
+-- existing bad row's numbers into the period it should have been,
+-- summing rather than losing them, then removes the bad row), then a
+-- permanent guard so this exact corruption can never be written again by
+-- any client, regardless of that client's clock.
+do $$
+declare
+  r record;
+  v_correct_start date;
+begin
+  for r in
+    select * from pipeline_periods
+    where (period_type = 'weekly' and extract(isodow from period_start) <> 1)
+       or (period_type = 'monthly' and extract(day from period_start) <> 1)
+  loop
+    v_correct_start := case r.period_type
+      when 'weekly' then date_trunc('week', r.period_start)::date
+      else date_trunc('month', r.period_start)::date
+    end;
+
+    insert into pipeline_periods (
+      user_id, period_type, period_start, questions, yeses, qi1, qi2, is1,
+      fu1, is2, fu2, questionnaire, launches
+    )
+    values (
+      r.user_id, r.period_type, v_correct_start, r.questions, r.yeses,
+      r.qi1, r.qi2, r.is1, r.fu1, r.is2, r.fu2, r.questionnaire, r.launches
+    )
+    on conflict (user_id, period_type, period_start) do update set
+      questions = pipeline_periods.questions + excluded.questions,
+      yeses = pipeline_periods.yeses + excluded.yeses,
+      qi1 = pipeline_periods.qi1 + excluded.qi1,
+      qi2 = pipeline_periods.qi2 + excluded.qi2,
+      is1 = pipeline_periods.is1 + excluded.is1,
+      fu1 = pipeline_periods.fu1 + excluded.fu1,
+      is2 = pipeline_periods.is2 + excluded.is2,
+      fu2 = pipeline_periods.fu2 + excluded.fu2,
+      questionnaire = pipeline_periods.questionnaire + excluded.questionnaire,
+      launches = pipeline_periods.launches + excluded.launches,
+      updated_at = now();
+
+    delete from pipeline_periods where id = r.id;
+  end loop;
+end $$;
+
+alter table pipeline_periods drop constraint if exists pipeline_periods_weekly_monday_check;
+alter table pipeline_periods add constraint pipeline_periods_weekly_monday_check
+  check (period_type <> 'weekly' or extract(isodow from period_start) = 1);
+
+alter table pipeline_periods drop constraint if exists pipeline_periods_monthly_first_check;
+alter table pipeline_periods add constraint pipeline_periods_monthly_first_check
+  check (period_type <> 'monthly' or extract(day from period_start) = 1);
+
 -- Same pattern as profiles_team_check: re-runnable so "daily" (or any
 -- future period) can be added without dropping (and wiping) this table.
 alter table pipeline_periods drop constraint if exists pipeline_periods_period_type_check;
