@@ -1290,6 +1290,34 @@ function OptionalResourcesAdmin({
   const [newKind, setNewKind] = useState<OptionalResourceKind>("audio");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [checkingLinks, setCheckingLinks] = useState(false);
+  const [brokenUrls, setBrokenUrls] = useState<Set<string> | null>(null);
+
+  async function checkLinks() {
+    const urls = Array.from(new Set(resources.map((r) => r.url).filter((u): u is string => !!u)));
+    if (urls.length === 0) return;
+    setCheckingLinks(true);
+    setError(null);
+    setBrokenUrls(null);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      const res = await fetch("/api/check-links", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+        body: JSON.stringify({ urls }),
+      });
+      if (!res.ok) throw new Error(`Check failed (${res.status})`);
+      const { results } = (await res.json()) as { results: { url: string; ok: boolean }[] };
+      setBrokenUrls(new Set(results.filter((r) => !r.ok).map((r) => r.url)));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't check links.");
+    }
+    setCheckingLinks(false);
+  }
 
   useEffect(() => {
     async function load() {
@@ -1360,13 +1388,25 @@ function OptionalResourcesAdmin({
 
   return (
     <div className="card space-y-3">
-      <div>
-        <p className="section-title">📚 Optional Resources Library</p>
-        <p className="text-xs text-slate-400">
-          Podcasts, articles, and other resources any IBO can pick from — as a one-off send to a
-          candidate, or added to their own automatic defaults — instead of typing the details from
-          scratch each time.
-        </p>
+      <div className="space-y-2">
+        <div>
+          <p className="section-title">📚 Optional Resources Library</p>
+          <p className="text-xs text-slate-400">
+            Podcasts, articles, and other resources any IBO can pick from — as a one-off send to a
+            candidate, or added to their own automatic defaults — instead of typing the details from
+            scratch each time.
+          </p>
+        </div>
+        <button className="btn-secondary w-full" onClick={checkLinks} disabled={checkingLinks}>
+          {checkingLinks ? "Checking links…" : "Check Links"}
+        </button>
+        {brokenUrls && (
+          <p className="text-xs text-slate-400">
+            {brokenUrls.size === 0
+              ? "✅ All links look good."
+              : `⚠️ ${brokenUrls.size} link${brokenUrls.size === 1 ? "" : "s"} may be broken — flagged below.`}
+          </p>
+        )}
       </div>
 
       {KIND_GROUPS.map(({ key, label }) => {
@@ -1380,7 +1420,12 @@ function OptionalResourcesAdmin({
             {group.map((r) => (
               <div key={r.id} className="flex items-center justify-between gap-2 rounded-lg bg-navy px-3 py-2">
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-white">{r.label}</p>
+                  <p className="truncate text-sm font-medium text-white">
+                    {r.label}
+                    {r.url && brokenUrls?.has(r.url) && (
+                      <span className="ml-1.5 text-xs font-semibold text-red-400">⚠️ broken link?</span>
+                    )}
+                  </p>
                   {(r.detail || r.estimate) && (
                     <p className="truncate text-xs text-slate-500">
                       {r.detail}

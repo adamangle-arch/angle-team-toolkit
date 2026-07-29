@@ -1606,6 +1606,18 @@ themselves (not just the library), so a resource added or sent from the
 library shows its time estimate on `/prospect` next to "Just For You" and
 per-step resources, same as the team-wide defaults already do.
 
+**Checking for broken links.** With dozens of hand-typed links (many
+pointing at random third-party PDF mirrors, not just Dropbox), some are
+bound to go stale. A "Check Links" button on the library admin card
+POSTs every URL in the library to `/api/check-links`, a server-side
+route that fetches each one and reports back which failed — flagging
+each with a "⚠️ broken link?" badge right on its row. This has to run
+server-side rather than from the browser: a client-side `fetch()` to an
+arbitrary third-party host almost always gets blocked by CORS
+regardless of whether the link actually still works, so the result
+would be meaningless — a Vercel serverless function has no such
+restriction.
+
 **Browsing the library: Audio / Reading / Other, plus search.** Every
 library entry has a `kind` (`audio`, `reading`, or `other` — for
 anything that isn't cleanly one or the other, like a worksheet or a
