@@ -427,7 +427,7 @@ export const ADVANCED_LIBRARY: BookCategory[] = [
       { title: "Inner Excellence", author: "Jim Murphy" },
       { title: "The Obstacle Is the Way", author: "Ryan Holiday" },
       { title: "Man's Search for Meaning", author: "Viktor Frankl" },
-      { title: "13 Things Mentally Strong People Do", author: "Amy Morin" },
+      { title: "13 Things Mentally Strong People Don't Do", author: "Amy Morin" },
       { title: "Make Your Bed", author: "Admiral William H. McRaven" },
       { title: "Max Out Your Life", author: "Ed Mylett" },
     ],

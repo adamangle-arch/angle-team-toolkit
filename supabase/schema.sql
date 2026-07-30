@@ -3728,3 +3728,8 @@ where label = 'Magic of thinking big';
 -- Books tab either way, via FIRST_YEAR_BOOKS - it just won't be a link
 -- until something's re-added here with a working url).
 delete from optional_resources where label = '📖 Think and Grow Rich';
+
+-- Confirmed: the real title is "...Don't Do", not "...Do".
+update optional_resources
+set label = '📖 13 Things Mentally Strong People Don''t Do'
+where label = '📖 13 Things Mentally Strong People Do';
