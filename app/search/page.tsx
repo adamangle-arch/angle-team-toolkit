@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
-import { CANDIDATE_STEPS, isBadgeExcluded } from "@/lib/constants";
+import { CANDIDATE_STEPS } from "@/lib/constants";
 import { searchStatic, type SearchResult } from "@/lib/search-data";
 import type { Candidate, Contact } from "@/lib/types";
 
@@ -22,8 +22,7 @@ function contactSnippet(c: Contact): string {
 
 export default function SearchPage() {
   const router = useRouter();
-  const { ownerId, user } = useAuth();
-  const badgesExcluded = isBadgeExcluded(user.email);
+  const { ownerId } = useAuth();
   const [query, setQuery] = useState("");
   const [liveResults, setLiveResults] = useState<SearchResult[]>([]);
 
@@ -74,11 +73,8 @@ export default function SearchPage() {
   // in flight/complete - gating on length here too means it's never
   // shown stale under a since-cleared/shortened query.
   const results = useMemo(
-    () =>
-      [...(query.trim().length >= 2 ? liveResults : []), ...searchStatic(query)].filter(
-        (r) => !badgesExcluded || r.href !== "/badges"
-      ),
-    [liveResults, query, badgesExcluded]
+    () => [...(query.trim().length >= 2 ? liveResults : []), ...searchStatic(query)],
+    [liveResults, query]
   );
 
   const grouped = useMemo(() => {

@@ -27,7 +27,7 @@ export default function BadgesPage() {
   const excluded = isBadgeExcluded(user.email);
   const [metrics, setMetrics] = useState<BadgeMetrics | null>(null);
   const [earnedByKey, setEarnedByKey] = useState<Map<string, string>>(new Map());
-  const [loading, setLoading] = useState(!excluded);
+  const [loading, setLoading] = useState(true);
   const [logging, setLogging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loggingActivity, setLoggingActivity] = useState<ActivityLogKind | null>(null);
@@ -45,10 +45,9 @@ export default function BadgesPage() {
   }
 
   useEffect(() => {
-    if (excluded) return;
     let cancelled = false;
     async function init() {
-      await checkAndAwardBadges(ownerId);
+      if (!excluded) await checkAndAwardBadges(ownerId);
       if (!cancelled) await load();
     }
     init();
@@ -88,19 +87,6 @@ export default function BadgesPage() {
 
   const earnedCount = earnedByKey.size;
   const totalCount = BADGE_DEFINITIONS.length;
-
-  if (excluded) {
-    return (
-      <>
-        <PageHeader title="Badges" />
-        <main className="page-main">
-          <div className="empty-state">
-            Badges are a team-member feature and aren&apos;t tracked for this account.
-          </div>
-        </main>
-      </>
-    );
-  }
 
   return (
     <>
@@ -184,10 +170,10 @@ export default function BadgesPage() {
                             {badge.icon}
                           </span>
                           <div className="min-w-0 flex-1">
-                            <p className={`truncate text-sm font-medium ${earned ? "text-amber-light" : "text-white"}`}>
+                            <p className={`text-sm font-medium ${earned ? "text-amber-light" : "text-white"}`}>
                               {badge.label}
                             </p>
-                            <p className="truncate text-xs text-slate-500">{badge.description}</p>
+                            <p className="text-xs text-slate-500">{badge.description}</p>
                           </div>
                           <span className="shrink-0 text-lg leading-none">{earned ? "✅" : "🔒"}</span>
                         </div>

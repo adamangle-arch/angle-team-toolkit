@@ -4,7 +4,6 @@ import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
 import { minSessionFor } from "@/lib/onboarding-gate";
-import { isBadgeExcluded } from "@/lib/constants";
 
 const MORE_ITEMS = [
   { href: "/notifications", label: "Notifications", icon: "🔔", description: "Every push notification we've sent you." },
@@ -23,12 +22,8 @@ const MORE_ITEMS = [
 ];
 
 export default function MorePage() {
-  const { user, unlockedThrough } = useAuth();
-  const badgesExcluded = isBadgeExcluded(user.email);
-  const visibleItems = MORE_ITEMS.filter(
-    (item) =>
-      unlockedThrough >= minSessionFor(item.href) && (item.href !== "/badges" || !badgesExcluded)
-  );
+  const { unlockedThrough } = useAuth();
+  const visibleItems = MORE_ITEMS.filter((item) => unlockedThrough >= minSessionFor(item.href));
 
   return (
     <>

@@ -2406,17 +2406,20 @@ existing way to know someone actually read something).
     bare `Set<string>`; Full Spectrum/Perfectionist just call `.has()`
     on it like before, Well-Rounded groups by a Monday-anchored week
     bucket and checks whether any single week covers 3+ categories.
-- **Alex and Laura's accounts are excluded from Badges entirely**
+- **Alex and Laura's accounts can browse Badges but never earn them**
   (`BADGE_EXCLUDED_EMAILS`/`isBadgeExcluded()` in `lib/constants.ts`) —
   they run the whole team rather than a personal business inside it, so
-  Badges isn't a fit for their accounts specifically (every other
-  primary/admin email still earns badges normally). `checkAndAwardBadges`
-  is never called for them (Today dashboard, Badges tab), the Badges tab
-  is hidden from More/Search for them, My Profile's "My Badges" card is
-  hidden on their own profile, and `get_public_badges()` suppresses their
-  rows server-side too (so a public profile never shows badges for them
-  even if something upstream slipped through) — plus a one-time cleanup
-  `delete` clearing any badges their accounts had already accumulated.
+  earning badges isn't a fit for their accounts specifically (every
+  other primary/admin email still earns badges normally). `checkAndAwardBadges`
+  is simply never called for them (Today dashboard, Badges tab mount),
+  but the Badges tab itself, its nav/search entries, and the "My
+  Badges" card on their own profile all render normally so they can
+  still see the full catalog their team is working through — plus a
+  one-time cleanup `delete` that already cleared any badges their
+  accounts had accumulated before this was scoped correctly.
+  `get_public_badges()` still suppresses their rows server-side as a
+  harmless backstop, even though it'll never have rows to suppress now
+  that earning stays blocked.
 - **Fixed: the public profile's Badges card only rendered when the
   viewed person had 1+ badge earned**, so anyone with zero badges (most
   people, early on) showed no Badges section at all — looked like the

@@ -6,7 +6,7 @@ import PageHeader from "@/components/PageHeader";
 import ProfileForm from "@/components/ProfileForm";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
-import { TEAMS, isBadgeExcluded } from "@/lib/constants";
+import { TEAMS } from "@/lib/constants";
 import { BADGE_DEFINITIONS } from "@/lib/badges";
 import BadgePillList from "@/components/BadgePillList";
 import type { Profile, PublicProfile, UserBadge } from "@/lib/types";
@@ -164,7 +164,6 @@ export default function MyProfilePage() {
           <div className="empty-state">Loading…</div>
         ) : (
           <>
-            {!isBadgeExcluded(user.email) && (
             <div className="card space-y-2">
               <Link href="/badges" className="flex items-center justify-between gap-2">
                 <p className="section-title">🏅 My Badges</p>
@@ -186,7 +185,6 @@ export default function MyProfilePage() {
                 />
               )}
             </div>
-            )}
 
             <div className="card space-y-2">
               <p className="section-title">My Team</p>
