@@ -40,7 +40,7 @@ export type MetaBadgeDefinition = {
   label: string;
   description: string;
   icon: string;
-  special: "full_spectrum" | "perfectionist" | "well_rounded";
+  special: "full_spectrum" | "perfectionist" | "well_rounded" | "collector";
 };
 
 export type BadgeDefinition = MetricBadgeDefinition | MetaBadgeDefinition;
@@ -257,9 +257,9 @@ export const BADGE_DEFINITIONS: BadgeDefinition[] = [
   { key: "note_taker", category: "App Habits", label: "Note Taker", description: "Add notes to 10 different candidates.", icon: "🗒️", metric: "note_taker_count", threshold: 10 },
 
   // Depth & Duplication (going deeper than "legs," not just wider)
-  { key: "third_generation", category: "Depth & Duplication", label: "Third Generation", description: "Have someone 3 levels deep in your downline.", icon: "🌲", metric: "max_downline_depth", threshold: 3 },
-  { key: "fourth_generation", category: "Depth & Duplication", label: "Fourth Generation", description: "Have someone 4 levels deep in your downline.", icon: "🌲", metric: "max_downline_depth", threshold: 4 },
-  { key: "fifth_generation", category: "Depth & Duplication", label: "Fifth Generation", description: "Have someone 5 levels deep in your downline.", icon: "👑", metric: "max_downline_depth", threshold: 5 },
+  { key: "third_generation", category: "Depth & Duplication", label: "3 Layers Deep", description: "Have a leg that's 3 layers deep.", icon: "🌲", metric: "max_downline_depth", threshold: 3 },
+  { key: "fourth_generation", category: "Depth & Duplication", label: "4 Layers Deep", description: "Have a leg that's 4 layers deep.", icon: "🌲", metric: "max_downline_depth", threshold: 4 },
+  { key: "fifth_generation", category: "Depth & Duplication", label: "5 Layers Deep", description: "Have a leg that's 5 layers deep.", icon: "👑", metric: "max_downline_depth", threshold: 5 },
   { key: "duplication_nation", category: "Depth & Duplication", label: "Duplication Nation", description: "3 different legs each have 3+ legs of their own.", icon: "🌲", metric: "has_duplication_nation", threshold: 1 },
 
   // Leadership & Recognition
@@ -280,8 +280,8 @@ export const BADGE_DEFINITIONS: BadgeDefinition[] = [
 
   // Referral Chains
   { key: "pay_it_forward", category: "Referral Chains", label: "Pay It Forward", description: "Someone you personally launched later launches their own first person.", icon: "🔗", metric: "has_pay_it_forward", threshold: 1 },
-  { key: "chain_reaction", category: "Referral Chains", label: "Chain Reaction", description: "3 generations deep all launch someone in the same quarter.", icon: "🔗", metric: "has_chain_reaction", threshold: 1 },
-  { key: "second_generation_growth", category: "Referral Chains", label: "Second Generation Growth", description: "Your downline's downline reaches 10 people.", icon: "🔗", metric: "second_gen_or_deeper_count", threshold: 10 },
+  { key: "chain_reaction", category: "Referral Chains", label: "Chain Reaction", description: "3 layers deep all launch someone in the same quarter.", icon: "🔗", metric: "has_chain_reaction", threshold: 1 },
+  { key: "second_generation_growth", category: "Referral Chains", label: "Second Layer Growth", description: "Your downline's next layer reaches 10 people.", icon: "🔗", metric: "second_gen_or_deeper_count", threshold: 10 },
 
   // Customers (lifetime/yearly totals)
   { key: "half_grand", category: "Customers", label: "Half Grand", description: "Log 500 lifetime customer sales.", icon: "💰", metric: "total_customer_sales", threshold: 500 },
@@ -367,6 +367,72 @@ export const BADGE_DEFINITIONS: BadgeDefinition[] = [
 
   // Meta / Combo
   { key: "well_rounded", category: "Meta / Combo", label: "Well-Rounded", description: "Earn badges from 3 different categories in the same week.", icon: "🌟", special: "well_rounded" },
+
+  // Customers
+  { key: "product_explorer", category: "Customers", label: "Product Explorer", description: "Log a sale in 3 different product categories.", icon: "🧴", metric: "distinct_product_categories_count", threshold: 3 },
+  { key: "full_line", category: "Customers", label: "Full Line", description: "Log a sale in every product category, lifetime.", icon: "👑", metric: "distinct_product_categories_count", threshold: 9 },
+  { key: "xs_specialist", category: "Customers", label: "XS Specialist", description: "Log 10 XS sales.", icon: "🧴", metric: "xs_sales_count", threshold: 10 },
+  { key: "home_essentials", category: "Customers", label: "Home Essentials", description: "Log 10 Amway Home sales.", icon: "🧴", metric: "amway_home_sales_count", threshold: 10 },
+  { key: "repeat_customer", category: "Customers", label: "Repeat Customer", description: "Log 3+ sales for the same customer.", icon: "🔁", metric: "has_repeat_customer", threshold: 1 },
+  { key: "big_month", category: "Customers", label: "Big Month", description: "Log 5+ separate sales in a single month.", icon: "🛍️", metric: "max_sales_count_month", threshold: 5 },
+
+  // Story & Depth
+  { key: "storyteller", category: "Story & Depth", label: "Storyteller", description: "20 story shares logged in a month.", icon: "📣", metric: "max_story_shares_month", threshold: 20 },
+  { key: "storyteller_legend", category: "Story & Depth", label: "Storyteller Legend", description: "100 story shares logged lifetime.", icon: "👑", metric: "total_story_shares_lifetime", threshold: 100 },
+
+  // AI Chat Practice
+  { key: "well_rehearsed", category: "AI Chat Practice", label: "Well-Rehearsed", description: "Grade a call for every type (QI1/QI2/FU1/FU2/Questionnaire).", icon: "📞", metric: "distinct_call_rating_types_count", threshold: 5 },
+  { key: "qi2_specialist", category: "AI Chat Practice", label: "QI2 Specialist", description: "Grade 10 QI2 calls.", icon: "📞", metric: "qi2_ratings_count", threshold: 10 },
+  { key: "fu1_specialist", category: "AI Chat Practice", label: "FU1 Specialist", description: "Grade 10 FU1 calls.", icon: "📞", metric: "fu1_ratings_count", threshold: 10 },
+  { key: "fu2_specialist", category: "AI Chat Practice", label: "FU2 Specialist", description: "Grade 10 FU2 calls.", icon: "📞", metric: "fu2_ratings_count", threshold: 10 },
+
+  // Info Sessions
+  { key: "info_session_regular", category: "Info Sessions", label: "Info Session Regular", description: "10 candidates watch their Info Session.", icon: "🎥", metric: "info_sessions_watched_count", threshold: 10 },
+  { key: "webinar_warrior", category: "Info Sessions", label: "Webinar Warrior", description: "10 candidates choose the virtual webinar option.", icon: "💻", metric: "virtual_session_candidates_count", threshold: 10 },
+  { key: "in_person_preferred", category: "Info Sessions", label: "In-Person Preferred", description: "10 candidates choose the in-person option.", icon: "🤝", metric: "in_person_session_candidates_count", threshold: 10 },
+
+  // Reading
+  { key: "page_turner", category: "Reading", label: "Page Turner", description: "Log a single day with 60+ minutes read.", icon: "📖", metric: "max_read_minutes_day", threshold: 60 },
+  { key: "marathon_reader", category: "Reading", label: "Marathon Reader", description: "500 lifetime read minutes logged.", icon: "📖", metric: "total_read_minutes_lifetime", threshold: 500 },
+
+  // Growing Others
+  { key: "fully_resourced", category: "Growing Others", label: "Fully Resourced", description: "A candidate completes every resource sent to them.", icon: "🎓", metric: "has_fully_resourced", threshold: 1 },
+  { key: "patient_teacher", category: "Growing Others", label: "Patient Teacher", description: "Grant an Onboarding unlock to 5 different downline members.", icon: "🎓", metric: "patient_teacher_count", threshold: 5 },
+
+  // Household
+  { key: "team_player", category: "Household", label: "Team Player", description: "You and your spouse both log a Core Run on the same day, 30 different days.", icon: "💑", metric: "household_core_run_together_days", threshold: 30 },
+
+  // Calendar & Meetings
+  { key: "meeting_logger", category: "Calendar & Meetings", label: "Meeting Logger", description: "50 lifetime meetings logged.", icon: "📅", metric: "total_meetings_lifetime", threshold: 50 },
+  { key: "meeting_century", category: "Calendar & Meetings", label: "Meeting Century", description: "100 lifetime meetings logged.", icon: "👑", metric: "total_meetings_lifetime", threshold: 100 },
+
+  // Games
+  { key: "triple_player", category: "Games", label: "Triple Player", description: "Play Diamond Run, Diamond Chase, and Trivia at least once each.", icon: "🎮", metric: "has_played_all_games", threshold: 1 },
+  { key: "diamond_chase_century", category: "Games", label: "Diamond Chase Century", description: "Score 100+ in a single Diamond Chase run.", icon: "🐍", metric: "max_diamond_chase_score", threshold: 100 },
+  { key: "diamond_chase_legend", category: "Games", label: "Diamond Chase Legend", description: "Score 200+ in a single Diamond Chase run.", icon: "👑", metric: "max_diamond_chase_score", threshold: 200 },
+
+  // Speed
+  { key: "weekend_booker", category: "Speed", label: "Weekend Booker", description: "Book a QI1 on a Saturday or Sunday.", icon: "⚡", metric: "has_weekend_qi1", threshold: 1 },
+
+  // Consistency
+  { key: "no_zero_days", category: "Consistency", label: "No Zero Days", description: "Log something in Core Run every day for 60 days straight.", icon: "🔥", metric: "longest_any_component_streak", threshold: 60 },
+
+  // Leadership & Recognition
+  { key: "rising_tide", category: "Leadership & Recognition", label: "Rising Tide", description: "3 different downline members each hit Core 300 in the same month.", icon: "🌊", metric: "has_rising_tide", threshold: 1 },
+  { key: "team_ditto", category: "Leadership & Recognition", label: "Team Ditto", description: "3 different downline members each hit 100+ PV Day 1 Ditto in the same month.", icon: "📦", metric: "has_team_ditto", threshold: 1 },
+
+  // App Habits
+  { key: "weekend_visitor", category: "App Habits", label: "Weekend Visitor", description: "Open the app both Saturday and Sunday, 8 different weekends.", icon: "📱", metric: "weekend_visitor_count", threshold: 8 },
+
+  // Depth & Duplication
+  { key: "wide_and_deep", category: "Depth & Duplication", label: "Wide and Deep", description: "6+ legs, with at least one 3+ layers deep.", icon: "🌳", metric: "has_wide_and_deep", threshold: 1 },
+
+  // Referral Chains
+  { key: "legacy_builder", category: "Referral Chains", label: "Legacy Builder", description: "Someone 4 layers deep launches their own first person.", icon: "🔗", metric: "has_legacy_builder", threshold: 1 },
+
+  // Meta / Combo
+  { key: "collector", category: "Meta / Combo", label: "Collector", description: "Earn at least 1 badge in 10 different categories.", icon: "🧩", special: "collector" },
+  { key: "halfway_there", category: "Meta / Combo", label: "Halfway There", description: "Earn 150 badges total.", icon: "🎖️", metric: "total_badges_earned", threshold: 150 },
 ];
 
 export const BADGE_CATEGORIES: string[] = Array.from(new Set(BADGE_DEFINITIONS.map((b) => b.category)));
@@ -432,6 +498,14 @@ function bestWellRoundedWeekCount(earnedKeys: EarnedBadgeMap): number {
   return best;
 }
 
+// Collector: at least one earned badge in 10 different categories -
+// same idea as Full Spectrum, just a lower bar (10, not every category).
+function collectorCategoryCount(earnedKeys: EarnedBadgeMap): number {
+  return BADGE_CATEGORIES.filter((cat) =>
+    BADGE_DEFINITIONS.some((b) => b.category === cat && earnedKeys.has(b.key))
+  ).length;
+}
+
 // earnedKeys is only needed for the "special" meta badges - every other
 // (metric-driven) badge ignores it, so callers that only care about
 // those can omit it.
@@ -444,7 +518,8 @@ export function isBadgeEarned(
     if (!earnedKeys) return false;
     if (def.special === "full_spectrum") return hasFullSpectrum(earnedKeys);
     if (def.special === "perfectionist") return hasPerfectionist(earnedKeys);
-    return bestWellRoundedWeekCount(earnedKeys) >= 3;
+    if (def.special === "well_rounded") return bestWellRoundedWeekCount(earnedKeys) >= 3;
+    return collectorCategoryCount(earnedKeys) >= 10;
   }
   return metricValue(metrics, def.metric) >= def.threshold;
 }
@@ -468,6 +543,9 @@ export function badgeProgress(
     }
     if (def.special === "well_rounded") {
       return Math.max(0, Math.min(1, bestWellRoundedWeekCount(keys) / 3));
+    }
+    if (def.special === "collector") {
+      return Math.max(0, Math.min(1, collectorCategoryCount(keys) / 10));
     }
     let best = 0;
     for (const cat of BADGE_CATEGORIES) {

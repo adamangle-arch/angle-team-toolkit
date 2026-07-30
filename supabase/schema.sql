@@ -1030,6 +1030,26 @@ $$;
 
 grant execute on function public.delete_downline_account(uuid) to authenticated;
 
+-- One row per time an upline/admin grants a downline member an
+-- onboarding session unlock - for the Patient Teacher badge ("grant an
+-- unlock to 5 different downline members"). Insert-only audit log
+-- (written only by the two grant functions below, both security
+-- definer, never directly by client code) - no update/delete.
+create table if not exists onboarding_grants (
+  id uuid primary key default gen_random_uuid(),
+  granter_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  target_id uuid not null references auth.users(id) on delete cascade,
+  granted_at timestamptz not null default now()
+);
+
+alter table onboarding_grants enable row level security;
+
+drop policy if exists "onboarding_grants_select_own_or_admin" on onboarding_grants;
+create policy "onboarding_grants_select_own_or_admin" on onboarding_grants for select using (
+  granter_id = auth.uid()
+  or public.is_app_admin()
+);
+
 -- Unlocks the next Onboarding session for a downline member. Only their
 -- upline (any level) or an admin can do this — it's a manual approval
 -- step, never automatic. There's no upper bound checked here (the total
@@ -1046,6 +1066,8 @@ begin
   if not (public.is_app_admin() or public.is_upline_of(auth.uid(), p_user_id)) then
     raise exception 'Not authorized to grant onboarding access for this account.';
   end if;
+
+  insert into onboarding_grants (granter_id, target_id) values (auth.uid(), p_user_id);
 
   update profiles
   set onboarding_unlocked_through = onboarding_unlocked_through + 1,
@@ -1075,6 +1097,8 @@ begin
   if not (public.is_app_admin() or public.is_upline_of(auth.uid(), p_user_id)) then
     raise exception 'Not authorized to grant onboarding access for this account.';
   end if;
+
+  insert into onboarding_grants (granter_id, target_id) values (auth.uid(), p_user_id);
 
   update profiles
   set onboarding_unlocked_through = 5,
@@ -2824,12 +2848,12 @@ $$;
 
 grant execute on function public.get_leg_members(uuid) to authenticated;
 
--- Every downline member tagged with how many generations below p_user_id
--- they are (1 = a direct recruit, 2 = their recruit, etc.) - for the
--- Third/Fourth/Fifth Generation and Second Generation Growth badges,
--- which care about depth rather than which leg (unlike get_leg_members
--- above). Same viewer_unit household expansion as get_leg_members/
--- is_upline_of, for the same reason.
+-- Every downline member tagged with how many layers below p_user_id
+-- they are (1 = a direct recruit, 2 = their recruit, etc. - "layers,"
+-- not "generations," per team terminology) - for the "N Layers Deep"
+-- and Second Layer Growth badges, which care about depth rather than
+-- which leg (unlike get_leg_members above). Same viewer_unit household
+-- expansion as get_leg_members/is_upline_of, for the same reason.
 create or replace function public.get_downline_with_depth(p_user_id uuid)
 returns table (member_id uuid, depth int)
 language sql
@@ -4207,7 +4231,36 @@ returns table (
   total_audios_lifetime int,
   total_books_lifetime int,
   has_whole_team boolean,
-  has_anniversary boolean
+  has_anniversary boolean,
+  distinct_product_categories_count int,
+  xs_sales_count int,
+  amway_home_sales_count int,
+  max_story_shares_month int,
+  total_story_shares_lifetime int,
+  distinct_call_rating_types_count int,
+  qi2_ratings_count int,
+  fu1_ratings_count int,
+  fu2_ratings_count int,
+  info_sessions_watched_count int,
+  virtual_session_candidates_count int,
+  in_person_session_candidates_count int,
+  max_read_minutes_day int,
+  total_read_minutes_lifetime int,
+  has_fully_resourced boolean,
+  household_core_run_together_days int,
+  total_meetings_lifetime int,
+  has_played_all_games boolean,
+  max_diamond_chase_score int,
+  has_weekend_qi1 boolean,
+  longest_any_component_streak int,
+  has_repeat_customer boolean,
+  max_sales_count_month int,
+  has_rising_tide boolean,
+  has_team_ditto boolean,
+  patient_teacher_count int,
+  weekend_visitor_count int,
+  has_wide_and_deep boolean,
+  has_legacy_builder boolean
 )
 language sql
 stable
@@ -4388,7 +4441,7 @@ as $$
     (
       select count(*)::int from user_badges
       where user_id = p_user_id
-        and badge_key not in ('grand_slam', 'half_century', 'century_club', 'legend')
+        and badge_key not in ('grand_slam', 'half_century', 'century_club', 'legend', 'halfway_there')
     ),
     (select count(distinct period_start)::int from monthly_pv where user_id = p_user_id and pv >= 300),
     (select coalesce(max(times_improved), 0)::int from game_high_scores where user_id = p_user_id),
@@ -4751,6 +4804,138 @@ as $$
         select 1 from candidates
         where user_id = p_user_id and launched = true and launched_at is not null
           and launched_at <= now() - interval '1 year'
+      )
+    ),
+    (
+      select count(distinct cat)::int
+      from customer_sales, unnest(categories) as cat
+      where user_id = p_user_id
+    ),
+    (select count(*)::int from customer_sales where user_id = p_user_id and 'XS' = any(categories)),
+    (select count(*)::int from customer_sales where user_id = p_user_id and 'Amway Home' = any(categories)),
+    (
+      select coalesce(max(total), 0)::int from (
+        select sum(story_shares) as total from streak_days
+        where user_id = p_user_id
+        group by date_trunc('month', day)
+      ) t
+    ),
+    (select coalesce(sum(story_shares), 0)::int from streak_days where user_id = p_user_id),
+    (select count(distinct call_type)::int from call_ratings where user_id = p_user_id),
+    (select count(*)::int from call_ratings where user_id = p_user_id and call_type = 'QI2'),
+    (select count(*)::int from call_ratings where user_id = p_user_id and call_type = 'FU1'),
+    (select count(*)::int from call_ratings where user_id = p_user_id and call_type = 'FU2'),
+    (select count(*)::int from candidates where user_id = p_user_id and (is1_watched or is2_watched)),
+    (
+      select count(*)::int from candidates
+      where user_id = p_user_id
+        and (is1_session_mode = 'virtual' or is2_session_mode = 'virtual')
+    ),
+    (
+      select count(*)::int from candidates
+      where user_id = p_user_id
+        and (is1_session_mode = 'in_person' or is2_session_mode = 'in_person')
+    ),
+    (select coalesce(max(read_minutes), 0)::int from streak_days where user_id = p_user_id),
+    (select coalesce(sum(read_minutes), 0)::int from streak_days where user_id = p_user_id),
+    (
+      exists (
+        select 1 from candidates c
+        where c.user_id = p_user_id
+          and (select count(*) from candidate_specific_resources csr where csr.candidate_id = c.id) >= 1
+          and (select count(*) from candidate_resource_completions crc where crc.candidate_id = c.id)
+              >= (select count(*) from candidate_specific_resources csr where csr.candidate_id = c.id)
+      )
+    ),
+    (
+      select count(*)::int from streak_days s1
+      join streak_days s2 on s2.day = s1.day
+        and s2.user_id = coalesce(
+          (select household_id from profiles where id = p_user_id),
+          (select id from profiles where household_id = p_user_id)
+        )
+      where s1.user_id = p_user_id
+        and s1.read and s1.listen and s1.daily_update and s1.story_share
+        and s2.read and s2.listen and s2.daily_update and s2.story_share
+    ),
+    (select coalesce(sum(meetings), 0)::int from streak_days where user_id = p_user_id),
+    (
+      exists (select 1 from game_high_scores where user_id = p_user_id)
+      and exists (select 1 from snake_high_scores where user_id = p_user_id)
+      and exists (select 1 from trivia_daily_results where user_id = p_user_id)
+    ),
+    (select coalesce(max(best_score), 0)::int from snake_high_scores where user_id = p_user_id),
+    (
+      exists (
+        select 1 from pipeline_periods
+        where user_id = p_user_id and period_type = 'daily' and qi1 >= 1
+          and extract(isodow from period_start) in (6, 7)
+      )
+    ),
+    (
+      select coalesce(max(cnt), 0)::int from (
+        select count(*) as cnt from (
+          select day - (row_number() over (order by day))::int * interval '1 day' as grp
+          from streak_days
+          where user_id = p_user_id and (read or listen or daily_update or story_share)
+        ) islands
+        group by grp
+      ) runs
+    ),
+    (
+      exists (
+        select 1 from customer_sales
+        where user_id = p_user_id
+        group by description
+        having count(*) >= 3
+      )
+    ),
+    (
+      select coalesce(max(cnt), 0)::int from (
+        select count(*) as cnt from customer_sales
+        where user_id = p_user_id
+        group by period_start
+      ) t
+    ),
+    (
+      exists (
+        select 1 from (
+          select period_start, count(distinct user_id) as cnt
+          from monthly_pv
+          where pv >= 300
+            and user_id in (select user_id from public.get_downline_user_ids(p_user_id))
+          group by period_start
+        ) t
+        where cnt >= 3
+      )
+    ),
+    (
+      exists (
+        select 1 from (
+          select period_start, count(distinct user_id) as cnt
+          from monthly_pv
+          where day1_ditto_pv >= 100
+            and user_id in (select user_id from public.get_downline_user_ids(p_user_id))
+          group by period_start
+        ) t
+        where cnt >= 3
+      )
+    ),
+    (select count(distinct target_id)::int from onboarding_grants where granter_id = p_user_id),
+    (
+      select count(*)::int from app_opens sat
+      join app_opens sun on sun.user_id = sat.user_id and sun.day = sat.day + 1
+      where sat.user_id = p_user_id and extract(isodow from sat.day) = 6
+    ),
+    (
+      (select count(distinct leg_root) from legs) >= 6
+      and (select coalesce(max(depth), 0) from public.get_downline_with_depth(p_user_id)) >= 3
+    ),
+    (
+      exists (
+        select 1 from public.get_downline_with_depth(p_user_id) d
+        where d.depth >= 4
+          and exists (select 1 from candidates c where c.user_id = d.member_id and c.launched = true)
       )
     );
 $$;

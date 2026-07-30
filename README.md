@@ -2423,6 +2423,37 @@ existing way to know someone actually read something).
   feature wasn't there. It now always renders, the same way My
   Profile's own "My Badges" card always has, with a "no badges earned
   yet" empty state instead of disappearing.
+- **Team terminology: "layers," not "generations."** The existing 3/4/5
+  layers-deep badges and Second Layer Growth (previously "Generation")
+  got their labels/descriptions updated — `badge_key`s were left alone
+  so anyone who already earned one keeps it (only the display text
+  changed, matched by key, not by name).
+- **A sixth batch adds ~34 more badges (~230 total)**: more Customers
+  (product category variety, repeat customers), Story & Depth, more AI
+  Chat Practice (per-call-type specialist badges), Info Sessions,
+  Reading, more Growing Others, Household, Calendar & Meetings, Games,
+  Speed, Consistency, Leadership & Recognition, App Habits, and one
+  more each in Depth & Duplication, Referral Chains, and Meta/Combo.
+  - **Patient Teacher needed a new audit table.** Neither
+    `grant_next_onboarding_session` nor `grant_all_onboarding_sessions`
+    recorded who granted what to whom - just the resulting unlock level
+    on `profiles`. A new insert-only `onboarding_grants` table
+    (`granter_id`, `target_id`, `granted_at`), written by both grant
+    functions, backs "grant an unlock to 5 different downline members."
+  - **Fully Resourced is a simplification**, not a literal "every
+    resource assigned" check — the real "assigned resources" set is
+    computed client-side (`effectiveResourcesForStep`, constants +
+    per-candidate overrides + library picks), not a single DB table.
+    It checks candidate-specific sends instead: a candidate whose
+    `candidate_resource_completions` count matches or exceeds their
+    `candidate_specific_resources` count (and has at least one sent).
+  - **Comeback Season (0 → 5+ active candidates in a month) was
+    skipped** — it needs a historical daily/monthly snapshot of pipeline
+    size, which nothing in the schema currently keeps; candidates only
+    ever reflect their *current* state, not a timeline of it.
+  - **Collector is a fourth `special` meta badge** (earn 1+ badge in 10
+    different categories) — same `EarnedBadgeMap` mechanism as Full
+    Spectrum, just a lower bar than "every" category.
 
 ### Success quote on open
 
