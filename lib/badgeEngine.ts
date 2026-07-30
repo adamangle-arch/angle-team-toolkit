@@ -14,14 +14,18 @@ export async function checkAndAwardBadges(ownerId: string): Promise<void> {
   try {
     const [{ data: metricsRows }, { data: existingRows }] = await Promise.all([
       supabase.rpc("get_badge_metrics", { p_user_id: ownerId }),
-      supabase.from("user_badges").select("badge_key").eq("user_id", ownerId),
+      supabase.from("user_badges").select("badge_key, earned_at").eq("user_id", ownerId),
     ]);
     const metrics = (metricsRows as BadgeMetrics[] | null)?.[0];
     if (!metrics) return;
 
-    const existingKeys = new Set(
-      ((existingRows as Pick<UserBadge, "badge_key">[]) ?? []).map((r) => r.badge_key)
+    const existingMap = new Map(
+      ((existingRows as Pick<UserBadge, "badge_key" | "earned_at">[]) ?? []).map((r) => [
+        r.badge_key,
+        r.earned_at,
+      ])
     );
+    const existingKeys = new Set(existingMap.keys());
 
     const regularDefs = BADGE_DEFINITIONS.filter((def) => !("special" in def));
     const metaDefs = BADGE_DEFINITIONS.filter((def) => "special" in def);
@@ -30,11 +34,16 @@ export async function checkAndAwardBadges(ownerId: string): Promise<void> {
       (def) => !existingKeys.has(def.key) && isBadgeEarned(def, metrics)
     );
 
-    // Meta badges (Full Spectrum, Perfectionist) depend on the earned-key
-    // set itself, so they're checked against "existing + newly-earned
-    // this pass" rather than metrics - that way earning the last badge a
-    // meta badge needs triggers it in the same pass, not a pass later.
-    const projectedKeys = new Set([...existingKeys, ...newlyEarnedRegular.map((def) => def.key)]);
+    // Meta badges (Full Spectrum, Perfectionist, Well-Rounded) depend on
+    // the earned-badge set itself (Well-Rounded needs earned_at too), so
+    // they're checked against "existing + newly-earned this pass" rather
+    // than metrics - that way earning the last badge a meta badge needs
+    // triggers it in the same pass, not a pass later. Newly-earned
+    // regular badges get "now" as their earned_at since that's the
+    // instant they'll actually be inserted.
+    const nowIso = new Date().toISOString();
+    const projectedKeys = new Map(existingMap);
+    for (const def of newlyEarnedRegular) projectedKeys.set(def.key, nowIso);
     const newlyEarnedMeta = metaDefs.filter(
       (def) => !existingKeys.has(def.key) && isBadgeEarned(def, metrics, projectedKeys)
     );

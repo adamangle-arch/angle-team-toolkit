@@ -59,6 +59,7 @@ export default function DiamondChaseGame() {
   const animFrame = useRef(0);
   const scoreRef = useRef(0);
   const bestScoreRef = useRef(0);
+  const timesImprovedRef = useRef(0);
   const runningRef = useRef(false);
   const touchStart = useRef<Point | null>(null);
 
@@ -68,13 +69,14 @@ export default function DiamondChaseGame() {
     async function loadBest() {
       const { data } = await supabase
         .from("snake_high_scores")
-        .select("best_score")
+        .select("best_score, times_improved")
         .eq("user_id", user.id)
         .maybeSingle();
       if (cancelled) return;
       const best = data?.best_score ?? 0;
       bestScoreRef.current = best;
       setBestScore(best);
+      timesImprovedRef.current = data?.times_improved ?? 0;
     }
 
     loadBest();
@@ -219,10 +221,20 @@ export default function DiamondChaseGame() {
     setGameOver(true);
     cancelAnimationFrame(animFrame.current);
     if (scoreRef.current > bestScoreRef.current) {
+      // Same reasoning as Diamond Run: the very first score set (no real
+      // previous best yet) doesn't count as "beating" anything.
+      if (bestScoreRef.current > 0) {
+        timesImprovedRef.current += 1;
+      }
       bestScoreRef.current = scoreRef.current;
       setBestScore(scoreRef.current);
       await supabase.from("snake_high_scores").upsert(
-        { user_id: user.id, best_score: scoreRef.current, updated_at: new Date().toISOString() },
+        {
+          user_id: user.id,
+          best_score: scoreRef.current,
+          times_improved: timesImprovedRef.current,
+          updated_at: new Date().toISOString(),
+        },
         { onConflict: "user_id" }
       );
       loadLeaders();

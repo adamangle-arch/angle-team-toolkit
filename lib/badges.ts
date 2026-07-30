@@ -40,7 +40,7 @@ export type MetaBadgeDefinition = {
   label: string;
   description: string;
   icon: string;
-  special: "full_spectrum" | "perfectionist";
+  special: "full_spectrum" | "perfectionist" | "well_rounded";
 };
 
 export type BadgeDefinition = MetricBadgeDefinition | MetaBadgeDefinition;
@@ -299,6 +299,74 @@ export const BADGE_DEFINITIONS: BadgeDefinition[] = [
   { key: "full_spectrum", category: "Meta / Combo", label: "Full Spectrum", description: "Earn at least one badge from every category.", icon: "🌈", special: "full_spectrum" },
   { key: "perfectionist", category: "Meta / Combo", label: "Perfectionist", description: "Earn every badge in a single category.", icon: "💯", special: "perfectionist" },
   { key: "legend", category: "Meta / Combo", label: "Legend", description: "Earn 100 badges total.", icon: "👑", metric: "total_badges_earned", threshold: 100 },
+
+  // Firsts
+  { key: "first_candidate", category: "Firsts", label: "First Candidate", description: "Add your very first candidate to the Roadmap.", icon: "🌟", metric: "total_candidates_added", threshold: 1 },
+  { key: "first_contact", category: "Firsts", label: "First Contact", description: "Add your very first contact.", icon: "🌟", metric: "total_contacts_count", threshold: 1 },
+  { key: "first_qi1", category: "Firsts", label: "First QI1", description: "Book your very first QI1.", icon: "🌟", metric: "has_first_qi1", threshold: 1 },
+
+  // Onboarding Milestones
+  { key: "onboarding_session_2", category: "Onboarding Milestones", label: "Session 2 Unlocked", description: "Reach Onboarding Session 2.", icon: "🎓", metric: "onboarding_sessions_unlocked", threshold: 2 },
+  { key: "onboarding_session_3", category: "Onboarding Milestones", label: "Session 3 Unlocked", description: "Reach Onboarding Session 3.", icon: "🎓", metric: "onboarding_sessions_unlocked", threshold: 3 },
+  { key: "onboarding_session_4", category: "Onboarding Milestones", label: "Session 4 Unlocked", description: "Reach Onboarding Session 4.", icon: "🎓", metric: "onboarding_sessions_unlocked", threshold: 4 },
+  { key: "onboarding_graduate", category: "Onboarding Milestones", label: "Graduate", description: "Reach Onboarding Session 5 - fully unlocked.", icon: "👑", metric: "onboarding_sessions_unlocked", threshold: 5 },
+
+  // Pipeline Beyond QI1
+  { key: "full_funnel", category: "Pipeline Beyond QI1", label: "Full Funnel", description: "Take a candidate all the way through the roadmap to Launched.", icon: "🚰", metric: "has_full_funnel", threshold: 1 },
+  { key: "questionnaire_closer", category: "Pipeline Beyond QI1", label: "Questionnaire Closer", description: "5 Questionnaires completed in a month.", icon: "📋", metric: "max_questionnaire_month", threshold: 5 },
+
+  // Contacts
+  { key: "list_builder_elite", category: "Contacts", label: "List Builder Elite", description: "Have 200 names on your A/B list.", icon: "📇", metric: "max_ab_contacts", threshold: 200 },
+  { key: "big_list_energy", category: "Contacts", label: "Big List Energy", description: "Have 300 names on your A/B list.", icon: "👑", metric: "max_ab_contacts", threshold: 300 },
+
+  // Calendar & Meetings
+  { key: "calendar_planner", category: "Calendar & Meetings", label: "Calendar Planner", description: "Schedule 10 events in a month.", icon: "📅", metric: "max_calendar_events_month", threshold: 10 },
+
+  // Notifications
+  { key: "caught_up", category: "Notifications", label: "Caught Up", description: "Read every notification you've ever received.", icon: "🔔", metric: "has_caught_up_notifications", threshold: 1 },
+
+  // Games
+  { key: "trivia_perfectionist", category: "Games", label: "Trivia Perfectionist", description: "A perfect 5/5 Trivia day, 10 different days.", icon: "🧠", metric: "total_perfect_trivia_days", threshold: 10 },
+  { key: "trivia_century", category: "Games", label: "Trivia Century", description: "A perfect 5/5 Trivia day, 100 different days lifetime.", icon: "👑", metric: "total_perfect_trivia_days", threshold: 100 },
+  { key: "diamond_chase_rookie", category: "Games", label: "Diamond Chase Rookie", description: "Play your first Diamond Chase game.", icon: "🐍", metric: "has_played_diamond_chase", threshold: 1 },
+  { key: "diamond_chase_pro", category: "Games", label: "Diamond Chase Pro", description: "Beat your own Diamond Chase high score 5 times.", icon: "🐍", metric: "diamond_chase_times_improved", threshold: 5 },
+  { key: "high_roller", category: "Games", label: "High Roller", description: "Score 50+ in a single Diamond Run.", icon: "🎮", metric: "max_diamond_run_score", threshold: 50 },
+  { key: "marathon_runner", category: "Games", label: "Marathon Runner", description: "Score 100+ in a single Diamond Run.", icon: "👑", metric: "max_diamond_run_score", threshold: 100 },
+
+  // Consistency
+  { key: "weekday_warrior", category: "Consistency", label: "Weekday Warrior", description: "Core Run every weekday, 4 straight weeks.", icon: "💼", metric: "longest_weekday_streak_weeks", threshold: 4 },
+  { key: "slow_and_steady", category: "Consistency", label: "Slow and Steady", description: "Log at least some PV, 12 consecutive months.", icon: "🐢", metric: "longest_any_pv_streak", threshold: 12 },
+
+  // Business Structure
+  { key: "team_of_5", category: "Business Structure", label: "Team of Five", description: "5 people total in your downline, any depth.", icon: "👥", metric: "total_downline_people", threshold: 5 },
+  { key: "team_of_10", category: "Business Structure", label: "Team of Ten", description: "10 people total in your downline, any depth.", icon: "👥", metric: "total_downline_people", threshold: 10 },
+  { key: "team_of_20", category: "Business Structure", label: "Team of Twenty", description: "20 people total in your downline, any depth.", icon: "👥", metric: "total_downline_people", threshold: 20 },
+  { key: "team_of_50", category: "Business Structure", label: "Team of Fifty", description: "50 people total in your downline, any depth.", icon: "👥", metric: "total_downline_people", threshold: 50 },
+  { key: "team_of_100", category: "Business Structure", label: "Team of a Hundred", description: "100 people total in your downline, any depth.", icon: "👑", metric: "total_downline_people", threshold: 100 },
+  { key: "team10_qi1_8", category: "Business Structure", label: "Team of 10, 8 QI1s", description: "10 people total in your downline, plus 8 QI1s combined in a month.", icon: "🏢", metric: "has_team10_qi1_8", threshold: 1 },
+
+  // Goals
+  { key: "own_your_story", category: "Goals", label: "Own Your Story", description: "Fill in all three of your Dreams fields.", icon: "📖", metric: "has_dreams_filled", threshold: 1 },
+  { key: "vision_board", category: "Goals", label: "Vision Board", description: "Have a daily, weekly, and monthly Goal all set at once.", icon: "🎯", metric: "distinct_goal_periods_count", threshold: 3 },
+  { key: "goal_getter", category: "Goals", label: "Goal Getter", description: "Hit your own stated Questions/Yeses/QI1s goal.", icon: "🎯", metric: "has_goal_getter", threshold: 1 },
+
+  // Household
+  { key: "household_streak", category: "Household", label: "Household Streak", description: "You and your linked spouse both have an active 30+ day Core Run Streak at the same time.", icon: "💑", metric: "has_household_streak", threshold: 1 },
+
+  // Audios
+  { key: "audiophile", category: "Audios", label: "Audiophile", description: "500 lifetime audios listened.", icon: "🎧", metric: "total_audios_lifetime", threshold: 500 },
+
+  // Books
+  { key: "bookworm", category: "Books", label: "Bookworm", description: "20 lifetime books finished.", icon: "📚", metric: "total_books_lifetime", threshold: 20 },
+
+  // Leadership & Recognition
+  { key: "whole_team", category: "Leadership & Recognition", label: "The Whole Team", description: "Every person in your direct downline has earned at least 1 badge.", icon: "🌟", metric: "has_whole_team", threshold: 1 },
+
+  // Longevity
+  { key: "anniversary", category: "Longevity", label: "Anniversary", description: "It's been 1+ year since your first personal launch.", icon: "🎂", metric: "has_anniversary", threshold: 1 },
+
+  // Meta / Combo
+  { key: "well_rounded", category: "Meta / Combo", label: "Well-Rounded", description: "Earn badges from 3 different categories in the same week.", icon: "🌟", special: "well_rounded" },
 ];
 
 export const BADGE_CATEGORIES: string[] = Array.from(new Set(BADGE_DEFINITIONS.map((b) => b.category)));
@@ -308,38 +376,75 @@ function metricValue(metrics: BadgeMetrics, key: keyof BadgeMetrics): number {
   return typeof raw === "boolean" ? (raw ? 1 : 0) : raw;
 }
 
+// badge_key -> earned_at (ISO string). A Map rather than a Set since
+// Well-Rounded needs the earned_at timestamps too, not just which keys
+// are earned - Full Spectrum/Perfectionist only ever call .has() on it,
+// so they don't care that it's richer than a plain set.
+export type EarnedBadgeMap = Map<string, string>;
+
 // Full Spectrum: at least one earned badge (from earnedKeys) in every
 // category. Categories with zero regular badges can't happen today, but
 // this doesn't assume it - an empty category is just never satisfied.
-function hasFullSpectrum(earnedKeys: Set<string>): boolean {
+function hasFullSpectrum(earnedKeys: EarnedBadgeMap): boolean {
   return BADGE_CATEGORIES.every((cat) =>
     BADGE_DEFINITIONS.some((b) => b.category === cat && earnedKeys.has(b.key))
   );
 }
 
 // Perfectionist: every badge in some category earned. Excludes Full
-// Spectrum/Perfectionist themselves from the "required" set for
-// whichever category they're in (Meta / Combo) - otherwise that one
+// Spectrum/Perfectionist/Well-Rounded themselves from the "required" set
+// for whichever category they're in (Meta / Combo) - otherwise that one
 // category could never be completed, since Perfectionist would require
 // having already earned Perfectionist.
-function hasPerfectionist(earnedKeys: Set<string>): boolean {
+function hasPerfectionist(earnedKeys: EarnedBadgeMap): boolean {
   return BADGE_CATEGORIES.some((cat) => {
     const required = BADGE_DEFINITIONS.filter((b) => b.category === cat && !("special" in b));
     return required.length > 0 && required.every((b) => earnedKeys.has(b.key));
   });
 }
 
-// earnedKeys is only needed for the two "special" meta badges - every
-// other (metric-driven) badge ignores it, so callers that only care
-// about those can omit it.
+// Monday-anchored week bucket key - doesn't need to be a strictly
+// compliant ISO week number, just consistent enough that two dates in
+// the same Mon-Sun week produce the same key.
+function weekBucketKey(isoDate: string): string {
+  const d = new Date(isoDate);
+  const dayIndex = (d.getUTCDay() + 6) % 7; // Monday = 0 ... Sunday = 6
+  const monday = new Date(d);
+  monday.setUTCDate(d.getUTCDate() - dayIndex);
+  return monday.toISOString().slice(0, 10);
+}
+
+// How many distinct categories were earned in each badge's own week,
+// keeping only the best week - Well-Rounded is earned once that best
+// reaches 3, and the same number (capped at 1) drives its progress bar.
+function bestWellRoundedWeekCount(earnedKeys: EarnedBadgeMap): number {
+  const categoriesByWeek = new Map<string, Set<string>>();
+  for (const [key, earnedAt] of earnedKeys) {
+    const def = BADGE_DEFINITIONS.find((b) => b.key === key);
+    if (!def) continue;
+    const week = weekBucketKey(earnedAt);
+    const set = categoriesByWeek.get(week) ?? new Set<string>();
+    set.add(def.category);
+    categoriesByWeek.set(week, set);
+  }
+  let best = 0;
+  for (const set of categoriesByWeek.values()) best = Math.max(best, set.size);
+  return best;
+}
+
+// earnedKeys is only needed for the "special" meta badges - every other
+// (metric-driven) badge ignores it, so callers that only care about
+// those can omit it.
 export function isBadgeEarned(
   def: BadgeDefinition,
   metrics: BadgeMetrics,
-  earnedKeys?: Set<string>
+  earnedKeys?: EarnedBadgeMap
 ): boolean {
   if ("special" in def) {
     if (!earnedKeys) return false;
-    return def.special === "full_spectrum" ? hasFullSpectrum(earnedKeys) : hasPerfectionist(earnedKeys);
+    if (def.special === "full_spectrum") return hasFullSpectrum(earnedKeys);
+    if (def.special === "perfectionist") return hasPerfectionist(earnedKeys);
+    return bestWellRoundedWeekCount(earnedKeys) >= 3;
   }
   return metricValue(metrics, def.metric) >= def.threshold;
 }
@@ -351,15 +456,18 @@ export function isBadgeEarned(
 export function badgeProgress(
   def: BadgeDefinition,
   metrics: BadgeMetrics,
-  earnedKeys?: Set<string>
+  earnedKeys?: EarnedBadgeMap
 ): number {
   if ("special" in def) {
-    const keys = earnedKeys ?? new Set<string>();
+    const keys = earnedKeys ?? new Map<string, string>();
     if (def.special === "full_spectrum") {
       const covered = BADGE_CATEGORIES.filter((cat) =>
         BADGE_DEFINITIONS.some((b) => b.category === cat && keys.has(b.key))
       ).length;
       return BADGE_CATEGORIES.length > 0 ? covered / BADGE_CATEGORIES.length : 0;
+    }
+    if (def.special === "well_rounded") {
+      return Math.max(0, Math.min(1, bestWellRoundedWeekCount(keys) / 3));
     }
     let best = 0;
     for (const cat of BADGE_CATEGORIES) {

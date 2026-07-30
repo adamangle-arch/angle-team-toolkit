@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import PageHeader from "@/components/PageHeader";
 import NotificationOptIn from "@/components/NotificationOptIn";
+import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import type { SentNotification } from "@/lib/types";
 
@@ -31,6 +32,7 @@ function formatSentAt(iso: string): string {
 }
 
 export default function NotificationsPage() {
+  const { user } = useAuth();
   const [notifications, setNotifications] = useState<SentNotification[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -44,9 +46,15 @@ export default function NotificationsPage() {
         .limit(50);
       setNotifications((data as SentNotification[]) ?? []);
       setLoading(false);
+      // For the Caught Up badge - a "you've viewed the list since X"
+      // watermark, since there's no per-notification read state.
+      await supabase
+        .from("profiles")
+        .update({ notifications_last_viewed_at: new Date().toISOString() })
+        .eq("id", user.id);
     }
     load();
-  }, []);
+  }, [user.id]);
 
   return (
     <>

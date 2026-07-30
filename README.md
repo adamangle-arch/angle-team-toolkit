@@ -2368,6 +2368,44 @@ existing way to know someone actually read something).
     badge in this category" check for Meta/Combo, since otherwise that
     one category could never complete (it would require having already
     earned itself).
+- **A fifth batch adds ~36 more badges (~196 total)**: Firsts, Onboarding
+  Milestones, more Games (Trivia/Diamond Chase/Diamond Run tiers), more
+  Business Structure (Team of 5/10/20/50/100 people, plus a "10 people +
+  8 combined QI1s" combo), more Goals/Household/Audios/Books/Consistency
+  badges, and one badge each added to Leadership & Recognition and
+  Longevity. Six of the picks turned out to already exist under
+  different names — Perfect Quarter/Half/Year duplicated the existing
+  Core 300 Streak tiers (3/6/12 months), Ditto Devotee/Legend duplicated
+  the existing Ditto Streak tiers (6/12 months), and Consistency Is King
+  duplicated the existing Perfect Month badge — so those six were left
+  alone rather than adding exact duplicates.
+  - **Diamond Chase gets its own `times_improved` column** (mirroring
+    Diamond Run's from an earlier batch) for Diamond Chase Pro, and a
+    trivial `exists` check on `snake_high_scores` for Diamond Chase
+    Rookie (played at all).
+  - **Caught Up needed a "have you looked" watermark**, since
+    `sent_notifications` never tracked per-notification read state — a
+    new `profiles.notifications_last_viewed_at`, stamped every time the
+    Notifications page loads, compared against your most recent
+    notification's timestamp.
+  - **Goal Getter only checks 3 of the 7 goal metrics** (`questions`,
+    `yeses`, `qi1s`) — those are the ones with a direct 1:1 match in
+    `pipeline_periods` for whatever period the goal is set to.
+    `read_minutes`/`audios`/`conversations`/`story_shares` live in
+    `streak_days` instead, which would need summing across a goal's
+    period rather than a straight column match, so they're not covered.
+  - **Household Streak and the "Team of 10 + 8 QI1s" combo** both
+    reuse patterns already established elsewhere — the former mirrors
+    `is_upline_of`'s "find the other half of a household" resolution,
+    the latter reuses the `get_downline_user_ids`-based team-combined
+    sum pattern from `max_fu1_month_team`/`max_fu2_month_team`.
+  - **Well-Rounded is a third `special` meta badge**, and needed more
+    than a plain earned-key set — it cares which *week* each badge was
+    earned, not just which ones. `isBadgeEarned`/`badgeProgress` now
+    take an `EarnedBadgeMap` (`badge_key -> earned_at`) instead of a
+    bare `Set<string>`; Full Spectrum/Perfectionist just call `.has()`
+    on it like before, Well-Rounded groups by a Monday-anchored week
+    bucket and checks whether any single week covers 3+ categories.
 
 ### Success quote on open
 

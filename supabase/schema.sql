@@ -749,6 +749,12 @@ alter table profiles add constraint profiles_upline_not_self check (upline_id is
 -- later notifies again.
 alter table profiles add column if not exists notified_5plus_pipeline boolean not null default false;
 
+-- Additive: stamped by the Notifications page on load - for the Caught
+-- Up badge ("read every notification you've ever received"). No actual
+-- per-notification read state, just a "you've viewed the list since X"
+-- watermark compared against your most recent notification's timestamp.
+alter table profiles add column if not exists notifications_last_viewed_at timestamptz;
+
 create or replace function public.generate_account_number()
 returns text
 language plpgsql
@@ -2403,6 +2409,11 @@ for insert with check (user_id = auth.uid());
 drop policy if exists "snake_high_scores_update_own" on snake_high_scores;
 create policy "snake_high_scores_update_own" on snake_high_scores
 for update using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+-- Additive: same reasoning as game_high_scores.times_improved (Diamond
+-- Run) - how many times a player has beaten their own previous best,
+-- not counting the very first score set - drives Diamond Chase Pro.
+alter table snake_high_scores add column if not exists times_improved int not null default 0;
 
 create or replace function public.get_snake_leaderboard()
 returns table (
@@ -4154,7 +4165,31 @@ returns table (
   max_sales_year_count int,
   resource_recipients_count int,
   good_neighbor_days int,
-  has_iron_streaker boolean
+  has_iron_streaker boolean,
+  total_candidates_added int,
+  total_contacts_count int,
+  has_first_qi1 boolean,
+  onboarding_sessions_unlocked int,
+  has_full_funnel boolean,
+  max_questionnaire_month int,
+  max_calendar_events_month int,
+  has_caught_up_notifications boolean,
+  total_perfect_trivia_days int,
+  has_played_diamond_chase boolean,
+  diamond_chase_times_improved int,
+  max_diamond_run_score int,
+  longest_weekday_streak_weeks int,
+  longest_any_pv_streak int,
+  max_qi1_month_team int,
+  has_team10_qi1_8 boolean,
+  has_dreams_filled boolean,
+  distinct_goal_periods_count int,
+  has_goal_getter boolean,
+  has_household_streak boolean,
+  total_audios_lifetime int,
+  total_books_lifetime int,
+  has_whole_team boolean,
+  has_anniversary boolean
 )
 language sql
 stable
@@ -4560,6 +4595,145 @@ as $$
         where user_id = p_user_id
           and badge_key in ('core_run_10', 'core_run_30', 'core_run_60', 'core_run_90', 'core_run_365')
       ) = 5
+    ),
+    (select count(*)::int from candidates where user_id = p_user_id),
+    (select count(*)::int from contacts where user_id = p_user_id),
+    (
+      exists (
+        select 1 from pipeline_periods
+        where user_id = p_user_id and period_type = 'daily' and qi1 >= 1
+      )
+    ),
+    (select coalesce(onboarding_unlocked_through, 1)::int from profiles where id = p_user_id),
+    (
+      exists (
+        select 1 from candidates where user_id = p_user_id and launched = true and current_step = 9
+      )
+    ),
+    (select coalesce(max(questionnaire), 0)::int from pipeline_periods where user_id = p_user_id and period_type = 'monthly'),
+    (
+      select coalesce(max(cnt), 0)::int from (
+        select count(*) as cnt from calendar_events
+        where creator_id = p_user_id
+        group by date_trunc('month', event_at)
+      ) t
+    ),
+    (
+      exists (select 1 from sent_notifications where user_id = p_user_id or user_id is null)
+      and (
+        select max(created_at) from sent_notifications where user_id = p_user_id or user_id is null
+      ) <= coalesce((select notifications_last_viewed_at from profiles where id = p_user_id), '-infinity'::timestamptz)
+    ),
+    (select count(*)::int from trivia_daily_results where user_id = p_user_id and total_count > 0 and correct_count = total_count),
+    (exists (select 1 from snake_high_scores where user_id = p_user_id)),
+    (select coalesce(max(times_improved), 0)::int from snake_high_scores where user_id = p_user_id),
+    (select coalesce(max(best_score), 0)::int from game_high_scores where user_id = p_user_id),
+    (
+      select coalesce(max(cnt), 0)::int from (
+        select count(*) as cnt from (
+          select week_start - (row_number() over (order by week_start))::int * interval '1 week' as grp
+          from (
+            select date_trunc('week', day)::date as week_start
+            from streak_days
+            where user_id = p_user_id
+              and read and listen and daily_update and story_share
+              and extract(isodow from day) between 1 and 5
+            group by date_trunc('week', day)
+            having count(*) = 5
+          ) perfect_weeks
+        ) islands
+        group by grp
+      ) runs
+    ),
+    (
+      select coalesce(max(cnt), 0)::int from (
+        select count(*) as cnt from (
+          select period_start - (row_number() over (order by period_start))::int * interval '1 month' as grp
+          from monthly_pv
+          where user_id = p_user_id and pv > 0
+        ) islands
+        group by grp
+      ) runs
+    ),
+    (
+      select coalesce(max(total), 0)::int from (
+        select sum(qi1) as total from pipeline_periods
+        where period_type = 'monthly'
+          and (user_id = p_user_id or user_id in (select user_id from public.get_downline_user_ids(p_user_id)))
+        group by period_start
+      ) t
+    ),
+    (
+      (select count(distinct member_id) from legs) >= 10
+      and (
+        select coalesce(max(total), 0) from (
+          select sum(qi1) as total from pipeline_periods
+          where period_type = 'monthly'
+            and (user_id = p_user_id or user_id in (select user_id from public.get_downline_user_ids(p_user_id)))
+          group by period_start
+        ) t
+      ) >= 8
+    ),
+    (
+      exists (
+        select 1 from profiles
+        where id = p_user_id and dream_5_year <> '' and dream_10_year <> '' and dream_lifetime <> ''
+      )
+    ),
+    (select count(distinct period)::int from goals where user_id = p_user_id),
+    (
+      exists (
+        select 1 from goals g
+        where g.user_id = p_user_id
+          and g.metric in ('questions', 'yeses', 'qi1s')
+          and g.target > 0
+          and exists (
+            select 1 from pipeline_periods pp
+            where pp.user_id = p_user_id and pp.period_type = g.period
+              and (
+                (g.metric = 'questions' and pp.questions >= g.target)
+                or (g.metric = 'yeses' and pp.yeses >= g.target)
+                or (g.metric = 'qi1s' and pp.qi1 >= g.target)
+              )
+          )
+      )
+    ),
+    (
+      public.get_current_streak(p_user_id) >= 30
+      and exists (
+        select 1 from (
+          select coalesce(
+            (select household_id from profiles where id = p_user_id),
+            (select id from profiles where household_id = p_user_id)
+          ) as spouse_id
+        ) s
+        where s.spouse_id is not null
+          and public.get_current_streak(s.spouse_id) >= 30
+      )
+    ),
+    (select coalesce(sum(listen_count), 0)::int from streak_days where user_id = p_user_id),
+    (select count(*)::int from book_completions where user_id = p_user_id),
+    (
+      exists (
+        select 1 from profiles dr
+        where dr.upline_id = p_user_id
+           or dr.upline_id = (select household_id from profiles where id = p_user_id)
+      )
+      and not exists (
+        select 1 from profiles dr
+        where (
+          dr.upline_id = p_user_id
+          or dr.upline_id = (select household_id from profiles where id = p_user_id)
+        )
+        and not exists (select 1 from user_badges ub where ub.user_id = dr.id)
+      )
+    ),
+    (
+      exists (
+        select 1 from candidates
+        where user_id = p_user_id and launched = true and launched_at is not null
+          and launched_at <= now() - interval '1 year'
+      )
     );
 $$;
 
