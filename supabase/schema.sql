@@ -2764,6 +2764,47 @@ $$;
 
 grant execute on function public.get_upline_user_ids(uuid) to authenticated;
 
+-- Every downline member (any level, any leg), tagged with which "leg"
+-- of the business they belong to - for the Business Structure badges
+-- (N legs, N legs + M total people, N legs producing volume/on a Core
+-- Run/taking action). A "leg" is a first-level direct recruit's entire
+-- line: two direct recruits who happen to be a linked spouse pair
+-- collapse into one leg (household-collapsed via coalesce(household_id,
+-- id) as leg_root), matching the "spouses count as two people but not
+-- two legs" rule - everyone below that first level just inherits their
+-- leg_root from whoever recruited them. viewer_unit mirrors
+-- is_upline_of's own household expansion so either spouse's direct
+-- recruits count as the household's legs, not just whichever partner
+-- happens to hold upline_id.
+create or replace function public.get_leg_members(p_user_id uuid)
+returns table (leg_root uuid, member_id uuid)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  with recursive viewer_unit as (
+    select p_user_id as id
+    union
+    select household_id from profiles where id = p_user_id and household_id is not null
+    union
+    select id from profiles where household_id = p_user_id
+  ),
+  tree as (
+    select coalesce(p.household_id, p.id) as leg_root, p.id as member_id
+    from profiles p
+    where p.upline_id in (select id from viewer_unit)
+      and p.id not in (select id from viewer_unit)
+    union all
+    select t.leg_root, p.id
+    from profiles p
+    join tree t on p.upline_id = t.member_id
+  )
+  select distinct leg_root, member_id from tree;
+$$;
+
+grant execute on function public.get_leg_members(uuid) to authenticated;
+
 -- Inserts one copy of the event per downline member (any level), each
 -- owned by that member so it shows on their own calendar too, not just
 -- the creator's. Security definer because the normal insert_own RLS
@@ -3891,6 +3932,48 @@ create policy "book_completions_delete_own" on book_completions for delete using
   or user_id = (select household_id from profiles where id = auth.uid())
 );
 
+-- A single generic self-report log for every "no other way to know"
+-- one-off/repeatable action a badge needs (same gap book_completions
+-- solved for reading) - one `kind`-tagged table instead of a new table
+-- per action, since the list of these kept growing. Household-shareable,
+-- no upline fill-in, same shape/reasoning as book_completions.
+create table if not exists activity_logs (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  kind text not null,
+  created_at timestamptz not null default now()
+);
+
+alter table activity_logs drop constraint if exists activity_logs_kind_check;
+alter table activity_logs add constraint activity_logs_kind_check check (
+  kind in (
+    'sample_bag_given', 'customer_survey_completed', 'weekly_training_attended',
+    'monthly_masterclass_attended', 'quarterly_conference_attended', 'story_practiced'
+  )
+);
+
+alter table activity_logs enable row level security;
+
+drop policy if exists "activity_logs_select_own_or_upline_or_admin" on activity_logs;
+create policy "activity_logs_select_own_or_upline_or_admin" on activity_logs for select using (
+  user_id = auth.uid()
+  or user_id = (select household_id from profiles where id = auth.uid())
+  or public.is_upline_of(auth.uid(), user_id)
+  or public.is_app_admin()
+);
+
+drop policy if exists "activity_logs_insert_own" on activity_logs;
+create policy "activity_logs_insert_own" on activity_logs for insert with check (
+  user_id = auth.uid()
+  or user_id = (select household_id from profiles where id = auth.uid())
+);
+
+drop policy if exists "activity_logs_delete_own" on activity_logs;
+create policy "activity_logs_delete_own" on activity_logs for delete using (
+  user_id = auth.uid()
+  or user_id = (select household_id from profiles where id = auth.uid())
+);
+
 -- One RPC computing every raw number lib/badges.ts's thresholds get
 -- compared against, rather than one query per badge from the client.
 -- "Longest ever" (not "current") for anything streak-shaped, same
@@ -3947,13 +4030,33 @@ returns table (
   distinct_core300_months int,
   times_improved int,
   longest_trivia_streak int,
-  has_weekend_warrior boolean
+  has_weekend_warrior boolean,
+  leg_count int,
+  total_downline_people int,
+  has_org_combo_3_10 boolean,
+  has_org_combo_6_25 boolean,
+  has_org_combo_6_50 boolean,
+  has_org_combo_9_75 boolean,
+  has_org_combo_12_100 boolean,
+  legs_with_volume int,
+  legs_on_core_run int,
+  legs_taking_action int,
+  call_ratings_count int,
+  sample_bags_given int,
+  has_customer_survey boolean,
+  has_weekly_training boolean,
+  has_monthly_masterclass boolean,
+  has_quarterly_conference boolean,
+  has_story_practiced boolean
 )
 language sql
 stable
 security definer
 set search_path = public
 as $$
+  with legs as (
+    select * from public.get_leg_members(p_user_id)
+  )
   select
     public.get_longest_streak(p_user_id),
     (select coalesce(max(pv), 0)::int from monthly_pv where user_id = p_user_id),
@@ -4139,7 +4242,56 @@ as $$
           and sat.meetings > 0
           and sun.meetings > 0
       )
-    );
+    ),
+    (select count(distinct leg_root)::int from legs),
+    (select count(distinct member_id)::int from legs),
+    (
+      (select count(distinct leg_root) from legs) >= 3
+      and (select count(distinct member_id) from legs) >= 10
+    ),
+    (
+      (select count(distinct leg_root) from legs) >= 6
+      and (select count(distinct member_id) from legs) >= 25
+    ),
+    (
+      (select count(distinct leg_root) from legs) >= 6
+      and (select count(distinct member_id) from legs) >= 50
+    ),
+    (
+      (select count(distinct leg_root) from legs) >= 9
+      and (select count(distinct member_id) from legs) >= 75
+    ),
+    (
+      (select count(distinct leg_root) from legs) >= 12
+      and (select count(distinct member_id) from legs) >= 100
+    ),
+    (
+      select count(distinct lm.leg_root)::int from legs lm
+      join monthly_pv mp on mp.user_id = lm.member_id
+        and mp.period_start = date_trunc('month', current_date)::date
+        and mp.pv > 0
+    ),
+    (
+      select count(distinct lm.leg_root)::int from legs lm
+      where public.get_current_streak(lm.member_id) > 0
+    ),
+    (
+      select count(distinct lm.leg_root)::int from legs lm
+      join pipeline_periods pp on pp.user_id = lm.member_id
+        and pp.period_type = 'monthly'
+        and pp.period_start = date_trunc('month', current_date)::date
+        and (
+          pp.questions + pp.yeses + pp.qi1 + pp.qi2 + pp.is1 + pp.fu1
+          + pp.is2 + pp.fu2 + pp.questionnaire + pp.launches
+        ) > 0
+    ),
+    (select count(*)::int from call_ratings where user_id = p_user_id),
+    (select count(*)::int from activity_logs where user_id = p_user_id and kind = 'sample_bag_given'),
+    (exists (select 1 from activity_logs where user_id = p_user_id and kind = 'customer_survey_completed')),
+    (exists (select 1 from activity_logs where user_id = p_user_id and kind = 'weekly_training_attended')),
+    (exists (select 1 from activity_logs where user_id = p_user_id and kind = 'monthly_masterclass_attended')),
+    (exists (select 1 from activity_logs where user_id = p_user_id and kind = 'quarterly_conference_attended')),
+    (exists (select 1 from activity_logs where user_id = p_user_id and kind = 'story_practiced'));
 $$;
 
 grant execute on function public.get_badge_metrics(uuid) to authenticated;

@@ -6,7 +6,17 @@ import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import { BADGE_DEFINITIONS, BADGE_CATEGORIES, isBadgeEarned, badgeProgress } from "@/lib/badges";
 import { checkAndAwardBadges } from "@/lib/badgeEngine";
+import { ACTIVITY_LOG_KINDS, type ActivityLogKind } from "@/lib/constants";
 import type { BadgeMetrics, UserBadge } from "@/lib/types";
+
+const ACTIVITY_METRIC_KEY: Record<ActivityLogKind, keyof BadgeMetrics> = {
+  sample_bag_given: "sample_bags_given",
+  customer_survey_completed: "has_customer_survey",
+  weekly_training_attended: "has_weekly_training",
+  monthly_masterclass_attended: "has_monthly_masterclass",
+  quarterly_conference_attended: "has_quarterly_conference",
+  story_practiced: "has_story_practiced",
+};
 
 function formatEarnedDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
@@ -19,6 +29,7 @@ export default function BadgesPage() {
   const [loading, setLoading] = useState(true);
   const [logging, setLogging] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loggingActivity, setLoggingActivity] = useState<ActivityLogKind | null>(null);
 
   async function load() {
     const [{ data: metricsRows }, { data: badgeRows }] = await Promise.all([
@@ -59,6 +70,20 @@ export default function BadgesPage() {
     setLogging(false);
   }
 
+  async function logActivity(kind: ActivityLogKind) {
+    setLoggingActivity(kind);
+    setError(null);
+    const { error: insertError } = await supabase.from("activity_logs").insert({ user_id: ownerId, kind });
+    if (insertError) {
+      setError(insertError.message);
+      setLoggingActivity(null);
+      return;
+    }
+    await checkAndAwardBadges(ownerId);
+    await load();
+    setLoggingActivity(null);
+  }
+
   const earnedCount = earnedByKey.size;
   const totalCount = BADGE_DEFINITIONS.length;
 
@@ -77,6 +102,43 @@ export default function BadgesPage() {
           </button>
           {error && <p className="text-xs text-red-400">{error}</p>}
         </div>
+
+        {!loading && metrics && (
+          <div className="card space-y-2">
+            <p className="section-title">📋 Log Activity</p>
+            <p className="text-xs text-slate-400">
+              Same idea as books - there&apos;s no way to auto-detect these, so log them here as
+              you do them.
+            </p>
+            <div className="space-y-1.5">
+              {ACTIVITY_LOG_KINDS.map(({ key, label }) => {
+                const metricKey = ACTIVITY_METRIC_KEY[key];
+                const value = metrics[metricKey];
+                const done = typeof value === "boolean" ? value : false;
+                const count = typeof value === "number" ? value : null;
+                return (
+                  <div key={key} className="flex items-center justify-between gap-2">
+                    <span className="text-sm text-slate-200">
+                      {label}
+                      {count !== null && <span className="text-slate-500"> ({count})</span>}
+                    </span>
+                    {done ? (
+                      <span className="pill-amber shrink-0 text-xs">✅ Done</span>
+                    ) : (
+                      <button
+                        className="btn-secondary shrink-0 text-xs"
+                        onClick={() => logActivity(key)}
+                        disabled={loggingActivity === key}
+                      >
+                        {loggingActivity === key ? "Logging…" : count !== null ? "+1" : "Mark Done"}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {loading || !metrics ? (
           <div className="empty-state">Loading…</div>

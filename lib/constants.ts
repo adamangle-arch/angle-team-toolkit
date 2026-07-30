@@ -14,6 +14,20 @@ export function isPrimaryUser(email: string | null | undefined): boolean {
 export const CALL_RATING_TYPES = ["QI1", "QI2", "FU1", "FU2", "Questionnaire"] as const;
 export type CallRatingType = (typeof CALL_RATING_TYPES)[number];
 
+// One-off/repeatable self-report actions with no other way to auto-detect
+// them (same gap book_completions solved for reading) — must match the
+// activity_logs.kind check constraint in supabase/schema.sql. Logged from
+// the Badges tab's "Log Activity" card.
+export const ACTIVITY_LOG_KINDS = [
+  { key: "sample_bag_given", label: "Sample Bag Given" },
+  { key: "customer_survey_completed", label: "Customer Survey Completed" },
+  { key: "weekly_training_attended", label: "Weekly Training Attended" },
+  { key: "monthly_masterclass_attended", label: "Monthly Masterclass Attended" },
+  { key: "quarterly_conference_attended", label: "Quarterly Conference Attended" },
+  { key: "story_practiced", label: "Practiced My Story with the Assistant" },
+] as const;
+export type ActivityLogKind = (typeof ACTIVITY_LOG_KINDS)[number]["key"];
+
 // Calendar event categories, each with its own color dot so a scan down
 // the list tells candidate meetings apart from team events and personal
 // reminders at a glance — must match the check constraint on

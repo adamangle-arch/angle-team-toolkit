@@ -1,4 +1,4 @@
-import type { PipelineStageKey, GoalMetric, GoalPeriod, CallRatingType, CalendarEventType } from "./constants";
+import type { PipelineStageKey, GoalMetric, GoalPeriod, CallRatingType, CalendarEventType, ActivityLogKind } from "./constants";
 
 export type Profile = {
   id: string;
@@ -446,6 +446,13 @@ export type EventAttendance = {
   created_at: string;
 };
 
+export type ActivityLog = {
+  id: string;
+  user_id: string;
+  kind: ActivityLogKind;
+  created_at: string;
+};
+
 // Shape of get_badge_metrics() - one row of every raw number
 // lib/badges.ts's thresholds get compared against.
 export type BadgeMetrics = {
@@ -492,4 +499,21 @@ export type BadgeMetrics = {
   times_improved: number;
   longest_trivia_streak: number;
   has_weekend_warrior: boolean;
+  leg_count: number;
+  total_downline_people: number;
+  has_org_combo_3_10: boolean;
+  has_org_combo_6_25: boolean;
+  has_org_combo_6_50: boolean;
+  has_org_combo_9_75: boolean;
+  has_org_combo_12_100: boolean;
+  legs_with_volume: number;
+  legs_on_core_run: number;
+  legs_taking_action: number;
+  call_ratings_count: number;
+  sample_bags_given: number;
+  has_customer_survey: boolean;
+  has_weekly_training: boolean;
+  has_monthly_masterclass: boolean;
+  has_quarterly_conference: boolean;
+  has_story_practiced: boolean;
 };

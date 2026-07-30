@@ -122,6 +122,7 @@ export const BADGE_DEFINITIONS: BadgeDefinition[] = [
   { key: "customer_champion", category: "Customers", label: "Customer Champion", description: "Log 25 customer sales.", icon: "🛍️", metric: "total_customer_sales", threshold: 25 },
   { key: "big_ticket", category: "Customers", label: "Big Ticket", description: "Log a single sale of 100+ PV.", icon: "💵", metric: "max_single_sale_pv", threshold: 100 },
   { key: "sales_month", category: "Customers", label: "Sales Month", description: "300+ PV in customer sales in one month.", icon: "💵", metric: "max_sales_month_pv", threshold: 300 },
+  { key: "customer_survey_completed", category: "Customers", label: "Customer Survey", description: "Complete a customer survey.", icon: "📋", metric: "has_customer_survey", threshold: 1 },
 
   // Pipeline Beyond QI1
   { key: "is1_regular", category: "Pipeline Beyond QI1", label: "IS1 Regular", description: "5 IS1s in a month.", icon: "🗓️", metric: "max_is1_month", threshold: 5 },
@@ -175,6 +176,60 @@ export const BADGE_DEFINITIONS: BadgeDefinition[] = [
 
   // Wildcard
   { key: "weekend_warrior", category: "Wildcard", label: "Weekend Warrior", description: "Log meetings on both Saturday and Sunday, same weekend.", icon: "🏖️", metric: "has_weekend_warrior", threshold: 1 },
+
+  // Business Structure (a "leg" is a first-level recruit's entire line -
+  // a linked spouse pair recruited directly counts as one leg, though
+  // each spouse still counts individually toward total people)
+  { key: "legs_3", category: "Business Structure", label: "3 Legs", description: "Have 3 different legs in your organization.", icon: "🌳", metric: "leg_count", threshold: 3 },
+  { key: "legs_6", category: "Business Structure", label: "6 Legs", description: "Have 6 different legs in your organization.", icon: "🌳", metric: "leg_count", threshold: 6 },
+  { key: "legs_12", category: "Business Structure", label: "12 Legs", description: "Have 12 different legs in your organization.", icon: "🌳", metric: "leg_count", threshold: 12 },
+  { key: "legs_15", category: "Business Structure", label: "15 Legs", description: "Have 15 different legs in your organization.", icon: "🌳", metric: "leg_count", threshold: 15 },
+  { key: "legs_20", category: "Business Structure", label: "20 Legs", description: "Have 20 different legs in your organization.", icon: "👑", metric: "leg_count", threshold: 20 },
+  { key: "org_combo_3_10", category: "Business Structure", label: "3 Legs, 10 People", description: "3 legs and 10 total people in your organization.", icon: "🏢", metric: "has_org_combo_3_10", threshold: 1 },
+  { key: "org_combo_6_25", category: "Business Structure", label: "6 Legs, 25 People", description: "6 legs and 25 total people in your organization.", icon: "🏢", metric: "has_org_combo_6_25", threshold: 1 },
+  { key: "org_combo_6_50", category: "Business Structure", label: "6 Legs, 50 People", description: "6 legs and 50 total people in your organization.", icon: "🏢", metric: "has_org_combo_6_50", threshold: 1 },
+  { key: "org_combo_9_75", category: "Business Structure", label: "9 Legs, 75 People", description: "9 legs and 75 total people in your organization.", icon: "🏢", metric: "has_org_combo_9_75", threshold: 1 },
+  { key: "org_combo_12_100", category: "Business Structure", label: "12 Legs, 100 People", description: "12 legs and 100 total people in your organization.", icon: "👑", metric: "has_org_combo_12_100", threshold: 1 },
+
+  // Legs with Volume (how many different legs are producing PV this month)
+  { key: "legs_volume_3", category: "Legs with Volume", label: "3 Legs with Volume", description: "3 different legs producing volume this month.", icon: "💧", metric: "legs_with_volume", threshold: 3 },
+  { key: "legs_volume_6", category: "Legs with Volume", label: "6 Legs with Volume", description: "6 different legs producing volume this month.", icon: "💧", metric: "legs_with_volume", threshold: 6 },
+  { key: "legs_volume_12", category: "Legs with Volume", label: "12 Legs with Volume", description: "12 different legs producing volume this month.", icon: "💧", metric: "legs_with_volume", threshold: 12 },
+  { key: "legs_volume_15", category: "Legs with Volume", label: "15 Legs with Volume", description: "15 different legs producing volume this month.", icon: "💧", metric: "legs_with_volume", threshold: 15 },
+  { key: "legs_volume_20", category: "Legs with Volume", label: "20 Legs with Volume", description: "20 different legs producing volume this month.", icon: "👑", metric: "legs_with_volume", threshold: 20 },
+
+  // Legs on Core Run (how many different legs have someone currently on a Core Run Streak)
+  { key: "legs_core_run_3", category: "Legs on Core Run", label: "3 Legs on Core Run", description: "3 different legs with someone currently on a Core Run Streak.", icon: "🔥", metric: "legs_on_core_run", threshold: 3 },
+  { key: "legs_core_run_6", category: "Legs on Core Run", label: "6 Legs on Core Run", description: "6 different legs with someone currently on a Core Run Streak.", icon: "🔥", metric: "legs_on_core_run", threshold: 6 },
+  { key: "legs_core_run_12", category: "Legs on Core Run", label: "12 Legs on Core Run", description: "12 different legs with someone currently on a Core Run Streak.", icon: "🔥", metric: "legs_on_core_run", threshold: 12 },
+  { key: "legs_core_run_15", category: "Legs on Core Run", label: "15 Legs on Core Run", description: "15 different legs with someone currently on a Core Run Streak.", icon: "🔥", metric: "legs_on_core_run", threshold: 15 },
+  { key: "legs_core_run_20", category: "Legs on Core Run", label: "20 Legs on Core Run", description: "20 different legs with someone currently on a Core Run Streak.", icon: "👑", metric: "legs_on_core_run", threshold: 20 },
+
+  // Legs Taking Action (how many different legs logged any pipeline activity this month)
+  { key: "legs_action_3", category: "Legs Taking Action", label: "3 Legs Taking Action", description: "3 different legs with someone taking action this month.", icon: "⚡", metric: "legs_taking_action", threshold: 3 },
+  { key: "legs_action_6", category: "Legs Taking Action", label: "6 Legs Taking Action", description: "6 different legs with someone taking action this month.", icon: "⚡", metric: "legs_taking_action", threshold: 6 },
+  { key: "legs_action_12", category: "Legs Taking Action", label: "12 Legs Taking Action", description: "12 different legs with someone taking action this month.", icon: "⚡", metric: "legs_taking_action", threshold: 12 },
+  { key: "legs_action_15", category: "Legs Taking Action", label: "15 Legs Taking Action", description: "15 different legs with someone taking action this month.", icon: "⚡", metric: "legs_taking_action", threshold: 15 },
+  { key: "legs_action_20", category: "Legs Taking Action", label: "20 Legs Taking Action", description: "20 different legs with someone taking action this month.", icon: "👑", metric: "legs_taking_action", threshold: 20 },
+
+  // Training & Events
+  { key: "weekly_training_attended", category: "Training & Events", label: "Weekly Training", description: "Attend a weekly training.", icon: "🎓", metric: "has_weekly_training", threshold: 1 },
+  { key: "monthly_masterclass_attended", category: "Training & Events", label: "Monthly Masterclass", description: "Attend a monthly masterclass.", icon: "🎓", metric: "has_monthly_masterclass", threshold: 1 },
+  { key: "quarterly_conference_attended", category: "Training & Events", label: "Quarterly Conference", description: "Attend a quarterly conference.", icon: "🎪", metric: "has_quarterly_conference", threshold: 1 },
+
+  // Sample Bags
+  { key: "sample_bags_5", category: "Sample Bags", label: "5 Sample Bags", description: "Give out 5 sample bags.", icon: "🎁", metric: "sample_bags_given", threshold: 5 },
+  { key: "sample_bags_10", category: "Sample Bags", label: "10 Sample Bags", description: "Give out 10 sample bags.", icon: "🎁", metric: "sample_bags_given", threshold: 10 },
+  { key: "sample_bags_15", category: "Sample Bags", label: "15 Sample Bags", description: "Give out 15 sample bags.", icon: "🎁", metric: "sample_bags_given", threshold: 15 },
+  { key: "sample_bags_20", category: "Sample Bags", label: "20 Sample Bags", description: "Give out 20 sample bags.", icon: "🎁", metric: "sample_bags_given", threshold: 20 },
+  { key: "sample_bags_25", category: "Sample Bags", label: "25 Sample Bags", description: "Give out 25 sample bags.", icon: "👑", metric: "sample_bags_given", threshold: 25 },
+
+  // AI Chat Practice
+  { key: "grade_meeting_5", category: "AI Chat Practice", label: "Grade 5 Meetings", description: "Grade 5 meetings on the AI chat.", icon: "📞", metric: "call_ratings_count", threshold: 5 },
+  { key: "grade_meeting_10", category: "AI Chat Practice", label: "Grade 10 Meetings", description: "Grade 10 meetings on the AI chat.", icon: "📞", metric: "call_ratings_count", threshold: 10 },
+  { key: "grade_meeting_15", category: "AI Chat Practice", label: "Grade 15 Meetings", description: "Grade 15 meetings on the AI chat.", icon: "📞", metric: "call_ratings_count", threshold: 15 },
+  { key: "grade_meeting_20", category: "AI Chat Practice", label: "Grade 20 Meetings", description: "Grade 20 meetings on the AI chat.", icon: "👑", metric: "call_ratings_count", threshold: 20 },
+  { key: "story_practiced", category: "AI Chat Practice", label: "Story Practice", description: "Practice sharing your story with the AI chat.", icon: "📖", metric: "has_story_practiced", threshold: 1 },
 ];
 
 export const BADGE_CATEGORIES: string[] = Array.from(new Set(BADGE_DEFINITIONS.map((b) => b.category)));

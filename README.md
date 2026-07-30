@@ -2231,6 +2231,42 @@ existing way to know someone actually read something).
   showing an earned/total count and pill chips for (up to 12 of) the
   badges already earned — a lighter-weight summary than the full tab,
   in the one place someone's most likely checking their own standing.
+- **A third batch adds ~39 more badges (~131 total)**: Business
+  Structure (organizational size — "legs" and total people), Legs with
+  Volume/on Core Run/Taking Action (organizational health), Training &
+  Events, Sample Bags, a Customer Survey badge (folded into the
+  existing Customers category), and AI Chat Practice.
+  - **"Legs" needed a brand-new recursive function.**
+    `get_leg_members(p_user_id)` walks the whole downline tree (any
+    depth) and tags every member with which first-level "leg" they
+    trace back to — a leg's root is
+    `coalesce(household_id, id)` of the direct recruit, so two direct
+    recruits who are a linked spouse pair collapse into one leg
+    (matching "spouses count as two people but not two legs"), while
+    `viewer_unit` mirrors `is_upline_of`'s own household expansion so
+    either spouse's direct recruits count as the household's legs.
+    `get_badge_metrics` calls it once via a `with legs as (...)` CTE
+    and reuses it for every leg-related metric: `leg_count`,
+    `total_downline_people`, five "N legs + M people" combo booleans
+    (3+10/6+25/6+50/9+75/12+100), and three current-snapshot health
+    counts — legs with any monthly PV logged this month, legs with
+    someone on an active Core Run Streak right now, and legs with any
+    pipeline activity logged this month. These are live snapshots, not
+    "longest ever" — but a badge once inserted into `user_badges` is
+    never re-checked for removal, so the "never lose a badge" rule
+    still holds even if organization size later shrinks.
+  - **A generic `activity_logs` table** replaces adding a one-off table
+    per action — same self-report reasoning as `book_completions`, just
+    `kind`-tagged (`sample_bag_given`, `customer_survey_completed`,
+    `weekly_training_attended`, `monthly_masterclass_attended`,
+    `quarterly_conference_attended`, `story_practiced`) so one table
+    and one RLS policy set covers all six instead of six each. The
+    Badges tab's new "📋 Log Activity" card has one row per kind — a
+    running count + "+1" for Sample Bags, a "Mark Done"/"✅ Done" toggle
+    for the other five.
+  - **"Grade a meeting on the AI chat"** reuses the existing `call_ratings`
+    table (the Assistant's Rate a Call feature) rather than adding
+    anything new — `call_ratings_count` is just `count(*)` for that user.
 
 ### Success quote on open
 
