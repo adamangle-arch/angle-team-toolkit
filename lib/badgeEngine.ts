@@ -12,10 +12,19 @@ import type { BadgeMetrics, UserBadge } from "@/lib/types";
 // notification) to that downline's own ownerId, never the upline.
 export async function checkAndAwardBadges(ownerId: string): Promise<void> {
   try {
-    const [{ data: metricsRows }, { data: existingRows }] = await Promise.all([
-      supabase.rpc("get_badge_metrics", { p_user_id: ownerId }),
-      supabase.from("user_badges").select("badge_key, earned_at").eq("user_id", ownerId),
-    ]);
+    const [{ data: metricsRows, error: metricsError }, { data: existingRows, error: existingError }] =
+      await Promise.all([
+        supabase.rpc("get_badge_metrics", { p_user_id: ownerId }),
+        supabase.from("user_badges").select("badge_key, earned_at").eq("user_id", ownerId),
+      ]);
+    // Previously silent: a Postgres error from this RPC (e.g. a runtime
+    // exception in one of its many correlated subqueries) resolves as
+    // { data: null, error }, not a thrown exception - the metrics === null
+    // early return below still fires either way, but without this log
+    // there was no trace anywhere that badge evaluation had ever failed
+    // for a given account rather than genuinely not qualifying yet.
+    if (metricsError) console.error("checkAndAwardBadges: get_badge_metrics failed", metricsError);
+    if (existingError) console.error("checkAndAwardBadges: user_badges select failed", existingError);
     const metrics = (metricsRows as BadgeMetrics[] | null)?.[0];
     if (!metrics) return;
 
@@ -59,14 +68,24 @@ export async function checkAndAwardBadges(ownerId: string): Promise<void> {
         .single();
       // Race with another tab/session already awarding the same badge -
       // the unique(user_id, badge_key) constraint rejects the duplicate,
-      // which is exactly the outcome wanted (skip re-notifying).
-      if (error) continue;
+      // which is exactly the outcome wanted (skip re-notifying). Anything
+      // else (e.g. RLS blocking the insert because the viewer isn't
+      // self/household/upline/admin for this ownerId) is worth logging -
+      // otherwise a badge that should have been earned silently never is.
+      if (error) {
+        if (error.code !== "23505") {
+          console.error("checkAndAwardBadges: insert failed for", def.key, error);
+        }
+        continue;
+      }
       await fireBadgeNotification(ownerId, def.label);
     }
-  } catch {
+  } catch (err) {
     // Best-effort only - badge detection is a side effect tacked onto
     // whatever page triggered it and should never surface an error or
-    // block that page's own work.
+    // block that page's own work. Still logged (not swallowed silently)
+    // so a real bug doesn't just look like "never qualified."
+    console.error("checkAndAwardBadges failed", err);
   }
 }
 
