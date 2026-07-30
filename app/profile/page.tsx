@@ -1,18 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import ProfileForm from "@/components/ProfileForm";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import { TEAMS } from "@/lib/constants";
-import type { Profile, PublicProfile } from "@/lib/types";
+import { BADGE_DEFINITIONS } from "@/lib/badges";
+import type { Profile, PublicProfile, UserBadge } from "@/lib/types";
 
 export default function MyProfilePage() {
-  const { user, refreshProfile } = useAuth();
+  const { user, ownerId, refreshProfile } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
+  const [earnedBadges, setEarnedBadges] = useState<UserBadge[]>([]);
 
   const [partner, setPartner] = useState<PublicProfile | null>(null);
   const [partnerEmail, setPartnerEmail] = useState("");
@@ -73,6 +76,22 @@ export default function MyProfilePage() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadBadges() {
+      const { data } = await supabase
+        .from("user_badges")
+        .select("*")
+        .eq("user_id", ownerId)
+        .order("earned_at", { ascending: false });
+      if (!cancelled) setEarnedBadges((data as UserBadge[]) ?? []);
+    }
+    loadBadges();
+    return () => {
+      cancelled = true;
+    };
+  }, [ownerId]);
 
   async function handleLinkSpouse() {
     const email = partnerEmail.trim();
@@ -144,6 +163,35 @@ export default function MyProfilePage() {
           <div className="empty-state">Loading…</div>
         ) : (
           <>
+            <Link href="/badges" className="card space-y-2 block">
+              <div className="flex items-center justify-between gap-2">
+                <p className="section-title">🏅 My Badges</p>
+                <span className="pill-amber">
+                  {earnedBadges.length}/{BADGE_DEFINITIONS.length}
+                </span>
+              </div>
+              {earnedBadges.length === 0 ? (
+                <p className="text-xs text-slate-400">
+                  No badges earned yet — tap in to see what&apos;s available.
+                </p>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {earnedBadges.slice(0, 12).map((ub) => {
+                    const def = BADGE_DEFINITIONS.find((d) => d.key === ub.badge_key);
+                    if (!def) return null;
+                    return (
+                      <span key={ub.id} className="pill" title={def.label}>
+                        {def.icon} {def.label}
+                      </span>
+                    );
+                  })}
+                  {earnedBadges.length > 12 && (
+                    <span className="pill">+{earnedBadges.length - 12} more</span>
+                  )}
+                </div>
+              )}
+            </Link>
+
             <div className="card space-y-2">
               <p className="section-title">My Team</p>
               <p className="text-xs text-slate-400">

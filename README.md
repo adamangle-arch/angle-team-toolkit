@@ -2172,6 +2172,10 @@ existing way to know someone actually read something).
   downline earning a badge, so insert has to allow self, household,
   upline, or admin, the same four clauses as `pipeline_periods`'
   `insert_own_or_upline` policy.
+- **A "🏅 My Badges" card on My Profile** links straight to `/badges`,
+  showing an earned/total count and pill chips for (up to 12 of) the
+  badges already earned — a lighter-weight summary than the full tab,
+  in the one place someone's most likely checking their own standing.
 
 ### Success quote on open
 
