@@ -713,27 +713,42 @@ export default function LeaderboardPage() {
                   const winners = individualsByCategory.get(c.key) ?? [];
                   if (winners.length === 0) return null;
                   const key = individualEntryKey(periodType, periodStart, c.key);
+                  // A single winner stays on one line with the label; a tie
+                  // gets its own stacked row per winner underneath instead
+                  // of cramming every tied name (and its avatar) into one
+                  // wrapping paragraph - that's what made an avatar land
+                  // mid-sentence wherever the line happened to break.
                   return (
-                    <div key={c.key} className="flex items-start justify-between gap-2 text-sm">
-                      <span className="text-slate-200">
-                        {c.label}:{" "}
-                        <span className="text-amber-light">
-                          {winners.map((w, i) => (
-                            <span key={w.user_id}>
-                              <CoupleLink entry={w} showAvatar={winners.length === 1} /> ({w.team})
-                              {i < winners.length - 1 ? ", " : ""}
-                            </span>
-                          ))}
+                    <div key={c.key} className="space-y-1 text-sm">
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="text-slate-200">
+                          {c.label}
+                          {winners.length === 1 && (
+                            <>
+                              : <CoupleLink entry={winners[0]} showAvatar />{" "}
+                              <span className="text-xs text-slate-500">({winners[0].team})</span>
+                            </>
+                          )}
                         </span>
-                      </span>
-                      <div className="flex shrink-0 items-center gap-2">
-                        <span className="pill pill-amber">{winners[0].value}</span>
-                        <LikeButton
-                          entryKey={key}
-                          likes={likesMap.get(key) ?? NO_LIKES}
-                          onToggle={toggleLike}
-                        />
+                        <div className="flex shrink-0 items-center gap-2">
+                          <span className="pill pill-amber">{winners[0].value}</span>
+                          <LikeButton
+                            entryKey={key}
+                            likes={likesMap.get(key) ?? NO_LIKES}
+                            onToggle={toggleLike}
+                          />
+                        </div>
                       </div>
+                      {winners.length > 1 && (
+                        <div className="space-y-1 pl-2">
+                          {winners.map((w) => (
+                            <div key={w.user_id} className="text-xs text-amber-light">
+                              <CoupleLink entry={w} showAvatar />{" "}
+                              <span className="text-slate-500">({w.team})</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   );
                 })

@@ -2621,18 +2621,24 @@ up) plus a numeric level and progress bar toward the next one.
   bulk-friendly shape for a list view instead of one RPC call per row.
   - **Fixed: the Individual Leaders section looked broken when several
     people tied for the same category** (e.g. two couples both leading
-    FU1) — each tied name rendered its own inline avatar in one wrapping
+    FU1) — every tied name rendered its own inline avatar in one wrapping
     comma-separated paragraph, and a photo doesn't reflow with the text
     the way a word does, so it landed mid-sentence wherever the line
-    happened to break. `PersonLink`/`CoupleLink` both take a `showAvatar`
-    prop now (default on); the tied-winners list turns it off whenever
-    there's more than one winner in a category, and every genuinely
-    one-row-per-person/couple section (Streaks, Core 300, Active
-    Candidates, QI1 Rhythm, Ditto, Milestones, Daily Sales, Games) keeps
-    it. The avatar size for these inline rows also dropped from 40px to
-    a new 24px `"xs"` size, and every list row switched from `items-center`
-    to `items-start` so a wrapped name doesn't center the count/like
-    button oddly across multiple lines.
+    happened to break. First pass turned the avatar off whenever a
+    category had more than one winner, which fixed the wrapping glitch
+    but then hid tied winners' photos entirely (e.g. two people tied on
+    FU1 lost their avatars while every solo-winner category kept
+    theirs) — a real regression, not the intended fix. Rebuilt properly
+    instead: a tie now gets its own stacked row per winner underneath
+    the category label (avatar, name(s), team, each on its own line)
+    rather than one shared wrapping paragraph, so every winner keeps
+    their avatar regardless of how many people tied. `PersonLink`/
+    `CoupleLink` still take a `showAvatar` prop for the couple of
+    contexts where a name appears inline mid-sentence with no room for
+    a photo. The avatar size for these inline rows also dropped from
+    40px to a new 24px `"xs"` size, and every list row switched from
+    `items-center` to `items-start` so a wrapped name doesn't center the
+    count/like button oddly across multiple lines.
   - **Fixed: `CoupleLink` only showed one spouse's avatar**, which read
     as "one of them has a badge account and one doesn't" - not the
     case, since badges (and therefore level) are household-merged and
