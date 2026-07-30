@@ -2457,6 +2457,50 @@ existing way to know someone actually read something).
   - **Collector is a fourth `special` meta badge** (earn 1+ badge in 10
     different categories) — same `EarnedBadgeMap` mechanism as Full
     Spectrum, just a lower bar than "every" category.
+- **A seventh batch adds 54 more badges (284 total)**, reused mostly-existing
+  metrics for higher tiers (Veteran/Pro/Icon/Legend-style badges across AI
+  Chat Practice, Calendar & Meetings, Customers, Contacts, Business
+  Structure, Consistency, App Habits, Sample Bags, Games) plus new
+  categories: Push & Calendar (turning on Daily Reminder push, scheduling a
+  downline-visible calendar event), Profile (photo, hometown, favorite
+  audios/books all filled in), and Assistant (attaching a screenshot to a
+  conversation).
+  - **Balanced Portfolio is a fifth `special` meta badge** (5+ badges in 5
+    different categories) — a higher per-category bar than Collector/Full
+    Spectrum, which only ever need 1 badge in a category to count it.
+  - **Marathon Reader Pro was changed from minutes to books** per
+    feedback — it's a higher tier on `total_books_lifetime` (50, above
+    Bookworm's 20) instead of a new lifetime-minutes column.
+  - **A few "current state" simplifications**, same spirit as Fully
+    Resourced/Comeback Season above: Roadmap Regular (10 active candidates)
+    and All In (active candidate + goal + Core Run Streak) read the
+    *current* snapshot rather than "ever hit this at once," since the
+    schema doesn't keep historical pipeline-size snapshots. Team Spirit
+    (attend a Team Event within 30 days of "your own launch") uses signup
+    date (`profiles.created_at`) as a stand-in, since the app only tracks
+    launch dates for candidates *you* launch, not your own.
+  - **Full Circle (convert a Contact into a Candidate) is name-matched**,
+    not a real link between the two tables — there's no explicit
+    "convert" action in the app, so it checks for a candidate whose name
+    matches an existing contact's, case-insensitively, for the same user.
+  - **Steady Growth and Founder's Circle reuse the `legs` CTE** already in
+    `get_badge_metrics` (one new leg every quarter for 4 straight quarters,
+    by each leg's `profiles.created_at`; 3 direct recruits whose own
+    downline via `get_leg_members` each reaches 5+ people).
+  - **Streak Gamer needed a "current" Trivia streak.** The existing
+    `get_longest_trivia_streak` is lifetime-best, not "still going" — a new
+    `get_current_trivia_streak(p_user_id)` mirrors `get_current_streak`'s
+    walk-back-from-today shape, applied to `trivia_daily_results` instead
+    of `streak_days`.
+
+### Tapping a badge shows its description
+
+Badge pills on My Profile and the public profile (`components/BadgePillList.tsx`)
+were previously just a static row with a hover `title` tooltip — useless on
+mobile, where there's no hover. Each pill is now a button; tapping it opens
+the same bottom-sheet modal pattern already used elsewhere (Today dashboard's
+active-pipeline modal) showing the badge's icon, label, full description, and
+the date it was earned.
 
 ### Success quote on open
 

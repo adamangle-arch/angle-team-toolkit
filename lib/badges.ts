@@ -40,7 +40,7 @@ export type MetaBadgeDefinition = {
   label: string;
   description: string;
   icon: string;
-  special: "full_spectrum" | "perfectionist" | "well_rounded" | "collector";
+  special: "full_spectrum" | "perfectionist" | "well_rounded" | "collector" | "balanced_portfolio";
 };
 
 export type BadgeDefinition = MetricBadgeDefinition | MetaBadgeDefinition;
@@ -433,6 +433,106 @@ export const BADGE_DEFINITIONS: BadgeDefinition[] = [
   // Meta / Combo
   { key: "collector", category: "Meta / Combo", label: "Collector", description: "Earn at least 1 badge in 10 different categories.", icon: "🧩", special: "collector" },
   { key: "halfway_there", category: "Meta / Combo", label: "Halfway There", description: "Earn 150 badges total.", icon: "🎖️", metric: "total_badges_earned", threshold: 150 },
+
+  // Growing Others
+  { key: "patient_teacher_pro", category: "Growing Others", label: "Patient Teacher Pro", description: "Grant an Onboarding unlock to 10 different downline members.", icon: "🎓", metric: "patient_teacher_count", threshold: 10 },
+  { key: "onboarding_champion", category: "Growing Others", label: "Onboarding Champion", description: "Grant an Onboarding unlock to 20 different downline members.", icon: "👑", metric: "patient_teacher_count", threshold: 20 },
+  { key: "mentors_mentor", category: "Growing Others", label: "Mentor's Mentor", description: "Someone you personally onboarded later grants an Onboarding unlock themselves.", icon: "🎓", metric: "has_mentors_mentor", threshold: 1 },
+
+  // AI Chat Practice
+  { key: "qi2_veteran", category: "AI Chat Practice", label: "QI2 Veteran", description: "Grade 25 QI2 calls.", icon: "📞", metric: "qi2_ratings_count", threshold: 25 },
+  { key: "fu1_veteran", category: "AI Chat Practice", label: "FU1 Veteran", description: "Grade 25 FU1 calls.", icon: "📞", metric: "fu1_ratings_count", threshold: 25 },
+  { key: "fu2_veteran", category: "AI Chat Practice", label: "FU2 Veteran", description: "Grade 25 FU2 calls.", icon: "📞", metric: "fu2_ratings_count", threshold: 25 },
+  { key: "questionnaire_veteran", category: "AI Chat Practice", label: "Questionnaire Veteran", description: "Grade 25 Questionnaire calls.", icon: "📞", metric: "questionnaire_ratings_count", threshold: 25 },
+  { key: "grade_meeting_icon", category: "AI Chat Practice", label: "Grade Meeting Icon", description: "Grade 30 meetings on the AI chat.", icon: "👑", metric: "call_ratings_count", threshold: 30 },
+
+  // Calendar & Meetings
+  { key: "meeting_legend", category: "Calendar & Meetings", label: "Meeting Legend", description: "200 lifetime meetings logged.", icon: "👑", metric: "total_meetings_lifetime", threshold: 200 },
+  { key: "meeting_machine_pro", category: "Calendar & Meetings", label: "Meeting Machine Pro", description: "15 meetings in a week.", icon: "📅", metric: "max_meetings_week", threshold: 15 },
+  { key: "booked_solid_pro", category: "Calendar & Meetings", label: "Booked Solid Pro", description: "30 meetings in a month.", icon: "📅", metric: "max_meetings_month", threshold: 30 },
+  { key: "meeting_notes", category: "Calendar & Meetings", label: "Meeting Notes", description: "20 lifetime meetings logged.", icon: "🗒️", metric: "total_meetings_lifetime", threshold: 20 },
+
+  // Story & Depth
+  { key: "storyteller_icon", category: "Story & Depth", label: "Storyteller Icon", description: "250 story shares logged lifetime.", icon: "👑", metric: "total_story_shares_lifetime", threshold: 250 },
+
+  // Books
+  { key: "marathon_reader_pro", category: "Books", label: "Marathon Reader Pro", description: "50 lifetime books finished.", icon: "📚", metric: "total_books_lifetime", threshold: 50 },
+
+  // Games
+  { key: "diamond_chase_icon", category: "Games", label: "Diamond Chase Icon", description: "Score 300+ in a single Diamond Chase run.", icon: "👑", metric: "max_diamond_chase_score", threshold: 300 },
+  { key: "streak_gamer", category: "Games", label: "Streak Gamer", description: "A 14-day Trivia streak while also on an active 14+ day Core Run Streak.", icon: "🧠", metric: "has_streak_gamer", threshold: 1 },
+  { key: "trivia_grinder", category: "Games", label: "Trivia Grinder", description: "500 lifetime Trivia questions answered correctly.", icon: "🧠", metric: "total_trivia_correct_lifetime", threshold: 500 },
+
+  // App Habits
+  { key: "weekend_visitor_pro", category: "App Habits", label: "Weekend Visitor Pro", description: "Open the app both Saturday and Sunday, 20 different weekends.", icon: "📱", metric: "weekend_visitor_count", threshold: 20 },
+  { key: "daily_visitor_icon", category: "App Habits", label: "Daily Visitor Icon", description: "Open the app 60 days in a row.", icon: "📱", metric: "app_opened_streak", threshold: 60 },
+  { key: "daily_visitor_legend", category: "App Habits", label: "Daily Visitor Legend", description: "Open the app 100 days in a row.", icon: "👑", metric: "app_opened_streak", threshold: 100 },
+
+  // Sample Bags
+  { key: "sample_bag_icon", category: "Sample Bags", label: "Sample Bag Icon", description: "Give out 50 sample bags.", icon: "👑", metric: "sample_bags_given", threshold: 50 },
+
+  // Customers
+  { key: "customer_champion_pro", category: "Customers", label: "Customer Champion Pro", description: "Log 50 customer sales.", icon: "🛍️", metric: "total_customer_sales", threshold: 50 },
+  { key: "big_month_pro", category: "Customers", label: "Big Month Pro", description: "10+ separate sales logged in a single month.", icon: "🛍️", metric: "max_sales_count_month", threshold: 10 },
+  { key: "sales_month_pro", category: "Customers", label: "Sales Month Pro", description: "500+ PV in customer sales in one month.", icon: "💵", metric: "max_sales_month_pv", threshold: 500 },
+  { key: "century_of_sales_pro", category: "Customers", label: "Century of Sales Pro", description: "150 customer sales logged in a single year.", icon: "👑", metric: "max_sales_year_count", threshold: 150 },
+
+  // Contacts
+  { key: "list_builder_icon", category: "Contacts", label: "List Builder Icon", description: "Have 400 names on your A/B list.", icon: "👑", metric: "max_ab_contacts", threshold: 400 },
+  { key: "list_refresh_pro", category: "Contacts", label: "List Refresh Pro", description: "Add 50 new names to your A/B list in a month.", icon: "📇", metric: "max_contacts_added_month", threshold: 50 },
+  { key: "full_circle", category: "Contacts", label: "Full Circle", description: "Convert a Contact into a Candidate.", icon: "🔄", metric: "has_full_circle", threshold: 1 },
+
+  // Business Structure
+  { key: "team_of_200", category: "Business Structure", label: "Team of Two Hundred", description: "200 people total in your downline, any depth.", icon: "👑", metric: "total_downline_people", threshold: 200 },
+  { key: "steady_growth", category: "Business Structure", label: "Steady Growth", description: "Add at least 1 new leg every quarter for a full year.", icon: "🌱", metric: "has_steady_growth", threshold: 1 },
+
+  // Consistency
+  { key: "no_zero_days_pro", category: "Consistency", label: "No Zero Days Pro", description: "Log something in Core Run every day for 120 days straight.", icon: "👑", metric: "longest_any_component_streak", threshold: 120 },
+  { key: "second_wind", category: "Consistency", label: "Second Wind", description: "Rebuild a 30+ day Core Run Streak after it broke, twice.", icon: "💪", metric: "core_run_streak_count_30plus", threshold: 2 },
+
+  // Meta / Combo
+  { key: "halfway_there_plus", category: "Meta / Combo", label: "Halfway There Plus", description: "Earn 200 badges total.", icon: "👑", metric: "total_badges_earned", threshold: 200 },
+  { key: "balanced_portfolio", category: "Meta / Combo", label: "Balanced Portfolio", description: "Earn 5+ badges in 5 different categories.", icon: "⚖️", special: "balanced_portfolio" },
+  { key: "speed_collector", category: "Meta / Combo", label: "Speed Collector", description: "Earn 10 badges within your first 30 days of signing up.", icon: "⚡", metric: "badges_within_30_days_count", threshold: 10 },
+  { key: "triple_crown", category: "Meta / Combo", label: "Triple Crown", description: "Core 300 + a 30-day Core Run Streak + 10 QI1s, all in the same month.", icon: "👑", metric: "has_triple_crown", threshold: 1 },
+  { key: "all_in", category: "Meta / Combo", label: "All In", description: "An active candidate, an active goal, and an active Core Run Streak, all at once.", icon: "🎰", metric: "has_all_in", threshold: 1 },
+
+  // Push & Calendar
+  { key: "notified", category: "Push & Calendar", label: "Notified", description: "Turn on Daily Reminder push notifications.", icon: "🔔", metric: "has_push_subscription", threshold: 1 },
+  { key: "team_broadcaster", category: "Push & Calendar", label: "Team Broadcaster", description: "Schedule a calendar event visible to your whole downline.", icon: "📢", metric: "has_team_broadcaster", threshold: 1 },
+
+  // Profile
+  { key: "say_cheese", category: "Profile", label: "Say Cheese", description: "Upload a profile photo.", icon: "📸", metric: "has_profile_photo", threshold: 1 },
+  { key: "home_team", category: "Profile", label: "Home Team", description: "Fill in your hometown.", icon: "🏠", metric: "has_hometown_filled", threshold: 1 },
+  { key: "audiophiles_picks", category: "Profile", label: "Audiophile's Picks", description: "Fill in all three Top Favorite Audios.", icon: "🎧", metric: "has_favorite_audios_filled", threshold: 1 },
+  { key: "bookshelf_picks", category: "Profile", label: "Bookshelf Picks", description: "Fill in all three Top Favorite Books.", icon: "📚", metric: "has_favorite_books_filled", threshold: 1 },
+
+  // Audios
+  { key: "audio_curator", category: "Audios", label: "Audio Curator", description: "Listen to 20 distinct audio titles, lifetime.", icon: "🎧", metric: "distinct_audio_titles_count", threshold: 20 },
+  { key: "audio_connoisseur", category: "Audios", label: "Audio Connoisseur", description: "Listen to 50 distinct audio titles, lifetime.", icon: "👑", metric: "distinct_audio_titles_count", threshold: 50 },
+
+  // Household
+  { key: "shared_vision", category: "Household", label: "Shared Vision", description: "You and your spouse both fill in all three Dreams fields.", icon: "💑", metric: "has_shared_vision", threshold: 1 },
+
+  // Leadership & Recognition
+  { key: "founders_circle", category: "Leadership & Recognition", label: "Founder's Circle", description: "3 of your direct recruits each build their own team of 5+.", icon: "🌟", metric: "has_founders_circle", threshold: 1 },
+
+  // Pipeline Beyond QI1
+  { key: "roadmap_regular", category: "Pipeline Beyond QI1", label: "Roadmap Regular", description: "Have 10 candidates active in your pipeline at once.", icon: "🗺️", metric: "current_active_candidates_count", threshold: 10 },
+
+  // Assistant
+  { key: "screenshot_sharer", category: "Assistant", label: "Screenshot Sharer", description: "Attach a photo to an Assistant conversation.", icon: "📎", metric: "has_screenshot_shared", threshold: 1 },
+
+  // Wildcard
+  { key: "leap_day", category: "Wildcard", label: "Leap Day", description: "Log a Core Run on February 29th.", icon: "🐸", metric: "has_leap_day_core_run", threshold: 1 },
+  { key: "new_years_day", category: "Wildcard", label: "New Year's Day", description: "Log a Core Run on January 1st.", icon: "🎊", metric: "has_new_years_core_run", threshold: 1 },
+  { key: "independence_day", category: "Wildcard", label: "Independence Day", description: "Log a Core Run on July 4th.", icon: "🎆", metric: "has_independence_day_core_run", threshold: 1 },
+
+  // Longevity
+  { key: "consistency_champion", category: "Longevity", label: "Consistency Champion", description: "Hit Core 300 in 3 different calendar months, lifetime.", icon: "📆", metric: "distinct_core300_months", threshold: 3 },
+
+  // Team Culture
+  { key: "team_spirit", category: "Team Culture", label: "Team Spirit", description: "Attend a Team Event within 30 days of signing up.", icon: "📸", metric: "has_team_spirit", threshold: 1 },
 ];
 
 export const BADGE_CATEGORIES: string[] = Array.from(new Set(BADGE_DEFINITIONS.map((b) => b.category)));
@@ -506,6 +606,18 @@ function collectorCategoryCount(earnedKeys: EarnedBadgeMap): number {
   ).length;
 }
 
+// Balanced Portfolio: how many categories have 5+ earned badges in
+// them - a higher bar per-category than Collector/Full Spectrum, which
+// only ever need 1.
+function categoriesWithFiveBadges(earnedKeys: EarnedBadgeMap): number {
+  return BADGE_CATEGORIES.filter((cat) => {
+    const earnedInCat = BADGE_DEFINITIONS.filter(
+      (b) => b.category === cat && earnedKeys.has(b.key)
+    ).length;
+    return earnedInCat >= 5;
+  }).length;
+}
+
 // earnedKeys is only needed for the "special" meta badges - every other
 // (metric-driven) badge ignores it, so callers that only care about
 // those can omit it.
@@ -519,7 +631,8 @@ export function isBadgeEarned(
     if (def.special === "full_spectrum") return hasFullSpectrum(earnedKeys);
     if (def.special === "perfectionist") return hasPerfectionist(earnedKeys);
     if (def.special === "well_rounded") return bestWellRoundedWeekCount(earnedKeys) >= 3;
-    return collectorCategoryCount(earnedKeys) >= 10;
+    if (def.special === "collector") return collectorCategoryCount(earnedKeys) >= 10;
+    return categoriesWithFiveBadges(earnedKeys) >= 5;
   }
   return metricValue(metrics, def.metric) >= def.threshold;
 }
@@ -546,6 +659,9 @@ export function badgeProgress(
     }
     if (def.special === "collector") {
       return Math.max(0, Math.min(1, collectorCategoryCount(keys) / 10));
+    }
+    if (def.special === "balanced_portfolio") {
+      return Math.max(0, Math.min(1, categoriesWithFiveBadges(keys) / 5));
     }
     let best = 0;
     for (const cat of BADGE_CATEGORIES) {

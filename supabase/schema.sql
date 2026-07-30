@@ -2570,6 +2570,50 @@ $$;
 
 grant execute on function public.get_longest_trivia_streak(uuid) to authenticated;
 
+-- Current (active) Trivia streak, same walk-back-from-today shape as
+-- get_current_streak - for Streak Gamer, which cares whether the streak
+-- is still alive right now, not just its lifetime best.
+create or replace function public.get_current_trivia_streak(p_user_id uuid)
+returns int
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  with recursive start_day as (
+    select case when exists (
+      select 1 from trivia_daily_results t
+      where t.user_id = p_user_id and t.day = current_date
+        and t.total_count > 0 and t.correct_count = t.total_count
+    ) then current_date else current_date - 1 end as day
+  ),
+  w(day, ok, n) as (
+    select
+      s.day,
+      exists (
+        select 1 from trivia_daily_results t
+        where t.user_id = p_user_id and t.day = s.day
+          and t.total_count > 0 and t.correct_count = t.total_count
+      ),
+      0
+    from start_day s
+    union all
+    select
+      w.day - 1,
+      exists (
+        select 1 from trivia_daily_results t
+        where t.user_id = p_user_id and t.day = w.day - 1
+          and t.total_count > 0 and t.correct_count = t.total_count
+      ),
+      w.n + 1
+    from w
+    where w.ok and w.n < 3650
+  )
+  select coalesce(count(*) filter (where ok), 0)::int from w;
+$$;
+
+grant execute on function public.get_current_trivia_streak(uuid) to authenticated;
+
 create or replace function public.get_trivia_streak_leaderboard()
 returns table (
   user_id uuid,
@@ -4260,7 +4304,32 @@ returns table (
   patient_teacher_count int,
   weekend_visitor_count int,
   has_wide_and_deep boolean,
-  has_legacy_builder boolean
+  has_legacy_builder boolean,
+  questionnaire_ratings_count int,
+  has_push_subscription boolean,
+  has_team_broadcaster boolean,
+  has_profile_photo boolean,
+  has_hometown_filled boolean,
+  has_favorite_audios_filled boolean,
+  has_favorite_books_filled boolean,
+  distinct_audio_titles_count int,
+  has_streak_gamer boolean,
+  has_shared_vision boolean,
+  has_founders_circle boolean,
+  has_steady_growth boolean,
+  has_full_circle boolean,
+  current_active_candidates_count int,
+  has_mentors_mentor boolean,
+  has_screenshot_shared boolean,
+  total_trivia_correct_lifetime int,
+  has_leap_day_core_run boolean,
+  has_new_years_core_run boolean,
+  has_independence_day_core_run boolean,
+  badges_within_30_days_count int,
+  has_triple_crown boolean,
+  core_run_streak_count_30plus int,
+  has_all_in boolean,
+  has_team_spirit boolean
 )
 language sql
 stable
@@ -4441,7 +4510,7 @@ as $$
     (
       select count(*)::int from user_badges
       where user_id = p_user_id
-        and badge_key not in ('grand_slam', 'half_century', 'century_club', 'legend', 'halfway_there')
+        and badge_key not in ('grand_slam', 'half_century', 'century_club', 'legend', 'halfway_there', 'halfway_there_plus')
     ),
     (select count(distinct period_start)::int from monthly_pv where user_id = p_user_id and pv >= 300),
     (select coalesce(max(times_improved), 0)::int from game_high_scores where user_id = p_user_id),
@@ -4936,6 +5005,152 @@ as $$
         select 1 from public.get_downline_with_depth(p_user_id) d
         where d.depth >= 4
           and exists (select 1 from candidates c where c.user_id = d.member_id and c.launched = true)
+      )
+    ),
+    (select count(*)::int from call_ratings where user_id = p_user_id and call_type = 'Questionnaire'),
+    (exists (select 1 from push_subscriptions where user_id = p_user_id)),
+    (exists (select 1 from calendar_events where creator_id = p_user_id and scope = 'downline')),
+    (exists (select 1 from profiles where id = p_user_id and photo_url is not null and photo_url <> '')),
+    (exists (select 1 from profiles where id = p_user_id and hometown is not null and hometown <> '')),
+    (
+      exists (
+        select 1 from profiles
+        where id = p_user_id
+          and favorite_audio_1 is not null and favorite_audio_1 <> ''
+          and favorite_audio_2 is not null and favorite_audio_2 <> ''
+          and favorite_audio_3 is not null and favorite_audio_3 <> ''
+      )
+    ),
+    (
+      exists (
+        select 1 from profiles
+        where id = p_user_id
+          and favorite_book_1 is not null and favorite_book_1 <> ''
+          and favorite_book_2 is not null and favorite_book_2 <> ''
+          and favorite_book_3 is not null and favorite_book_3 <> ''
+      )
+    ),
+    (select count(distinct item)::int from streak_days, unnest(listen_items) as item where user_id = p_user_id),
+    (
+      public.get_current_streak(p_user_id) >= 14
+      and public.get_current_trivia_streak(p_user_id) >= 14
+    ),
+    (
+      exists (
+        select 1 from profiles where id = p_user_id
+          and dream_5_year <> '' and dream_10_year <> '' and dream_lifetime <> ''
+      )
+      and exists (
+        select 1 from profiles sp
+        where sp.id = coalesce(
+          (select household_id from profiles where id = p_user_id),
+          (select id from profiles where household_id = p_user_id)
+        )
+        and sp.dream_5_year <> '' and sp.dream_10_year <> '' and sp.dream_lifetime <> ''
+      )
+    ),
+    (
+      (
+        select count(*)::int from (
+          select distinct leg_root from legs
+        ) roots
+        where (
+          select count(distinct sub.member_id) from public.get_leg_members(roots.leg_root) sub
+        ) >= 5
+      ) >= 3
+    ),
+    (
+      (
+        select count(*)::int from generate_series(0, 3) as g(n)
+        where exists (
+          select 1 from (select distinct leg_root from legs) roots
+          join profiles p on p.id = roots.leg_root
+          where date_trunc('quarter', p.created_at) = date_trunc('quarter', current_date) - (g.n * interval '3 months')
+        )
+      ) = 4
+    ),
+    (
+      exists (
+        select 1 from contacts c
+        join candidates cd on cd.user_id = c.user_id and lower(trim(cd.name)) = lower(trim(c.name))
+        where c.user_id = p_user_id
+      )
+    ),
+    (select count(*)::int from candidates where user_id = p_user_id and launched = false and filtered_out = false),
+    (
+      exists (
+        select 1 from onboarding_grants og1
+        where og1.granter_id = p_user_id
+          and exists (select 1 from onboarding_grants og2 where og2.granter_id = og1.target_id)
+      )
+    ),
+    (exists (select 1 from assistant_messages where user_id = p_user_id and image_data is not null)),
+    (select coalesce(sum(correct_count), 0)::int from trivia_daily_results where user_id = p_user_id),
+    (
+      exists (
+        select 1 from streak_days
+        where user_id = p_user_id and extract(month from day) = 2 and extract(day from day) = 29
+          and (read or listen or daily_update or story_share)
+      )
+    ),
+    (
+      exists (
+        select 1 from streak_days
+        where user_id = p_user_id and extract(month from day) = 1 and extract(day from day) = 1
+          and (read or listen or daily_update or story_share)
+      )
+    ),
+    (
+      exists (
+        select 1 from streak_days
+        where user_id = p_user_id and extract(month from day) = 7 and extract(day from day) = 4
+          and (read or listen or daily_update or story_share)
+      )
+    ),
+    (
+      select count(*)::int from user_badges ub
+      where ub.user_id = p_user_id
+        and ub.earned_at <= (select created_at from profiles where id = p_user_id) + interval '30 days'
+        and ub.badge_key not in ('grand_slam', 'half_century', 'century_club', 'legend', 'halfway_there', 'halfway_there_plus')
+    ),
+    (
+      exists (
+        select 1 from monthly_pv mp
+        where mp.user_id = p_user_id and mp.pv >= 300
+          and (
+            select coalesce(max(qi1), 0) from pipeline_periods
+            where user_id = p_user_id and period_type = 'monthly' and period_start = mp.period_start
+          ) >= 10
+          and (
+            select count(*) from streak_days sd
+            where sd.user_id = p_user_id and date_trunc('month', sd.day) = mp.period_start
+              and sd.read and sd.listen and sd.daily_update and sd.story_share
+          ) >= extract(day from (mp.period_start + interval '1 month' - interval '1 day'))::int
+      )
+    ),
+    (
+      select count(*)::int from (
+        select count(*) as cnt from (
+          select day - (row_number() over (order by day))::int * interval '1 day' as grp
+          from streak_days
+          where user_id = p_user_id and read and listen and daily_update and story_share
+        ) islands
+        group by grp
+      ) runs
+      where cnt >= 30
+    ),
+    (
+      exists (select 1 from candidates where user_id = p_user_id and launched = false and filtered_out = false)
+      and exists (select 1 from goals where user_id = p_user_id)
+      and public.get_current_streak(p_user_id) > 0
+    ),
+    (
+      exists (
+        select 1 from event_attendances ea
+        join team_event_albums a on a.id = ea.album_id
+        where ea.user_id = p_user_id
+          and a.event_date between (select created_at::date from profiles where id = p_user_id)
+            and (select created_at::date from profiles where id = p_user_id) + 30
       )
     );
 $$;
