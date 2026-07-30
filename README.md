@@ -2106,6 +2106,73 @@ All three: plain HTML5 canvas (or plain DOM for Trivia), no game
 library, and no anti-cheat on scores — same trust level as any other
 self-reported number in this app.
 
+### Badges
+
+A video-game-style achievement layer (`/badges`, its own tab under
+More) sitting on top of numbers already tracked everywhere else in the
+app — Core Run Streak, Volume (PV, Day 1 Ditto), Pipeline Tracker
+(Questions/Yeses/QI1s), Goals — plus one brand-new self-reported
+counter (books finished, since unlike audios there was never an
+existing way to know someone actually read something).
+
+- **The catalog lives in code, not the database.** `lib/badges.ts`'s
+  `BADGE_DEFINITIONS` is a flat list of ~56 badges (key, category,
+  label, description, icon, which metric it checks, what threshold) —
+  Core Run Streak (10/30/60/90/365 days), Monthly PV (150/300 "Core
+  300"/600/1000), Day 1 Ditto (100/150/300 PV), Ditto Streak and Core
+  300 Streak (3/6/12 consecutive months each), Audios (5/10 in a day,
+  plus 5+/day for 7 days straight), Books (10/20/30/40/50 in a year),
+  Questions (5/10/15/20 in a day, 25/30 in a week), Yeses (2/5/10 in a
+  day, 10/15/20/25/30 in a week), Goals (filled out at all), QI1s
+  weekly (every number 2 through 10) and monthly (8/10/15/20/25/30).
+  Only `user_badges` (which `badge_key` a real person has actually
+  earned, `earned_at`) lives in the database.
+- **One RPC computes every raw number.** `get_badge_metrics(p_user_id)`
+  returns a single row — longest Core Run Streak, max monthly PV, max
+  Day 1 Ditto PV, longest Core 300/Ditto streaks (same gaps-and-islands
+  SQL trick as `get_longest_streak`, just over months instead of days),
+  max audios in a day, longest 5+-audio-day streak, max
+  Questions/Yeses per day and per week, max QI1s per week and per
+  month, whether any goal's ever been saved, and the best "books
+  finished" count across any single calendar year. `lib/badges.ts`'s
+  thresholds get compared against this one row rather than one query
+  per badge.
+- **"Longest/max ever," not "current."** Same reasoning as
+  `get_longest_streak`: a badge earned once should stay earned even
+  after the underlying streak or count later resets — nobody should
+  ever lose a badge they already have.
+- **Automatic detection + notification, no manual claiming.**
+  `lib/badgeEngine.ts`'s `checkAndAwardBadges(ownerId)` fetches the
+  metrics row and the already-earned badge keys, inserts any
+  newly-qualifying ones, and fires a `badge_earned` push (both to the
+  earner — "You just earned X!" — and their upline — "{name} just
+  earned X!" — same two-recipient shape as Core Run Completed/5+
+  pipeline) for each one. Called opportunistically from the Today
+  dashboard and the Badges tab itself on mount, rather than hooked into
+  every single save action across Pipeline/Streak/Volume — since
+  almost every metric is "best ever" rather than "just now," it doesn't
+  need to fire the instant a number changes to still feel prompt, and
+  Today is the one screen almost everyone opens regularly anyway.
+- **Books: a "+1 Book Finished" button**, since there's no way to
+  auto-detect someone actually read something. Each tap inserts a row
+  into `book_completions` (household-shareable, no upline fill-in —
+  finishing a book isn't something an upline logs for a downline) and
+  re-runs the badge check immediately, so a book that pushes you over
+  a yearly threshold unlocks right away instead of waiting for the next
+  Today dashboard visit.
+- **The Badges tab itself** groups every badge by category, shows
+  earned/total per category, and renders each badge with its icon,
+  label, description, and either an earned date (✅, tinted card) or a
+  progress bar toward its threshold (🔒) — the "23/30" feel of a
+  video-game achievement list rather than a flat locked/unlocked
+  toggle.
+- **user_badges' RLS mirrors `pipeline_periods`' upline-fill-in
+  pattern**, not the plain household-only pattern most tables use — an
+  upline filling in a downline's pipeline numbers can trigger that
+  downline earning a badge, so insert has to allow self, household,
+  upline, or admin, the same four clauses as `pipeline_periods`'
+  `insert_own_or_upline` policy.
+
 ### Success quote on open
 
 Every time the app is opened fresh, a dismissible overlay shows a

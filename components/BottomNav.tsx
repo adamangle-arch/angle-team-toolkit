@@ -27,6 +27,7 @@ const MORE_ROUTES = [
   "/onboarding",
   "/library",
   "/games",
+  "/badges",
   "/events",
 ];
 

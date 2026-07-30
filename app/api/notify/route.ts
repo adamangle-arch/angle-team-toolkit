@@ -23,7 +23,8 @@ type Body =
   | { kind: "core_run_completed" }
   | { kind: "pipeline_5plus" }
   | { kind: "onboarding_unlocked"; targetUserId: string; sessionNumber: number }
-  | { kind: "games_unlocked" };
+  | { kind: "games_unlocked" }
+  | { kind: "badge_earned"; targetUserId: string; badgeLabel: string };
 
 function fullName(p: { first_name: string | null; last_name: string | null } | null): string {
   if (!p) return "Someone";
@@ -226,6 +227,72 @@ export async function POST(request: Request) {
           url: "/onboarding",
         });
         return NextResponse.json(result);
+      }
+
+      case "badge_earned": {
+        // Unlike every other kind here, the target isn't necessarily the
+        // caller - checkAndAwardBadges() runs against whatever ownerId
+        // the page it's called from is already scoped to, which can be
+        // the caller's own id or their linked household partner's id.
+        // Guard the same way onboarding_unlocked does (upline/admin),
+        // plus allow the caller acting on their own or their household's
+        // behalf, which onboarding_unlocked never needs to since nobody
+        // unlocks their own session.
+        const isAdmin = isPrimaryUser(userEmail);
+        if (userId !== body.targetUserId && !isAdmin) {
+          const { data: isUpline } = await admin.rpc("is_upline_of", {
+            p_viewer: userId,
+            p_target: body.targetUserId,
+          });
+          let allowed = Boolean(isUpline);
+          if (!allowed) {
+            const { data: callerProfile } = await admin
+              .from("profiles")
+              .select("household_id")
+              .eq("id", userId)
+              .maybeSingle();
+            allowed = callerProfile?.household_id === body.targetUserId;
+          }
+          if (!allowed) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+          }
+        }
+
+        const { data: earner } = await admin
+          .from("profiles")
+          .select("first_name,last_name")
+          .eq("id", body.targetUserId)
+          .maybeSingle();
+
+        const selfResult = await notifyUsers({
+          userIds: [body.targetUserId],
+          kind: "badge_earned",
+          title: `🏅 Badge earned: ${body.badgeLabel}`,
+          body: `You just earned "${body.badgeLabel}"!`,
+          url: "/badges",
+        });
+
+        const { data: uplineRows } = await admin.rpc("get_upline_user_ids", {
+          p_user_id: body.targetUserId,
+        });
+        const uplineIds = ((uplineRows as { user_id?: string }[]) ?? [])
+          .map((r) => r.user_id)
+          .filter((id): id is string => Boolean(id));
+
+        const uplineResult = await notifyUsers({
+          userIds: uplineIds,
+          kind: "badge_earned",
+          title: `🏅 ${fullName(earner)} earned a badge`,
+          body: `${fullName(earner)} just earned "${body.badgeLabel}"!`,
+          url: "/badges",
+        });
+
+        return NextResponse.json({
+          sent: selfResult.sent + uplineResult.sent,
+          skipped: selfResult.skipped + uplineResult.skipped,
+          removed: selfResult.removed + uplineResult.removed,
+          errors: [...selfResult.errors, ...uplineResult.errors],
+        });
       }
 
       default:

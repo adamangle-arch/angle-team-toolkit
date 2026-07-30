@@ -144,7 +144,8 @@ export type SentNotification = {
     | "core_run_completed"
     | "pipeline_5plus"
     | "onboarding_unlocked"
-    | "games_unlocked";
+    | "games_unlocked"
+    | "badge_earned";
   title: string;
   body: string;
   period_type: "daily" | "weekly" | "monthly" | null;
@@ -421,4 +422,37 @@ export type CallRating = {
   analysis: string;
   overall_score: number | null;
   created_at: string;
+};
+
+export type UserBadge = {
+  id: string;
+  user_id: string;
+  badge_key: string;
+  earned_at: string;
+};
+
+export type BookCompletion = {
+  id: string;
+  user_id: string;
+  completed_at: string;
+};
+
+// Shape of get_badge_metrics() - one row of every raw number
+// lib/badges.ts's thresholds get compared against.
+export type BadgeMetrics = {
+  longest_core_run_streak: number;
+  max_monthly_pv: number;
+  max_day1_ditto_pv: number;
+  longest_core300_streak: number;
+  longest_ditto_streak: number;
+  max_audios_day: number;
+  longest_audio_streak: number;
+  max_questions_day: number;
+  max_yeses_day: number;
+  max_questions_week: number;
+  max_yeses_week: number;
+  max_qi1_week: number;
+  max_qi1_month: number;
+  has_goals: boolean;
+  max_books_in_a_year: number;
 };

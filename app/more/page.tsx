@@ -17,6 +17,7 @@ const MORE_ITEMS = [
   { href: "/assistant", label: "Assistant", icon: "🤖", description: "Role-play A/B/C-list conversations." },
   { href: "/onboarding", label: "Onboarding", icon: "🎓", description: "New team member sessions." },
   { href: "/games", label: "Games", icon: "🎮", description: "Diamond Run, Diamond Chase, Trivia." },
+  { href: "/badges", label: "Badges", icon: "🏅", description: "Achievements earned from your Core Run, PV, pipeline, and reading numbers." },
   { href: "/events", label: "Team Events", icon: "📸", description: "Photos and videos from our team events." },
 ];
 

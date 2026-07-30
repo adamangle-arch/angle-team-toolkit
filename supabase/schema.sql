@@ -3733,3 +3733,171 @@ delete from optional_resources where label = '📖 Think and Grow Rich';
 update optional_resources
 set label = '📖 13 Things Mentally Strong People Don''t Do'
 where label = '📖 13 Things Mentally Strong People Do';
+
+-- ============================================================
+-- Badges: a video-game-style achievement system layered on top of
+-- data that's already tracked everywhere else in the app (streaks,
+-- PV, pipeline stage counts) plus one new self-reported counter
+-- (books finished, since there was no existing tracker for that).
+-- The catalog of badges themselves (key, label, description, icon,
+-- which metric it checks, what threshold) lives in lib/badges.ts, not
+-- the database - this table only ever stores which badge_key a real
+-- person has actually earned. Same household-shareable-plus-upline
+-- -fill-in pattern as pipeline_periods: an upline filling in a
+-- downline's pipeline numbers can trigger that downline earning a
+-- badge, so insert needs to allow that, not just self.
+-- ============================================================
+create table if not exists user_badges (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  badge_key text not null,
+  earned_at timestamptz not null default now(),
+  unique (user_id, badge_key)
+);
+
+alter table user_badges enable row level security;
+
+drop policy if exists "user_badges_select_own_or_upline_or_admin" on user_badges;
+create policy "user_badges_select_own_or_upline_or_admin" on user_badges for select using (
+  user_id = auth.uid()
+  or user_id = (select household_id from profiles where id = auth.uid())
+  or public.is_upline_of(auth.uid(), user_id)
+  or public.is_app_admin()
+);
+
+drop policy if exists "user_badges_insert_own_or_upline_or_admin" on user_badges;
+create policy "user_badges_insert_own_or_upline_or_admin" on user_badges for insert with check (
+  user_id = auth.uid()
+  or user_id = (select household_id from profiles where id = auth.uid())
+  or public.is_upline_of(auth.uid(), user_id)
+  or public.is_app_admin()
+);
+
+-- A "+1 book finished" self-report, since there's no other way to know
+-- someone actually read something (unlike audios, which already track
+-- a per-day listen_count). Household-shareable like contacts/candidates
+-- - no upline fill-in, since finishing a book isn't something an upline
+-- does on a downline's behalf.
+create table if not exists book_completions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  completed_at timestamptz not null default now()
+);
+
+alter table book_completions enable row level security;
+
+drop policy if exists "book_completions_select_own_or_upline_or_admin" on book_completions;
+create policy "book_completions_select_own_or_upline_or_admin" on book_completions for select using (
+  user_id = auth.uid()
+  or user_id = (select household_id from profiles where id = auth.uid())
+  or public.is_upline_of(auth.uid(), user_id)
+  or public.is_app_admin()
+);
+
+drop policy if exists "book_completions_insert_own" on book_completions;
+create policy "book_completions_insert_own" on book_completions for insert with check (
+  user_id = auth.uid()
+  or user_id = (select household_id from profiles where id = auth.uid())
+);
+
+drop policy if exists "book_completions_delete_own" on book_completions;
+create policy "book_completions_delete_own" on book_completions for delete using (
+  user_id = auth.uid()
+  or user_id = (select household_id from profiles where id = auth.uid())
+);
+
+-- One RPC computing every raw number lib/badges.ts's thresholds get
+-- compared against, rather than one query per badge from the client.
+-- "Longest ever" (not "current") for anything streak-shaped, same
+-- reasoning as get_longest_streak: a badge earned once should stay
+-- earned even after the underlying streak later resets. No internal
+-- authorization check, same as get_current_streak/get_longest_streak -
+-- this is leaderboard-adjacent data (PV, pipeline counts, streaks) already
+-- visible to any authenticated user through existing leaderboard RPCs.
+create or replace function public.get_badge_metrics(p_user_id uuid)
+returns table (
+  longest_core_run_streak int,
+  max_monthly_pv int,
+  max_day1_ditto_pv int,
+  longest_core300_streak int,
+  longest_ditto_streak int,
+  max_audios_day int,
+  longest_audio_streak int,
+  max_questions_day int,
+  max_yeses_day int,
+  max_questions_week int,
+  max_yeses_week int,
+  max_qi1_week int,
+  max_qi1_month int,
+  has_goals boolean,
+  max_books_in_a_year int
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    public.get_longest_streak(p_user_id),
+    (select coalesce(max(pv), 0)::int from monthly_pv where user_id = p_user_id),
+    (select coalesce(max(day1_ditto_pv), 0)::int from monthly_pv where user_id = p_user_id),
+    (
+      select coalesce(max(cnt), 0)::int from (
+        select count(*) as cnt from (
+          select period_start - (row_number() over (order by period_start))::int * interval '1 month' as grp
+          from monthly_pv
+          where user_id = p_user_id and pv >= 300
+        ) islands
+        group by grp
+      ) runs
+    ),
+    (
+      select coalesce(max(cnt), 0)::int from (
+        select count(*) as cnt from (
+          select period_start - (row_number() over (order by period_start))::int * interval '1 month' as grp
+          from monthly_pv
+          where user_id = p_user_id and day1_ditto_pv >= 100
+        ) islands
+        group by grp
+      ) runs
+    ),
+    (select coalesce(max(listen_count), 0)::int from streak_days where user_id = p_user_id),
+    (
+      select coalesce(max(cnt), 0)::int from (
+        select count(*) as cnt from (
+          select day - (row_number() over (order by day))::int * interval '1 day' as grp
+          from streak_days
+          where user_id = p_user_id and listen_count >= 5
+        ) islands
+        group by grp
+      ) runs
+    ),
+    (select coalesce(max(questions), 0)::int from pipeline_periods where user_id = p_user_id and period_type = 'daily'),
+    (select coalesce(max(yeses), 0)::int from pipeline_periods where user_id = p_user_id and period_type = 'daily'),
+    (select coalesce(max(questions), 0)::int from pipeline_periods where user_id = p_user_id and period_type = 'weekly'),
+    (select coalesce(max(yeses), 0)::int from pipeline_periods where user_id = p_user_id and period_type = 'weekly'),
+    (select coalesce(max(qi1), 0)::int from pipeline_periods where user_id = p_user_id and period_type = 'weekly'),
+    (select coalesce(max(qi1), 0)::int from pipeline_periods where user_id = p_user_id and period_type = 'monthly'),
+    (exists (select 1 from goals where user_id = p_user_id)),
+    (
+      select coalesce(max(cnt), 0)::int from (
+        select count(*) as cnt from book_completions
+        where user_id = p_user_id
+        group by extract(year from completed_at)
+      ) yearly
+    );
+$$;
+
+grant execute on function public.get_badge_metrics(uuid) to authenticated;
+
+-- New notification kind: a badge earned, seen by the earner and their
+-- upline (same shape as core_run_completed/pipeline_5plus, just for
+-- badges instead).
+alter table sent_notifications drop constraint if exists sent_notifications_kind_check;
+alter table sent_notifications add constraint sent_notifications_kind_check check (
+  kind in (
+    'daily_stat_leaders', 'weekly_stat_leaders', 'monthly_stat_leaders', 'core_run_reminder',
+    'calendar_reminder', 'calendar_event_added', 'call_rating_submitted', 'core_run_completed',
+    'pipeline_5plus', 'onboarding_unlocked', 'games_unlocked', 'badge_earned'
+  )
+);

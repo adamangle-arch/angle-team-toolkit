@@ -8,6 +8,7 @@ import { minSessionFor } from "@/lib/onboarding-gate";
 import { supabase } from "@/lib/supabaseClient";
 import { getToday, formatDateLabel } from "@/lib/dates";
 import { GOAL_ITEMS_BY_PERIOD, CANDIDATE_STEPS, PIPELINE_STAGES } from "@/lib/constants";
+import { checkAndAwardBadges } from "@/lib/badgeEngine";
 import type { StreakDay, Goal, CalendarEvent, PipelinePeriod, Profile } from "@/lib/types";
 
 type DownlinePipelineTotals = Record<
@@ -171,6 +172,15 @@ export default function DashboardPage() {
       cancelled = true;
     };
   }, [user.id, ownerId, today]);
+
+  // Opportunistic badge check - Today is the one screen almost everyone
+  // opens regularly, so this is the main place new badges actually get
+  // noticed and notified, without hooking into every single save action
+  // across Pipeline/Streak/Volume that could theoretically cross a
+  // threshold.
+  useEffect(() => {
+    checkAndAwardBadges(ownerId);
+  }, [ownerId]);
 
   const goalTarget = (metric: string) => dailyGoals.find((g) => g.metric === metric)?.target ?? 0;
   const hasAnyDailyGoal = dailyGoals.some((g) => g.target > 0);
