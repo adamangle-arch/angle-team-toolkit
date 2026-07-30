@@ -130,12 +130,22 @@ shape, just which 5.
 3. In the Supabase dashboard, open **SQL Editor > New query**, paste the
    contents of [`supabase/schema.sql`](./supabase/schema.sql), and run it.
    This creates every table the app needs with per-user Row Level Security.
-   **Re-running this file drops and recreates every app table**, so only run
-   it again later if you're OK losing existing data.
+   Every statement in the file is written to be safe to re-run in full any
+   time it changes (`create table if not exists`, `create or replace
+   function`, etc.) — re-running the whole file never drops or wipes
+   existing data, so pulling a new copy after a feature update and running
+   it again is always safe. Always paste and run the **entire** file, never
+   a fragment.
 4. Near the top of `supabase/schema.sql`, the `is_app_admin()` function is
    hardcoded to a list of email addresses — change it to whichever accounts
    should be able to see/manage everyone's data, then re-run the file.
-5. Go to **Project Settings > API** and copy:
+5. Open **Authentication > URL Configuration** and add your app's URL(s) to
+   **Redirect URLs** — `http://localhost:3000/reset-password` for local
+   dev, and your production URL's `/reset-password` once deployed (e.g.
+   `https://your-app.vercel.app/reset-password`). This is what lets the
+   "Forgot password?" email link land back in the app instead of being
+   rejected by Supabase.
+6. Go to **Project Settings > API** and copy:
    - **Project URL**
    - **anon / public** key
 
@@ -167,6 +177,34 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000). You'll land on a
 sign-in screen; use "Need an account? Sign up" to create the first login.
+
+### Forgot password
+
+"Forgot password?" on the sign-in screen (`components/LoginForm.tsx`) switches
+to an email-only form that calls Supabase's
+`auth.resetPasswordForEmail(email, { redirectTo: ".../reset-password" })`.
+The confirmation message ("If that email has an account, a reset link is on
+its way") is the same whether or not the address actually has one — Supabase
+doesn't error either way, so there's nothing to branch on, and confirming
+existence one way but not the other would leak who has an account.
+
+The emailed link lands on a new standalone `/reset-password` page
+(`app/reset-password/page.tsx`) — standalone the same way `/prospect` is:
+`AuthGate` renders it outside the normal sign-in wall, since arriving there
+means following a short-lived recovery link, not being already signed in.
+An already fully-onboarded account clicking the link would otherwise just
+get dropped straight into the app instead of ever seeing the password form.
+The page waits for Supabase to parse the recovery token out of the URL
+(`onAuthStateChange`'s `PASSWORD_RECOVERY` event, alongside a plain
+`getSession()` check in case that event already fired before the listener
+was attached), then submits the new password via `auth.updateUser({
+password })` and sends them back to `/` to fall into the app normally.
+
+This requires one manual Supabase dashboard step per environment (see step 5
+under "Set up Supabase" above) — the redirect URL has to be allow-listed
+under **Authentication > URL Configuration**, or Supabase silently ignores
+`redirectTo` and sends the email link to the project's default Site URL
+instead.
 
 ## Deploying to Vercel
 

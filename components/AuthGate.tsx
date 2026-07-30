@@ -180,8 +180,13 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
 
   // /prospect is a public, unauthenticated view (a candidate enters their
   // access code, no account involved) - it renders standalone rather than
-  // behind the normal sign-in wall.
-  if (pathname === "/prospect") {
+  // behind the normal sign-in wall. /reset-password is similar: arriving
+  // there means following an emailed reset link (a short-lived recovery
+  // session, not a normal signed-in one), so it has to render before the
+  // profile-completeness checks below ever run - an already-onboarded
+  // account clicking a reset link would otherwise just get dropped
+  // straight into the app instead of the password form.
+  if (pathname === "/prospect" || pathname === "/reset-password") {
     return <>{children}</>;
   }
 
