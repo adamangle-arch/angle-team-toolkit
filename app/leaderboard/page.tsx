@@ -27,7 +27,6 @@ import type {
   NewMember,
   Liker,
   MilestoneEntry,
-  GameLeaderEntry,
 } from "@/lib/types";
 
 type PeriodType = "daily" | "weekly" | "monthly";
@@ -231,9 +230,6 @@ function dittoEntryKey(periodStart: string, userId: string) {
 function milestoneEntryKey(userId: string, milestoneDays: number) {
   return `milestone:${userId}:${milestoneDays}`;
 }
-function gameEntryKey(userId: string) {
-  return `game:${userId}`;
-}
 function dailySaleEntryKey(saleId: string) {
   return `daily_sale:${saleId}`;
 }
@@ -259,7 +255,6 @@ export default function LeaderboardPage() {
   const [ditto, setDitto] = useState<DittoEntry[]>([]);
   const [newMembers, setNewMembers] = useState<NewMember[]>([]);
   const [milestones, setMilestones] = useState<MilestoneEntry[]>([]);
-  const [gameLeaders, setGameLeaders] = useState<GameLeaderEntry[]>([]);
   const [dailySales, setDailySales] = useState<DailySaleEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -385,16 +380,6 @@ export default function LeaderboardPage() {
 
   useEffect(() => {
     let cancelled = false;
-    supabase.rpc("get_game_leaderboard").then(({ data }) => {
-      if (!cancelled) setGameLeaders((data as GameLeaderEntry[]) ?? []);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
     supabase.rpc("get_daily_sales_feed").then(({ data }) => {
       if (!cancelled) setDailySales((data as DailySaleEntry[]) ?? []);
     });
@@ -467,7 +452,6 @@ export default function LeaderboardPage() {
     for (const e of core300) keys.add(core300EntryKey(periodStart, e.user_id));
     for (const e of ditto) keys.add(dittoEntryKey(periodStart, e.user_id));
     for (const m of milestones) keys.add(milestoneEntryKey(m.user_id, m.milestone_days));
-    for (const g of gameLeaders) keys.add(gameEntryKey(g.user_id));
     for (const e of dailySales) keys.add(dailySaleEntryKey(e.sale_id));
     return Array.from(keys);
   }, [
@@ -479,7 +463,6 @@ export default function LeaderboardPage() {
     core300,
     ditto,
     milestones,
-    gameLeaders,
     dailySales,
     periodType,
     periodStart,
@@ -927,36 +910,6 @@ export default function LeaderboardPage() {
                 </Section>
               </>
             )}
-
-            <GroupHeading>Games</GroupHeading>
-            <Section title="💎 Diamond Run High Scores">
-              {gameLeaders.length === 0 ? (
-                <p className="text-sm text-slate-400">No one&apos;s played Diamond Run yet.</p>
-              ) : (
-                gameLeaders.map((entry, i) => {
-                  const key = gameEntryKey(entry.user_id);
-                  return (
-                    <div
-                      key={`${entry.user_id}-${i}`}
-                      className="flex items-start justify-between gap-2 text-sm"
-                    >
-                      <span className="text-slate-200">
-                        {i === 0 ? "👑 " : `${i + 1}. `}
-                        <PersonLink entry={entry} />
-                      </span>
-                      <div className="flex shrink-0 items-center gap-2">
-                        <span className="pill pill-amber">{entry.best_score}</span>
-                        <LikeButton
-                          entryKey={key}
-                          likes={likesMap.get(key) ?? NO_LIKES}
-                          onToggle={toggleLike}
-                        />
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </Section>
           </>
         )}
       </main>

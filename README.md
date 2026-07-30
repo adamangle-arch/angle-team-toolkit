@@ -3362,10 +3362,15 @@ instead of one undifferentiated scroll:
 - **Leaders** — Team Leaders, Individual Leaders, QI1 Rhythm
 - **Consistency & Pipeline** — Core Run Streaks, 5+ Active Candidates
 - **Volume** (monthly only) — Core 300, Day 1 Ditto 100+
-- **Games** — Diamond Run High Scores, moved to the very end (it was
-  sitting ahead of Volume before) to match the same "games count for
-  less than real business activity" ordering already established for
-  badge points
+
+A Games group (Diamond Run High Scores) briefly existed at the very
+end here too, matching the same "games count for less than real
+business activity" ordering established for badge points — removed
+again right after, per direct feedback that this page specifically
+should stay about business activity. `get_game_leaderboard` and the
+Games tab itself are untouched; only this one Leaderboard section is
+gone (along with its now-dead `gameLeaders` state, fetch effect, and
+`gameEntryKey` helper).
 
 **Individual Leaders no longer defaults open** — it's the single
 densest section on the page (per-category ties each get their own
