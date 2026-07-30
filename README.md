@@ -2543,6 +2543,70 @@ the same bottom-sheet modal pattern already used elsewhere (Today dashboard's
 active-pipeline modal) showing the badge's icon, label, full description, and
 the date it was earned.
 
+### Avatar & Leveling
+
+A points/level layer on top of the Badges catalog — every earned badge
+already contributes toward an overall account level, shown as a colored
+ring around the profile photo (bronze/silver/gold/diamond as you level
+up) plus a numeric level and progress bar toward the next one.
+
+- **Every badge carries a `points` value** now (`lib/badges.ts`), not
+  just `metric`/`threshold`. These aren't uniform — a badge with several
+  siblings sharing its metric (e.g. the 5 Core Run Streak milestones)
+  scales by position from easiest to hardest; a standalone badge with no
+  siblings is a flat mid-value (bumped up if it already carries a crown
+  icon); the 5 `special` meta badges are the flat max. Categories that
+  are core business-building (QIs, Launches, Business Structure, the
+  three Legs-with-X categories, Depth & Duplication, Referral Chains,
+  Leadership & Recognition, Pipeline Beyond QI1, Firsts, Contacts,
+  Growing Others) carry a 3x multiplier per the team's explicit call that
+  growing your network and team structure matters far more than anything
+  else; Games carries 0.3x. These numbers were tuned by hand against a
+  generated draft (grouped by category, sent back and forth for
+  correction) rather than computed at runtime — there's no live scoring
+  formula, just the values that came out of that review pass.
+- **`lib/levels.ts` turns a set of earned badge keys into a level.**
+  `pointsForBadgeKeys()` sums them; `levelForPoints()`/`levelProgress()`
+  walk a precomputed threshold table (`100 * level^1.6`, levels 1-40) —
+  the exponent means each level takes progressively more than the last,
+  so even a fully-maxed account (every one of the 300 badges) tops out
+  a little past level 30 rather than blowing past a linear curve. It's
+  deliberately aspirational, not something normal activity reaches
+  quickly. `frameTierForLevel()` maps level ranges to bronze (5+),
+  silver (10+), gold (20+), diamond (30+) — the 5 tiers that show as a
+  ring color, via `FRAME_TIER_CLASSES`.
+- **`components/LevelAvatar.tsx`** is the shared avatar-with-ring — the
+  profile photo (or a fallback emoji circle when there isn't one)
+  wrapped in a tier-colored Tailwind ring, with an optional small level
+  number chip. One component, three size variants, reused everywhere
+  below.
+- **My Profile gets a new Level card** above "My Badges" — avatar, tier
+  label, progress bar, and points-to-next-level, computed from the
+  badges already fetched for that page (no new query).
+- **The public profile's header card** swaps its plain photo circle for
+  `LevelAvatar`, plus a level pill and progress bar under the name —
+  same `badges` array `get_public_badges` already returns (already
+  household-resolved after the earlier bug fix), so again no new query.
+- **Leaderboard rows get a small avatar next to every name.** Unlike
+  the two profile pages, the Leaderboard renders a couple dozen
+  different entry types (individual leaders, streak, Core 300, active
+  candidates, QI1 rhythm, Ditto, daily sales, milestones, games) all
+  through two small shared components, `PersonLink`/`CoupleLink` — so
+  rather than threading avatar/level data through every call site, two
+  new bulk RPCs are fetched once per page load and provided via a
+  `LevelDataContext` that `PersonLink` reads directly:
+  - `get_all_public_photos()` — one row per account with a photo set,
+    individual (not household-merged), since a photo is personal the
+    same way the rest of a profile is.
+  - `get_all_earned_badge_keys()` — joins `user_badges` to every profile
+    whose own id *or* household_id matches the row's owner, so a linked
+    spouse's own individual id gets the same badge list (and therefore
+    the same level) their household actually earned, without the client
+    needing to do any household resolution itself.
+  Both are "seen by any teammate" the same way `get_public_profile`/
+  `get_public_badges` already are — no new privacy surface, just a
+  bulk-friendly shape for a list view instead of one RPC call per row.
+
 ### Success quote on open
 
 Every time the app is opened fresh, a dismissible overlay shows a

@@ -4087,6 +4087,52 @@ $$;
 
 grant execute on function public.get_badge_owner_id(uuid) to authenticated;
 
+-- Avatar/leveling system: point values per badge live client-side
+-- (lib/badges.ts, lib/levels.ts), not here - these two bulk functions
+-- just hand the Leaderboard everything it needs to compute a level for
+-- every row it renders in one round-trip, rather than one query per
+-- person. Both are "seen by any teammate" the same way get_public_profile
+-- and get_public_badges already are.
+--
+-- Photo is personal (not household-merged, same as the rest of a
+-- profile), so one row per individual account.
+create or replace function public.get_all_public_photos()
+returns table (user_id uuid, photo_url text)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select id, photo_url from profiles
+  where photo_url is not null and photo_url <> ''
+    and email not in ('alexangle@me.com', 'laurasangle@gmail.com');
+$$;
+
+grant execute on function public.get_all_public_photos() to authenticated;
+
+-- Badges are household-merged (stored under ownerId = household_id ??
+-- id - see get_badge_owner_id above), but each spouse's own individual
+-- profile still needs to resolve to the same level. Joining every
+-- user_badges row to every profile whose own id OR household_id matches
+-- its owner returns a row under BOTH spouses' own individual ids, so the
+-- client never has to do its own household resolution for this - it can
+-- just group by whatever id it already has on hand (a Leaderboard row's
+-- user_id, a public profile's id, etc).
+create or replace function public.get_all_earned_badge_keys()
+returns table (individual_id uuid, badge_key text)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select p.id as individual_id, ub.badge_key
+  from user_badges ub
+  join profiles p on p.id = ub.user_id or p.household_id = ub.user_id
+  where p.email not in ('alexangle@me.com', 'laurasangle@gmail.com');
+$$;
+
+grant execute on function public.get_all_earned_badge_keys() to authenticated;
+
 -- One-time cleanup (safe to re-run, it's a no-op once already applied):
 -- clears out any badges Alex/Laura's accounts already accumulated
 -- before this exclusion existed.

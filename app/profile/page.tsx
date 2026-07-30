@@ -8,7 +8,9 @@ import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import { TEAMS } from "@/lib/constants";
 import { BADGE_DEFINITIONS } from "@/lib/badges";
+import { pointsForBadgeKeys, levelProgress, frameTierForLevel, FRAME_TIER_LABELS } from "@/lib/levels";
 import BadgePillList from "@/components/BadgePillList";
+import LevelAvatar from "@/components/LevelAvatar";
 import type { Profile, PublicProfile, UserBadge } from "@/lib/types";
 
 export default function MyProfilePage() {
@@ -156,6 +158,10 @@ export default function MyProfilePage() {
     await reload();
   }
 
+  const totalPoints = pointsForBadgeKeys(earnedBadges.map((ub) => ub.badge_key));
+  const myLevel = levelProgress(totalPoints);
+  const myTier = frameTierForLevel(myLevel.level);
+
   return (
     <>
       <PageHeader title="My Profile" subtitle="Shown when teammates tap your name on the Leaderboard" />
@@ -164,6 +170,33 @@ export default function MyProfilePage() {
           <div className="empty-state">Loading…</div>
         ) : (
           <>
+            <div className="card flex items-center gap-3">
+              <LevelAvatar
+                photoUrl={profile.photo_url}
+                level={myLevel.level}
+                name={[profile.first_name, profile.last_name].filter(Boolean).join(" ")}
+                size="lg"
+              />
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="section-title">Level {myLevel.level}</p>
+                  <span className="pill-amber shrink-0">{FRAME_TIER_LABELS[myTier]}</span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-navy">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-amber-light to-amber"
+                    style={{ width: `${Math.round(myLevel.progress * 100)}%` }}
+                  />
+                </div>
+                <p className="text-xs text-slate-400">
+                  {totalPoints} pts
+                  {myLevel.nextLevelPoints
+                    ? ` — ${myLevel.nextLevelPoints - totalPoints} to Level ${myLevel.level + 1}`
+                    : " — max level"}
+                </p>
+              </div>
+            </div>
+
             <div className="card space-y-2">
               <Link href="/badges" className="flex items-center justify-between gap-2">
                 <p className="section-title">🏅 My Badges</p>

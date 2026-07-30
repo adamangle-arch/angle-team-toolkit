@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
+import { pointsForBadgeKeys, levelForPoints } from "@/lib/levels";
+import LevelAvatar from "@/components/LevelAvatar";
 import {
   getWeekStart,
   getMonthStartOffset,
@@ -39,14 +41,35 @@ function personName(entry: { first_name: string | null; last_name: string | null
   return name || "Unnamed";
 }
 
+// Set once at page level (see the fetch in LeaderboardPage) from two bulk
+// RPCs (get_all_public_photos, get_all_earned_badge_keys) - PersonLink is
+// used from a couple dozen call sites across every leaderboard section
+// below, so a context avoids threading these two maps through every one
+// of them individually.
+type LevelData = {
+  photoByUserId: Map<string, string>;
+  levelByUserId: Map<string, number>;
+};
+const LevelDataContext = createContext<LevelData>({
+  photoByUserId: new Map(),
+  levelByUserId: new Map(),
+});
+
 function PersonLink({
   entry,
 }: {
   entry: { user_id: string; first_name: string | null; last_name: string | null };
 }) {
+  const { photoByUserId, levelByUserId } = useContext(LevelDataContext);
   return (
-    <Link href={`/profile/${entry.user_id}`} className="underline decoration-dotted underline-offset-2">
-      {personName(entry)}
+    <Link href={`/profile/${entry.user_id}`} className="inline-flex items-center gap-1">
+      <LevelAvatar
+        photoUrl={photoByUserId.get(entry.user_id) ?? null}
+        level={levelByUserId.get(entry.user_id) ?? 1}
+        size="sm"
+        showLevelChip={false}
+      />
+      <span className="underline decoration-dotted underline-offset-2">{personName(entry)}</span>
     </Link>
   );
 }
@@ -211,7 +234,47 @@ export default function LeaderboardPage() {
   const [myName, setMyName] = useState("You");
   const [likesMap, setLikesMap] = useState<Map<string, LikeInfo>>(new Map());
 
+  const [photoByUserId, setPhotoByUserId] = useState<Map<string, string>>(new Map());
+  const [levelByUserId, setLevelByUserId] = useState<Map<string, number>>(new Map());
+
   const qi1RhythmThreshold = periodType === "daily" ? 1 : periodType === "weekly" ? 2 : 8;
+
+  // Independent of periodType/periodStart - a person's avatar/level don't
+  // change per period, so this only needs to run once per page visit,
+  // not on every period toggle.
+  useEffect(() => {
+    let cancelled = false;
+    async function loadLevels() {
+      const [{ data: photos }, { data: badgeRows }] = await Promise.all([
+        supabase.rpc("get_all_public_photos"),
+        supabase.rpc("get_all_earned_badge_keys"),
+      ]);
+      if (cancelled) return;
+
+      const photoMap = new Map<string, string>();
+      for (const row of (photos as { user_id: string; photo_url: string }[]) ?? []) {
+        photoMap.set(row.user_id, row.photo_url);
+      }
+
+      const keysByUser = new Map<string, string[]>();
+      for (const row of (badgeRows as { individual_id: string; badge_key: string }[]) ?? []) {
+        const list = keysByUser.get(row.individual_id) ?? [];
+        list.push(row.badge_key);
+        keysByUser.set(row.individual_id, list);
+      }
+      const levelMap = new Map<string, number>();
+      for (const [uid, keys] of keysByUser) {
+        levelMap.set(uid, levelForPoints(pointsForBadgeKeys(keys)));
+      }
+
+      setPhotoByUserId(photoMap);
+      setLevelByUserId(levelMap);
+    }
+    loadLevels();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -441,7 +504,7 @@ export default function LeaderboardPage() {
   }
 
   return (
-    <>
+    <LevelDataContext.Provider value={{ photoByUserId, levelByUserId }}>
       <PageHeader
         title="Leaderboard"
         subtitle={
@@ -842,6 +905,6 @@ export default function LeaderboardPage() {
           </>
         )}
       </main>
-    </>
+    </LevelDataContext.Provider>
   );
 }

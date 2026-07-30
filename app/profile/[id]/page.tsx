@@ -7,6 +7,8 @@ import { supabase } from "@/lib/supabaseClient";
 import { STREAK_MILESTONES } from "@/lib/constants";
 import { BADGE_DEFINITIONS } from "@/lib/badges";
 import { checkAndAwardBadges } from "@/lib/badgeEngine";
+import { pointsForBadgeKeys, levelProgress, frameTierForLevel, FRAME_TIER_LABELS } from "@/lib/levels";
+import LevelAvatar from "@/components/LevelAvatar";
 import type { PublicProfile } from "@/lib/types";
 
 export default function PublicProfilePage({
@@ -62,6 +64,10 @@ export default function PublicProfilePage({
     ? [profile.favorite_book_1, profile.favorite_book_2, profile.favorite_book_3].filter(Boolean)
     : [];
 
+  const totalPoints = pointsForBadgeKeys(badges.map((b) => b.badge_key));
+  const theirLevel = levelProgress(totalPoints);
+  const theirTier = frameTierForLevel(theirLevel.level);
+
   return (
     <>
       <PageHeader title="Profile" />
@@ -73,21 +79,22 @@ export default function PublicProfilePage({
         ) : (
           <>
             <div className="card flex items-center gap-3">
-              {profile.photo_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={profile.photo_url}
-                  alt={name}
-                  className="h-16 w-16 rounded-full object-cover"
-                />
-              ) : (
-                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-navy text-2xl">
-                  🙂
+              <LevelAvatar photoUrl={profile.photo_url} level={theirLevel.level} name={name} size="lg" />
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-lg font-semibold text-white">{name}</p>
+                  {profile.team && <p className="pill-amber shrink-0">{profile.team}</p>}
                 </div>
-              )}
-              <div>
-                <p className="text-lg font-semibold text-white">{name}</p>
-                {profile.team && <p className="pill-amber mt-1">{profile.team}</p>}
+                <div className="flex items-center gap-2">
+                  <span className="pill shrink-0">Level {theirLevel.level}</span>
+                  <span className="text-xs text-slate-400">{FRAME_TIER_LABELS[theirTier]}</span>
+                </div>
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-navy">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-amber-light to-amber"
+                    style={{ width: `${Math.round(theirLevel.progress * 100)}%` }}
+                  />
+                </div>
               </div>
             </div>
 
