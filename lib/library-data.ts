@@ -427,6 +427,9 @@ export const ADVANCED_LIBRARY: BookCategory[] = [
       { title: "Inner Excellence", author: "Jim Murphy" },
       { title: "The Obstacle Is the Way", author: "Ryan Holiday" },
       { title: "Man's Search for Meaning", author: "Viktor Frankl" },
+      { title: "13 Things Mentally Strong People Do", author: "Amy Morin" },
+      { title: "Make Your Bed", author: "Admiral William H. McRaven" },
+      { title: "Max Out Your Life", author: "Ed Mylett" },
     ],
   },
   {
@@ -437,6 +440,8 @@ export const ADVANCED_LIBRARY: BookCategory[] = [
       { title: "The Pursuit", author: "Dexter Yager" },
       { title: "The Four Year Career", author: "Richard Bliss Brooke" },
       { title: "Gradually Then Suddenly", author: "" },
+      { title: "Traction", author: "Gino Wickman" },
+      { title: "Your Business Shouldn't Need You", author: "" },
     ],
   },
   {
@@ -445,6 +450,11 @@ export const ADVANCED_LIBRARY: BookCategory[] = [
     books: [
       { title: "Crucial Conversations", author: "" },
       { title: "The 7 Habits of Highly Effective People", author: "Stephen Covey" },
+      { title: "How to Have Confidence and Power Dealing With People", author: "Les Giblin" },
+      { title: "How to Make People Like You in 90 Seconds or Less", author: "Nicholas Boothman" },
+      { title: "How to Talk to Absolutely Anybody", author: "" },
+      { title: "Art of Dealing With People", author: "" },
+      { title: "Emotional Intelligence 2.0", author: "Travis Bradberry & Jean Greaves" },
     ],
   },
   {
@@ -453,6 +463,8 @@ export const ADVANCED_LIBRARY: BookCategory[] = [
     books: [
       { title: "Fanatical Prospecting", author: "Jeb Blount" },
       { title: "Million Dollar Makeover", author: "" },
+      { title: "How I Raised Myself From Failure to Success in Selling", author: "Frank Bettger" },
+      { title: "Rich Dad Poor Dad", author: "Robert Kiyosaki" },
     ],
   },
   {
@@ -461,6 +473,9 @@ export const ADVANCED_LIBRARY: BookCategory[] = [
     books: [
       { title: "Purpose Driven Life", author: "Rick Warren" },
       { title: "Start With Why", author: "Simon Sinek" },
+      { title: "The Dream Is Everything", author: "" },
+      { title: "Your Next 5 Moves", author: "Patrick Bet-David" },
+      { title: "The Greatest Salesman in the World", author: "Og Mandino" },
     ],
   },
   {
@@ -470,6 +485,19 @@ export const ADVANCED_LIBRARY: BookCategory[] = [
       { title: "Outwitting the Devil", author: "Napoleon Hill" },
       { title: "Think Again", author: "Adam Grant" },
       { title: "Outliers", author: "Malcolm Gladwell" },
+      { title: "Deep Work", author: "Cal Newport" },
+      { title: "The Road Less Traveled", author: "M. Scott Peck" },
+      { title: "The Defining Decade", author: "Meg Jay" },
+      { title: "What to Say When You Talk to Yourself", author: "Shad Helmstetter" },
+    ],
+  },
+  {
+    category: "Faith & Character",
+    whenToRecommend: "Someone whose next step is more about who they're becoming than what they're building.",
+    books: [
+      { title: "The Case for Christ", author: "Lee Strobel" },
+      { title: "Wild at Heart", author: "John Eldredge" },
+      { title: "Maximized Manhood", author: "Edwin Louis Cole" },
     ],
   },
 ];
