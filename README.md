@@ -2652,6 +2652,14 @@ up) plus a numeric level and progress bar toward the next one.
     always identical for both. Both halves of a couple now get their
     own avatar (same level ring, their own individual photo) whenever
     `showAvatar` is on for that row.
+- **Badges now sort by point value, highest first**, everywhere a
+  badge list is shown. `BadgePillList` (My Profile's "My Badges" card
+  and the public profile's "Badges" card) sorts by `points` descending
+  instead of the caller's `earned_at desc` order - a badge's point
+  value is a better "how impressive is this" signal than when it
+  happened to be earned. The main Badges tab does the same within each
+  category card, so the hardest badge in a category leads instead of
+  whatever order it happens to sit in `BADGE_DEFINITIONS`.
 
 ### Success quote on open
 

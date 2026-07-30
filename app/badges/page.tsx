@@ -177,7 +177,12 @@ export default function BadgesPage() {
           <div className="empty-state">Loading…</div>
         ) : (
           BADGE_CATEGORIES.map((category) => {
-            const badges = BADGE_DEFINITIONS.filter((b) => b.category === category);
+            // Most valuable first within each category, not catalog-insertion
+            // order - a badge's point value (lib/levels.ts) is a better
+            // "how impressive is this" signal to lead with.
+            const badges = BADGE_DEFINITIONS.filter((b) => b.category === category).sort(
+              (a, b) => b.points - a.points
+            );
             const earnedInCategory = badges.filter((b) => earnedByKey.has(b.key)).length;
             return (
               <div key={category} className="card space-y-2">

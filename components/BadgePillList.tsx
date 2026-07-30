@@ -21,7 +21,15 @@ export default function BadgePillList({
     return <p className="text-xs text-slate-400">No badges earned yet.</p>;
   }
 
-  const visible = expanded ? badges : badges.slice(0, INITIAL_VISIBLE);
+  // Most valuable first - a badge's point value (see lib/levels.ts) is a
+  // better "how impressive is this" signal than earned_at, which is what
+  // the caller's query orders by.
+  const sorted = [...badges].sort((a, b) => {
+    const pa = BADGE_DEFINITIONS.find((d) => d.key === a.badge_key)?.points ?? 0;
+    const pb = BADGE_DEFINITIONS.find((d) => d.key === b.badge_key)?.points ?? 0;
+    return pb - pa;
+  });
+  const visible = expanded ? sorted : sorted.slice(0, INITIAL_VISIBLE);
 
   return (
     <div className="space-y-2">
