@@ -574,14 +574,16 @@ export default function StreakPage() {
     lines.push(
       `🎧 Listened: ${selectedRow.listen_what || "—"}${selectedRow.listen_count ? ` — ${selectedRow.listen_count} audio(s)` : ""}`
     );
-    lines.push(`📝 Daily Update: ${selectedRow.daily_update ? "Done" : "Not yet"}`);
+    lines.push("");
     lines.push(
       `💬 Story Shares: ${selectedRow.story_shares} | Questions: ${selectedRow.questions} | Yeses: ${selectedRow.yeses}`
     );
+    lines.push("");
     lines.push(`🤝 Meetings Today (${selectedRow.meeting_items.length}):`);
     lines.push(
       selectedRow.meeting_items.length > 0 ? selectedRow.meeting_items.join("\n") : "None today."
     );
+    lines.push("");
     lines.push(`👋 New Contacts Today (${newCandidatesForDay.length}):`);
     lines.push(
       newCandidatesForDay.length > 0
@@ -590,6 +592,7 @@ export default function StreakPage() {
             .join("\n")
         : "None today."
     );
+    lines.push("");
     lines.push(`🔥 Current Streak: ${streakAsOfSelectedDay} day(s)`);
     lines.push("");
     lines.push("My Pipeline — This Week:");
