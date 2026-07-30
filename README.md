@@ -2620,6 +2620,12 @@ up) plus a numeric level and progress bar toward the next one.
     a new 24px `"xs"` size, and every list row switched from `items-center`
     to `items-start` so a wrapped name doesn't center the count/like
     button oddly across multiple lines.
+  - **Fixed: `CoupleLink` only showed one spouse's avatar**, which read
+    as "one of them has a badge account and one doesn't" - not the
+    case, since badges (and therefore level) are household-merged and
+    always identical for both. Both halves of a couple now get their
+    own avatar (same level ring, their own individual photo) whenever
+    `showAvatar` is on for that row.
 
 ### Success quote on open
 

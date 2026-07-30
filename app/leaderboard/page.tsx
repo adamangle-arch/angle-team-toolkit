@@ -90,9 +90,11 @@ function PersonLink({
 
 // For household-shareable data, a linked spouse shows up as two names,
 // each linking to their own profile — the shared numbers are one entity,
-// but the profiles stay individual. Only the primary half gets an avatar
-// (if shown at all) - one photo per couple reads as "this pair," two
-// would just be visual noise in an already-tight row.
+// but the profiles stay individual. Both halves get their own avatar
+// when shown at all: badges (and therefore level) are household-merged,
+// so they're always the same tier for both spouses - showing only one
+// avatar made it look like just one of them had "a badge account,"
+// which isn't the case.
 function CoupleLink({
   entry,
   showAvatar = true,
@@ -110,17 +112,17 @@ function CoupleLink({
   if (!entry.partner_user_id) {
     return <PersonLink entry={entry} showAvatar={showAvatar} />;
   }
-  const partnerName =
-    [entry.partner_first_name, entry.partner_last_name].filter(Boolean).join(" ") || "Unnamed";
   return (
     <>
       <PersonLink entry={entry} showAvatar={showAvatar} /> &{" "}
-      <Link
-        href={`/profile/${entry.partner_user_id}`}
-        className="underline decoration-dotted underline-offset-2"
-      >
-        {partnerName}
-      </Link>
+      <PersonLink
+        entry={{
+          user_id: entry.partner_user_id,
+          first_name: entry.partner_first_name,
+          last_name: entry.partner_last_name,
+        }}
+        showAvatar={showAvatar}
+      />
     </>
   );
 }
