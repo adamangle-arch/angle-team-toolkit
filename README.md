@@ -2265,10 +2265,20 @@ existing way to know someone actually read something).
   downline earning a badge, so insert has to allow self, household,
   upline, or admin, the same four clauses as `pipeline_periods`'
   `insert_own_or_upline` policy.
-- **A "🏅 My Badges" card on My Profile** links straight to `/badges`,
-  showing an earned/total count and pill chips for (up to 12 of) the
-  badges already earned — a lighter-weight summary than the full tab,
-  in the one place someone's most likely checking their own standing.
+- **A "🏅 My Badges" card on My Profile** links its header to `/badges`,
+  showing an earned/total count and every earned badge as a pill chip
+  (`components/BadgePillList.tsx`, shared with the public profile card
+  below) — 12 shown by default with a "Show all N ▾" toggle to expand
+  the rest in place, rather than a dead-end "+N more" label.
+- **Badges also show on the public profile** (`/profile/[id]`, what
+  opens when you tap a name on the Leaderboard) via a new
+  `get_public_badges(p_user_id)` RPC — same reasoning as
+  `get_public_profile`: badges are meant to be seen by any teammate as
+  bragging rights, not gated by `user_badges`' narrower
+  self/household/upline/admin RLS, so this bypasses it the same way
+  `get_public_profile` bypasses `profiles`' RLS. No internal
+  authorization check, same precedent as `get_public_profile`/
+  `get_current_streak`.
 - **A third batch adds ~39 more badges (~131 total)**: Business
   Structure (organizational size — "legs" and total people), Legs with
   Volume/on Core Run/Taking Action (organizational health), Training &

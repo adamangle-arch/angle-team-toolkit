@@ -8,6 +8,7 @@ import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import { TEAMS } from "@/lib/constants";
 import { BADGE_DEFINITIONS } from "@/lib/badges";
+import BadgePillList from "@/components/BadgePillList";
 import type { Profile, PublicProfile, UserBadge } from "@/lib/types";
 
 export default function MyProfilePage() {
@@ -163,34 +164,27 @@ export default function MyProfilePage() {
           <div className="empty-state">Loading…</div>
         ) : (
           <>
-            <Link href="/badges" className="card space-y-2 block">
-              <div className="flex items-center justify-between gap-2">
+            <div className="card space-y-2">
+              <Link href="/badges" className="flex items-center justify-between gap-2">
                 <p className="section-title">🏅 My Badges</p>
                 <span className="pill-amber">
                   {earnedBadges.length}/{BADGE_DEFINITIONS.length}
                 </span>
-              </div>
+              </Link>
               {earnedBadges.length === 0 ? (
                 <p className="text-xs text-slate-400">
-                  No badges earned yet — tap in to see what&apos;s available.
+                  No badges earned yet —{" "}
+                  <Link href="/badges" className="underline">
+                    tap in to see what&apos;s available
+                  </Link>
+                  .
                 </p>
               ) : (
-                <div className="flex flex-wrap gap-1.5">
-                  {earnedBadges.slice(0, 12).map((ub) => {
-                    const def = BADGE_DEFINITIONS.find((d) => d.key === ub.badge_key);
-                    if (!def) return null;
-                    return (
-                      <span key={ub.id} className="pill" title={def.label}>
-                        {def.icon} {def.label}
-                      </span>
-                    );
-                  })}
-                  {earnedBadges.length > 12 && (
-                    <span className="pill">+{earnedBadges.length - 12} more</span>
-                  )}
-                </div>
+                <BadgePillList
+                  badges={earnedBadges.map((ub) => ({ badge_key: ub.badge_key, earned_at: ub.earned_at }))}
+                />
               )}
-            </Link>
+            </div>
 
             <div className="card space-y-2">
               <p className="section-title">My Team</p>

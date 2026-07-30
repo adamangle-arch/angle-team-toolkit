@@ -3899,6 +3899,26 @@ create policy "user_badges_insert_own_or_upline_or_admin" on user_badges for ins
   or public.is_app_admin()
 );
 
+-- Public-safe badges list for the "tap a name on the Leaderboard" page,
+-- same reasoning/shape as get_public_profile - badges are meant to be
+-- seen by any teammate as a bragging-rights display, not just
+-- self/household/upline, so this bypasses user_badges' narrower RLS the
+-- same way get_public_profile bypasses profiles' RLS. No internal
+-- authorization check, same as get_public_profile/get_current_streak.
+create or replace function public.get_public_badges(p_user_id uuid)
+returns table (badge_key text, earned_at timestamptz)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select badge_key, earned_at from user_badges
+  where user_id = p_user_id
+  order by earned_at desc;
+$$;
+
+grant execute on function public.get_public_badges(uuid) to authenticated;
+
 -- A "+1 book finished" self-report, since there's no other way to know
 -- someone actually read something (unlike audios, which already track
 -- a per-day listen_count). Household-shareable like contacts/candidates

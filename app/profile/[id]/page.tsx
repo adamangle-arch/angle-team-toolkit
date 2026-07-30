@@ -2,8 +2,10 @@
 
 import { use, useEffect, useState } from "react";
 import PageHeader from "@/components/PageHeader";
+import BadgePillList from "@/components/BadgePillList";
 import { supabase } from "@/lib/supabaseClient";
 import { STREAK_MILESTONES } from "@/lib/constants";
+import { BADGE_DEFINITIONS } from "@/lib/badges";
 import type { PublicProfile } from "@/lib/types";
 
 export default function PublicProfilePage({
@@ -13,15 +15,20 @@ export default function PublicProfilePage({
 }) {
   const { id } = use(params);
   const [profile, setProfile] = useState<PublicProfile | null>(null);
+  const [badges, setBadges] = useState<{ badge_key: string; earned_at: string }[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
       setLoading(true);
-      const { data } = await supabase.rpc("get_public_profile", { p_user_id: id });
+      const [{ data: profileData }, { data: badgeData }] = await Promise.all([
+        supabase.rpc("get_public_profile", { p_user_id: id }),
+        supabase.rpc("get_public_badges", { p_user_id: id }),
+      ]);
       if (!cancelled) {
-        setProfile(((data as PublicProfile[]) ?? [])[0] ?? null);
+        setProfile(((profileData as PublicProfile[]) ?? [])[0] ?? null);
+        setBadges((badgeData as { badge_key: string; earned_at: string }[]) ?? []);
         setLoading(false);
       }
     }
@@ -111,6 +118,18 @@ export default function PublicProfilePage({
                     </span>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {badges.length > 0 && (
+              <div className="card space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="section-title">🏅 Badges</p>
+                  <span className="pill-amber">
+                    {badges.length}/{BADGE_DEFINITIONS.length}
+                  </span>
+                </div>
+                <BadgePillList badges={badges} />
               </div>
             )}
 
