@@ -44,6 +44,7 @@ export default function DiamondRunGame() {
   const animFrame = useRef(0);
   const scoreRef = useRef(0);
   const bestScoreRef = useRef(0);
+  const timesImprovedRef = useRef(0);
   const runningRef = useRef(false);
 
   useEffect(() => {
@@ -52,13 +53,14 @@ export default function DiamondRunGame() {
     async function loadBest() {
       const { data } = await supabase
         .from("game_high_scores")
-        .select("best_score")
+        .select("best_score, times_improved")
         .eq("user_id", user.id)
         .maybeSingle();
       if (cancelled) return;
       const best = data?.best_score ?? 0;
       bestScoreRef.current = best;
       setBestScore(best);
+      timesImprovedRef.current = data?.times_improved ?? 0;
     }
 
     loadBest();
@@ -222,10 +224,22 @@ export default function DiamondRunGame() {
     setGameOver(true);
     cancelAnimationFrame(animFrame.current);
     if (scoreRef.current > bestScoreRef.current) {
+      // The very first score set (previous best was 0, meaning no real
+      // game had been played yet) isn't really "beating" anything, so it
+      // doesn't count toward the High Scorer badge - only a strictly
+      // higher score than a real previous best does.
+      if (bestScoreRef.current > 0) {
+        timesImprovedRef.current += 1;
+      }
       bestScoreRef.current = scoreRef.current;
       setBestScore(scoreRef.current);
       await supabase.from("game_high_scores").upsert(
-        { user_id: user.id, best_score: scoreRef.current, updated_at: new Date().toISOString() },
+        {
+          user_id: user.id,
+          best_score: scoreRef.current,
+          times_improved: timesImprovedRef.current,
+          updated_at: new Date().toISOString(),
+        },
         { onConflict: "user_id" }
       );
       loadLeaders();

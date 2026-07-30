@@ -178,6 +178,13 @@ alter table candidates alter column creator_id set not null;
 -- table that already existed before it was added.
 alter table candidates add column if not exists connected_date date not null default current_date;
 
+-- Additive: exact timestamp Launched was hit, for "launched within N
+-- days of a Yes" badges (Fast Starter) - the launched boolean alone
+-- can't tell how quickly it happened. Set by the app whenever "Mark
+-- Launched" is clicked, cleared back to null on "Restore" so
+-- re-launching later stamps it fresh.
+alter table candidates add column if not exists launched_at timestamptz;
+
 -- Superseded below by the access-code approach - a candidate never gets
 -- a real account pre-launch, so there's nothing to link and nothing to
 -- auto-unlock. Drops are safe no-ops if this was never applied.
@@ -688,6 +695,12 @@ alter table profiles add column if not exists profile_prompted boolean not null 
 -- below — it's a manual approval step, not automatic on completion.
 alter table profiles add column if not exists onboarding_unlocked_through int not null default 1;
 
+-- Additive: when onboarding_unlocked_through actually reached 5 (all
+-- sessions), for the Fast Learner badge ("within 60 days of signup") -
+-- stamped once by grant_next_onboarding_session/grant_all_onboarding_sessions
+-- below and never overwritten after that.
+alter table profiles add column if not exists onboarding_completed_at timestamptz;
+
 -- Additive: self-reported reading checkbox required (alongside the 50+
 -- A/B contact requirement) before Session 4 unlocks. Self-service — the
 -- existing "update_own" policy below already covers this, no new RLS
@@ -1021,7 +1034,11 @@ begin
   end if;
 
   update profiles
-  set onboarding_unlocked_through = onboarding_unlocked_through + 1
+  set onboarding_unlocked_through = onboarding_unlocked_through + 1,
+      onboarding_completed_at = case
+        when onboarding_unlocked_through + 1 >= 5 and onboarding_completed_at is null then now()
+        else onboarding_completed_at
+      end
   where id = p_user_id;
 end;
 $$;
@@ -1046,7 +1063,8 @@ begin
   end if;
 
   update profiles
-  set onboarding_unlocked_through = 5
+  set onboarding_unlocked_through = 5,
+      onboarding_completed_at = coalesce(onboarding_completed_at, now())
   where id = p_user_id;
 end;
 $$;
@@ -2326,6 +2344,11 @@ drop policy if exists "game_high_scores_update_own" on game_high_scores;
 create policy "game_high_scores_update_own" on game_high_scores
 for update using (user_id = auth.uid()) with check (user_id = auth.uid());
 
+-- Additive: how many times a player has beaten their own previous best
+-- (the very first score doesn't count - there's no previous best yet to
+-- actually beat) - drives the High Scorer badge.
+alter table game_high_scores add column if not exists times_improved int not null default 0;
+
 create or replace function public.get_game_leaderboard()
 returns table (
   user_id uuid,
@@ -2477,6 +2500,32 @@ as $$
 $$;
 
 grant execute on function public.get_trivia_streak(uuid) to authenticated;
+
+-- Longest-ever perfect-day Trivia streak (gaps-and-islands over
+-- trivia_daily_results), mirroring get_longest_streak's relationship to
+-- get_current_streak: get_trivia_streak above stays "current" for the
+-- live streak display, this is "longest ever" so a badge earned once
+-- stays earned even after the streak later resets.
+create or replace function public.get_longest_trivia_streak(p_user_id uuid)
+returns int
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  with qualifying as (
+    select day from trivia_daily_results
+    where user_id = p_user_id and total_count > 0 and correct_count = total_count
+  ),
+  islands as (
+    select day - (row_number() over (order by day))::int * interval '1 day' as grp
+    from qualifying
+  )
+  select coalesce(max(cnt), 0)::int
+  from (select count(*) as cnt from islands group by grp) t;
+$$;
+
+grant execute on function public.get_longest_trivia_streak(uuid) to authenticated;
 
 create or replace function public.get_trivia_streak_leaderboard()
 returns table (
@@ -3000,6 +3049,42 @@ for update using (public.is_app_admin()) with check (public.is_app_admin());
 drop policy if exists "event_media_delete_admin" on event_media;
 create policy "event_media_delete_admin" on event_media
 for delete using (public.is_app_admin());
+
+-- Only admins can upload photos/videos (event_media insert is admin-only
+-- above), so uploaded_by can't tell who actually showed up - same "no
+-- other way to know" gap book_completions solved for reading. One tap
+-- on an album from a regular member logs that they were there;
+-- household-shareable, no upline fill-in (attending isn't something an
+-- upline does on a downline's behalf), same shape as book_completions.
+create table if not exists event_attendances (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  album_id uuid not null references team_event_albums(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  unique (user_id, album_id)
+);
+
+alter table event_attendances enable row level security;
+
+drop policy if exists "event_attendances_select_own_or_upline_or_admin" on event_attendances;
+create policy "event_attendances_select_own_or_upline_or_admin" on event_attendances for select using (
+  user_id = auth.uid()
+  or user_id = (select household_id from profiles where id = auth.uid())
+  or public.is_upline_of(auth.uid(), user_id)
+  or public.is_app_admin()
+);
+
+drop policy if exists "event_attendances_insert_own" on event_attendances;
+create policy "event_attendances_insert_own" on event_attendances for insert with check (
+  user_id = auth.uid()
+  or user_id = (select household_id from profiles where id = auth.uid())
+);
+
+drop policy if exists "event_attendances_delete_own" on event_attendances;
+create policy "event_attendances_delete_own" on event_attendances for delete using (
+  user_id = auth.uid()
+  or user_id = (select household_id from profiles where id = auth.uid())
+);
 
 -- Public-read storage bucket for the actual photo/video files, same
 -- pattern as the avatars bucket - but uploads/deletes are admin-only
@@ -3814,6 +3899,10 @@ create policy "book_completions_delete_own" on book_completions for delete using
 -- authorization check, same as get_current_streak/get_longest_streak -
 -- this is leaderboard-adjacent data (PV, pipeline counts, streaks) already
 -- visible to any authenticated user through existing leaderboard RPCs.
+-- Dropped and recreated (not a bare create or replace) since the return
+-- table's column list keeps growing - Postgres won't let CREATE OR
+-- REPLACE FUNCTION change an existing return-table shape.
+drop function if exists public.get_badge_metrics(uuid);
 create or replace function public.get_badge_metrics(p_user_id uuid)
 returns table (
   longest_core_run_streak int,
@@ -3830,7 +3919,35 @@ returns table (
   max_qi1_week int,
   max_qi1_month int,
   has_goals boolean,
-  max_books_in_a_year int
+  max_books_in_a_year int,
+  max_ab_contacts int,
+  max_contacts_added_month int,
+  total_customer_sales int,
+  max_single_sale_pv int,
+  max_sales_month_pv int,
+  max_is1_month int,
+  max_is2_month int,
+  max_fu1_month int,
+  max_fu1_month_team int,
+  max_fu2_month int,
+  max_fu2_month_team int,
+  total_launches int,
+  longest_launch_streak int,
+  total_launches_team int,
+  has_fast_launch boolean,
+  has_perfect_month boolean,
+  core_run_streak_count_10plus int,
+  max_meetings_week int,
+  max_meetings_month int,
+  team_events_attended int,
+  has_spouse_linked boolean,
+  has_fast_onboarding boolean,
+  has_triple_threat boolean,
+  total_badges_earned int,
+  distinct_core300_months int,
+  times_improved int,
+  longest_trivia_streak int,
+  has_weekend_warrior boolean
 )
 language sql
 stable
@@ -3885,6 +4002,143 @@ as $$
         where user_id = p_user_id
         group by extract(year from completed_at)
       ) yearly
+    ),
+    (select count(*)::int from contacts where user_id = p_user_id and category in ('A', 'B')),
+    (
+      select coalesce(max(cnt), 0)::int from (
+        select count(*) as cnt from contacts
+        where user_id = p_user_id and category in ('A', 'B')
+        group by date_trunc('month', created_at)
+      ) t
+    ),
+    (select count(*)::int from customer_sales where user_id = p_user_id),
+    (select coalesce(max(amount), 0)::int from customer_sales where user_id = p_user_id),
+    (
+      select coalesce(max(total), 0)::int from (
+        select sum(amount) as total from customer_sales
+        where user_id = p_user_id
+        group by period_start
+      ) t
+    ),
+    (select coalesce(max(is1), 0)::int from pipeline_periods where user_id = p_user_id and period_type = 'monthly'),
+    (select coalesce(max(is2), 0)::int from pipeline_periods where user_id = p_user_id and period_type = 'monthly'),
+    (select coalesce(max(fu1), 0)::int from pipeline_periods where user_id = p_user_id and period_type = 'monthly'),
+    (
+      select coalesce(max(total), 0)::int from (
+        select sum(fu1) as total from pipeline_periods
+        where period_type = 'monthly'
+          and (user_id = p_user_id or user_id in (select user_id from public.get_downline_user_ids(p_user_id)))
+        group by period_start
+      ) t
+    ),
+    (select coalesce(max(fu2), 0)::int from pipeline_periods where user_id = p_user_id and period_type = 'monthly'),
+    (
+      select coalesce(max(total), 0)::int from (
+        select sum(fu2) as total from pipeline_periods
+        where period_type = 'monthly'
+          and (user_id = p_user_id or user_id in (select user_id from public.get_downline_user_ids(p_user_id)))
+        group by period_start
+      ) t
+    ),
+    (select count(*)::int from candidates where user_id = p_user_id and launched = true),
+    (
+      select coalesce(max(cnt), 0)::int from (
+        select count(*) as cnt from (
+          select period_start - (row_number() over (order by period_start))::int * interval '1 month' as grp
+          from pipeline_periods
+          where user_id = p_user_id and period_type = 'monthly' and launches >= 1
+        ) islands
+        group by grp
+      ) runs
+    ),
+    (
+      select count(*)::int from candidates
+      where launched = true
+        and (user_id = p_user_id or user_id in (select user_id from public.get_downline_user_ids(p_user_id)))
+    ),
+    (
+      exists (
+        select 1 from candidates
+        where user_id = p_user_id and launched = true and launched_at is not null
+          and launched_at::date - connected_date <= 30
+      )
+    ),
+    (
+      exists (
+        select 1 from (
+          select
+            count(*) as qualifying_days,
+            extract(day from (date_trunc('month', day) + interval '1 month' - interval '1 day'))::int as days_in_month
+          from streak_days
+          where user_id = p_user_id and read and listen and daily_update and story_share
+          group by date_trunc('month', day)
+        ) t
+        where qualifying_days >= days_in_month
+      )
+    ),
+    (
+      select count(*)::int from (
+        select count(*) as cnt from (
+          select day - (row_number() over (order by day))::int * interval '1 day' as grp
+          from streak_days
+          where user_id = p_user_id and read and listen and daily_update and story_share
+        ) islands
+        group by grp
+      ) runs
+      where cnt >= 10
+    ),
+    (
+      select coalesce(max(total), 0)::int from (
+        select sum(meetings) as total from streak_days
+        where user_id = p_user_id
+        group by date_trunc('week', day)
+      ) t
+    ),
+    (
+      select coalesce(max(total), 0)::int from (
+        select sum(meetings) as total from streak_days
+        where user_id = p_user_id
+        group by date_trunc('month', day)
+      ) t
+    ),
+    (select count(distinct album_id)::int from event_attendances where user_id = p_user_id),
+    (exists (select 1 from profiles where id = p_user_id and household_id is not null)),
+    (
+      exists (
+        select 1 from profiles
+        where id = p_user_id and onboarding_completed_at is not null
+          and onboarding_completed_at::date - created_at::date <= 60
+      )
+    ),
+    (
+      exists (
+        select 1 from monthly_pv mp
+        where mp.user_id = p_user_id and mp.pv >= 300 and mp.day1_ditto_pv >= 100
+          and (
+            select count(*) from streak_days sd
+            where sd.user_id = p_user_id
+              and sd.read and sd.listen and sd.daily_update and sd.story_share
+              and date_trunc('month', sd.day) = mp.period_start
+          ) >= extract(day from (mp.period_start + interval '1 month' - interval '1 day'))::int
+      )
+    ),
+    (
+      select count(*)::int from user_badges
+      where user_id = p_user_id
+        and badge_key not in ('grand_slam', 'half_century', 'century_club')
+    ),
+    (select count(distinct period_start)::int from monthly_pv where user_id = p_user_id and pv >= 300),
+    (select coalesce(max(times_improved), 0)::int from game_high_scores where user_id = p_user_id),
+    public.get_longest_trivia_streak(p_user_id),
+    (
+      exists (
+        select 1 from streak_days sat
+        join streak_days sun on sun.user_id = sat.user_id and sun.day = sat.day + 1
+        where sat.user_id = p_user_id
+          and extract(isodow from sat.day) = 6
+          and sat.meetings > 0
+          and sun.meetings > 0
+      )
     );
 $$;
 

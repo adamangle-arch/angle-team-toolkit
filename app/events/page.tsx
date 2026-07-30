@@ -57,11 +57,13 @@ async function compressImage(file: File): Promise<File> {
 }
 
 export default function EventsPage() {
-  const { user } = useAuth();
+  const { user, ownerId } = useAuth();
   const isAdmin = isPrimaryUser(user.email);
 
   const [albums, setAlbums] = useState<TeamEventAlbum[]>([]);
   const [mediaByAlbum, setMediaByAlbum] = useState<Record<string, EventMedia[]>>({});
+  const [attendedAlbumIds, setAttendedAlbumIds] = useState<Set<string>>(new Set());
+  const [markingAttendedFor, setMarkingAttendedFor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const [newTitle, setNewTitle] = useState("");
@@ -109,9 +111,10 @@ export default function EventsPage() {
   useEffect(() => {
     async function load() {
       setLoading(true);
-      const [{ data: albumRows }, { data: mediaRows }] = await Promise.all([
+      const [{ data: albumRows }, { data: mediaRows }, { data: attendanceRows }] = await Promise.all([
         supabase.from("team_event_albums").select("*").order("event_date", { ascending: false }),
         supabase.from("event_media").select("*").order("created_at", { ascending: false }),
+        supabase.from("event_attendances").select("album_id").eq("user_id", ownerId),
       ]);
       setAlbums((albumRows as TeamEventAlbum[]) ?? []);
       const grouped: Record<string, EventMedia[]> = {};
@@ -119,10 +122,20 @@ export default function EventsPage() {
         (grouped[media.album_id] ??= []).push(media);
       }
       setMediaByAlbum(grouped);
+      setAttendedAlbumIds(
+        new Set(((attendanceRows as { album_id: string }[]) ?? []).map((r) => r.album_id))
+      );
       setLoading(false);
     }
     load();
-  }, []);
+  }, [ownerId]);
+
+  async function markAttended(albumId: string) {
+    setMarkingAttendedFor(albumId);
+    await supabase.from("event_attendances").insert({ user_id: ownerId, album_id: albumId });
+    setAttendedAlbumIds((prev) => new Set(prev).add(albumId));
+    setMarkingAttendedFor(null);
+  }
 
   async function createAlbum() {
     const title = newTitle.trim();
@@ -282,6 +295,17 @@ export default function EventsPage() {
                     <p className="section-title">{album.title}</p>
                     <p className="text-xs text-amber-light">{formatDateLabel(album.event_date)}</p>
                   </div>
+                  {attendedAlbumIds.has(album.id) ? (
+                    <span className="pill-amber shrink-0 text-xs">✅ You were there</span>
+                  ) : (
+                    <button
+                      className="btn-secondary shrink-0 text-xs"
+                      onClick={() => markAttended(album.id)}
+                      disabled={markingAttendedFor === album.id}
+                    >
+                      {markingAttendedFor === album.id ? "Marking…" : "📸 I Was There"}
+                    </button>
+                  )}
                   {isAdmin && (
                     <button
                       className="btn-icon !h-7 !w-7 text-sm shrink-0"

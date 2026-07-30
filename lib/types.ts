@@ -25,6 +25,7 @@ export type Profile = {
   dream_5_year: string;
   dream_10_year: string;
   dream_lifetime: string;
+  onboarding_completed_at: string | null;
   created_at: string;
 };
 
@@ -230,6 +231,7 @@ export type Candidate = {
   notes: string;
   connected_date: string;
   launched: boolean;
+  launched_at: string | null;
   filtered_out: boolean;
   access_code: string | null;
   is1_session_mode: "in_person" | "virtual" | null;
@@ -437,6 +439,13 @@ export type BookCompletion = {
   completed_at: string;
 };
 
+export type EventAttendance = {
+  id: string;
+  user_id: string;
+  album_id: string;
+  created_at: string;
+};
+
 // Shape of get_badge_metrics() - one row of every raw number
 // lib/badges.ts's thresholds get compared against.
 export type BadgeMetrics = {
@@ -455,4 +464,32 @@ export type BadgeMetrics = {
   max_qi1_month: number;
   has_goals: boolean;
   max_books_in_a_year: number;
+  max_ab_contacts: number;
+  max_contacts_added_month: number;
+  total_customer_sales: number;
+  max_single_sale_pv: number;
+  max_sales_month_pv: number;
+  max_is1_month: number;
+  max_is2_month: number;
+  max_fu1_month: number;
+  max_fu1_month_team: number;
+  max_fu2_month: number;
+  max_fu2_month_team: number;
+  total_launches: number;
+  longest_launch_streak: number;
+  total_launches_team: number;
+  has_fast_launch: boolean;
+  has_perfect_month: boolean;
+  core_run_streak_count_10plus: number;
+  max_meetings_week: number;
+  max_meetings_month: number;
+  team_events_attended: number;
+  has_spouse_linked: boolean;
+  has_fast_onboarding: boolean;
+  has_triple_threat: boolean;
+  total_badges_earned: number;
+  distinct_core300_months: number;
+  times_improved: number;
+  longest_trivia_streak: number;
+  has_weekend_warrior: boolean;
 };

@@ -1163,7 +1163,13 @@ function CandidateCard({
             <div className="flex items-center gap-2">
               <button
                 className="btn-primary flex-1"
-                onClick={() => onUpdate(candidate.id, { launched: true, filtered_out: false })}
+                onClick={() =>
+                  onUpdate(candidate.id, {
+                    launched: true,
+                    launched_at: new Date().toISOString(),
+                    filtered_out: false,
+                  })
+                }
               >
                 Mark Launched
               </button>
@@ -1177,7 +1183,7 @@ function CandidateCard({
           ) : (
             <button
               className="btn-secondary w-full"
-              onClick={() => onUpdate(candidate.id, { launched: false, filtered_out: false })}
+              onClick={() => onUpdate(candidate.id, { launched: false, launched_at: null, filtered_out: false })}
             >
               Restore
             </button>

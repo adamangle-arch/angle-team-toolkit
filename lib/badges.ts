@@ -111,6 +111,70 @@ export const BADGE_DEFINITIONS: BadgeDefinition[] = [
   { key: "qi1_month_20", category: "QI1s (Monthly)", label: "20 QI1s in a Month", description: "Show 20 QI1s in a month.", icon: "📅", metric: "max_qi1_month", threshold: 20 },
   { key: "qi1_month_25", category: "QI1s (Monthly)", label: "25 QI1s in a Month", description: "Show 25 QI1s in a month.", icon: "📅", metric: "max_qi1_month", threshold: 25 },
   { key: "qi1_month_30", category: "QI1s (Monthly)", label: "30 QI1s in a Month", description: "Show 30 QI1s in a month.", icon: "👑", metric: "max_qi1_month", threshold: 30 },
+
+  // Contacts
+  { key: "master_lister", category: "Contacts", label: "Master Lister", description: "Have 100 names on your A/B list.", icon: "📇", metric: "max_ab_contacts", threshold: 100 },
+  { key: "list_refresh", category: "Contacts", label: "List Refresh", description: "Add 25 new names to your A/B list in a month.", icon: "📇", metric: "max_contacts_added_month", threshold: 25 },
+
+  // Customers
+  { key: "first_sale", category: "Customers", label: "First Sale", description: "Log your first customer sale.", icon: "🛍️", metric: "total_customer_sales", threshold: 1 },
+  { key: "customer_builder", category: "Customers", label: "Customer Builder", description: "Log 10 customer sales.", icon: "🛍️", metric: "total_customer_sales", threshold: 10 },
+  { key: "customer_champion", category: "Customers", label: "Customer Champion", description: "Log 25 customer sales.", icon: "🛍️", metric: "total_customer_sales", threshold: 25 },
+  { key: "big_ticket", category: "Customers", label: "Big Ticket", description: "Log a single sale of 100+ PV.", icon: "💵", metric: "max_single_sale_pv", threshold: 100 },
+  { key: "sales_month", category: "Customers", label: "Sales Month", description: "300+ PV in customer sales in one month.", icon: "💵", metric: "max_sales_month_pv", threshold: 300 },
+
+  // Pipeline Beyond QI1
+  { key: "is1_regular", category: "Pipeline Beyond QI1", label: "IS1 Regular", description: "5 IS1s in a month.", icon: "🗓️", metric: "max_is1_month", threshold: 5 },
+  { key: "is2_regular", category: "Pipeline Beyond QI1", label: "IS2 Regular", description: "5 IS2s in a month.", icon: "🗓️", metric: "max_is2_month", threshold: 5 },
+  { key: "fu1_finisher", category: "Pipeline Beyond QI1", label: "FU1 Finisher", description: "10 FU1s in a month.", icon: "✔️", metric: "max_fu1_month", threshold: 10 },
+  { key: "fu1_finisher_team", category: "Pipeline Beyond QI1", label: "FU1 Finisher (Team)", description: "10 FU1s in a month, you and your downline combined.", icon: "✔️", metric: "max_fu1_month_team", threshold: 10 },
+  { key: "fu2_finisher", category: "Pipeline Beyond QI1", label: "FU2 Finisher", description: "10 FU2s in a month.", icon: "✔️", metric: "max_fu2_month", threshold: 10 },
+  { key: "fu2_finisher_team", category: "Pipeline Beyond QI1", label: "FU2 Finisher (Team)", description: "10 FU2s in a month, you and your downline combined.", icon: "✔️", metric: "max_fu2_month_team", threshold: 10 },
+
+  // Launches
+  { key: "first_launch", category: "Launches", label: "First Launch", description: "Launch your first team member.", icon: "🚀", metric: "total_launches", threshold: 1 },
+  { key: "launch_streak", category: "Launches", label: "Launch Streak", description: "Launch someone 3 months in a row.", icon: "🚀", metric: "longest_launch_streak", threshold: 3 },
+  { key: "team_builder", category: "Launches", label: "Team Builder", description: "5 total launches, you and your downline combined.", icon: "🚀", metric: "total_launches_team", threshold: 5 },
+  { key: "team_builder_pro", category: "Launches", label: "Team Builder Pro", description: "10 total launches, you and your downline combined.", icon: "🚀", metric: "total_launches_team", threshold: 10 },
+  { key: "team_builder_elite", category: "Launches", label: "Team Builder Elite", description: "25 total launches, you and your downline combined.", icon: "👑", metric: "total_launches_team", threshold: 25 },
+
+  // Speed
+  { key: "fast_starter", category: "Speed", label: "Fast Starter", description: "Launch a team member within 30 days of their Yes.", icon: "⚡", metric: "has_fast_launch", threshold: 1 },
+
+  // Consistency
+  { key: "perfect_week", category: "Consistency", label: "Perfect Week", description: "Every Core Run component, 7 days straight.", icon: "🔥", metric: "longest_core_run_streak", threshold: 7 },
+  { key: "perfect_month", category: "Consistency", label: "Perfect Month", description: "Core Run every single day of a calendar month.", icon: "🌕", metric: "has_perfect_month", threshold: 1 },
+  { key: "comeback_kid", category: "Consistency", label: "Comeback Kid", description: "Rebuild a 10+ day Core Run Streak after breaking one.", icon: "💪", metric: "core_run_streak_count_10plus", threshold: 2 },
+
+  // Calendar & Meetings
+  { key: "meeting_machine", category: "Calendar & Meetings", label: "Meeting Machine", description: "10 meetings in a week.", icon: "📅", metric: "max_meetings_week", threshold: 10 },
+  { key: "booked_solid", category: "Calendar & Meetings", label: "Booked Solid", description: "20 meetings in a month.", icon: "📅", metric: "max_meetings_month", threshold: 20 },
+
+  // Team Culture
+  { key: "team_regular", category: "Team Culture", label: "Team Regular", description: "Attend 5 different Team Events.", icon: "📸", metric: "team_events_attended", threshold: 5 },
+
+  // Household
+  { key: "better_together", category: "Household", label: "Better Together", description: "Link your spouse's account.", icon: "💑", metric: "has_spouse_linked", threshold: 1 },
+
+  // Growing Others
+  { key: "fast_learner", category: "Growing Others", label: "Fast Learner", description: "Finish all 5 Onboarding sessions within 60 days of signing up.", icon: "🎓", metric: "has_fast_onboarding", threshold: 1 },
+
+  // Meta / Combo
+  { key: "triple_threat", category: "Meta / Combo", label: "Triple Threat", description: "Core 300 + 100 PV Ditto + a full month of Core Run, same month.", icon: "🎖️", metric: "has_triple_threat", threshold: 1 },
+  { key: "grand_slam", category: "Meta / Combo", label: "Grand Slam", description: "Earn 10 badges total.", icon: "🎖️", metric: "total_badges_earned", threshold: 10 },
+  { key: "half_century", category: "Meta / Combo", label: "Half Century", description: "Earn 25 badges total.", icon: "🎖️", metric: "total_badges_earned", threshold: 25 },
+  { key: "century_club", category: "Meta / Combo", label: "Century Club", description: "Earn 50 badges total.", icon: "👑", metric: "total_badges_earned", threshold: 50 },
+
+  // Longevity
+  { key: "twelve_for_twelve", category: "Longevity", label: "Twelve for Twelve", description: "Hit Core 300 in 12 different calendar months, lifetime.", icon: "📆", metric: "distinct_core300_months", threshold: 12 },
+
+  // Games
+  { key: "high_scorer", category: "Games", label: "High Scorer", description: "Beat your own Diamond Run high score 5 times.", icon: "🎮", metric: "times_improved", threshold: 5 },
+  { key: "trivia_streak", category: "Games", label: "Trivia Streak", description: "7-day Trivia streak.", icon: "🧠", metric: "longest_trivia_streak", threshold: 7 },
+  { key: "trivia_master", category: "Games", label: "Trivia Master", description: "30-day Trivia streak.", icon: "🧠", metric: "longest_trivia_streak", threshold: 30 },
+
+  // Wildcard
+  { key: "weekend_warrior", category: "Wildcard", label: "Weekend Warrior", description: "Log meetings on both Saturday and Sunday, same weekend.", icon: "🏖️", metric: "has_weekend_warrior", threshold: 1 },
 ];
 
 export const BADGE_CATEGORIES: string[] = Array.from(new Set(BADGE_DEFINITIONS.map((b) => b.category)));

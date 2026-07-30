@@ -2116,7 +2116,7 @@ counter (books finished, since unlike audios there was never an
 existing way to know someone actually read something).
 
 - **The catalog lives in code, not the database.** `lib/badges.ts`'s
-  `BADGE_DEFINITIONS` is a flat list of ~56 badges (key, category,
+  `BADGE_DEFINITIONS` is a flat list of ~92 badges (key, category,
   label, description, icon, which metric it checks, what threshold) —
   Core Run Streak (10/30/60/90/365 days), Monthly PV (150/300 "Core
   300"/600/1000), Day 1 Ditto (100/150/300 PV), Ditto Streak and Core
@@ -2124,19 +2124,54 @@ existing way to know someone actually read something).
   plus 5+/day for 7 days straight), Books (10/20/30/40/50 in a year),
   Questions (5/10/15/20 in a day, 25/30 in a week), Yeses (2/5/10 in a
   day, 10/15/20/25/30 in a week), Goals (filled out at all), QI1s
-  weekly (every number 2 through 10) and monthly (8/10/15/20/25/30).
-  Only `user_badges` (which `badge_key` a real person has actually
-  earned, `earned_at`) lives in the database.
+  weekly (every number 2 through 10) and monthly (8/10/15/20/25/30),
+  plus a second batch: Contacts (100 on your A/B list, +25 added in a
+  month), Customers (first/10th/25th sale logged, a single 100+ PV
+  sale, 300+ PV in a month), Pipeline Beyond QI1 (IS1/IS2 5-in-a-month,
+  FU1/FU2 10-in-a-month with a personal and a team-combined-with-
+  downline variant of each), Launches (first launch, a 3-month launch
+  streak, 5/10/25 total launches combined with your downline), Speed
+  (launch within 30 days of a Yes), Consistency (a 7-day Perfect Week,
+  a full calendar-month Perfect Month, rebuilding a 10+ day streak after
+  breaking one), Calendar & Meetings (10/week, 20/month), Team Culture
+  (attend 5 different Team Events), Household (link your spouse),
+  Growing Others (finish Onboarding within 60 days), Meta/Combo (Core
+  300 + Ditto + a full month of Core Run in the same month, plus
+  10/25/50 total badges earned), Longevity (Core 300 in 12 different
+  calendar months lifetime), Games (beat your own Diamond Run high
+  score 5 times, 7/30-day Trivia streaks), and a Wildcard (meetings
+  logged on both Saturday and Sunday of the same weekend). Only
+  `user_badges` (which `badge_key` a real person has actually earned,
+  `earned_at`) lives in the database.
 - **One RPC computes every raw number.** `get_badge_metrics(p_user_id)`
-  returns a single row — longest Core Run Streak, max monthly PV, max
-  Day 1 Ditto PV, longest Core 300/Ditto streaks (same gaps-and-islands
-  SQL trick as `get_longest_streak`, just over months instead of days),
-  max audios in a day, longest 5+-audio-day streak, max
-  Questions/Yeses per day and per week, max QI1s per week and per
-  month, whether any goal's ever been saved, and the best "books
-  finished" count across any single calendar year. `lib/badges.ts`'s
+  returns a single row of ~43 metrics — longest Core Run Streak, max
+  monthly PV, max Day 1 Ditto PV, longest Core 300/Ditto streaks (same
+  gaps-and-islands SQL trick as `get_longest_streak`, just over months
+  instead of days), max audios in a day, longest 5+-audio-day streak,
+  max Questions/Yeses per day and per week, max QI1s per week and per
+  month, whether any goal's ever been saved, the best "books finished"
+  count across any single calendar year, plus everything the second
+  badge batch needed: A/B contact counts, customer sales counts/PV
+  (`customer_sales.amount` is already PV, not dollars, so no new column
+  was needed there), IS1/IS2/FU1/FU2 monthly maxes (the FU1/FU2 "team"
+  variants sum `pipeline_periods` across `get_downline_user_ids()` too),
+  launch counts and streaks (personal and team-combined), a "launched
+  within 30 days of connecting" check, a calendar-month Perfect Month
+  check, a count of 10+-day Core Run streaks (2+ means a rebuilt
+  Comeback Kid), weekly/monthly meeting totals, Team Event attendance
+  (see `event_attendances` below), whether a spouse is linked, whether
+  Onboarding finished within 60 days of signup, a same-month Triple
+  Threat check, a total-badges-earned count (excluding the meta badges
+  themselves), distinct Core 300 months, Diamond Run
+  `times_improved`, the longest Trivia streak
+  (`get_longest_trivia_streak()`, a new gaps-and-islands function
+  alongside the existing current-streak-only `get_trivia_streak()`),
+  and a same-weekend Saturday+Sunday meetings check. `lib/badges.ts`'s
   thresholds get compared against this one row rather than one query
-  per badge.
+  per badge. The function is dropped and recreated (not a bare `create
+  or replace`) whenever its return-table column list grows, since
+  Postgres won't let `CREATE OR REPLACE FUNCTION` change an existing
+  return shape.
 - **"Longest/max ever," not "current."** Same reasoning as
   `get_longest_streak`: a badge earned once should stay earned even
   after the underlying streak or count later resets — nobody should
@@ -2160,6 +2195,26 @@ existing way to know someone actually read something).
   re-runs the badge check immediately, so a book that pushes you over
   a yearly threshold unlocks right away instead of waiting for the next
   Today dashboard visit.
+- **Team Regular needed a new self-report, same reasoning as
+  Books.** `event_media` uploads are admin-only, so `uploaded_by` can't
+  tell who actually showed up to a Team Event. A new `event_attendances`
+  table (household-shareable, no upline fill-in, same shape as
+  `book_completions`) backs a "📸 I Was There" button on each album on
+  the Team Events page — tap once per album, no re-tapping since the
+  table's `unique (user_id, album_id)` plus a live `Set` of already-
+  attended album IDs turn the button into a "✅ You were there" pill
+  after the first tap.
+- **Three new columns feed the rest of the second batch.**
+  `candidates.launched_at` (stamped by "Mark Launched" on Pipeline,
+  cleared by "Restore") drives Fast Starter's "within 30 days" check.
+  `game_high_scores.times_improved` (incremented in
+  `DiamondRunGame.tsx`'s `endGame()`, but only when there was a real
+  previous best to beat — the very first score set doesn't count as
+  "beating" anything) drives High Scorer.
+  `profiles.onboarding_completed_at` (stamped by
+  `grant_next_onboarding_session`/`grant_all_onboarding_sessions` the
+  first time `onboarding_unlocked_through` reaches 5, never overwritten
+  after) drives Fast Learner.
 - **The Badges tab itself** groups every badge by category, shows
   earned/total per category, and renders each badge with its icon,
   label, description, and either an earned date (✅, tinted card) or a
