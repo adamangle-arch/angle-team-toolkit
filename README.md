@@ -3348,6 +3348,38 @@ shortens the default scroll to roughly a fifth of its previous length
 without asking anyone to learn a new tab-based mental model, and every
 section is still there, one tap away, exactly where it always was.
 
+### Leaderboard: grouped section headings, lighter defaults
+
+Grew to eleven sections over time with no structure beyond "one long
+stack, in whatever order they were added" — easy to lose track of
+what's where. Added five plain-text group headings (`GroupHeading` in
+`app/leaderboard/page.tsx`, not collapsible, not a card - just a
+scan-friendly divider) so the page now reads as labeled clusters
+instead of one undifferentiated scroll:
+
+- **Team Activity** — New to the Team, Milestone Alerts, Today's
+  Sales (only shown if at least one of the three has anything to show)
+- **Leaders** — Team Leaders, Individual Leaders, QI1 Rhythm
+- **Consistency & Pipeline** — Core Run Streaks, 5+ Active Candidates
+- **Volume** (monthly only) — Core 300, Day 1 Ditto 100+
+- **Games** — Diamond Run High Scores, moved to the very end (it was
+  sitting ahead of Volume before) to match the same "games count for
+  less than real business activity" ordering already established for
+  badge points
+
+**Individual Leaders no longer defaults open** — it's the single
+densest section on the page (per-category ties each get their own
+stacked avatar row now), so between it and Team Leaders both being
+open by default, that pairing alone was most of what made the page
+feel cluttered on first load. Team Leaders (compact, one line per
+category) still defaults open.
+
+Deliberately left alone per explicit direction: the repeated
+`(TEAM NAME)` tag on nearly every row looks redundant right now only
+because the whole team is still testing the app pre-launch under a
+single team - once other teams are on it, that repetition is exactly
+the information that tells rows apart, so it wasn't touched.
+
 ### Pipeline Tracker Tally: browsing past days/weeks/months
 
 The Tally tab used to only ever show the current day/week/month — no way

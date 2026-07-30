@@ -189,6 +189,18 @@ function Section({
   );
 }
 
+// Plain label grouping a cluster of Section cards - deliberately not a
+// card itself and not collapsible, just a scan-friendly divider so the
+// page reads as a handful of labeled groups instead of one undifferentiated
+// stack of ten-plus cards.
+function GroupHeading({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="px-1 pt-3 text-xs font-bold uppercase tracking-wider text-slate-500">
+      {children}
+    </p>
+  );
+}
+
 function leadingTeams(teams: TeamTotals[], key: PipelineStageKey): TeamTotals[] {
   const max = teams.reduce((best, t) => Math.max(best, t[key]), 0);
   if (max === 0) return [];
@@ -579,6 +591,10 @@ export default function LeaderboardPage() {
           </div>
         )}
 
+        {((periodType === "daily" && newMembers.length > 0) ||
+          milestones.length > 0 ||
+          dailySales.length > 0) && <GroupHeading>Team Activity</GroupHeading>}
+
         {periodType === "daily" && newMembers.length > 0 && (
           <Section title="🎉 New to the Team">
             {newMembers.map((m) => (
@@ -675,6 +691,7 @@ export default function LeaderboardPage() {
           <div className="empty-state">Loading leaderboard…</div>
         ) : (
           <>
+            <GroupHeading>Leaders</GroupHeading>
             <Section title="Team Leaders" defaultOpen>
               {CATEGORIES.every((c) => leadingTeams(teamTotals, c.key).length === 0) ? (
                 <p className="text-sm text-slate-400">Nothing logged for this period yet.</p>
@@ -705,7 +722,7 @@ export default function LeaderboardPage() {
               )}
             </Section>
 
-            <Section title="Individual Leaders" defaultOpen>
+            <Section title="Individual Leaders">
               {individualLeaders.length === 0 ? (
                 <p className="text-sm text-slate-400">Nothing logged for this period yet.</p>
               ) : (
@@ -791,6 +808,7 @@ export default function LeaderboardPage() {
               )}
             </Section>
 
+            <GroupHeading>Consistency &amp; Pipeline</GroupHeading>
             <Section title="🔥 Core Run Streaks">
               {streakLeaders.length === 0 ? (
                 <p className="text-sm text-slate-400">No one&apos;s on a streak right now.</p>
@@ -847,37 +865,9 @@ export default function LeaderboardPage() {
               )}
             </Section>
 
-            <Section title="💎 Diamond Run High Scores">
-              {gameLeaders.length === 0 ? (
-                <p className="text-sm text-slate-400">No one&apos;s played Diamond Run yet.</p>
-              ) : (
-                gameLeaders.map((entry, i) => {
-                  const key = gameEntryKey(entry.user_id);
-                  return (
-                    <div
-                      key={`${entry.user_id}-${i}`}
-                      className="flex items-start justify-between gap-2 text-sm"
-                    >
-                      <span className="text-slate-200">
-                        {i === 0 ? "👑 " : `${i + 1}. `}
-                        <PersonLink entry={entry} />
-                      </span>
-                      <div className="flex shrink-0 items-center gap-2">
-                        <span className="pill pill-amber">{entry.best_score}</span>
-                        <LikeButton
-                          entryKey={key}
-                          likes={likesMap.get(key) ?? NO_LIKES}
-                          onToggle={toggleLike}
-                        />
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </Section>
-
             {periodType === "monthly" && (
               <>
+                <GroupHeading>Volume</GroupHeading>
                 <Section title="Core 300">
                   {core300.length === 0 ? (
                     <p className="text-sm text-slate-400">No one&apos;s hit Core 300 yet this month.</p>
@@ -937,6 +927,36 @@ export default function LeaderboardPage() {
                 </Section>
               </>
             )}
+
+            <GroupHeading>Games</GroupHeading>
+            <Section title="💎 Diamond Run High Scores">
+              {gameLeaders.length === 0 ? (
+                <p className="text-sm text-slate-400">No one&apos;s played Diamond Run yet.</p>
+              ) : (
+                gameLeaders.map((entry, i) => {
+                  const key = gameEntryKey(entry.user_id);
+                  return (
+                    <div
+                      key={`${entry.user_id}-${i}`}
+                      className="flex items-start justify-between gap-2 text-sm"
+                    >
+                      <span className="text-slate-200">
+                        {i === 0 ? "👑 " : `${i + 1}. `}
+                        <PersonLink entry={entry} />
+                      </span>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <span className="pill pill-amber">{entry.best_score}</span>
+                        <LikeButton
+                          entryKey={key}
+                          likes={likesMap.get(key) ?? NO_LIKES}
+                          onToggle={toggleLike}
+                        />
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </Section>
           </>
         )}
       </main>
