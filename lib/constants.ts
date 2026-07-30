@@ -8,6 +8,17 @@ export function isPrimaryUser(email: string | null | undefined): boolean {
   return PRIMARY_EMAILS.some((e) => e.toLowerCase() === normalized);
 }
 
+// Alex and Laura run the whole team rather than their own personal
+// business inside it - Badges is a team-member feature, not something
+// meant to apply to them, so their accounts don't earn badges, don't
+// see the Badges tab, and don't show a Badges section on their profile.
+export const BADGE_EXCLUDED_EMAILS = ["alexangle@me.com", "laurasangle@gmail.com"];
+
+export function isBadgeExcluded(email: string | null | undefined): boolean {
+  const normalized = (email ?? "").trim().toLowerCase();
+  return BADGE_EXCLUDED_EMAILS.some((e) => e.toLowerCase() === normalized);
+}
+
 // Meeting types the Rate a Call feature can score, each against its own
 // rubric (lib/<type>-call-rating-prompt.txt) — must match the
 // call_ratings.call_type check constraint in supabase/schema.sql.

@@ -6,7 +6,7 @@ import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import { BADGE_DEFINITIONS, BADGE_CATEGORIES, isBadgeEarned, badgeProgress } from "@/lib/badges";
 import { checkAndAwardBadges } from "@/lib/badgeEngine";
-import { ACTIVITY_LOG_KINDS, type ActivityLogKind } from "@/lib/constants";
+import { ACTIVITY_LOG_KINDS, isBadgeExcluded, type ActivityLogKind } from "@/lib/constants";
 import type { BadgeMetrics, UserBadge } from "@/lib/types";
 
 const ACTIVITY_METRIC_KEY: Record<ActivityLogKind, keyof BadgeMetrics> = {
@@ -23,10 +23,11 @@ function formatEarnedDate(iso: string): string {
 }
 
 export default function BadgesPage() {
-  const { ownerId } = useAuth();
+  const { ownerId, user } = useAuth();
+  const excluded = isBadgeExcluded(user.email);
   const [metrics, setMetrics] = useState<BadgeMetrics | null>(null);
   const [earnedByKey, setEarnedByKey] = useState<Map<string, string>>(new Map());
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!excluded);
   const [logging, setLogging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loggingActivity, setLoggingActivity] = useState<ActivityLogKind | null>(null);
@@ -44,6 +45,7 @@ export default function BadgesPage() {
   }
 
   useEffect(() => {
+    if (excluded) return;
     let cancelled = false;
     async function init() {
       await checkAndAwardBadges(ownerId);
@@ -54,7 +56,7 @@ export default function BadgesPage() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ownerId]);
+  }, [ownerId, excluded]);
 
   async function logBook() {
     setLogging(true);
@@ -86,6 +88,19 @@ export default function BadgesPage() {
 
   const earnedCount = earnedByKey.size;
   const totalCount = BADGE_DEFINITIONS.length;
+
+  if (excluded) {
+    return (
+      <>
+        <PageHeader title="Badges" />
+        <main className="page-main">
+          <div className="empty-state">
+            Badges are a team-member feature and aren&apos;t tracked for this account.
+          </div>
+        </main>
+      </>
+    );
+  }
 
   return (
     <>

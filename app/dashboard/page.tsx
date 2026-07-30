@@ -7,7 +7,7 @@ import { useAuth } from "@/components/AuthGate";
 import { minSessionFor } from "@/lib/onboarding-gate";
 import { supabase } from "@/lib/supabaseClient";
 import { getToday, formatDateLabel } from "@/lib/dates";
-import { GOAL_ITEMS_BY_PERIOD, CANDIDATE_STEPS, PIPELINE_STAGES } from "@/lib/constants";
+import { GOAL_ITEMS_BY_PERIOD, CANDIDATE_STEPS, PIPELINE_STAGES, isBadgeExcluded } from "@/lib/constants";
 import { checkAndAwardBadges } from "@/lib/badgeEngine";
 import type { StreakDay, Goal, CalendarEvent, PipelinePeriod, Profile } from "@/lib/types";
 
@@ -179,8 +179,9 @@ export default function DashboardPage() {
   // across Pipeline/Streak/Volume that could theoretically cross a
   // threshold.
   useEffect(() => {
+    if (isBadgeExcluded(user.email)) return;
     checkAndAwardBadges(ownerId);
-  }, [ownerId]);
+  }, [ownerId, user.email]);
 
   const goalTarget = (metric: string) => dailyGoals.find((g) => g.metric === metric)?.target ?? 0;
   const hasAnyDailyGoal = dailyGoals.some((g) => g.target > 0);

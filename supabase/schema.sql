@@ -3959,6 +3959,12 @@ create policy "user_badges_insert_own_or_upline_or_admin" on user_badges for ins
 -- self/household/upline, so this bypasses user_badges' narrower RLS the
 -- same way get_public_profile bypasses profiles' RLS. No internal
 -- authorization check, same as get_public_profile/get_current_streak.
+-- Alex and Laura administer the whole team rather than running their own
+-- personal business inside it - Badges is a team-member feature, not
+-- something meant to apply to them (the app's client code already skips
+-- awarding badges to these two accounts and hides the Badges tab for
+-- them; this is the matching server-side suppression so a public
+-- profile never shows badges for them either).
 create or replace function public.get_public_badges(p_user_id uuid)
 returns table (badge_key text, earned_at timestamptz)
 language sql
@@ -3968,10 +3974,22 @@ set search_path = public
 as $$
   select badge_key, earned_at from user_badges
   where user_id = p_user_id
+    and not exists (
+      select 1 from profiles
+      where id = p_user_id and email in ('alexangle@me.com', 'laurasangle@gmail.com')
+    )
   order by earned_at desc;
 $$;
 
 grant execute on function public.get_public_badges(uuid) to authenticated;
+
+-- One-time cleanup (safe to re-run, it's a no-op once already applied):
+-- clears out any badges Alex/Laura's accounts already accumulated
+-- before this exclusion existed.
+delete from user_badges
+where user_id in (
+  select id from profiles where email in ('alexangle@me.com', 'laurasangle@gmail.com')
+);
 
 -- A "+1 book finished" self-report, since there's no other way to know
 -- someone actually read something (unlike audios, which already track

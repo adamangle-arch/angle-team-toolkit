@@ -121,17 +121,19 @@ export default function PublicProfilePage({
               </div>
             )}
 
-            {badges.length > 0 && (
-              <div className="card space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="section-title">🏅 Badges</p>
-                  <span className="pill-amber">
-                    {badges.length}/{BADGE_DEFINITIONS.length}
-                  </span>
-                </div>
-                <BadgePillList badges={badges} />
+            <div className="card space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <p className="section-title">🏅 Badges</p>
+                <span className="pill-amber">
+                  {badges.length}/{BADGE_DEFINITIONS.length}
+                </span>
               </div>
-            )}
+              {badges.length === 0 ? (
+                <p className="text-xs text-slate-400">No badges earned yet.</p>
+              ) : (
+                <BadgePillList badges={badges} />
+              )}
+            </div>
 
             {profile.hometown && (
               <div className="card space-y-1">

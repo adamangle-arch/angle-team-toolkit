@@ -2406,6 +2406,23 @@ existing way to know someone actually read something).
     bare `Set<string>`; Full Spectrum/Perfectionist just call `.has()`
     on it like before, Well-Rounded groups by a Monday-anchored week
     bucket and checks whether any single week covers 3+ categories.
+- **Alex and Laura's accounts are excluded from Badges entirely**
+  (`BADGE_EXCLUDED_EMAILS`/`isBadgeExcluded()` in `lib/constants.ts`) —
+  they run the whole team rather than a personal business inside it, so
+  Badges isn't a fit for their accounts specifically (every other
+  primary/admin email still earns badges normally). `checkAndAwardBadges`
+  is never called for them (Today dashboard, Badges tab), the Badges tab
+  is hidden from More/Search for them, My Profile's "My Badges" card is
+  hidden on their own profile, and `get_public_badges()` suppresses their
+  rows server-side too (so a public profile never shows badges for them
+  even if something upstream slipped through) — plus a one-time cleanup
+  `delete` clearing any badges their accounts had already accumulated.
+- **Fixed: the public profile's Badges card only rendered when the
+  viewed person had 1+ badge earned**, so anyone with zero badges (most
+  people, early on) showed no Badges section at all — looked like the
+  feature wasn't there. It now always renders, the same way My
+  Profile's own "My Badges" card always has, with a "no badges earned
+  yet" empty state instead of disappearing.
 
 ### Success quote on open
 
