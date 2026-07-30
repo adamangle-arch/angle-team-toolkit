@@ -2543,6 +2543,19 @@ the same bottom-sheet modal pattern already used elsewhere (Today dashboard's
 active-pipeline modal) showing the badge's icon, label, full description, and
 the date it was earned.
 
+- **Fixed: tapping a badge opened the modal but cut off before showing the
+  description**, description-and-earned-date content invisible below the
+  screen edge, on iOS in standalone (home-screen) mode specifically. Every
+  other modal in this app (Today dashboard, Calendar, the success-quote
+  overlay) is deliberately rendered as a sibling of `.page-main`, never
+  nested inside it — a documented iOS Safari quirk (see the comment on
+  `.tab-bar` in `globals.css`) makes a `fixed inset-0` element misbehave,
+  rendering relative to a scrolling ancestor's bounds instead of the true
+  viewport, when nested inside one. `BadgePillList` is a shared component
+  reused inside other pages' `.page-main`-nested cards, so it can't just
+  move — its modal is now rendered via `createPortal` into `document.body`
+  instead, escaping the scrolling ancestor entirely.
+
 ### Avatar & Leveling
 
 A points/level layer on top of the Badges catalog — every earned badge

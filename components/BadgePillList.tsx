@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { BADGE_DEFINITIONS, type BadgeDefinition } from "@/lib/badges";
 
 const INITIAL_VISIBLE = 12;
@@ -50,34 +51,45 @@ export default function BadgePillList({
         </button>
       )}
 
-      {selected && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-4 sm:items-center"
-          onClick={() => setSelected(null)}
-        >
+      {/* Portaled to document.body rather than rendered in place - this
+          component is always mounted inside .page-main (overflow-y-auto),
+          and a `fixed inset-0` element nested inside a scrolling ancestor
+          renders relative to that ancestor's bounds instead of the true
+          viewport in iOS Safari standalone mode, clipping/misplacing the
+          modal instead of covering the full screen. Every other modal in
+          this app sidesteps this by being a sibling of .page-main instead
+          of nested inside it; a portal gets the same result from a
+          component that's reused inside other pages' cards. */}
+      {selected &&
+        createPortal(
           <div
-            className="w-full max-w-md rounded-2xl bg-navy-lighter p-4"
-            onClick={(e) => e.stopPropagation()}
+            className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-4 sm:items-center"
+            onClick={() => setSelected(null)}
           >
-            <div className="mb-2 flex items-start justify-between gap-2">
-              <p className="section-title">
-                {selected.def.icon} {selected.def.label}
+            <div
+              className="w-full max-w-md rounded-2xl bg-navy-lighter p-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="mb-2 flex items-start justify-between gap-2">
+                <p className="section-title">
+                  {selected.def.icon} {selected.def.label}
+                </p>
+                <button
+                  className="btn-icon !h-7 !w-7 shrink-0 text-sm"
+                  onClick={() => setSelected(null)}
+                  aria-label="Close"
+                >
+                  ✕
+                </button>
+              </div>
+              <p className="text-sm text-slate-300">{selected.def.description}</p>
+              <p className="mt-2 text-xs text-slate-500">
+                Earned {new Date(selected.earnedAt).toLocaleDateString()}
               </p>
-              <button
-                className="btn-icon !h-7 !w-7 shrink-0 text-sm"
-                onClick={() => setSelected(null)}
-                aria-label="Close"
-              >
-                ✕
-              </button>
             </div>
-            <p className="text-sm text-slate-300">{selected.def.description}</p>
-            <p className="mt-2 text-xs text-slate-500">
-              Earned {new Date(selected.earnedAt).toLocaleDateString()}
-            </p>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
