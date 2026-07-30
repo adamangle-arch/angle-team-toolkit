@@ -2512,6 +2512,23 @@ existing way to know someone actually read something).
   reads the same badges "My Badges" on their own profile already showed
   them (which reads via `ownerId` and was never affected).
 
+- **Fixed: badges never got evaluated for an account that rarely opens
+  Today or Badges itself.** `checkAndAwardBadges` only ever ran with the
+  *current logged-in user's own* `ownerId` (Today's mount, Badges tab's
+  mount) - nobody viewing someone else's profile triggered evaluation
+  for the person being viewed. An account whose numbers are mostly
+  filled in by an upline, and who rarely opens those two tabs
+  themselves, could sit at zero badges indefinitely even while
+  genuinely qualifying for some. A new `get_badge_owner_id(p_user_id)`
+  RPC resolves the viewed person's real household owner id (returning
+  `null` for Alex/Laura, same exclusion every other call site already
+  applies) and the public profile page now calls `checkAndAwardBadges`
+  with it opportunistically, then re-fetches badges so a newly-earned
+  one shows immediately. Safe for any viewer: `user_badges`' existing
+  insert policy (self/household/upline/admin) means `checkAndAwardBadges`
+  simply no-ops for a stranger without permission, and it already
+  swallows every error internally by design.
+
 ### Tapping a badge shows its description
 
 Badge pills on My Profile and the public profile (`components/BadgePillList.tsx`)

@@ -6,6 +6,7 @@ import BadgePillList from "@/components/BadgePillList";
 import { supabase } from "@/lib/supabaseClient";
 import { STREAK_MILESTONES } from "@/lib/constants";
 import { BADGE_DEFINITIONS } from "@/lib/badges";
+import { checkAndAwardBadges } from "@/lib/badgeEngine";
 import type { PublicProfile } from "@/lib/types";
 
 export default function PublicProfilePage({
@@ -26,11 +27,21 @@ export default function PublicProfilePage({
         supabase.rpc("get_public_profile", { p_user_id: id }),
         supabase.rpc("get_public_badges", { p_user_id: id }),
       ]);
-      if (!cancelled) {
-        setProfile(((profileData as PublicProfile[]) ?? [])[0] ?? null);
-        setBadges((badgeData as { badge_key: string; earned_at: string }[]) ?? []);
-        setLoading(false);
-      }
+      if (cancelled) return;
+      setProfile(((profileData as PublicProfile[]) ?? [])[0] ?? null);
+      setBadges((badgeData as { badge_key: string; earned_at: string }[]) ?? []);
+      setLoading(false);
+
+      // Best-effort catch-up: this may be the only place badge
+      // evaluation ever runs for an account that rarely opens Today or
+      // Badges itself - checkAndAwardBadges no-ops safely (RLS blocks
+      // the insert) if the viewer isn't allowed to award on this
+      // person's behalf.
+      const { data: badgeOwnerId } = await supabase.rpc("get_badge_owner_id", { p_user_id: id });
+      if (cancelled || !badgeOwnerId) return;
+      await checkAndAwardBadges(badgeOwnerId as string);
+      const { data: refreshedBadges } = await supabase.rpc("get_public_badges", { p_user_id: id });
+      if (!cancelled) setBadges((refreshedBadges as { badge_key: string; earned_at: string }[]) ?? []);
     }
     load();
     return () => {

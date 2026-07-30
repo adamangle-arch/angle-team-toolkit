@@ -4058,6 +4058,35 @@ $$;
 
 grant execute on function public.get_public_badges(uuid) to authenticated;
 
+-- checkAndAwardBadges only ever runs with the CURRENT logged-in user's own
+-- ownerId (Today dashboard mount, Badges tab mount) - an account that
+-- rarely opens either of those itself (e.g. an upline fills in their
+-- pipeline numbers for them) never gets evaluated, so its badges can sit
+-- at zero forever even if it genuinely qualifies for some. This lets the
+-- public profile page opportunistically evaluate whoever it's showing,
+-- resolved to their real household owner id (same as AuthGate's own
+-- ownerId, so it never creates a second, inconsistent badge record under
+-- an individual id) - returns null for Alex/Laura so that call site can
+-- skip them the same way every other call site already does.
+create or replace function public.get_badge_owner_id(p_user_id uuid)
+returns uuid
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select case
+    when exists (
+      select 1 from profiles
+      where id = coalesce((select household_id from profiles where id = p_user_id), p_user_id)
+        and email in ('alexangle@me.com', 'laurasangle@gmail.com')
+    ) then null
+    else coalesce((select household_id from profiles where id = p_user_id), p_user_id)
+  end;
+$$;
+
+grant execute on function public.get_badge_owner_id(uuid) to authenticated;
+
 -- One-time cleanup (safe to re-run, it's a no-op once already applied):
 -- clears out any badges Alex/Laura's accounts already accumulated
 -- before this exclusion existed.
