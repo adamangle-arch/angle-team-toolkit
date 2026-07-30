@@ -146,6 +146,7 @@ export default function BadgesPage() {
           BADGE_CATEGORIES.map((category) => {
             const badges = BADGE_DEFINITIONS.filter((b) => b.category === category);
             const earnedInCategory = badges.filter((b) => earnedByKey.has(b.key)).length;
+            const earnedKeySet = new Set(earnedByKey.keys());
             return (
               <div key={category} className="card space-y-2">
                 <div className="flex items-center justify-between gap-2">
@@ -157,8 +158,8 @@ export default function BadgesPage() {
                 <div className="space-y-1.5">
                   {badges.map((badge) => {
                     const earnedAt = earnedByKey.get(badge.key);
-                    const earned = Boolean(earnedAt) || isBadgeEarned(badge, metrics);
-                    const progress = badgeProgress(badge, metrics);
+                    const earned = Boolean(earnedAt) || isBadgeEarned(badge, metrics, earnedKeySet);
+                    const progress = badgeProgress(badge, metrics, earnedKeySet);
                     return (
                       <div
                         key={badge.key}

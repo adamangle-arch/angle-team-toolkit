@@ -22,9 +22,24 @@ export async function checkAndAwardBadges(ownerId: string): Promise<void> {
     const existingKeys = new Set(
       ((existingRows as Pick<UserBadge, "badge_key">[]) ?? []).map((r) => r.badge_key)
     );
-    const newlyEarned = BADGE_DEFINITIONS.filter(
+
+    const regularDefs = BADGE_DEFINITIONS.filter((def) => !("special" in def));
+    const metaDefs = BADGE_DEFINITIONS.filter((def) => "special" in def);
+
+    const newlyEarnedRegular = regularDefs.filter(
       (def) => !existingKeys.has(def.key) && isBadgeEarned(def, metrics)
     );
+
+    // Meta badges (Full Spectrum, Perfectionist) depend on the earned-key
+    // set itself, so they're checked against "existing + newly-earned
+    // this pass" rather than metrics - that way earning the last badge a
+    // meta badge needs triggers it in the same pass, not a pass later.
+    const projectedKeys = new Set([...existingKeys, ...newlyEarnedRegular.map((def) => def.key)]);
+    const newlyEarnedMeta = metaDefs.filter(
+      (def) => !existingKeys.has(def.key) && isBadgeEarned(def, metrics, projectedKeys)
+    );
+
+    const newlyEarned = [...newlyEarnedRegular, ...newlyEarnedMeta];
     if (newlyEarned.length === 0) return;
 
     for (const def of newlyEarned) {

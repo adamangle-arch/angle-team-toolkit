@@ -178,6 +178,20 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     }
   }, [fullyAuthed, onboardingComplete, pathname, router]);
 
+  // Logs today as an "app opened" day for the Daily Visitor badge - once
+  // per day is all that matters, so onConflict + ignoreDuplicates makes
+  // every mount after the first today a cheap no-op rather than an error.
+  useEffect(() => {
+    if (!fullyAuthed || !user) return;
+    supabase
+      .from("app_opens")
+      .upsert(
+        { user_id: user.id, day: new Date().toISOString().slice(0, 10) },
+        { onConflict: "user_id,day", ignoreDuplicates: true }
+      )
+      .then(() => {});
+  }, [fullyAuthed, user]);
+
   // /prospect is a public, unauthenticated view (a candidate enters their
   // access code, no account involved) - it renders standalone rather than
   // behind the normal sign-in wall. /reset-password is similar: arriving

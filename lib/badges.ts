@@ -15,7 +15,16 @@ import type { BadgeMetrics } from "./types";
 // "Longest ever" rather than "current" for anything streak-shaped, so
 // a badge earned once stays earned even after the underlying streak
 // later resets - see get_badge_metrics()'s own comment for why.
-export type BadgeDefinition = {
+//
+// Two badges (Full Spectrum, Perfectionist) can't be a raw number from
+// get_badge_metrics() - they're a property of the catalog itself
+// (category coverage) crossed with the earned-badge set, both of which
+// only exist client-side. `special` marks these instead of
+// `metric`/`threshold`; isBadgeEarned/badgeProgress below handle them
+// separately, and lib/badgeEngine.ts evaluates them against the
+// "as of this pass" earned-key set so they can trigger the same pass
+// the last badge they need lands.
+export type MetricBadgeDefinition = {
   key: string;
   category: string;
   label: string;
@@ -24,6 +33,17 @@ export type BadgeDefinition = {
   metric: keyof BadgeMetrics;
   threshold: number;
 };
+
+export type MetaBadgeDefinition = {
+  key: string;
+  category: string;
+  label: string;
+  description: string;
+  icon: string;
+  special: "full_spectrum" | "perfectionist";
+};
+
+export type BadgeDefinition = MetricBadgeDefinition | MetaBadgeDefinition;
 
 export const BADGE_DEFINITIONS: BadgeDefinition[] = [
   // Core Run Streak
@@ -230,6 +250,55 @@ export const BADGE_DEFINITIONS: BadgeDefinition[] = [
   { key: "grade_meeting_15", category: "AI Chat Practice", label: "Grade 15 Meetings", description: "Grade 15 meetings on the AI chat.", icon: "📞", metric: "call_ratings_count", threshold: 15 },
   { key: "grade_meeting_20", category: "AI Chat Practice", label: "Grade 20 Meetings", description: "Grade 20 meetings on the AI chat.", icon: "👑", metric: "call_ratings_count", threshold: 20 },
   { key: "story_practiced", category: "AI Chat Practice", label: "Story Practice", description: "Practice sharing your story with the AI chat.", icon: "📖", metric: "has_story_practiced", threshold: 1 },
+
+  // App Habits
+  { key: "daily_visitor", category: "App Habits", label: "Daily Visitor", description: "Open the app 30 days in a row.", icon: "📱", metric: "app_opened_streak", threshold: 30 },
+  { key: "profile_complete", category: "App Habits", label: "Profile Complete", description: "Fill out every optional profile field.", icon: "📝", metric: "has_profile_complete", threshold: 1 },
+  { key: "note_taker", category: "App Habits", label: "Note Taker", description: "Add notes to 10 different candidates.", icon: "🗒️", metric: "note_taker_count", threshold: 10 },
+
+  // Depth & Duplication (going deeper than "legs," not just wider)
+  { key: "third_generation", category: "Depth & Duplication", label: "Third Generation", description: "Have someone 3 levels deep in your downline.", icon: "🌲", metric: "max_downline_depth", threshold: 3 },
+  { key: "fourth_generation", category: "Depth & Duplication", label: "Fourth Generation", description: "Have someone 4 levels deep in your downline.", icon: "🌲", metric: "max_downline_depth", threshold: 4 },
+  { key: "fifth_generation", category: "Depth & Duplication", label: "Fifth Generation", description: "Have someone 5 levels deep in your downline.", icon: "👑", metric: "max_downline_depth", threshold: 5 },
+  { key: "duplication_nation", category: "Depth & Duplication", label: "Duplication Nation", description: "3 different legs each have 3+ legs of their own.", icon: "🌲", metric: "has_duplication_nation", threshold: 1 },
+
+  // Leadership & Recognition
+  { key: "mentor", category: "Leadership & Recognition", label: "Mentor", description: "A downline member earns their own First Launch badge.", icon: "🎓", metric: "has_mentor", threshold: 1 },
+  { key: "multiplier", category: "Leadership & Recognition", label: "Multiplier", description: "2 different downline members earn First Launch in the same month.", icon: "🎓", metric: "has_multiplier", threshold: 1 },
+  { key: "shoutout", category: "Leadership & Recognition", label: "Shoutout", description: "Get liked 10 times on the Leaderboard.", icon: "👍", metric: "times_liked_received", threshold: 10 },
+  { key: "fan_favorite", category: "Leadership & Recognition", label: "Fan Favorite", description: "Get liked 50 times on the Leaderboard.", icon: "👍", metric: "times_liked_received", threshold: 50 },
+  { key: "cheerleader", category: "Leadership & Recognition", label: "Cheerleader", description: "Like 25 different Leaderboard entries yourself.", icon: "📣", metric: "likes_given", threshold: 25 },
+  { key: "encourager", category: "Leadership & Recognition", label: "Encourager", description: "Like 100 different Leaderboard entries yourself.", icon: "📣", metric: "likes_given", threshold: 100 },
+
+  // Data Hygiene
+  { key: "learning_from_no", category: "Data Hygiene", label: "Learning from No", description: "Mark 10 candidates Filtered Out.", icon: "🧹", metric: "filtered_out_count", threshold: 10 },
+  { key: "organized", category: "Data Hygiene", label: "Organized", description: "Every active candidate has notes filled in.", icon: "🧹", metric: "has_organized_pipeline", threshold: 1 },
+
+  // Timing
+  { key: "new_year_new_you", category: "Timing", label: "New Year New You", description: "Hit Core 300 in January.", icon: "🎉", metric: "has_new_year_core300", threshold: 1 },
+  { key: "summer_push", category: "Timing", label: "Summer Push", description: "Hit Core 300 in June, July, and August of the same year.", icon: "☀️", metric: "has_summer_core300", threshold: 1 },
+
+  // Referral Chains
+  { key: "pay_it_forward", category: "Referral Chains", label: "Pay It Forward", description: "Someone you personally launched later launches their own first person.", icon: "🔗", metric: "has_pay_it_forward", threshold: 1 },
+  { key: "chain_reaction", category: "Referral Chains", label: "Chain Reaction", description: "3 generations deep all launch someone in the same quarter.", icon: "🔗", metric: "has_chain_reaction", threshold: 1 },
+  { key: "second_generation_growth", category: "Referral Chains", label: "Second Generation Growth", description: "Your downline's downline reaches 10 people.", icon: "🔗", metric: "second_gen_or_deeper_count", threshold: 10 },
+
+  // Customers (lifetime/yearly totals)
+  { key: "half_grand", category: "Customers", label: "Half Grand", description: "Log 500 lifetime customer sales.", icon: "💰", metric: "total_customer_sales", threshold: 500 },
+  { key: "grand_total", category: "Customers", label: "Grand Total", description: "Log 1,000 lifetime customer sales.", icon: "👑", metric: "total_customer_sales", threshold: 1000 },
+  { key: "century_of_sales", category: "Customers", label: "Century of Sales", description: "Log 100 customer sales in a single year.", icon: "💰", metric: "max_sales_year_count", threshold: 100 },
+
+  // Team Culture
+  { key: "resource_sharer", category: "Team Culture", label: "Resource Sharer", description: "Send a resource to 10 different candidates or team members.", icon: "📤", metric: "resource_recipients_count", threshold: 10 },
+
+  // Support
+  { key: "good_neighbor", category: "Support", label: "Good Neighbor", description: "Fill in pipeline numbers for a downline member on 5 different days.", icon: "🤝", metric: "good_neighbor_days", threshold: 5 },
+
+  // Meta / Combo
+  { key: "iron_streaker", category: "Meta / Combo", label: "Iron Streaker", description: "Earn every Core Run Streak milestone badge (10/30/60/90/365 days).", icon: "🔥", metric: "has_iron_streaker", threshold: 1 },
+  { key: "full_spectrum", category: "Meta / Combo", label: "Full Spectrum", description: "Earn at least one badge from every category.", icon: "🌈", special: "full_spectrum" },
+  { key: "perfectionist", category: "Meta / Combo", label: "Perfectionist", description: "Earn every badge in a single category.", icon: "💯", special: "perfectionist" },
+  { key: "legend", category: "Meta / Combo", label: "Legend", description: "Earn 100 badges total.", icon: "👑", metric: "total_badges_earned", threshold: 100 },
 ];
 
 export const BADGE_CATEGORIES: string[] = Array.from(new Set(BADGE_DEFINITIONS.map((b) => b.category)));
@@ -239,7 +308,39 @@ function metricValue(metrics: BadgeMetrics, key: keyof BadgeMetrics): number {
   return typeof raw === "boolean" ? (raw ? 1 : 0) : raw;
 }
 
-export function isBadgeEarned(def: BadgeDefinition, metrics: BadgeMetrics): boolean {
+// Full Spectrum: at least one earned badge (from earnedKeys) in every
+// category. Categories with zero regular badges can't happen today, but
+// this doesn't assume it - an empty category is just never satisfied.
+function hasFullSpectrum(earnedKeys: Set<string>): boolean {
+  return BADGE_CATEGORIES.every((cat) =>
+    BADGE_DEFINITIONS.some((b) => b.category === cat && earnedKeys.has(b.key))
+  );
+}
+
+// Perfectionist: every badge in some category earned. Excludes Full
+// Spectrum/Perfectionist themselves from the "required" set for
+// whichever category they're in (Meta / Combo) - otherwise that one
+// category could never be completed, since Perfectionist would require
+// having already earned Perfectionist.
+function hasPerfectionist(earnedKeys: Set<string>): boolean {
+  return BADGE_CATEGORIES.some((cat) => {
+    const required = BADGE_DEFINITIONS.filter((b) => b.category === cat && !("special" in b));
+    return required.length > 0 && required.every((b) => earnedKeys.has(b.key));
+  });
+}
+
+// earnedKeys is only needed for the two "special" meta badges - every
+// other (metric-driven) badge ignores it, so callers that only care
+// about those can omit it.
+export function isBadgeEarned(
+  def: BadgeDefinition,
+  metrics: BadgeMetrics,
+  earnedKeys?: Set<string>
+): boolean {
+  if ("special" in def) {
+    if (!earnedKeys) return false;
+    return def.special === "full_spectrum" ? hasFullSpectrum(earnedKeys) : hasPerfectionist(earnedKeys);
+  }
   return metricValue(metrics, def.metric) >= def.threshold;
 }
 
@@ -247,7 +348,28 @@ export function isBadgeEarned(def: BadgeDefinition, metrics: BadgeMetrics): bool
 // threshold (0-1) - drives a progress bar on the Badges tab so it
 // feels like a video game ("you're at 23/30") rather than just
 // locked/unlocked.
-export function badgeProgress(def: BadgeDefinition, metrics: BadgeMetrics): number {
+export function badgeProgress(
+  def: BadgeDefinition,
+  metrics: BadgeMetrics,
+  earnedKeys?: Set<string>
+): number {
+  if ("special" in def) {
+    const keys = earnedKeys ?? new Set<string>();
+    if (def.special === "full_spectrum") {
+      const covered = BADGE_CATEGORIES.filter((cat) =>
+        BADGE_DEFINITIONS.some((b) => b.category === cat && keys.has(b.key))
+      ).length;
+      return BADGE_CATEGORIES.length > 0 ? covered / BADGE_CATEGORIES.length : 0;
+    }
+    let best = 0;
+    for (const cat of BADGE_CATEGORIES) {
+      const required = BADGE_DEFINITIONS.filter((b) => b.category === cat && !("special" in b));
+      if (required.length === 0) continue;
+      const earnedCount = required.filter((b) => keys.has(b.key)).length;
+      best = Math.max(best, earnedCount / required.length);
+    }
+    return best;
+  }
   const value = metricValue(metrics, def.metric);
   if (def.threshold <= 0) return value > 0 ? 1 : 0;
   return Math.max(0, Math.min(1, value / def.threshold));

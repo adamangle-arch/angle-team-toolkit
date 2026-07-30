@@ -136,6 +136,14 @@ alter table pipeline_periods add constraint pipeline_periods_period_type_check c
   period_type in ('daily', 'weekly', 'monthly')
 );
 
+-- Additive: who actually last touched this row, as opposed to user_id
+-- (whose numbers they are) - the two differ whenever an upline fills in
+-- a downline's numbers. Set by bump_pipeline_stage() below (the daily
+-- path) and directly by the client for the weekly/monthly direct-edit
+-- path - drives the Good Neighbor badge ("filled in for a downline
+-- member N different days").
+alter table pipeline_periods add column if not exists last_edited_by uuid references auth.users(id) on delete set null;
+
 -- ============================================================
 -- 2. CANDIDATE ROADMAP
 -- current_step is an index (0-9) into the 10 roadmap steps defined in
@@ -2136,28 +2144,28 @@ begin
   end if;
 
   execute format(
-    'insert into pipeline_periods (user_id, period_type, period_start, %1$I)
-     values ($1, $2, $3, greatest(0, $4))
+    'insert into pipeline_periods (user_id, period_type, period_start, %1$I, last_edited_by)
+     values ($1, $2, $3, greatest(0, $4), $5)
      on conflict (user_id, period_type, period_start)
-     do update set %1$I = greatest(0, pipeline_periods.%1$I + $4), updated_at = now()',
+     do update set %1$I = greatest(0, pipeline_periods.%1$I + $4), updated_at = now(), last_edited_by = $5',
     p_stage
-  ) using p_owner_id, 'daily', p_period_start, p_delta;
+  ) using p_owner_id, 'daily', p_period_start, p_delta, auth.uid();
 
   execute format(
-    'insert into pipeline_periods (user_id, period_type, period_start, %1$I)
-     values ($1, $2, $3, greatest(0, $4))
+    'insert into pipeline_periods (user_id, period_type, period_start, %1$I, last_edited_by)
+     values ($1, $2, $3, greatest(0, $4), $5)
      on conflict (user_id, period_type, period_start)
-     do update set %1$I = greatest(0, pipeline_periods.%1$I + $4), updated_at = now()',
+     do update set %1$I = greatest(0, pipeline_periods.%1$I + $4), updated_at = now(), last_edited_by = $5',
     p_stage
-  ) using p_owner_id, 'weekly', v_week_start, p_delta;
+  ) using p_owner_id, 'weekly', v_week_start, p_delta, auth.uid();
 
   execute format(
-    'insert into pipeline_periods (user_id, period_type, period_start, %1$I)
-     values ($1, $2, $3, greatest(0, $4))
+    'insert into pipeline_periods (user_id, period_type, period_start, %1$I, last_edited_by)
+     values ($1, $2, $3, greatest(0, $4), $5)
      on conflict (user_id, period_type, period_start)
-     do update set %1$I = greatest(0, pipeline_periods.%1$I + $4), updated_at = now()',
+     do update set %1$I = greatest(0, pipeline_periods.%1$I + $4), updated_at = now(), last_edited_by = $5',
     p_stage
-  ) using p_owner_id, 'monthly', v_month_start, p_delta;
+  ) using p_owner_id, 'monthly', v_month_start, p_delta, auth.uid();
 end;
 $$;
 
@@ -2804,6 +2812,41 @@ as $$
 $$;
 
 grant execute on function public.get_leg_members(uuid) to authenticated;
+
+-- Every downline member tagged with how many generations below p_user_id
+-- they are (1 = a direct recruit, 2 = their recruit, etc.) - for the
+-- Third/Fourth/Fifth Generation and Second Generation Growth badges,
+-- which care about depth rather than which leg (unlike get_leg_members
+-- above). Same viewer_unit household expansion as get_leg_members/
+-- is_upline_of, for the same reason.
+create or replace function public.get_downline_with_depth(p_user_id uuid)
+returns table (member_id uuid, depth int)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  with recursive viewer_unit as (
+    select p_user_id as id
+    union
+    select household_id from profiles where id = p_user_id and household_id is not null
+    union
+    select id from profiles where household_id = p_user_id
+  ),
+  tree as (
+    select p.id as member_id, 1 as depth
+    from profiles p
+    where p.upline_id in (select id from viewer_unit)
+      and p.id not in (select id from viewer_unit)
+    union all
+    select p.id, t.depth + 1
+    from profiles p
+    join tree t on p.upline_id = t.member_id
+  )
+  select member_id, min(depth)::int as depth from tree group by member_id;
+$$;
+
+grant execute on function public.get_downline_with_depth(uuid) to authenticated;
 
 -- Inserts one copy of the event per downline member (any level), each
 -- owned by that member so it shows on their own calendar too, not just
@@ -3994,6 +4037,30 @@ create policy "activity_logs_delete_own" on activity_logs for delete using (
   or user_id = (select household_id from profiles where id = auth.uid())
 );
 
+-- One row per calendar day a person actually opens the app - logged
+-- automatically (not self-reported) once per day from AuthGate, for the
+-- Daily Visitor badge's "longest consecutive days opened" streak.
+-- Individual per login, not household-shared, same as streak_days -
+-- app usage is a personal habit, not shared business data.
+create table if not exists app_opens (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  day date not null default current_date,
+  unique (user_id, day)
+);
+
+alter table app_opens enable row level security;
+
+drop policy if exists "app_opens_select_own_or_upline_or_admin" on app_opens;
+create policy "app_opens_select_own_or_upline_or_admin" on app_opens for select using (
+  user_id = auth.uid()
+  or public.is_upline_of(auth.uid(), user_id)
+  or public.is_app_admin()
+);
+
+drop policy if exists "app_opens_insert_own" on app_opens;
+create policy "app_opens_insert_own" on app_opens for insert with check (user_id = auth.uid());
+
 -- One RPC computing every raw number lib/badges.ts's thresholds get
 -- compared against, rather than one query per badge from the client.
 -- "Longest ever" (not "current") for anything streak-shaped, same
@@ -4067,7 +4134,27 @@ returns table (
   has_weekly_training boolean,
   has_monthly_masterclass boolean,
   has_quarterly_conference boolean,
-  has_story_practiced boolean
+  has_story_practiced boolean,
+  app_opened_streak int,
+  has_profile_complete boolean,
+  note_taker_count int,
+  max_downline_depth int,
+  has_duplication_nation boolean,
+  has_mentor boolean,
+  has_multiplier boolean,
+  times_liked_received int,
+  likes_given int,
+  filtered_out_count int,
+  has_organized_pipeline boolean,
+  has_new_year_core300 boolean,
+  has_summer_core300 boolean,
+  has_pay_it_forward boolean,
+  has_chain_reaction boolean,
+  second_gen_or_deeper_count int,
+  max_sales_year_count int,
+  resource_recipients_count int,
+  good_neighbor_days int,
+  has_iron_streaker boolean
 )
 language sql
 stable
@@ -4248,7 +4335,7 @@ as $$
     (
       select count(*)::int from user_badges
       where user_id = p_user_id
-        and badge_key not in ('grand_slam', 'half_century', 'century_club')
+        and badge_key not in ('grand_slam', 'half_century', 'century_club', 'legend')
     ),
     (select count(distinct period_start)::int from monthly_pv where user_id = p_user_id and pv >= 300),
     (select coalesce(max(times_improved), 0)::int from game_high_scores where user_id = p_user_id),
@@ -4311,7 +4398,169 @@ as $$
     (exists (select 1 from activity_logs where user_id = p_user_id and kind = 'weekly_training_attended')),
     (exists (select 1 from activity_logs where user_id = p_user_id and kind = 'monthly_masterclass_attended')),
     (exists (select 1 from activity_logs where user_id = p_user_id and kind = 'quarterly_conference_attended')),
-    (exists (select 1 from activity_logs where user_id = p_user_id and kind = 'story_practiced'));
+    (exists (select 1 from activity_logs where user_id = p_user_id and kind = 'story_practiced')),
+    (
+      select coalesce(max(cnt), 0)::int from (
+        select count(*) as cnt from (
+          select day - (row_number() over (order by day))::int * interval '1 day' as grp
+          from app_opens
+          where user_id = p_user_id
+        ) islands
+        group by grp
+      ) runs
+    ),
+    (
+      exists (
+        select 1 from profiles
+        where id = p_user_id
+          and photo_url is not null and photo_url <> ''
+          and hometown is not null and hometown <> ''
+          and background is not null and background <> ''
+          and favorite_audio_1 is not null and favorite_audio_1 <> ''
+          and favorite_audio_2 is not null and favorite_audio_2 <> ''
+          and favorite_audio_3 is not null and favorite_audio_3 <> ''
+          and favorite_book_1 is not null and favorite_book_1 <> ''
+          and favorite_book_2 is not null and favorite_book_2 <> ''
+          and favorite_book_3 is not null and favorite_book_3 <> ''
+          and team_impact is not null and team_impact <> ''
+      )
+    ),
+    (select count(*)::int from candidates where user_id = p_user_id and notes <> ''),
+    (select coalesce(max(depth), 0)::int from public.get_downline_with_depth(p_user_id)),
+    (
+      (
+        select count(*)::int from (
+          select distinct leg_root from legs
+        ) my_legs
+        where (
+          select count(distinct sub.leg_root) from public.get_leg_members(my_legs.leg_root) sub
+        ) >= 3
+      ) >= 3
+    ),
+    (
+      exists (
+        select 1 from user_badges
+        where badge_key = 'first_launch'
+          and user_id in (select user_id from public.get_downline_user_ids(p_user_id))
+      )
+    ),
+    (
+      exists (
+        select 1 from (
+          select date_trunc('month', earned_at) as m, count(distinct user_id) as cnt
+          from user_badges
+          where badge_key = 'first_launch'
+            and user_id in (select user_id from public.get_downline_user_ids(p_user_id))
+          group by date_trunc('month', earned_at)
+        ) t where cnt >= 2
+      )
+    ),
+    (
+      select count(*)::int from leaderboard_likes
+      where entry_key = 'streak:' || p_user_id::text
+         or entry_key = 'active_candidates:' || p_user_id::text
+         or entry_key = 'game:' || p_user_id::text
+         or entry_key like 'core300:%:' || p_user_id::text
+         or entry_key like 'ditto:%:' || p_user_id::text
+         or entry_key like ('milestone:' || p_user_id::text || ':%')
+         or entry_key like 'qi1_rhythm:%:%:' || p_user_id::text
+    ),
+    (select count(*)::int from leaderboard_likes where liker_id = p_user_id),
+    (select count(*)::int from candidates where user_id = p_user_id and filtered_out = true),
+    (
+      exists (
+        select 1 from candidates
+        where user_id = p_user_id and launched = false and filtered_out = false and current_step >= 1
+      )
+      and not exists (
+        select 1 from candidates
+        where user_id = p_user_id and launched = false and filtered_out = false
+          and current_step >= 1 and notes = ''
+      )
+    ),
+    (
+      exists (
+        select 1 from monthly_pv
+        where user_id = p_user_id and pv >= 300 and extract(month from period_start) = 1
+      )
+    ),
+    (
+      exists (
+        select 1 from monthly_pv j
+        where j.user_id = p_user_id and extract(month from j.period_start) = 6 and j.pv >= 300
+          and exists (
+            select 1 from monthly_pv jl
+            where jl.user_id = p_user_id and jl.pv >= 300
+              and extract(month from jl.period_start) = 7
+              and extract(year from jl.period_start) = extract(year from j.period_start)
+          )
+          and exists (
+            select 1 from monthly_pv a
+            where a.user_id = p_user_id and a.pv >= 300
+              and extract(month from a.period_start) = 8
+              and extract(year from a.period_start) = extract(year from j.period_start)
+          )
+      )
+    ),
+    (
+      exists (
+        select 1 from profiles dr
+        where (
+          dr.upline_id = p_user_id
+          or dr.upline_id = (select household_id from profiles where id = p_user_id)
+        )
+        and exists (select 1 from candidates c where c.user_id = dr.id and c.launched = true)
+      )
+    ),
+    (
+      exists (
+        select 1
+        from profiles g1
+        join profiles g2 on g2.upline_id = g1.id
+        join profiles g3 on g3.upline_id = g2.id
+        where (
+          g1.upline_id = p_user_id
+          or g1.upline_id = (select household_id from profiles where id = p_user_id)
+        )
+        and exists (
+          select 1 from candidates c1
+          where c1.user_id = g1.id and c1.launched and c1.launched_at is not null
+            and exists (
+              select 1 from candidates c2
+              where c2.user_id = g2.id and c2.launched and c2.launched_at is not null
+                and date_trunc('quarter', c2.launched_at) = date_trunc('quarter', c1.launched_at)
+                and exists (
+                  select 1 from candidates c3
+                  where c3.user_id = g3.id and c3.launched and c3.launched_at is not null
+                    and date_trunc('quarter', c3.launched_at) = date_trunc('quarter', c1.launched_at)
+                )
+            )
+        )
+      )
+    ),
+    (select count(*)::int from public.get_downline_with_depth(p_user_id) where depth >= 2),
+    (
+      select coalesce(max(cnt), 0)::int from (
+        select count(*) as cnt from customer_sales
+        where user_id = p_user_id
+        group by extract(year from period_start)
+      ) t
+    ),
+    (
+      (select count(distinct candidate_id)::int from candidate_specific_resources where sent_by = p_user_id)
+      + (select count(distinct recipient_id)::int from member_resources where sent_by = p_user_id)
+    ),
+    (
+      select count(*)::int from pipeline_periods
+      where last_edited_by = p_user_id and user_id <> p_user_id and period_type = 'daily'
+    ),
+    (
+      (
+        select count(*) from user_badges
+        where user_id = p_user_id
+          and badge_key in ('core_run_10', 'core_run_30', 'core_run_60', 'core_run_90', 'core_run_365')
+      ) = 5
+    );
 $$;
 
 grant execute on function public.get_badge_metrics(uuid) to authenticated;

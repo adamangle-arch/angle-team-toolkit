@@ -2315,6 +2315,59 @@ existing way to know someone actually read something).
   - **"Grade a meeting on the AI chat"** reuses the existing `call_ratings`
     table (the Assistant's Rate a Call feature) rather than adding
     anything new — `call_ratings_count` is just `count(*)` for that user.
+- **A fourth batch adds ~29 more badges (~160 total)**: App Habits,
+  Depth & Duplication (generations *below* your legs, not across them),
+  Leadership & Recognition, Data Hygiene, Timing, Referral Chains, three
+  more Customers badges (lifetime/yearly sales totals), a Team Culture
+  and a Support badge, and four more Meta/Combo badges.
+  - **Depth needed a second recursive function.** `get_leg_members`
+    (batch 3) tags who belongs to which leg; `get_downline_with_depth`
+    tags how many generations below you someone is (1 = a direct
+    recruit, 2 = their recruit, etc.) — same `viewer_unit` household
+    expansion, different question (depth, not identity). Backs Third/
+    Fourth/Fifth Generation (`max_downline_depth` ≥ 3/4/5) and Second
+    Generation Growth (`second_gen_or_deeper_count` ≥ 10). Duplication
+    Nation reuses `get_leg_members` a second way — for each of your
+    legs, it calls `get_leg_members(leg_root)` *again* to check whether
+    that leg itself has 3+ legs of its own.
+  - **App opens get their own table.** `app_opens` (one row per day,
+    logged automatically from `AuthGate` via an `upsert` with
+    `ignoreDuplicates` — not self-reported) backs Daily Visitor's
+    "30 days in a row," the same gaps-and-islands trick as everything
+    else that's ever asked "longest streak."
+  - **Leaderboard likes reverse-engineer `entry_key`.** `leaderboard_likes.entry_key`
+    is a client-built string with a different shape per leaderboard
+    section (`streak:<uuid>`, `core300:<date>:<uuid>`,
+    `milestone:<uuid>:<days>`, etc. — see the `*EntryKey` builders in
+    `app/leaderboard/page.tsx`). Shoutout/Fan Favorite match
+    `entry_key` against every format that embeds a plain user id
+    (streak, active-candidates, game, core300, ditto, milestone,
+    qi1_rhythm) to count times-liked-received; `team`/`individual`
+    entries are skipped since those keys identify a stage/period, not
+    one person, and `daily_sale` is skipped since it keys off a sale id
+    instead. Cheerleader/Encourager (likes *given*) don't need any of
+    that — just `count(*) where liker_id = p_user_id`.
+  - **Good Neighbor needed to know who last touched a row.** Nothing on
+    `pipeline_periods` recorded whether an edit was the owner's own or
+    an upline filling in for them — `last_edited_by` (stamped by
+    `bump_pipeline_stage` for the Daily Tally path, and directly by the
+    client for the weekly/monthly direct-edit path) fixes that. The
+    metric only counts `period_type = 'daily'` rows to avoid
+    triple-counting the automatic weekly/monthly rollup as 3 separate
+    "times."
+  - **Full Spectrum and Perfectionist can't be a raw number** — they're
+    a property of the badge catalog itself (category coverage) crossed
+    with the earned-badge set, both client-side facts, not something
+    `get_badge_metrics()` can compute. `BadgeDefinition` is now a union
+    (`MetricBadgeDefinition | MetaBadgeDefinition`); `isBadgeEarned`/
+    `badgeProgress` take an optional `earnedKeys` set for the two
+    `special` badges, and `checkAndAwardBadges` evaluates them against
+    "existing + newly-earned this pass" so earning the last badge a
+    meta badge needs triggers it in the same pass, not a pass later.
+    Perfectionist excludes itself and Full Spectrum from the "every
+    badge in this category" check for Meta/Combo, since otherwise that
+    one category could never complete (it would require having already
+    earned itself).
 
 ### Success quote on open
 

@@ -276,6 +276,7 @@ export default function PipelinePage() {
             user_id: effectiveOwnerId,
             period_type: periodType,
             period_start: periodStart,
+            last_edited_by: null,
             created_at: "",
             updated_at: "",
             ...zeroStages,
@@ -388,6 +389,7 @@ export default function PipelinePage() {
             period_type: period.period_type,
             period_start: period.period_start,
             [key]: nextValue,
+            last_edited_by: user.id,
           })
           .select("*")
           .single();
@@ -403,7 +405,7 @@ export default function PipelinePage() {
 
       const { error } = await supabase
         .from("pipeline_periods")
-        .update({ [key]: nextValue, updated_at: new Date().toISOString() })
+        .update({ [key]: nextValue, updated_at: new Date().toISOString(), last_edited_by: user.id })
         .eq("id", period.id);
       if (error) {
         // Revert the optimistic count - otherwise a failed save looks
