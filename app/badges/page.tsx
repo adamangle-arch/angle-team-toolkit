@@ -6,6 +6,8 @@ import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import { BADGE_DEFINITIONS, BADGE_CATEGORIES, isBadgeEarned, badgeProgress } from "@/lib/badges";
 import { checkAndAwardBadges } from "@/lib/badgeEngine";
+import { pointsForBadgeKeys, levelProgress, frameTierForLevel, FRAME_TIER_LABELS } from "@/lib/levels";
+import LevelAvatar from "@/components/LevelAvatar";
 import { ACTIVITY_LOG_KINDS, isBadgeExcluded, type ActivityLogKind } from "@/lib/constants";
 import type { BadgeMetrics, UserBadge } from "@/lib/types";
 
@@ -27,20 +29,23 @@ export default function BadgesPage() {
   const excluded = isBadgeExcluded(user.email);
   const [metrics, setMetrics] = useState<BadgeMetrics | null>(null);
   const [earnedByKey, setEarnedByKey] = useState<Map<string, string>>(new Map());
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [logging, setLogging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loggingActivity, setLoggingActivity] = useState<ActivityLogKind | null>(null);
 
   async function load() {
-    const [{ data: metricsRows }, { data: badgeRows }] = await Promise.all([
+    const [{ data: metricsRows }, { data: badgeRows }, { data: profileRow }] = await Promise.all([
       supabase.rpc("get_badge_metrics", { p_user_id: ownerId }),
       supabase.from("user_badges").select("badge_key,earned_at").eq("user_id", ownerId),
+      supabase.from("profiles").select("photo_url").eq("id", user.id).single(),
     ]);
     setMetrics((metricsRows as BadgeMetrics[] | null)?.[0] ?? null);
     setEarnedByKey(
       new Map(((badgeRows as Pick<UserBadge, "badge_key" | "earned_at">[]) ?? []).map((r) => [r.badge_key, r.earned_at]))
     );
+    setPhotoUrl((profileRow as { photo_url: string | null } | null)?.photo_url ?? null);
     setLoading(false);
   }
 
@@ -87,11 +92,38 @@ export default function BadgesPage() {
 
   const earnedCount = earnedByKey.size;
   const totalCount = BADGE_DEFINITIONS.length;
+  const totalPoints = pointsForBadgeKeys(Array.from(earnedByKey.keys()));
+  const myLevel = levelProgress(totalPoints);
+  const myTier = frameTierForLevel(myLevel.level);
 
   return (
     <>
       <PageHeader title="Badges" subtitle={`${earnedCount}/${totalCount} earned`} />
       <main className="page-main">
+        {!excluded && !loading && (
+          <div className="card flex items-center gap-3">
+            <LevelAvatar photoUrl={photoUrl} level={myLevel.level} size="lg" />
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <p className="section-title">Level {myLevel.level}</p>
+                <span className="pill-amber shrink-0">{FRAME_TIER_LABELS[myTier]}</span>
+              </div>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-navy">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-amber-light to-amber"
+                  style={{ width: `${Math.round(myLevel.progress * 100)}%` }}
+                />
+              </div>
+              <p className="text-xs text-slate-400">
+                {totalPoints} pts
+                {myLevel.nextLevelPoints
+                  ? ` — ${myLevel.nextLevelPoints - totalPoints} to Level ${myLevel.level + 1}`
+                  : " — max level"}
+              </p>
+            </div>
+          </div>
+        )}
+
         <div className="card space-y-2">
           <p className="section-title">📚 Log a Finished Book</p>
           <p className="text-xs text-slate-400">

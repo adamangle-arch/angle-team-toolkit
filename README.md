@@ -2596,6 +2596,13 @@ up) plus a numeric level and progress bar toward the next one.
 - **My Profile gets a new Level card** above "My Badges" — avatar, tier
   label, progress bar, and points-to-next-level, computed from the
   badges already fetched for that page (no new query).
+- **The Badges tab itself gets the same Level card** at the top, for
+  the same reason it's on My Profile — it was the one place showing
+  someone's badge progress that didn't also show their level. Fetches
+  `profiles.photo_url` alongside its existing metrics/badges queries;
+  hidden for Alex/Laura (`isBadgeExcluded`) since they can browse the
+  tab but never earn, so a level that can never move isn't useful to
+  show them.
 - **The public profile's header card** swaps its plain photo circle for
   `LevelAvatar`, plus a level pill and progress bar under the name —
   same `badges` array `get_public_badges` already returns (already
