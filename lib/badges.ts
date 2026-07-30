@@ -550,6 +550,15 @@ export const BADGE_DEFINITIONS: BadgeDefinition[] = [
   { key: "legs_year_12", category: "Business Structure", label: "12 Legs in a Year", description: "Launch 12 different legs within a single calendar year.", icon: "🌳", metric: "max_legs_launched_year", threshold: 12 },
   { key: "legs_year_15", category: "Business Structure", label: "15 Legs in a Year", description: "Launch 15 different legs within a single calendar year.", icon: "🌳", metric: "max_legs_launched_year", threshold: 15 },
   { key: "legs_year_20", category: "Business Structure", label: "20 Legs in a Year", description: "Launch 20 different legs within a single calendar year.", icon: "👑", metric: "max_legs_launched_year", threshold: 20 },
+
+  // Core 300 Streak
+  { key: "core300_streak_24", category: "Core 300 Streak", label: "2 Years of Core 300", description: "300+ PV, 24 months in a row.", icon: "👑", metric: "longest_core300_streak", threshold: 24 },
+
+  // Launches
+  { key: "launch_streak_6", category: "Launches", label: "6-Month Launch Streak", description: "Launch someone 6 months in a row.", icon: "🚀", metric: "longest_launch_streak", threshold: 6 },
+
+  // Books
+  { key: "library_legend", category: "Books", label: "Library Legend", description: "75 lifetime books finished.", icon: "👑", metric: "total_books_lifetime", threshold: 75 },
 ];
 
 export const BADGE_CATEGORIES: string[] = Array.from(new Set(BADGE_DEFINITIONS.map((b) => b.category)));

@@ -2528,6 +2528,11 @@ existing way to know someone actually read something).
   insert policy (self/household/upline/admin) means `checkAndAwardBadges`
   simply no-ops for a stranger without permission, and it already
   swallows every error internally by design.
+- **A final round of three closes it out at exactly 300 badges**: 2
+  Years of Core 300 (24-month streak), a 6-Month Launch Streak, and
+  Library Legend (75 lifetime books) — all reuse metrics `get_badge_metrics`
+  already computed for earlier tiers, so no schema changes were needed
+  for this last batch.
 
 ### Tapping a badge shows its description
 
