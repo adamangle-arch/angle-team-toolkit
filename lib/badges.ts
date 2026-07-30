@@ -533,6 +533,23 @@ export const BADGE_DEFINITIONS: BadgeDefinition[] = [
 
   // Team Culture
   { key: "team_spirit", category: "Team Culture", label: "Team Spirit", description: "Attend a Team Event within 30 days of signing up.", icon: "📸", metric: "has_team_spirit", threshold: 1 },
+
+  // QI1s (Monthly) - consecutive-month streaks, not just a single month's count
+  { key: "qi1_month8_streak_2", category: "QI1s (Monthly)", label: "8 QI1s, 2 Months Running", description: "8+ QI1s in a month, 2 months in a row.", icon: "📅", metric: "longest_qi1_month_8_streak", threshold: 2 },
+  { key: "qi1_month8_streak_3", category: "QI1s (Monthly)", label: "8 QI1s, 3 Months Running", description: "8+ QI1s in a month, 3 months in a row.", icon: "📅", metric: "longest_qi1_month_8_streak", threshold: 3 },
+  { key: "qi1_month8_streak_6", category: "QI1s (Monthly)", label: "8 QI1s, 6 Months Running", description: "8+ QI1s in a month, 6 months in a row.", icon: "📅", metric: "longest_qi1_month_8_streak", threshold: 6 },
+  { key: "qi1_month8_streak_9", category: "QI1s (Monthly)", label: "8 QI1s, 9 Months Running", description: "8+ QI1s in a month, 9 months in a row.", icon: "📅", metric: "longest_qi1_month_8_streak", threshold: 9 },
+  { key: "qi1_month8_streak_12", category: "QI1s (Monthly)", label: "8 QI1s, a Full Year Running", description: "8+ QI1s in a month, 12 months in a row.", icon: "👑", metric: "longest_qi1_month_8_streak", threshold: 12 },
+  { key: "qi1_month10_streak_2", category: "QI1s (Monthly)", label: "10 QI1s, 2 Months Running", description: "10+ QI1s in a month, 2 months in a row.", icon: "📅", metric: "longest_qi1_month_10_streak", threshold: 2 },
+  { key: "qi1_month10_streak_3", category: "QI1s (Monthly)", label: "10 QI1s, 3 Months Running", description: "10+ QI1s in a month, 3 months in a row.", icon: "📅", metric: "longest_qi1_month_10_streak", threshold: 3 },
+  { key: "qi1_month10_streak_6", category: "QI1s (Monthly)", label: "10 QI1s, 6 Months Running", description: "10+ QI1s in a month, 6 months in a row.", icon: "📅", metric: "longest_qi1_month_10_streak", threshold: 6 },
+  { key: "qi1_month10_streak_9", category: "QI1s (Monthly)", label: "10 QI1s, 9 Months Running", description: "10+ QI1s in a month, 9 months in a row.", icon: "📅", metric: "longest_qi1_month_10_streak", threshold: 9 },
+  { key: "qi1_month10_streak_12", category: "QI1s (Monthly)", label: "10 QI1s, a Full Year Running", description: "10+ QI1s in a month, 12 months in a row.", icon: "👑", metric: "longest_qi1_month_10_streak", threshold: 12 },
+
+  // Business Structure - legs launched within a single calendar year
+  { key: "legs_year_12", category: "Business Structure", label: "12 Legs in a Year", description: "Launch 12 different legs within a single calendar year.", icon: "🌳", metric: "max_legs_launched_year", threshold: 12 },
+  { key: "legs_year_15", category: "Business Structure", label: "15 Legs in a Year", description: "Launch 15 different legs within a single calendar year.", icon: "🌳", metric: "max_legs_launched_year", threshold: 15 },
+  { key: "legs_year_20", category: "Business Structure", label: "20 Legs in a Year", description: "Launch 20 different legs within a single calendar year.", icon: "👑", metric: "max_legs_launched_year", threshold: 20 },
 ];
 
 export const BADGE_CATEGORIES: string[] = Array.from(new Set(BADGE_DEFINITIONS.map((b) => b.category)));

@@ -615,4 +615,7 @@ export type BadgeMetrics = {
   core_run_streak_count_30plus: number;
   has_all_in: boolean;
   has_team_spirit: boolean;
+  longest_qi1_month_8_streak: number;
+  longest_qi1_month_10_streak: number;
+  max_legs_launched_year: number;
 };

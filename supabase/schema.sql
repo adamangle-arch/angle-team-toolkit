@@ -4033,6 +4033,13 @@ create policy "user_badges_insert_own_or_upline_or_admin" on user_badges for ins
 -- awarding badges to these two accounts and hides the Badges tab for
 -- them; this is the matching server-side suppression so a public
 -- profile never shows badges for them either).
+-- Badges are evaluated and stored at the household level (checkAndAwardBadges
+-- always runs against ownerId = household_id ?? id - see AuthGate), but a
+-- linked spouse's own public profile is looked up by their individual id,
+-- not their household owner's. Resolving to the household owner here (same
+-- coalesce pattern the rest of the household-sharing logic uses) is what
+-- makes a "deferring" spouse's own profile show the household's actually-
+-- earned badges instead of always reading zero.
 create or replace function public.get_public_badges(p_user_id uuid)
 returns table (badge_key text, earned_at timestamptz)
 language sql
@@ -4041,7 +4048,7 @@ security definer
 set search_path = public
 as $$
   select badge_key, earned_at from user_badges
-  where user_id = p_user_id
+  where user_id = coalesce((select household_id from profiles where id = p_user_id), p_user_id)
     and not exists (
       select 1 from profiles
       where id = p_user_id and email in ('alexangle@me.com', 'laurasangle@gmail.com')
@@ -4329,7 +4336,10 @@ returns table (
   has_triple_crown boolean,
   core_run_streak_count_30plus int,
   has_all_in boolean,
-  has_team_spirit boolean
+  has_team_spirit boolean,
+  longest_qi1_month_8_streak int,
+  longest_qi1_month_10_streak int,
+  max_legs_launched_year int
 )
 language sql
 stable
@@ -5152,6 +5162,34 @@ as $$
           and a.event_date between (select created_at::date from profiles where id = p_user_id)
             and (select created_at::date from profiles where id = p_user_id) + 30
       )
+    ),
+    (
+      select coalesce(max(cnt), 0)::int from (
+        select count(*) as cnt from (
+          select period_start - (row_number() over (order by period_start))::int * interval '1 month' as grp
+          from pipeline_periods
+          where user_id = p_user_id and period_type = 'monthly' and qi1 >= 8
+        ) islands
+        group by grp
+      ) runs
+    ),
+    (
+      select coalesce(max(cnt), 0)::int from (
+        select count(*) as cnt from (
+          select period_start - (row_number() over (order by period_start))::int * interval '1 month' as grp
+          from pipeline_periods
+          where user_id = p_user_id and period_type = 'monthly' and qi1 >= 10
+        ) islands
+        group by grp
+      ) runs
+    ),
+    (
+      select coalesce(max(cnt), 0)::int from (
+        select count(distinct roots.leg_root) as cnt
+        from (select distinct leg_root from legs) roots
+        join profiles p on p.id = roots.leg_root
+        group by extract(year from p.created_at)
+      ) t
     );
 $$;
 

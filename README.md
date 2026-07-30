@@ -2493,6 +2493,25 @@ existing way to know someone actually read something).
     walk-back-from-today shape, applied to `trivia_daily_results` instead
     of `streak_days`.
 
+- **An eighth batch adds 13 more badges (297 total)**: consecutive-month
+  QI1 streaks at two different bars (8+/month and 10+/month, each at
+  2/3/6/9/12 months running) and three tiers of legs launched within a
+  single calendar year (12/15/20) — the latter reuses the same `legs`
+  CTE and `profiles.created_at`-as-join-date proxy Steady Growth already
+  established.
+- **Fixed: a linked spouse's public profile always showed 0 badges.**
+  `get_public_badges(p_user_id)` looked up `user_badges` by the *viewed
+  person's own id*, but badges are evaluated and stored at the household
+  level — `checkAndAwardBadges` always inserts under `ownerId`
+  (`household_id ?? id`, see `AuthGate`). For a "deferring" spouse whose
+  own id differs from their household owner's, every earned badge lived
+  under their partner's id instead, so their own public profile — looked
+  up by their individual id — never had anything to find. Now resolves
+  to the household owner first, the same `coalesce(household_id, id)`
+  pattern the rest of the household-sharing logic already uses, so it
+  reads the same badges "My Badges" on their own profile already showed
+  them (which reads via `ownerId` and was never affected).
+
 ### Tapping a badge shows its description
 
 Badge pills on My Profile and the public profile (`components/BadgePillList.tsx`)
