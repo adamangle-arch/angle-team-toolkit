@@ -55,18 +55,32 @@ const LevelDataContext = createContext<LevelData>({
   levelByUserId: new Map(),
 });
 
+// showAvatar defaults on for the many "one row = one person/couple" list
+// sections, but gets turned off wherever several tied winners can render
+// inline in the same wrapping paragraph (Individual Leaders' comma list) -
+// a photo doesn't reflow with the text the way a word does, so more than
+// one per line looked broken rather than just busy.
 function PersonLink({
   entry,
+  showAvatar = true,
 }: {
   entry: { user_id: string; first_name: string | null; last_name: string | null };
+  showAvatar?: boolean;
 }) {
   const { photoByUserId, levelByUserId } = useContext(LevelDataContext);
+  if (!showAvatar) {
+    return (
+      <Link href={`/profile/${entry.user_id}`} className="underline decoration-dotted underline-offset-2">
+        {personName(entry)}
+      </Link>
+    );
+  }
   return (
-    <Link href={`/profile/${entry.user_id}`} className="inline-flex items-center gap-1">
+    <Link href={`/profile/${entry.user_id}`} className="inline-flex items-center gap-1 align-middle">
       <LevelAvatar
         photoUrl={photoByUserId.get(entry.user_id) ?? null}
         level={levelByUserId.get(entry.user_id) ?? 1}
-        size="sm"
+        size="xs"
         showLevelChip={false}
       />
       <span className="underline decoration-dotted underline-offset-2">{personName(entry)}</span>
@@ -76,9 +90,12 @@ function PersonLink({
 
 // For household-shareable data, a linked spouse shows up as two names,
 // each linking to their own profile — the shared numbers are one entity,
-// but the profiles stay individual.
+// but the profiles stay individual. Only the primary half gets an avatar
+// (if shown at all) - one photo per couple reads as "this pair," two
+// would just be visual noise in an already-tight row.
 function CoupleLink({
   entry,
+  showAvatar = true,
 }: {
   entry: {
     user_id: string;
@@ -88,15 +105,16 @@ function CoupleLink({
     partner_first_name: string | null;
     partner_last_name: string | null;
   };
+  showAvatar?: boolean;
 }) {
   if (!entry.partner_user_id) {
-    return <PersonLink entry={entry} />;
+    return <PersonLink entry={entry} showAvatar={showAvatar} />;
   }
   const partnerName =
     [entry.partner_first_name, entry.partner_last_name].filter(Boolean).join(" ") || "Unnamed";
   return (
     <>
-      <PersonLink entry={entry} /> &{" "}
+      <PersonLink entry={entry} showAvatar={showAvatar} /> &{" "}
       <Link
         href={`/profile/${entry.partner_user_id}`}
         className="underline decoration-dotted underline-offset-2"
@@ -588,7 +606,7 @@ export default function LeaderboardPage() {
               return (
                 <div
                   key={key}
-                  className="flex items-center justify-between gap-2 text-sm"
+                  className="flex items-start justify-between gap-2 text-sm"
                 >
                   <span className="text-slate-200">
                     <PersonLink entry={m} /> just hit{" "}
@@ -664,7 +682,7 @@ export default function LeaderboardPage() {
                   if (winners.length === 0) return null;
                   const key = teamEntryKey(periodType, periodStart, c.key);
                   return (
-                    <div key={c.key} className="flex items-center justify-between gap-2 text-sm">
+                    <div key={c.key} className="flex items-start justify-between gap-2 text-sm">
                       <span className="text-slate-200">
                         {c.label}:{" "}
                         <span className="text-amber-light">
@@ -694,13 +712,13 @@ export default function LeaderboardPage() {
                   if (winners.length === 0) return null;
                   const key = individualEntryKey(periodType, periodStart, c.key);
                   return (
-                    <div key={c.key} className="flex items-center justify-between gap-2 text-sm">
+                    <div key={c.key} className="flex items-start justify-between gap-2 text-sm">
                       <span className="text-slate-200">
                         {c.label}:{" "}
                         <span className="text-amber-light">
                           {winners.map((w, i) => (
                             <span key={w.user_id}>
-                              <CoupleLink entry={w} /> ({w.team})
+                              <CoupleLink entry={w} showAvatar={winners.length === 1} /> ({w.team})
                               {i < winners.length - 1 ? ", " : ""}
                             </span>
                           ))}
@@ -736,7 +754,7 @@ export default function LeaderboardPage() {
                   return (
                     <div
                       key={`${entry.user_id}-${i}`}
-                      className="flex items-center justify-between gap-2 text-sm"
+                      className="flex items-start justify-between gap-2 text-sm"
                     >
                       <span className="text-slate-200">
                         {i + 1}. <CoupleLink entry={entry} />{" "}
@@ -765,7 +783,7 @@ export default function LeaderboardPage() {
                   return (
                     <div
                       key={`${s.user_id}-${i}`}
-                      className="flex items-center justify-between gap-2 text-sm"
+                      className="flex items-start justify-between gap-2 text-sm"
                     >
                       <span className="text-slate-200">
                         <PersonLink entry={s} /> <span className="text-xs text-slate-500">({s.team})</span>
@@ -793,7 +811,7 @@ export default function LeaderboardPage() {
                   return (
                     <div
                       key={`${entry.user_id}-${i}`}
-                      className="flex items-center justify-between gap-2 text-sm"
+                      className="flex items-start justify-between gap-2 text-sm"
                     >
                       <span className="text-slate-200">
                         <CoupleLink entry={entry} /> <span className="text-xs text-slate-500">({entry.team})</span>
@@ -821,7 +839,7 @@ export default function LeaderboardPage() {
                   return (
                     <div
                       key={`${entry.user_id}-${i}`}
-                      className="flex items-center justify-between gap-2 text-sm"
+                      className="flex items-start justify-between gap-2 text-sm"
                     >
                       <span className="text-slate-200">
                         {i === 0 ? "👑 " : `${i + 1}. `}
@@ -852,7 +870,7 @@ export default function LeaderboardPage() {
                       return (
                         <div
                           key={`${entry.user_id}-${i}`}
-                          className="flex items-center justify-between gap-2 text-sm"
+                          className="flex items-start justify-between gap-2 text-sm"
                         >
                           <span className="text-slate-200">
                             {i + 1}. <CoupleLink entry={entry} />{" "}
@@ -881,7 +899,7 @@ export default function LeaderboardPage() {
                       return (
                         <div
                           key={`${entry.user_id}-${i}`}
-                          className="flex items-center justify-between gap-2 text-sm"
+                          className="flex items-start justify-between gap-2 text-sm"
                         >
                           <span className="text-slate-200">
                             {i + 1}. <CoupleLink entry={entry} />{" "}

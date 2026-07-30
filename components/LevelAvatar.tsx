@@ -1,12 +1,14 @@
 import { frameTierForLevel, FRAME_TIER_CLASSES } from "@/lib/levels";
 
-const SIZE_CLASSES: Record<"sm" | "md" | "lg", string> = {
+const SIZE_CLASSES: Record<"xs" | "sm" | "md" | "lg", string> = {
+  xs: "h-6 w-6 text-xs",
   sm: "h-10 w-10 text-lg",
   md: "h-16 w-16 text-2xl",
   lg: "h-20 w-20 text-3xl",
 };
 
-const CHIP_SIZE_CLASSES: Record<"sm" | "md" | "lg", string> = {
+const CHIP_SIZE_CLASSES: Record<"xs" | "sm" | "md" | "lg", string> = {
+  xs: "h-3 min-w-3 text-[7px] -bottom-0.5 -right-0.5",
   sm: "h-4 min-w-4 text-[9px] -bottom-0.5 -right-0.5",
   md: "h-5 min-w-5 text-[10px] -bottom-1 -right-1",
   lg: "h-6 min-w-6 text-xs -bottom-1 -right-1",
@@ -26,7 +28,7 @@ export default function LevelAvatar({
   photoUrl: string | null;
   level: number;
   name?: string;
-  size?: "sm" | "md" | "lg";
+  size?: "xs" | "sm" | "md" | "lg";
   showLevelChip?: boolean;
 }) {
   const tier = frameTierForLevel(level);
