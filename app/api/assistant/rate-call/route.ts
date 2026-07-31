@@ -164,13 +164,15 @@ export async function POST(request: Request) {
     ): Promise<{ analysis: string; stopReason: string | null; truncated: boolean; connected: boolean }> {
       const stream = anthropic.messages.stream({
         model: "claude-sonnet-5",
-        // The rubrics now ask for a ~700-900 word write-up (see "Keep It
+        // The rubrics now ask for a hard 500-word ceiling (see "Keep It
         // Concise" in each lib/*-call-rating-prompt.txt) specifically so
         // generation reliably finishes inside this route's fixed time
         // budget - this Hobby-plan Vercel project can't raise maxDuration
         // past 60s, so making the model say less, faster is the only real
-        // lever. 4000 is generous headroom above that target, not the
-        // thing doing the actual work of keeping this fast.
+        // lever. 4000 is generous headroom above that target - if a call
+        // still manages to overrun it, the truncated check below (stop_reason
+        // === "max_tokens") catches it instead of returning a silently
+        // incomplete write-up.
         max_tokens: 4000,
         system: [
           {
@@ -218,7 +220,18 @@ export async function POST(request: Request) {
       }
 
       const final = await stream.finalMessage();
-      return { analysis: text.trim(), stopReason: final.stop_reason, truncated: false, connected };
+      // A model that overruns the rubric's word budget hits this cap
+      // before it hits the wall-clock deadline above - stop_reason comes
+      // back "max_tokens" instead of "end_turn", and without this check
+      // that read as a normal, complete response: no "(cut short)" note,
+      // just a write-up that silently stops mid-sentence with nothing to
+      // tell the rep why.
+      return {
+        analysis: text.trim(),
+        stopReason: final.stop_reason,
+        truncated: final.stop_reason === "max_tokens",
+        connected,
+      };
     }
 
     // Leave buffer under this route's 60s maxDuration for the Supabase
@@ -279,7 +292,7 @@ export async function POST(request: Request) {
     }
 
     const analysis = truncated
-      ? `${rawAnalysis}\n\n_(This call was long enough that the full write-up didn't finish in time — the analysis above is real but may cut off before the last section. Try rating it again if you need the complete version.)_`
+      ? `${rawAnalysis}\n\n_(This write-up got cut short before the last section — the analysis above is real, there's just more that didn't make it in. Try rating it again if you need the complete version.)_`
       : rawAnalysis;
 
     // Primary: the exact "OVERALL_SCORE: X/10" line the prompts ask for.

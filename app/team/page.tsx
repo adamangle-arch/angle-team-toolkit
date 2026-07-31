@@ -940,7 +940,7 @@ export default function TeamPage() {
                               </span>
                               <span className="flex shrink-0 items-center gap-2 text-xs text-slate-500">
                                 {r.overall_score !== null && (
-                                  <span className="pill">{r.overall_score}/10</span>
+                                  <span className="pill">{r.overall_score.toFixed(1)}/10</span>
                                 )}
                                 {new Date(r.created_at).toLocaleDateString()}
                               </span>

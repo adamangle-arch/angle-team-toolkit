@@ -223,7 +223,7 @@ function RatingJobRow({ job, onDismiss }: { job: RatingJob; onDismiss: (id: stri
       {job.status === "done" && (
         <span className="text-xs text-slate-200">
           ✅ Rated {job.candidateName}&apos;s {job.callType} call
-          {job.result?.overall_score != null ? ` — ${job.result.overall_score}/10` : ""}
+          {job.result?.overall_score != null ? ` — ${job.result.overall_score.toFixed(1)}/10` : ""}
         </span>
       )}
       {job.status === "error" && (

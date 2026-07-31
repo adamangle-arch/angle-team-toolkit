@@ -265,7 +265,7 @@ export default function CallRatingPanel() {
                       </span>
                       <span className="flex shrink-0 items-center gap-2 text-xs text-slate-500">
                         {h.overall_score !== null && (
-                          <span className="pill">{h.overall_score}/10</span>
+                          <span className="pill">{h.overall_score.toFixed(1)}/10</span>
                         )}
                         {new Date(h.created_at).toLocaleDateString()}
                       </span>

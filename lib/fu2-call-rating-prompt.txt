@@ -272,12 +272,16 @@ output.
 Keep It Concise
 
 This has to finish generating within a strict time limit, so write tight,
-not exhaustive. Target roughly 700-900 words total across all 9 sections
-plus the scorecard — 2-3 sentences per bullet, no restating the
-transcript back, no throat-clearing or repeating the same point in
-different words. Say the sharp, specific thing once and move on. Concise
-means economical with words, not shallow or generic — every section
-still needs real, evidence-based content, just delivered efficiently.
+not exhaustive. Stay under 500 words total across all 9 sections plus the
+scorecard — this is a hard ceiling, not an aspiration, since going over it
+gets the write-up cut off mid-sentence with no way to see the rest. 1-2
+sentences per bullet, no restating the transcript back, no
+throat-clearing or repeating the same point in different words. Say the
+sharp, specific thing once and move on. For the candidate scorecard, give
+each dimension a single line — a number plus a half-sentence of
+justification, not a paragraph. Concise means economical with words, not
+shallow or generic — every section still needs real, evidence-based
+content, just delivered efficiently.
 
 ⸻
 
@@ -285,6 +289,13 @@ Output Format
 
 Begin your reply with exactly one line in this format, with no other text before it:
 
-OVERALL_SCORE: X/10
+OVERALL_SCORE: X.X/10
+
+Use one decimal place and the full range available (e.g. 6.5, 7.2, 8.4)
+rather than defaulting to a whole number — round to the nearest 0.1 based
+on the actual specifics of this call, not to whichever whole or
+half-point number feels closest. Two different calls should essentially
+never land on the exact same score unless they were genuinely equivalent
+in every respect.
 
 Then a blank line, then the full write-up using the 9 numbered sections above (with their headings) in order.

@@ -3196,6 +3196,53 @@ per-page progress bar (`.progress-track`/`.progress-fill` in
 tied to, replaced by the global banner plus a small inline "still
 analyzing" line scoped to jobs this panel itself submitted.
 
+### Fixed: a long write-up could silently cut off mid-sentence, and scores never used decimals
+
+Two related reports about Rate a Call: a rating's expanded write-up could
+end abruptly mid-sentence with no indication anything was missing (and no
+further content to scroll to, since there genuinely wasn't any more —
+what looked like "won't let me scroll" was really just having reached
+the true end of a truncated response), and two different calls came back
+with the exact same whole-number score, making it feel like the model
+wasn't really differentiating between them.
+
+Root cause of the cutoff: `route.ts`'s soft deadline (54s, to stay under
+this route's 60s `maxDuration`) was the only thing that ever set
+`truncated: true` and appended the "cut short" note to the analysis. If
+the model instead ran past its `max_tokens: 4000` cap before hitting that
+deadline — entirely possible when a 9-section-plus-scorecard write-up
+runs long — `stream.finalMessage()` comes back with `stop_reason:
+"max_tokens"` on a completed (not aborted) stream, which the old code
+treated as a normal, successful, un-truncated response. The write-up was
+genuinely incomplete either way; only one of the two paths that could
+produce that was ever detected. `attempt()` now marks `truncated` whenever
+`stop_reason === "max_tokens"` too, so a cutoff from either cause gets the
+same honest note instead of silently reading as a finished analysis.
+
+The more durable fix is making the cutoff far less likely in the first
+place: every `lib/*-call-rating-prompt.txt`'s "Keep It Concise" section
+tightened its word budget from a 700-900 word *target* down to a 500 word
+*hard ceiling* (explicitly framed as non-negotiable, since going over it
+is what gets a write-up cut off with nothing to show for the rest), with
+the candidate scorecard specifically told to fit one line per dimension
+instead of a paragraph each.
+
+Root cause of the identical scores: nothing forced the model toward
+decimal precision — `OVERALL_SCORE: X/10` in the Output Format section
+and every rubric's score examples were all whole numbers, so the model
+had no reason not to round to the nearest whole point, and two calls that
+felt similar could easily land on the same integer. `overall_score` was
+already a `numeric` column and the parsing regex
+(`/OVERALL[_\s]SCORE:?\s*(\d+(?:\.\d+)?)\s*\/\s*10/i`) already accepted a
+decimal — the gap was purely in what the prompt asked for. Every rubric's
+Output Format now asks for `OVERALL_SCORE: X.X/10` explicitly, with an
+instruction to use the full range to the nearest 0.1 rather than
+defaulting to a whole or half-point number. Every place a score displays
+(`CallRatingPanel.tsx`, `RatingJobsProvider.tsx`'s completion banner,
+`app/team/page.tsx`'s upline view) now formats it with `.toFixed(1)` so a
+call that does land on a clean whole number still shows consistently
+(e.g. "8.0/10") next to one that shows "7.2/10".
+
 ### App-wide audit: silent write failures
 
 A full pass looked for the same bug class already found and fixed in Rate
