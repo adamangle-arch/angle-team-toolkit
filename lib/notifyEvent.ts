@@ -25,13 +25,31 @@ export async function notifyUsers(params: {
   url: string;
 }): Promise<{ sent: number; skipped: number; removed: number; errors: string[] }> {
   const { userIds, kind, title, body, url } = params;
-  const recipients = Array.from(new Set(userIds));
-  if (recipients.length === 0) {
+  const uniqueIds = Array.from(new Set(userIds));
+  if (uniqueIds.length === 0) {
     return { sent: 0, skipped: 0, removed: 0, errors: [] };
   }
 
   ensureWebPushConfigured();
   const supabase = getSupabaseAdmin();
+
+  // Anyone who's muted this exact kind (Notification Preferences on My
+  // Profile) is dropped before anything else - no push, no
+  // sent_notifications row, so it also never shows up in their own
+  // Notifications history.
+  const { data: muteRows } = await supabase
+    .from("profiles")
+    .select("id,muted_notification_kinds")
+    .in("id", uniqueIds);
+  const mutedSet = new Set(
+    ((muteRows as { id: string; muted_notification_kinds: string[] | null }[]) ?? [])
+      .filter((p) => (p.muted_notification_kinds ?? []).includes(kind))
+      .map((p) => p.id)
+  );
+  const recipients = uniqueIds.filter((id) => !mutedSet.has(id));
+  if (recipients.length === 0) {
+    return { sent: 0, skipped: uniqueIds.length, removed: 0, errors: [] };
+  }
 
   const { data: subRows } = await supabase
     .from("push_subscriptions")

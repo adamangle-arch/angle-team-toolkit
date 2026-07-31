@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
+import FirstVisitTip from "@/components/FirstVisitTip";
 import { useAuth } from "@/components/AuthGate";
 import FeatureGate from "@/components/FeatureGate";
 import { supabase } from "@/lib/supabaseClient";
@@ -789,6 +790,12 @@ export default function StreakPage() {
             </div>
           </div>
         )}
+
+        <FirstVisitTip id="core-run-streak">
+          💡 Complete all four — Read, Listen, Daily Update, Story Share — to count today toward
+          your streak. Miss a day and it resets, so a quick partial log still beats skipping it
+          entirely.
+        </FirstVisitTip>
 
         <div className="card flex items-center justify-between">
           <div>

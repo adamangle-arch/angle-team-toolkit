@@ -989,6 +989,46 @@ case needed for "one-tap repeat of yesterday's book" specifically —
 since the list is already most-recent-first, yesterday's book (or
 audio) is simply whatever shows up first.
 
+### Contextual first-visit tips
+
+Two more items off the same audit's "what else" list. First: brief,
+dismissible explainers on Pipeline (Candidate Roadmap), Core Run Streak,
+and Leaderboard — one line on what the 9 roadmap steps are and how to
+move a candidate, what actually counts toward a Core Run day, and how
+rankings/periods work. `components/FirstVisitTip.tsx` persists dismissal
+per-device in `localStorage` (`tip_dismissed_{id}`), the same lightweight
+pattern `QuoteOverlay` already used for its own "remember this across
+app opens" state — not worth a schema column and a round-trip for a tip
+someone taps away once. Shows every time until dismissed, not strictly
+limited to literally the first pageview, so it doesn't disappear before
+someone's actually read it.
+
+### Notification Preferences: mute by kind
+
+Second: per-kind notification muting, added to the Notifications page
+right next to the existing global push on/off toggle (`NotificationOptIn`)
+rather than a new Settings page, since this is really the same "control
+what I get pushed" concern at a finer grain. `profiles.muted_notification_kinds`
+(new `text[]` column) stores which of the 12 kinds a user has turned off;
+`lib/constants.ts`'s new `NOTIFICATION_KINDS`/`NOTIFICATION_KIND_LABELS`
+are the single shared source for both the Notifications history page's
+labels and the new toggle list, so the two can't drift apart. `SentNotification["kind"]`
+in `lib/types.ts` now derives from this same list (`NotificationKind`)
+instead of its own separate inline union.
+
+Enforcement happens at every place a push actually gets sent — a muted
+kind is dropped before anything else, so it's neither pushed nor logged
+into that user's own Notifications history:
+- `notifyUsers()` (`lib/notifyEvent.ts`) — the shared tail for every
+  event-triggered kind (calendar event added, call rating submitted,
+  Core Run completed, 5+ pipeline, onboarding unlocked, badge earned) -
+  fetches muted kinds for the recipient list up front and filters them
+  out before touching `push_subscriptions`.
+- The 3 cron push routes (`send-reminders`, `send-calendar-reminders`,
+  `send-stat-leaders`) each have their own independent send loop rather
+  than sharing `notifyUsers()`, so each needed the identical mute check
+  added separately rather than in one shared place.
+
 ### Editing a previous day (backfilling / filing after midnight)
 
 Every field on the Core Run Streak page — Read, Listen, Daily Update,

@@ -762,6 +762,14 @@ alter table profiles add column if not exists notified_5plus_pipeline boolean no
 -- watermark compared against your most recent notification's timestamp.
 alter table profiles add column if not exists notifications_last_viewed_at timestamptz;
 
+-- Additive: per-kind push mute list, set from the Notification
+-- Preferences card on My Profile. Checked by notifyUsers() (lib/notifyEvent.ts)
+-- and each cron push route (send-reminders, send-calendar-reminders,
+-- send-stat-leaders) before sending - a muted kind is skipped entirely
+-- for that user, not just silenced client-side, so it also never shows
+-- up in their own Notifications history.
+alter table profiles add column if not exists muted_notification_kinds text[] not null default '{}'::text[];
+
 create or replace function public.generate_account_number()
 returns text
 language plpgsql

@@ -50,13 +50,31 @@ export async function GET(request: Request) {
     todayByUser.set(row.user_id, row);
   }
 
+  // Anyone who's muted Core Run reminders (Notification Preferences on
+  // My Profile) is dropped before sending, same as notifyUsers() does
+  // for event-triggered notifications - this cron route has its own
+  // separate send loop rather than sharing that helper, so the same
+  // check needs to be repeated here.
+  const { data: muteRows } = await supabase
+    .from("profiles")
+    .select("id,muted_notification_kinds")
+    .in(
+      "id",
+      subscriptions.map((s) => s.user_id)
+    );
+  const mutedIds = new Set(
+    ((muteRows as { id: string; muted_notification_kinds: string[] | null }[]) ?? [])
+      .filter((p) => (p.muted_notification_kinds ?? []).includes("core_run_reminder"))
+      .map((p) => p.id)
+  );
+
   let sent = 0;
   let skipped = 0;
   let removed = 0;
   const errors: string[] = [];
 
   for (const sub of subscriptions) {
-    if (qualifies(todayByUser.get(sub.user_id))) {
+    if (mutedIds.has(sub.user_id) || qualifies(todayByUser.get(sub.user_id))) {
       skipped++;
       continue;
     }

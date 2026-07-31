@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
+import FirstVisitTip from "@/components/FirstVisitTip";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import { pointsForBadgeKeys, levelForPoints } from "@/lib/levels";
@@ -531,6 +532,11 @@ export default function LeaderboardPage() {
         }
       />
       <main className="page-main">
+        <FirstVisitTip id="leaderboard">
+          💡 Rankings reset for each period — Daily, Weekly, Monthly — and cover the whole team,
+          not just your downline. Use the ← → arrows to look back at a previous period.
+        </FirstVisitTip>
+
         <div className="card flex p-1">
           <button
             className={periodType === "daily" ? "toggle-pill-active" : "toggle-pill-inactive"}

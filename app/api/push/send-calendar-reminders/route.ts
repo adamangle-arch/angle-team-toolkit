@@ -72,11 +72,12 @@ export async function GET(request: Request) {
   );
   const userIds = Array.from(new Set(events.map((e) => e.user_id)));
 
-  const [{ data: candidateRows }, { data: subRows }] = await Promise.all([
+  const [{ data: candidateRows }, { data: subRows }, { data: muteRows }] = await Promise.all([
     candidateIds.length > 0
       ? supabase.from("candidates").select("id,name").in("id", candidateIds)
       : Promise.resolve({ data: [] as Pick<Candidate, "id" | "name">[] }),
     supabase.from("push_subscriptions").select("id,user_id,endpoint,p256dh,auth").in("user_id", userIds),
+    supabase.from("profiles").select("id,muted_notification_kinds").in("id", userIds),
   ]);
 
   const candidateNameById = new Map(
@@ -88,6 +89,13 @@ export async function GET(request: Request) {
     list.push(sub);
     subsByUser.set(sub.user_id, list);
   }
+  // Same mute check notifyUsers() does for event-triggered notifications -
+  // this cron route has its own separate send loop, so it needs its own copy.
+  const mutedIds = new Set(
+    ((muteRows as { id: string; muted_notification_kinds: string[] | null }[]) ?? [])
+      .filter((p) => (p.muted_notification_kinds ?? []).includes("calendar_reminder"))
+      .map((p) => p.id)
+  );
 
   let sent = 0;
   let skipped = 0;
@@ -101,7 +109,7 @@ export async function GET(request: Request) {
     await supabase.from("calendar_events").update({ reminder_sent: true }).eq("id", event.id);
 
     const subs = subsByUser.get(event.user_id) ?? [];
-    if (subs.length === 0) {
+    if (subs.length === 0 || mutedIds.has(event.user_id)) {
       skipped++;
       continue;
     }

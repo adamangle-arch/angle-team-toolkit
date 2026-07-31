@@ -9,6 +9,7 @@ export const dynamic = "force-dynamic";
 
 type Subscription = {
   id: string;
+  user_id: string;
   endpoint: string;
   p256dh: string;
   auth: string;
@@ -143,8 +144,28 @@ export async function GET(request: Request) {
     return NextResponse.json({ sent: 0, note: "nothing to report for this run" });
   }
 
-  const { data: subs } = await supabase.from("push_subscriptions").select("id,endpoint,p256dh,auth");
+  const { data: subs } = await supabase
+    .from("push_subscriptions")
+    .select("id,user_id,endpoint,p256dh,auth");
   const subscriptions = (subs as Subscription[]) ?? [];
+
+  // Same mute check notifyUsers() does for event-triggered notifications -
+  // this cron route has its own separate send loop, so it needs its own
+  // copy. Fetched once per-user (not per-kind), then checked per message
+  // below since daily/weekly/monthly leaders can each be muted separately.
+  const { data: muteRows } = await supabase
+    .from("profiles")
+    .select("id,muted_notification_kinds")
+    .in(
+      "id",
+      Array.from(new Set(subscriptions.map((s) => s.user_id)))
+    );
+  const mutedKindsByUser = new Map(
+    ((muteRows as { id: string; muted_notification_kinds: string[] | null }[]) ?? []).map((p) => [
+      p.id,
+      new Set(p.muted_notification_kinds ?? []),
+    ])
+  );
 
   const errors: string[] = [];
   const results: { kind: string; recipientCount: number }[] = [];
@@ -152,6 +173,7 @@ export async function GET(request: Request) {
   for (const message of messages) {
     let recipientCount = 0;
     for (const sub of subscriptions) {
+      if (mutedKindsByUser.get(sub.user_id)?.has(message.kind)) continue;
       try {
         await webpush.sendNotification(
           {

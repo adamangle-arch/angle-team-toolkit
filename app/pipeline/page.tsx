@@ -6,6 +6,7 @@ import TrendChart from "@/components/TrendChart";
 import { useAuth } from "@/components/AuthGate";
 import FeatureGate from "@/components/FeatureGate";
 import LibraryResourcePicker from "@/components/LibraryResourcePicker";
+import FirstVisitTip from "@/components/FirstVisitTip";
 import { supabase } from "@/lib/supabaseClient";
 import {
   PIPELINE_STAGES,
@@ -804,6 +805,12 @@ export default function PipelinePage() {
                 <p className="section-title">Candidate Roadmap</p>
                 <span className="pill pill-amber">{activeInPipelineCount} active in pipeline</span>
               </div>
+
+              <FirstVisitTip id="pipeline-roadmap">
+                💡 Each candidate moves through 9 steps — Yes, QI1, QI2, IS1, FU1, IS2, FU2,
+                Questionnaire, then Launched. Tap ← → on a card to move them one step, or tap the
+                card itself for notes, resources, and more.
+              </FirstVisitTip>
 
               <div className="card space-y-2">
                 <p className="section-title">Add Candidate</p>

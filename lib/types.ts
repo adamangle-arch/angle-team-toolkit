@@ -1,4 +1,4 @@
-import type { PipelineStageKey, GoalMetric, GoalPeriod, CallRatingType, CalendarEventType, ActivityLogKind } from "./constants";
+import type { PipelineStageKey, GoalMetric, GoalPeriod, CallRatingType, CalendarEventType, ActivityLogKind, NotificationKind } from "./constants";
 
 export type Profile = {
   id: string;
@@ -26,6 +26,7 @@ export type Profile = {
   dream_10_year: string;
   dream_lifetime: string;
   onboarding_completed_at: string | null;
+  muted_notification_kinds: NotificationKind[];
   created_at: string;
 };
 
@@ -134,19 +135,7 @@ export type ActiveCandidatesEntry = {
 export type SentNotification = {
   id: string;
   created_at: string;
-  kind:
-    | "daily_stat_leaders"
-    | "weekly_stat_leaders"
-    | "monthly_stat_leaders"
-    | "core_run_reminder"
-    | "calendar_reminder"
-    | "calendar_event_added"
-    | "call_rating_submitted"
-    | "core_run_completed"
-    | "pipeline_5plus"
-    | "onboarding_unlocked"
-    | "games_unlocked"
-    | "badge_earned";
+  kind: NotificationKind;
   title: string;
   body: string;
   period_type: "daily" | "weekly" | "monthly" | null;

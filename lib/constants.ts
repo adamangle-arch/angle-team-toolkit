@@ -25,6 +25,30 @@ export function isBadgeExcluded(email: string | null | undefined): boolean {
 export const CALL_RATING_TYPES = ["QI1", "QI2", "FU1", "FU2", "Questionnaire"] as const;
 export type CallRatingType = (typeof CALL_RATING_TYPES)[number];
 
+// Every kind of push notification this app sends, with the label shown
+// both on the Notifications history page and the Notification
+// Preferences mute toggles on My Profile - one shared list so the two
+// screens can't drift out of sync with each other or with what
+// notifyUsers()/the cron push routes actually send.
+export const NOTIFICATION_KINDS = [
+  { kind: "calendar_event_added", label: "New calendar event" },
+  { kind: "call_rating_submitted", label: "Call rating submitted" },
+  { kind: "core_run_completed", label: "Core Run completed" },
+  { kind: "pipeline_5plus", label: "5+ active pipeline" },
+  { kind: "onboarding_unlocked", label: "Onboarding unlocked" },
+  { kind: "games_unlocked", label: "Games unlocked" },
+  { kind: "badge_earned", label: "Badge earned" },
+  { kind: "core_run_reminder", label: "Core Run reminder" },
+  { kind: "calendar_reminder", label: "Calendar reminder" },
+  { kind: "daily_stat_leaders", label: "Daily leaders" },
+  { kind: "weekly_stat_leaders", label: "Weekly leaders" },
+  { kind: "monthly_stat_leaders", label: "Monthly leaders" },
+] as const;
+export type NotificationKind = (typeof NOTIFICATION_KINDS)[number]["kind"];
+export const NOTIFICATION_KIND_LABELS = Object.fromEntries(
+  NOTIFICATION_KINDS.map((n) => [n.kind, n.label])
+) as Record<NotificationKind, string>;
+
 // One-off/repeatable self-report actions with no other way to auto-detect
 // them (same gap book_completions solved for reading) — must match the
 // activity_logs.kind check constraint in supabase/schema.sql. Logged from
