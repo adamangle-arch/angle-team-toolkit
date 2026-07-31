@@ -79,6 +79,15 @@ export function getDateOffset(daysBack: number): string {
   return toDateOnly(d);
 }
 
+// Full-precision ISO timestamp, daysBack days before now - for comparing
+// against a timestamptz column (e.g. updated_at) where a date-only string
+// like getDateOffset's would be off by up to a day at the boundary.
+export function isoDaysAgo(daysBack: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - daysBack);
+  return d.toISOString();
+}
+
 export function daysBetween(startDateStr: string, endDateStr: string): number {
   const start = new Date(`${startDateStr}T00:00:00`);
   const end = new Date(`${endDateStr}T00:00:00`);

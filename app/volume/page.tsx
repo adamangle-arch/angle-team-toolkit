@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import PageHeader from "@/components/PageHeader";
 import TrendChart from "@/components/TrendChart";
+import { SkeletonList, SkeletonRows } from "@/components/Skeleton";
 import { useAuth } from "@/components/AuthGate";
 import FeatureGate from "@/components/FeatureGate";
 import { supabase } from "@/lib/supabaseClient";
@@ -301,7 +302,7 @@ export default function VolumePage() {
         <div className="card space-y-1.5">
           <p className="section-title">Recent Months</p>
           {loading ? (
-            <p className="text-sm text-slate-400">Loading…</p>
+            <SkeletonRows rows={3} />
           ) : history.length === 0 ? (
             <p className="text-sm text-slate-400">No past months recorded yet.</p>
           ) : (
@@ -410,7 +411,7 @@ export default function VolumePage() {
         </div>
 
         {loadingSales ? (
-          <div className="empty-state">Loading customer sales…</div>
+          <SkeletonList cards={2} />
         ) : sales.length === 0 ? (
           <div className="empty-state">No customer sales logged this month yet. Add one above.</div>
         ) : (

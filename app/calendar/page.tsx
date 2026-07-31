@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import PageHeader from "@/components/PageHeader";
+import { SkeletonList } from "@/components/Skeleton";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import {
@@ -547,7 +548,7 @@ export default function CalendarPage() {
         </div>
 
         {loading ? (
-          <div className="empty-state">Loading…</div>
+          <SkeletonList cards={3} />
         ) : viewMode === "agenda" ? (
           <>
             <div className="card space-y-2">

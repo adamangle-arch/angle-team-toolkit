@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
+import { SkeletonList } from "@/components/Skeleton";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import {
@@ -205,7 +206,7 @@ export default function OnboardingPage() {
         )}
 
         {loading ? (
-          <div className="empty-state">Loading…</div>
+          <SkeletonList cards={4} />
         ) : (
           ONBOARDING_SESSIONS.map((session, i) => {
             const sessionNumber = i + 1;

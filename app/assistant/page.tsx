@@ -5,6 +5,7 @@ import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
 import FeatureGate from "@/components/FeatureGate";
 import CallRatingPanel from "@/components/CallRatingPanel";
+import { SkeletonRows } from "@/components/Skeleton";
 import { supabase } from "@/lib/supabaseClient";
 import type { AssistantMessage } from "@/lib/types";
 
@@ -182,7 +183,7 @@ export default function AssistantPage() {
         {tab === "roleplay" && (
           <>
         {loading ? (
-          <div className="empty-state">Loading conversation…</div>
+          <SkeletonRows rows={4} />
         ) : messages.length === 0 ? (
           <div className="empty-state">
             Tell it which list you want to practice (A, B, or C/marketplace) and who the prospect

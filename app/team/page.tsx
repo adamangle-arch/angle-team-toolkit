@@ -20,6 +20,7 @@ import { groupCallRatingsByType } from "@/lib/call-ratings";
 import { buildSponsorshipChildren } from "@/lib/sponsorship-tree";
 import { fireNotifyEvent } from "@/lib/notifyClient";
 import SponsorshipTree from "@/components/SponsorshipTree";
+import { SkeletonList, SkeletonRows } from "@/components/Skeleton";
 import {
   getMonthStartOffset,
   getWeekStartOffset,
@@ -556,7 +557,7 @@ export default function TeamPage() {
             </div>
 
             {loadingTeams ? (
-              <div className="empty-state">Loading teams…</div>
+              <SkeletonRows rows={4} />
             ) : teamTotals.length === 0 ? (
               <div className="empty-state">No one has a team set yet.</div>
             ) : (
@@ -652,7 +653,7 @@ export default function TeamPage() {
           <div className="card space-y-1.5">
             <p className="section-title">Members</p>
             {loadingProfiles ? (
-              <p className="text-sm text-slate-400">Loading…</p>
+              <SkeletonRows rows={4} />
             ) : downlineProfiles.length === 0 ? (
               <p className="text-sm text-slate-400">No one has signed up yet.</p>
             ) : (
@@ -744,7 +745,7 @@ export default function TeamPage() {
             </div>
 
             {loadingMember || !memberData ? (
-              <div className="empty-state">Loading member data…</div>
+              <SkeletonList cards={3} />
             ) : (
               <>
                 <div className="card space-y-2">

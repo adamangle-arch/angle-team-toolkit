@@ -3,6 +3,7 @@
 import { use, useEffect, useState } from "react";
 import PageHeader from "@/components/PageHeader";
 import BadgePillList from "@/components/BadgePillList";
+import { SkeletonList } from "@/components/Skeleton";
 import { supabase } from "@/lib/supabaseClient";
 import { STREAK_MILESTONES } from "@/lib/constants";
 import { BADGE_DEFINITIONS } from "@/lib/badges";
@@ -73,7 +74,7 @@ export default function PublicProfilePage({
       <PageHeader title="Profile" />
       <main className="page-main">
         {loading ? (
-          <div className="empty-state">Loading profile…</div>
+          <SkeletonList cards={2} />
         ) : !profile ? (
           <div className="empty-state">Profile not found.</div>
         ) : (

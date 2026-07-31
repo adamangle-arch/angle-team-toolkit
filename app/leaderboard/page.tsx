@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import FirstVisitTip from "@/components/FirstVisitTip";
+import { SkeletonList } from "@/components/Skeleton";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import { pointsForBadgeKeys, levelForPoints } from "@/lib/levels";
@@ -677,7 +678,7 @@ export default function LeaderboardPage() {
         )}
 
         {loading ? (
-          <div className="empty-state">Loading leaderboard…</div>
+          <SkeletonList cards={4} />
         ) : (
           <>
             <GroupHeading>Leaders</GroupHeading>

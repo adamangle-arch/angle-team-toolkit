@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
 import FeatureGate from "@/components/FeatureGate";
+import { SkeletonList } from "@/components/Skeleton";
 import { supabase } from "@/lib/supabaseClient";
 import { getWeekStart, getMonthStart } from "@/lib/dates";
 import {
@@ -230,7 +231,7 @@ export default function GoalsPage() {
         </div>
 
         {loading ? (
-          <div className="empty-state">Loading…</div>
+          <SkeletonList cards={2} lines={3} />
         ) : (
           GOAL_PERIODS.map((period) => (
             <div key={period.key} className="card space-y-3">

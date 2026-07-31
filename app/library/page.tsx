@@ -7,6 +7,7 @@ import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
 import FeatureGate from "@/components/FeatureGate";
 import LibraryResourcePicker from "@/components/LibraryResourcePicker";
+import { SkeletonList } from "@/components/Skeleton";
 import { supabase } from "@/lib/supabaseClient";
 import { AUDIOS, FIRST_YEAR_BOOKS, ADVANCED_LIBRARY } from "@/lib/library-data";
 import { LEADERS } from "@/lib/leaders-data";
@@ -109,7 +110,7 @@ export default function LibraryPage() {
     <FeatureGate minSession={5}>
       <PageHeader title="Resources" subtitle="Everything the team needs to reference" />
       <main className="page-main">
-        <Suspense fallback={<div className="empty-state">Loading…</div>}>
+        <Suspense fallback={<SkeletonList cards={4} />}>
           <LibraryTabs />
         </Suspense>
       </main>
@@ -663,7 +664,7 @@ function CandidateResourcesSection() {
   }
 
   if (loading) {
-    return <div className="empty-state">Loading…</div>;
+    return <SkeletonList cards={4} />;
   }
 
   return (
@@ -949,7 +950,7 @@ function OnboardingResourcesSection() {
   }
 
   if (loading) {
-    return <div className="empty-state">Loading…</div>;
+    return <SkeletonList cards={4} />;
   }
 
   return (

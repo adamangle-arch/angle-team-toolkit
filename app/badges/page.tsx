@@ -8,6 +8,7 @@ import { BADGE_DEFINITIONS, BADGE_CATEGORIES, isBadgeEarned, badgeProgress } fro
 import { checkAndAwardBadges } from "@/lib/badgeEngine";
 import { pointsForBadgeKeys, levelProgress, frameTierForLevel, FRAME_TIER_LABELS } from "@/lib/levels";
 import LevelAvatar from "@/components/LevelAvatar";
+import { SkeletonList } from "@/components/Skeleton";
 import { ACTIVITY_LOG_KINDS, isBadgeExcluded, type ActivityLogKind } from "@/lib/constants";
 import type { BadgeMetrics, UserBadge } from "@/lib/types";
 
@@ -174,7 +175,7 @@ export default function BadgesPage() {
         )}
 
         {loading || !metrics ? (
-          <div className="empty-state">Loading…</div>
+          <SkeletonList cards={4} />
         ) : (
           BADGE_CATEGORIES.map((category) => {
             // Most valuable first within each category, not catalog-insertion

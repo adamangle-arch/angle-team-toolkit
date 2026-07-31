@@ -6,6 +6,7 @@ import NotificationOptIn from "@/components/NotificationOptIn";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import { NOTIFICATION_KINDS, NOTIFICATION_KIND_LABELS as KIND_LABELS } from "@/lib/constants";
+import { SkeletonList } from "@/components/Skeleton";
 import type { SentNotification } from "@/lib/types";
 
 function formatSentAt(iso: string): string {
@@ -106,7 +107,7 @@ export default function NotificationsPage() {
         )}
 
         {loading ? (
-          <p className="text-sm text-slate-400">Loading...</p>
+          <SkeletonList cards={3} />
         ) : notifications.length === 0 ? (
           <div className="card">
             <p className="text-sm text-slate-400">

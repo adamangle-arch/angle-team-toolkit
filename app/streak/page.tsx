@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import FirstVisitTip from "@/components/FirstVisitTip";
+import { SkeletonList } from "@/components/Skeleton";
 import { useAuth } from "@/components/AuthGate";
 import FeatureGate from "@/components/FeatureGate";
 import { supabase } from "@/lib/supabaseClient";
@@ -907,7 +908,7 @@ export default function StreakPage() {
         )}
 
         {loading ? (
-          <div className="empty-state">Loading…</div>
+          <SkeletonList cards={3} />
         ) : (
           <>
             <div className="card space-y-2">

@@ -3753,6 +3753,54 @@ one of its counters for the first time inserts the real row at that point
 empty), so scrolling back through history to look at old numbers can't
 leave a trail of empty rows behind it.
 
+### Loading skeletons instead of "Loading…"
+
+Every page that fetches data before rendering used to show a bare
+"Loading…" line (or, in a few spots, nothing structural at all) while
+waiting on Supabase. Replaced with `components/Skeleton.tsx` — three
+small building blocks (`Skeleton`, a pulsing placeholder bar;
+`SkeletonCard`/`SkeletonList`, a stack of placeholder `.card` shapes for
+pages whose loaded content is itself a stack of cards; `SkeletonRow`/
+`SkeletonRows`, placeholder rows for lists that live inside an
+already-rendered card) so a wait feels like the content is already
+there and about to resolve, rather than a blank interruption. Swapped in
+across every "Loading…" spot that gates a list or a stack of cards:
+Today, Candidate Roadmap (plus its per-period stage list, candidate
+history table, and "Filling In For" sub-lists), Core Run, Calendar,
+Leaderboard, Notifications, Team (members, teams, and the member
+drill-down), Badges, Goals, My Profile (own and public), Volume
+(monthly history and customer sales), Games, Resources, Onboarding,
+Contacts, Events, and the Assistant's conversation history. Left alone
+on purpose: Reset Password's brief "restoring your session" state and
+Prospect's synchronous localStorage check — both resolve near-instantly
+and aren't list-shaped, so a skeleton there would be more visual noise
+than signal.
+
+### Stale-candidate nudge on the Candidate Roadmap itself
+
+Today's Mission (see above) already surfaced the single longest-untouched
+active candidate, but only on the Today screen — someone living on the
+Candidate Roadmap tab day-to-day never saw it. `STALE_CANDIDATE_DAYS` (5)
+moved from `app/dashboard/page.tsx` into `lib/constants.ts` so both
+screens share one threshold, and the Roadmap now surfaces it two ways:
+a "⏰ N stale" pill next to the existing "active in pipeline" count
+whenever at least one active candidate qualifies, and a small
+`⏰ No movement in 5+ days` note appended to that candidate's own status
+line right on their card — no separate query, since `updated_at` was
+already loaded with every candidate row.
+
+Computing "5+ days ago" needed a fresh helper, `isoDaysAgo()` in
+`lib/dates.ts` (a full-timestamp sibling of the existing date-only
+`getDateOffset()`) — comparing a date-only string against a full
+`timestamptz` ISO string is unreliable at the boundary, since a shorter
+string that's a prefix of a longer one always sorts as "less than" it
+regardless of the actual time of day. Calling `new Date()` to compute the
+threshold directly in the component body (rather than through a plain
+helper function) tripped the same `react-hooks/purity` lint rule
+encountered earlier for `Date.now()` — moved into the `isoDaysAgo()`
+helper instead, matching the existing `getToday()` pattern already used
+throughout the app.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

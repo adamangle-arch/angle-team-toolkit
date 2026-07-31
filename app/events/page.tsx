@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import PageHeader from "@/components/PageHeader";
+import { SkeletonList } from "@/components/Skeleton";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import { isPrimaryUser } from "@/lib/constants";
@@ -280,7 +281,7 @@ export default function EventsPage() {
         )}
 
         {loading ? (
-          <div className="empty-state">Loading events…</div>
+          <SkeletonList cards={3} lines={1} />
         ) : albums.length === 0 ? (
           <div className="empty-state">
             No team events yet{isAdmin ? " — add one above." : "."}

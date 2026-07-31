@@ -147,6 +147,14 @@ export const CANDIDATE_STEPS: { label: string; homework: string }[] = [
 // pipeline" — index 1 is QI1, so this is "QI1 booked or beyond."
 export const ACTIVE_PIPELINE_MIN_STEP = 1;
 
+// A candidate whose row hasn't been touched (step move, note, launch/
+// filter) in this many days is worth a "follow up" nudge - candidates.
+// updated_at is already stamped on every real edit (see updateCandidate()
+// in app/pipeline/page.tsx), so this needs no new schema, just a
+// threshold. Shared by Today's Mission (app/dashboard/page.tsx) and the
+// per-candidate stale badge on the Candidate Roadmap (app/pipeline/page.tsx).
+export const STALE_CANDIDATE_DAYS = 5;
+
 export type CandidateStepResource = {
   label: string;
   detail: string;

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import ProfileForm from "@/components/ProfileForm";
+import { SkeletonList } from "@/components/Skeleton";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import { TEAMS } from "@/lib/constants";
@@ -167,7 +168,7 @@ export default function MyProfilePage() {
       <PageHeader title="My Profile" subtitle="Shown when teammates tap your name on the Leaderboard" />
       <main className="page-main">
         {loading || !profile ? (
-          <div className="empty-state">Loading…</div>
+          <SkeletonList cards={2} />
         ) : (
           <>
             <div className="card flex items-center gap-3">

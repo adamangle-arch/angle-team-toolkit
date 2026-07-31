@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
 import FeatureGate from "@/components/FeatureGate";
+import { SkeletonList } from "@/components/Skeleton";
 import { supabase } from "@/lib/supabaseClient";
 import { CONTACT_STATUSES, CUSTOMER_STATUSES, CONNECTION_TAGS, RECONNECT_METHODS } from "@/lib/constants";
 import { NETWORKING_MEMORY_PROMPTS, CUSTOMER_MEMORY_PROMPTS } from "@/lib/contact-questions-data";
@@ -306,7 +307,7 @@ export default function ContactsPage() {
         )}
 
         {loading ? (
-          <div className="empty-state">Loading contacts…</div>
+          <SkeletonList cards={3} lines={1} />
         ) : activeList.length === 0 ? (
           <div className="empty-state">
             {viewMode === "networking"

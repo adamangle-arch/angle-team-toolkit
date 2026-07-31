@@ -7,11 +7,13 @@ import { useAuth } from "@/components/AuthGate";
 import FeatureGate from "@/components/FeatureGate";
 import LibraryResourcePicker from "@/components/LibraryResourcePicker";
 import FirstVisitTip from "@/components/FirstVisitTip";
+import { SkeletonList, SkeletonRows } from "@/components/Skeleton";
 import { supabase } from "@/lib/supabaseClient";
 import {
   PIPELINE_STAGES,
   CANDIDATE_STEPS,
   ACTIVE_PIPELINE_MIN_STEP,
+  STALE_CANDIDATE_DAYS,
   VIRTUAL_WEBINAR_SLOTS,
   effectiveResourcesForStep,
   type CandidateResourceOverrideEntry,
@@ -21,6 +23,7 @@ import {
   getMonthStartOffset,
   getWeekStartOffset,
   getDateOffset,
+  isoDaysAgo,
   formatDateLabel,
   formatMonthLabel,
   formatWeekRangeLabel,
@@ -163,6 +166,10 @@ export default function PipelinePage() {
 
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loadingCandidates, setLoadingCandidates] = useState(true);
+  // A plain string comparison against each candidate's updated_at for the
+  // stale-candidate badge below - same getToday()-style helper call used
+  // throughout this codebase, not state, since it needs no re-render timer.
+  const staleThresholdIso = isoDaysAgo(STALE_CANDIDATE_DAYS);
   const [newName, setNewName] = useState("");
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
@@ -582,6 +589,7 @@ export default function PipelinePage() {
   const active = candidates.filter((c) => !c.launched && !c.filtered_out);
   const launched = candidates.filter((c) => c.launched);
   const activeInPipelineCount = active.filter((c) => c.current_step >= ACTIVE_PIPELINE_MIN_STEP).length;
+  const staleCount = active.filter((c) => c.updated_at < staleThresholdIso).length;
 
   const filteredActive =
     roadmapStepFilter === "all" ? active : active.filter((c) => c.current_step === roadmapStepFilter);
@@ -723,7 +731,7 @@ export default function PipelinePage() {
             {loadError ? (
               <div className="empty-state">Couldn&apos;t load this period: {loadError}</div>
             ) : loading || !period ? (
-              <div className="empty-state">Loading pipeline…</div>
+              <SkeletonRows rows={8} />
             ) : (
               <div className="space-y-2">
                 {PIPELINE_STAGES.map((stage, i) => {
@@ -803,7 +811,14 @@ export default function PipelinePage() {
             <>
               <div className="flex items-center justify-between px-1 pt-2">
                 <p className="section-title">Candidate Roadmap</p>
-                <span className="pill pill-amber">{activeInPipelineCount} active in pipeline</span>
+                <div className="flex items-center gap-1.5">
+                  {staleCount > 0 && (
+                    <span className="pill !border-red-500/25 !bg-red-500/10 !text-red-300">
+                      ⏰ {staleCount} stale
+                    </span>
+                  )}
+                  <span className="pill pill-amber">{activeInPipelineCount} active in pipeline</span>
+                </div>
               </div>
 
               <FirstVisitTip id="pipeline-roadmap">
@@ -851,7 +866,7 @@ export default function PipelinePage() {
               )}
 
               {loadingCandidates ? (
-                <div className="empty-state">Loading candidates…</div>
+                <SkeletonList cards={3} lines={1} />
               ) : candidates.length === 0 ? (
                 <div className="empty-state">No candidates yet. Add your first one above.</div>
               ) : (
@@ -862,6 +877,7 @@ export default function PipelinePage() {
                       candidate={candidate}
                       onMoveStep={moveStep}
                       onUpdate={updateCandidate}
+                      isStale={candidate.updated_at < staleThresholdIso}
                     />
                   ))}
 
@@ -928,7 +944,9 @@ export default function PipelinePage() {
             )}
 
             {loadingCandidates ? (
-              <div className="empty-state">Loading candidates…</div>
+              <div className="card">
+                <SkeletonRows rows={4} />
+              </div>
             ) : candidatesThisMonth.length === 0 ? (
               <div className="empty-state">
                 {candidates.length === 0
@@ -1073,10 +1091,12 @@ function CandidateCard({
   candidate,
   onMoveStep,
   onUpdate,
+  isStale,
 }: {
   candidate: Candidate;
   onMoveStep: (candidate: Candidate, delta: number) => void;
   onUpdate: (id: string, patch: Partial<Candidate>) => void;
+  isStale?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [notes, setNotes] = useState(candidate.notes);
@@ -1115,7 +1135,12 @@ function CandidateCard({
       >
         <div className="min-w-0 flex-1">
           <p className="truncate font-semibold text-white">{candidate.name}</p>
-          <p className="truncate text-xs text-amber-light">{statusLabel}</p>
+          <p className="truncate text-xs text-amber-light">
+            {statusLabel}
+            {!isSettled && isStale && (
+              <span className="text-red-300"> · ⏰ No movement in {STALE_CANDIDATE_DAYS}+ days</span>
+            )}
+          </p>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
           {!isSettled && (
@@ -1723,7 +1748,7 @@ function DownlineCandidateResources({ actingFor }: { actingFor: DownlineOption }
       </div>
 
       {loading ? (
-        <div className="empty-state">Loading…</div>
+        <SkeletonRows rows={3} />
       ) : candidates.length === 0 ? (
         <div className="empty-state">No active candidates for {actingFor.name} right now.</div>
       ) : (

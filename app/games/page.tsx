@@ -4,6 +4,7 @@ import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
 import FeatureGate from "@/components/FeatureGate";
+import { SkeletonList } from "@/components/Skeleton";
 import DiamondRunGame from "@/components/games/DiamondRunGame";
 import DiamondChaseGame from "@/components/games/DiamondChaseGame";
 import TriviaGame from "@/components/games/TriviaGame";
@@ -53,7 +54,7 @@ export default function GamesPage() {
     <FeatureGate minSession={5}>
       <PageHeader title="Games" subtitle="Take a break and have some fun" />
       <main className="page-main">
-        <Suspense fallback={<div className="empty-state">Loading…</div>}>
+        <Suspense fallback={<SkeletonList cards={1} lines={4} />}>
           <GamesTabs />
         </Suspense>
       </main>

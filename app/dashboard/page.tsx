@@ -3,11 +3,18 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
+import { SkeletonList, SkeletonRows } from "@/components/Skeleton";
 import { useAuth } from "@/components/AuthGate";
 import { minSessionFor } from "@/lib/onboarding-gate";
 import { supabase } from "@/lib/supabaseClient";
-import { getToday, formatDateLabel } from "@/lib/dates";
-import { GOAL_ITEMS_BY_PERIOD, CANDIDATE_STEPS, PIPELINE_STAGES, isBadgeExcluded } from "@/lib/constants";
+import { getToday, isoDaysAgo, formatDateLabel } from "@/lib/dates";
+import {
+  GOAL_ITEMS_BY_PERIOD,
+  CANDIDATE_STEPS,
+  PIPELINE_STAGES,
+  isBadgeExcluded,
+  STALE_CANDIDATE_DAYS,
+} from "@/lib/constants";
 import { checkAndAwardBadges } from "@/lib/badgeEngine";
 import type { StreakDay, Goal, CalendarEvent, PipelinePeriod, Profile } from "@/lib/types";
 
@@ -33,12 +40,6 @@ type ActiveCandidateRow = {
   current_step: number;
   connected_date: string;
 };
-
-// A candidate whose row hasn't been touched (step move, note, launch/filter)
-// in this many days is worth a nudge - candidates.updated_at is already
-// stamped on every real edit (see updateCandidate() in app/pipeline/page.tsx),
-// so this needs no new schema, just a threshold.
-const STALE_CANDIDATE_DAYS = 5;
 
 type StaleCandidateRow = {
   id: string;
@@ -136,8 +137,7 @@ export default function DashboardPage() {
       const tomorrow = new Date(`${today}T00:00:00`);
       tomorrow.setDate(tomorrow.getDate() + 1);
 
-      const staleThreshold = new Date();
-      staleThreshold.setDate(staleThreshold.getDate() - STALE_CANDIDATE_DAYS);
+      const staleThresholdIso = isoDaysAgo(STALE_CANDIDATE_DAYS);
 
       const [
         { data: streakRow },
@@ -184,7 +184,7 @@ export default function DashboardPage() {
           .eq("user_id", ownerId)
           .eq("launched", false)
           .eq("filtered_out", false)
-          .lt("updated_at", staleThreshold.toISOString())
+          .lt("updated_at", staleThresholdIso)
           .order("updated_at", { ascending: true })
           .limit(1)
           .maybeSingle(),
@@ -335,7 +335,7 @@ export default function DashboardPage() {
       <PageHeader title="Today" subtitle={formatDateLabel(today)} />
       <main className="page-main">
         {loading ? (
-          <div className="empty-state">Loading today…</div>
+          <SkeletonList cards={4} />
         ) : (
           <>
             <div className="card space-y-2">
@@ -500,7 +500,7 @@ export default function DashboardPage() {
               </button>
             </div>
             {modalLoading ? (
-              <p className="text-sm text-slate-400">Loading…</p>
+              <SkeletonRows rows={3} />
             ) : activeModal === "mine" ? (
               myActiveCandidates.length === 0 ? (
                 <p className="text-sm text-slate-400">No active candidates.</p>
