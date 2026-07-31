@@ -127,38 +127,33 @@ Your Analysis Should Include
 
 Score the call out of 10 as a Questionnaire call inside this process.
 
-Score Calibration — compute this as a weighted average across 8
-categories, each scored 0-10 (9-10 outstanding, 7-8 strong, 5-6 solid
-with real gaps, 3-4 below the bar, 1-2 poor), then round to the nearest
-0.1. Don't show this breakdown in the output — it's for how you arrive
-at the number, not something to print.
-	•	Rapport & Trust Maintained — 15%: whether trust and energy held up
-	through a long, detailed conversation.
-	•	Diagnostic Depth — 20%: how thoroughly and honestly the 18 parts
-	were actually covered, with real evidence rather than surface answers.
-	•	Listening vs. Re-teaching — 15%: by this stage the IBO should be
-	doing much less teaching and much more listening — brief clarification
-	is fine, but heavy re-explaining here is a bigger red flag than at
-	earlier stages.
-	•	Frame Control & Positioning — 10%: confident, credible positioning
-	as this builds toward the Final call.
-	•	Consistency Pressure Testing — 10%: whether vague or rehearsed
-	answers were actually probed, and whether contradictions with earlier
-	calls were caught.
-	•	Answer Clarity & Readiness — 10%: whether answers actually
-	establish real readiness, not just surface-plausible responses.
-	•	Flow, Pacing & Transitions — 10%: steady energy and pace across a
-	long conversation, no unnecessary tangents.
-	•	Progression Toward the Final Call — 10%: a clear, confident sense
-	that this candidate is ready for what's next.
+Score Calibration — start from a default of 8.0 for a call that
+maintains real trust and honestly covers most of the 18 parts, then
+apply itemized deductions below for actual, specific misses. Don't
+anchor on a cautious mid-range number out of general caution, and don't
+show this deduction math in the output — it's for how you arrive at
+OVERALL_SCORE, not something to print.
 
-A call that's genuinely strong on the heaviest-weighted categories
-(rapport, diagnostic depth, listening vs. re-teaching) should land in the
-high 7s/8s even with real room to sharpen a lower-weighted category like
-pacing or answer clarity — don't let strength where it matters most get
-dragged down into "average" territory by a handful of specific critiques
-elsewhere. Reserve 5-6 and below for calls with actual structural gaps in
-the heavily-weighted categories themselves.
+Typical deductions (guidance, not a rigid formula — use judgment for how
+severe or how often each one actually happened):
+	•	Accepting a quick, rehearsed, or vague answer without probing: -0.3
+	to -0.6 per instance.
+	•	Missing an answer that contradicts something said in an earlier
+	call: -0.5 to -1.0.
+	•	Re-explaining business or comp fundamentals that should already be
+	settled by this stage: -0.5 to -1.0 (a bigger red flag here than at
+	earlier stages).
+	•	Rushing through parts of the questionnaire: -0.3 to -0.6.
+	•	Weak or absent close (no clear sense of readiness for the Final
+	call): -0.5 to -1.0.
+
+Stack deductions only when they're genuinely separate issues, not the
+same weakness described twice. A call with sustained trust, honest
+coverage of the 18 parts, and a clear sense of readiness should land in
+the high 7s to 8s even after one or two of the deductions above —
+reserve sub-6 scores for calls stacking multiple structural failures at
+once, not a single specific, fixable critique on an otherwise strong
+call.
 
 ⸻
 

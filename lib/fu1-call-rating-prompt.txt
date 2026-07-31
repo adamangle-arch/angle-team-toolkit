@@ -125,38 +125,33 @@ Your Analysis Should Include
 
 Score the call out of 10 as an FU1 inside this process.
 
-Score Calibration — compute this as a weighted average across 8
-categories, each scored 0-10 (9-10 outstanding, 7-8 strong, 5-6 solid
-with real gaps, 3-4 below the bar, 1-2 poor), then round to the nearest
-0.1. Don't show this breakdown in the output — it's for how you arrive
-at the number, not something to print.
-	•	Rapport & Trust Continuity — 15%: whether trust from QI1/QI2/the
-	Webinar genuinely carried into this call.
-	•	Diagnostic Depth — 20%: how well the call confirmed what the
-	candidate actually absorbed from the Webinar/audios and gauged real
-	buy-in, with specific evidence rather than assumption.
-	•	Commitment Extraction vs. Teaching — 15%: some clarification of
-	webinar/audio content is fine, but the call should lean toward
-	locking in specific commitments rather than staying in teaching mode.
-	•	Frame Control & Positioning — 10%: confident, credible positioning
-	as this progresses toward FU2.
-	•	Commitment Pressure Testing — 10%: whether commitments are specific
-	("20 PV, listening 3x/week") rather than vague ("yeah I'll try")
-	accepted at face value.
-	•	Expectation-Setting Clarity — 10%: how clearly what's ahead (more
-	education, FU2) was laid out.
-	•	Flow, Pacing & Transitions — 10%: natural pace, no unnecessary
-	tangents, steady energy.
-	•	Progression Toward More Education/FU2 — 10%: a clear, confident
-	next step with real expectations set.
+Score Calibration — start from a default of 8.0 for a call that carries
+real trust from QI1/QI2/the Webinar and gets at least some specific
+commitments, then apply itemized deductions below for actual, specific
+misses. Don't anchor on a cautious mid-range number out of general
+caution, and don't show this deduction math in the output — it's for how
+you arrive at OVERALL_SCORE, not something to print.
 
-A call that's genuinely strong on the heaviest-weighted categories
-(rapport, diagnostic depth, commitment extraction) should land in the
-high 7s/8s even with real room to sharpen a lower-weighted category like
-pacing or expectation-setting — don't let strength where it matters most
-get dragged down into "average" territory by a handful of specific
-critiques elsewhere. Reserve 5-6 and below for calls with actual
-structural gaps in the heavily-weighted categories themselves.
+Typical deductions (guidance, not a rigid formula — use judgment for how
+severe or how often each one actually happened):
+	•	A vague, non-committal commitment accepted at face value ("yeah
+	I'll try" instead of a real number or habit): -0.5 to -1.0 per
+	instance.
+	•	No real check on whether the candidate actually understood the
+	Webinar/audios: -0.5 to -1.0.
+	•	A missed opportunity to gauge real buy-in vs. politeness: -0.3 to
+	-0.6.
+	•	Expectations for what's ahead left unclear: -0.3 to -0.6.
+	•	Weak or absent close (no clear next step toward more
+	education/FU2): -0.5 to -1.0.
+
+Stack deductions only when they're genuinely separate issues, not the
+same weakness described twice. A call with real trust continuity, at
+least some specific commitments obtained, and a natural next step should
+land in the high 7s to 8s even after one or two of the deductions above —
+reserve sub-6 scores for calls stacking multiple structural failures at
+once, not a single specific, fixable critique on an otherwise strong
+call.
 
 ⸻
 

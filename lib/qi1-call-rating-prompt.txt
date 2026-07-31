@@ -134,40 +134,37 @@ Your Analysis Should Include
 
 Score the call out of 10 as an QI1 inside this process.
 
-Score Calibration — compute this as a weighted average across 8
-categories, each scored 0-10 (9-10 outstanding, 7-8 strong, 5-6 solid
-with real gaps, 3-4 below the bar, 1-2 poor), then round to the nearest
-0.1. Don't show this breakdown in the output — it's for how you arrive
-at the number, not something to print.
-	•	Rapport & Trust Velocity — 15%: how fast the conversation became
-	genuinely comfortable, and whether the candidate opened up with real,
-	specific detail rather than performing politeness.
-	•	Diagnostic Depth & Question Quality — 20%: whether questions
-	actually surfaced specific evidence on ambition, goals, discipline,
-	coachability, urgency — not just whether those topics came up.
-	•	Extraction vs. Teaching Ratio — 15%: whether the candidate did most
-	of the meaningful talking, with the IBO following up on disclosures
-	rather than interrupting them with philosophy or explanation.
-	•	Frame Control & Selection Positioning — 10%: mutual-evaluation
-	framing, confident (not desperate) positioning, partnership never
-	treated as automatic.
-	•	Candidate Pressure Testing — 10%: whether claims about ambition,
-	discipline, time, or follow-through were actually tested rather than
-	accepted at face value.
-	•	Business Positioning Clarity — 10%: enough said to justify a next
-	step, without drifting into QI2/webinar/compensation territory.
-	•	Flow, Pacing & Transitions — 10%: natural pace, no unnecessary
-	tangents, steady energy.
-	•	Progression Toward QI2 — 10%: a clear, confident next step and
-	assignment, with selection posture preserved.
+Score Calibration — start from a default of 8.0 for a call that builds
+genuine rapport and surfaces real diagnostic evidence on at least half of
+QI1's goals (see the goal list above), then apply itemized deductions
+below for actual, specific misses. Don't anchor on a cautious mid-range
+number out of general caution, and don't show this deduction math in the
+output — it's for how you arrive at OVERALL_SCORE, not something to
+print.
 
-A call that's genuinely strong on the heaviest-weighted categories
-(rapport, diagnostic depth, extraction) should land in the high 7s/8s
-even with real room to sharpen a lower-weighted category like pacing or
-business positioning — don't let strength where it matters most get
-dragged down into "average" territory by a handful of specific critiques
-elsewhere. Reserve 5-6 and below for calls with actual structural gaps in
-the heavily-weighted categories themselves.
+Typical deductions (guidance, not a rigid formula — use judgment for how
+severe or how often each one actually happened):
+	•	Drifting into QI2/webinar/FU2 territory (comp plan specifics,
+	detailed product mechanics, running financial math out loud): -0.5 to
+	-1.0 for one clear instance, more only if it recurred or ate most of
+	the call.
+	•	A strong candidate disclosure that got no real follow-up: -0.3 to
+	-0.6.
+	•	A major claim (ambition, discipline, time, financial urgency) left
+	entirely untested: -0.5 to -1.0.
+	•	Noticeably long, unfocused, or rambling with no clear driver: -0.5
+	to -1.0.
+	•	Weak or absent close (no clear next step, vague expectations): -0.5
+	to -1.0.
+
+Stack deductions only when they're genuinely separate issues, not the
+same weakness described twice. A call with strong rapport, real
+diagnostic value, and a natural next step toward QI2 should land in the
+high 7s to 8s even after one or two of the deductions above — reserve
+sub-6 scores for calls stacking multiple structural failures at once
+(e.g. weak rapport *and* no real diagnostic depth *and* no clear next
+step, together), not a single specific, fixable critique on an otherwise
+strong call.
 
 ⸻
 

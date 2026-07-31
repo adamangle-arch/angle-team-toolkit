@@ -125,38 +125,32 @@ Your Analysis Should Include
 
 Score the call out of 10 as a QI2 inside this process.
 
-Score Calibration — compute this as a weighted average across 8
-categories, each scored 0-10 (9-10 outstanding, 7-8 strong, 5-6 solid
-with real gaps, 3-4 below the bar, 1-2 poor), then round to the nearest
-0.1. Don't show this breakdown in the output — it's for how you arrive
-at the number, not something to print.
-	•	Rapport & Trust Continuity — 15%: whether the trust built in QI1
-	genuinely continued and deepened here.
-	•	Diagnostic Depth — 20%: whether checks on book comprehension and
-	macro understanding surfaced real evidence of engagement, not just
-	whether the material was "covered."
-	•	Explanation Quality & Engagement Checks — 15%: QI2 is
-	explanation-heavy by design, so this is not about how much the IBO
-	talked — it's whether understanding was checked along the way and
-	real questions gauged engagement, versus a pure monologue.
-	•	Frame Control & Positioning — 10%: confident, credible positioning
-	that keeps this feeling like a mutual evaluation.
-	•	Candidate Engagement Testing — 10%: whether genuine curiosity vs.
-	polite nodding was actually tested, not just assumed.
-	•	Macro Business-Model Clarity — 10%: clarity of the macro
-	run-through itself.
-	•	Flow, Pacing & Transitions — 10%: natural pace, no unnecessary
-	tangents, steady energy.
-	•	Progression Toward the Webinar — 10%: a clear, confident next step
-	with real expectations set.
+Score Calibration — start from a default of 8.0 for a call that
+genuinely continues the trust from QI1 and covers the book/macro material
+with real engagement, then apply itemized deductions below for actual,
+specific misses. Don't anchor on a cautious mid-range number out of
+general caution, and don't show this deduction math in the output — it's
+for how you arrive at OVERALL_SCORE, not something to print.
 
-A call that's genuinely strong on the heaviest-weighted categories
-(rapport, diagnostic depth, explanation quality) should land in the high
-7s/8s even with real room to sharpen a lower-weighted category like
-pacing or macro clarity — don't let strength where it matters most get
-dragged down into "average" territory by a handful of specific critiques
-elsewhere. Reserve 5-6 and below for calls with actual structural gaps in
-the heavily-weighted categories themselves.
+Typical deductions (guidance, not a rigid formula — use judgment for how
+severe or how often each one actually happened):
+	•	Pure monologue with no check-ins on understanding or engagement:
+	-0.5 to -1.0.
+	•	No diagnostic questions about what the candidate actually took from
+	the book: -0.5 to -1.0.
+	•	Missed signs of confusion or disengagement: -0.3 to -0.6.
+	•	Rushing the macro explanation or skipping context the candidate
+	needed: -0.5 to -1.0.
+	•	Weak or absent close (no clear next step toward the Webinar): -0.5
+	to -1.0.
+
+Stack deductions only when they're genuinely separate issues, not the
+same weakness described twice. A call with real trust continuity, solid
+book/macro coverage, and a natural next step toward the Webinar should
+land in the high 7s to 8s even after one or two of the deductions above —
+reserve sub-6 scores for calls stacking multiple structural failures at
+once, not a single specific, fixable critique on an otherwise strong
+call.
 
 ⸻
 

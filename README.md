@@ -3312,7 +3312,7 @@ flagged "ran too long and became too educational" yet still scored 8.1,
 because that critique landed in a lower-weighted category rather than
 tanking the whole score.
 
-Every `lib/*-call-rating-prompt.txt`'s "Score Calibration" section is now
+Every `lib/*-call-rating-prompt.txt`'s "Score Calibration" section became
 this same weighted-category model, adapted per stage — QI1's categories
 above translate directly; QI2/FU1/FU2/Questionnaire swap in
 stage-appropriate versions (e.g. QI2/FU2's "extraction vs. teaching"
@@ -3327,6 +3327,33 @@ risk pushing back into the length/cutoff problem the 2-section format
 was just built to avoid. This lengthens each rubric's system prompt
 (input tokens), which is unrelated to and doesn't reintroduce any risk to
 the output-length ceiling that keeps a rating from cutting off.
+
+**This didn't actually move the score.** Re-rating the identical Jake
+transcript came back 6.2 — statistically the same as the original 6.3,
+not the meaningful jump toward 8.1 the rewrite was meant to produce. The
+flaw: describing 8 categories with percentage weights asks the model to
+literally compute a weighted average, but an LLM doesn't execute math
+like that from a prose description — it still arrives at the number
+holistically, the same way it did before, just with more label text
+around the decision it was always going to make. Percentages in a prompt
+describe a computation; they don't cause one.
+
+The actual fix was switching from "compute an average" to "anchor and
+deduct" — a mechanism much closer to how the model actually reasons.
+Score Calibration in every rubric now starts from a default of **8.0**
+for a call clearing the basic bar (real rapport/trust continuity + real
+diagnostic coverage for that stage), then lists concrete, itemized
+deductions in point ranges tied to the exact weaknesses each rubric's own
+"What to improve" section already calls out for that stage (e.g. QI1:
+drifting into comp-plan/product detail costs -0.5 to -1.0, a
+major untested claim costs -0.5 to -1.0, a weak close costs -0.5 to
+-1.0) — with explicit instruction to stack deductions only for genuinely
+separate issues, and to reserve sub-6 scores for calls with *multiple*
+structural failures stacked together, not one specific, fixable critique
+on an otherwise strong call. Anchoring high and subtracting for named,
+concrete evidence is a pattern a generation pass can actually follow,
+unlike reconstructing a percentage-weighted average from a category list
+with no arithmetic engine behind it.
 
 ### App-wide audit: silent write failures
 

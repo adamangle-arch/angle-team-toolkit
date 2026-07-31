@@ -123,39 +123,32 @@ Your Analysis Should Include
 
 Score the call out of 10 as an FU2 inside this process.
 
-Score Calibration — compute this as a weighted average across 8
-categories, each scored 0-10 (9-10 outstanding, 7-8 strong, 5-6 solid
-with real gaps, 3-4 below the bar, 1-2 poor), then round to the nearest
-0.1. Don't show this breakdown in the output — it's for how you arrive
-at the number, not something to print.
-	•	Rapport & Trust Continuity — 15%: whether trust built through the
-	process so far genuinely carried into this call.
-	•	Diagnostic Depth — 20%: how well the call surfaced the candidate's
-	real reaction to the numbers — genuine engagement vs. polite nodding
-	— with specific evidence.
-	•	Explanation Quality & Understanding Checks — 15%: FU2 is meant to
-	be detailed and explanation-heavy, so this is not about talk time —
-	it's whether the explanation tied back to the candidate's own goals
-	and their actual understanding was checked, not assumed.
-	•	Frame Control & Positioning — 10%: confident, credible positioning
-	as this progresses toward an event/FU3.
-	•	Reaction Pressure Testing — 10%: whether genuine excitement (or
-	genuine concern) about the numbers was actually tested, not just
-	assumed from a nod.
-	•	Compensation-Plan Clarity — 10%: clarity of the plan itself, tied
-	to this candidate's own numbers rather than recited generically.
-	•	Flow, Pacing & Transitions — 10%: natural pace, no unnecessary
-	tangents, steady energy.
-	•	Progression Toward the Event/FU3 — 10%: a clear, confident next
-	step with real expectations set.
+Score Calibration — start from a default of 8.0 for a call that carries
+real trust into the room and gets through the compensation plan with
+genuine engagement, then apply itemized deductions below for actual,
+specific misses. Don't anchor on a cautious mid-range number out of
+general caution, and don't show this deduction math in the output — it's
+for how you arrive at OVERALL_SCORE, not something to print.
 
-A call that's genuinely strong on the heaviest-weighted categories
-(rapport, diagnostic depth, explanation quality) should land in the high
-7s/8s even with real room to sharpen a lower-weighted category like
-pacing or plan clarity — don't let strength where it matters most get
-dragged down into "average" territory by a handful of specific critiques
-elsewhere. Reserve 5-6 and below for calls with actual structural gaps in
-the heavily-weighted categories themselves.
+Typical deductions (guidance, not a rigid formula — use judgment for how
+severe or how often each one actually happened):
+	•	Reciting the comp plan generically without tying it to this
+	candidate's own goals: -0.5 to -1.0.
+	•	No check for real understanding of key mechanics: -0.5 to -1.0.
+	•	Missed signs of confusion or overwhelm with the numbers: -0.3 to
+	-0.6.
+	•	No diagnostic questions about how the numbers actually land with
+	them: -0.3 to -0.6.
+	•	Weak or absent close (no clear next step toward an event/FU3): -0.5
+	to -1.0.
+
+Stack deductions only when they're genuinely separate issues, not the
+same weakness described twice. A call with real trust, a clear plan
+walkthrough tied to this candidate's own goals, and a natural next step
+should land in the high 7s to 8s even after one or two of the deductions
+above — reserve sub-6 scores for calls stacking multiple structural
+failures at once, not a single specific, fixable critique on an
+otherwise strong call.
 
 ⸻
 
