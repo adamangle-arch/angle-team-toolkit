@@ -178,6 +178,7 @@ export default function CalendarPage() {
   const [selectedRecipientIds, setSelectedRecipientIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   // The Add Event form (and, for admins, Team Events underneath it) now
   // lives in a bottom-sheet opened from a floating "+" button - same
   // "tap the FAB, fill the sheet, it dismisses on save" pattern as Google
@@ -467,8 +468,18 @@ export default function CalendarPage() {
   }
 
   async function deleteEvent(id: string) {
+    const event = events.find((e) => e.id === id);
+    if (event && !window.confirm(`Delete "${event.title}"? This can't be undone.`)) return;
+    const previous = events;
     setEvents((prev) => prev.filter((e) => e.id !== id));
-    await supabase.from("calendar_events").delete().eq("id", id);
+    const { error } = await supabase.from("calendar_events").delete().eq("id", id);
+    if (error) {
+      // Revert - otherwise a failed delete still looks like it worked.
+      setEvents(previous);
+      setDeleteError(error.message);
+    } else {
+      setDeleteError(null);
+    }
   }
 
   const now = new Date().toISOString();
@@ -508,6 +519,12 @@ export default function CalendarPage() {
         subtitle="Meetings, sessions, and reminders — yours, your spouse's, and your downline's"
       />
       <main className="page-main">
+        {deleteError && (
+          <div className="card">
+            <p className="text-xs text-red-400">Couldn&apos;t delete that: {deleteError}</p>
+          </div>
+        )}
+
         <div className="card flex p-1">
           <button
             className={viewMode === "agenda" ? "toggle-pill-active" : "toggle-pill-inactive"}

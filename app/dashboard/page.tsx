@@ -34,6 +34,29 @@ type ActiveCandidateRow = {
   connected_date: string;
 };
 
+// A candidate whose row hasn't been touched (step move, note, launch/filter)
+// in this many days is worth a nudge - candidates.updated_at is already
+// stamped on every real edit (see updateCandidate() in app/pipeline/page.tsx),
+// so this needs no new schema, just a threshold.
+const STALE_CANDIDATE_DAYS = 5;
+
+type StaleCandidateRow = {
+  id: string;
+  name: string;
+  current_step: number;
+  updated_at: string;
+  daysStale: number;
+};
+
+type MissionItem = {
+  key: string;
+  icon: string;
+  text: string;
+  sub?: string;
+  href: string;
+  actionLabel: string;
+};
+
 type DownlineActiveCandidateRow = ActiveCandidateRow & {
   rep_first_name: string | null;
   rep_last_name: string | null;
@@ -80,6 +103,7 @@ export default function DashboardPage() {
   const [todayPipeline, setTodayPipeline] = useState<PipelinePeriod | null>(null);
   const [downlineTodayTotals, setDownlineTodayTotals] = useState<DownlinePipelineTotals | null>(null);
   const [dream, setDream] = useState("");
+  const [staleCandidate, setStaleCandidate] = useState<StaleCandidateRow | null>(null);
   const [myActiveCount, setMyActiveCount] = useState(0);
   const [downlineActiveCount, setDownlineActiveCount] = useState(0);
 
@@ -112,6 +136,9 @@ export default function DashboardPage() {
       const tomorrow = new Date(`${today}T00:00:00`);
       tomorrow.setDate(tomorrow.getDate() + 1);
 
+      const staleThreshold = new Date();
+      staleThreshold.setDate(staleThreshold.getDate() - STALE_CANDIDATE_DAYS);
+
       const [
         { data: streakRow },
         { data: streakCount },
@@ -121,6 +148,7 @@ export default function DashboardPage() {
         { data: activeSummary },
         { data: downlineTotals },
         { data: profileDreams },
+        { data: staleCandidateRow },
       ] = await Promise.all([
         supabase.from("streak_days").select("*").eq("user_id", user.id).eq("day", today).maybeSingle(),
         supabase.rpc("get_current_streak", { p_user_id: user.id }),
@@ -146,6 +174,20 @@ export default function DashboardPage() {
           .select("dream_5_year,dream_10_year,dream_lifetime")
           .eq("id", user.id)
           .single(),
+        // The single longest-untouched active candidate, for the "follow
+        // up with X" mission item - candidates.updated_at is already
+        // stamped on every real edit (step move, note, launch/filter), so
+        // this doubles as "how long since I last did anything with them."
+        supabase
+          .from("candidates")
+          .select("id,name,current_step,updated_at")
+          .eq("user_id", ownerId)
+          .eq("launched", false)
+          .eq("filtered_out", false)
+          .lt("updated_at", staleThreshold.toISOString())
+          .order("updated_at", { ascending: true })
+          .limit(1)
+          .maybeSingle(),
       ]);
 
       if (!cancelled) {
@@ -163,6 +205,17 @@ export default function DashboardPage() {
         // the lifetime dream is the one worth being reminded of most, but
         // most people won't have filled in all three right away.
         setDream(dreams?.dream_lifetime || dreams?.dream_10_year || dreams?.dream_5_year || "");
+        const staleRow = staleCandidateRow as Omit<StaleCandidateRow, "daysStale"> | null;
+        setStaleCandidate(
+          staleRow
+            ? {
+                ...staleRow,
+                daysStale: Math.floor(
+                  (Date.now() - new Date(staleRow.updated_at).getTime()) / (24 * 60 * 60 * 1000)
+                ),
+              }
+            : null
+        );
         setLoading(false);
       }
     }
@@ -185,6 +238,80 @@ export default function DashboardPage() {
 
   const goalTarget = (metric: string) => dailyGoals.find((g) => g.metric === metric)?.target ?? 0;
   const hasAnyDailyGoal = dailyGoals.some((g) => g.target > 0);
+
+  // A handful of concrete, prioritized "do this next" items instead of
+  // just a stats recap - reuses data already fetched above for the other
+  // cards, so this adds no extra queries. Deliberately limited to metrics
+  // with one reliable source: Questions/Yeses come straight from
+  // pipeline_periods (same number the Pipeline Tracker itself shows), not
+  // the harder-to-pin-down metrics (reading minutes, audios, conversations)
+  // that an earlier goals-progress attempt dropped for being confusing
+  // when the "actual" side came from more than one place.
+  const missionItems: MissionItem[] = [];
+
+  if (showPipeline && staleCandidate) {
+    missionItems.push({
+      key: "stale-candidate",
+      icon: "👋",
+      text: `Follow up with ${staleCandidate.name}`,
+      sub: `No movement in ${staleCandidate.daysStale} day${staleCandidate.daysStale === 1 ? "" : "s"} — still at ${stepLabel(staleCandidate.current_step)}`,
+      href: "/pipeline",
+      actionLabel: "Go to Pipeline",
+    });
+  }
+
+  if (todayEvents.length > 0) {
+    const first = todayEvents[0];
+    missionItems.push({
+      key: "meetings",
+      icon: "📅",
+      text: todayEvents.length === 1 ? first.title : `${todayEvents.length} events today`,
+      sub: todayEvents.length === 1 ? formatEventTime(first.event_at) : `First at ${formatEventTime(first.event_at)}`,
+      href: "/calendar",
+      actionLabel: "View Calendar",
+    });
+  }
+
+  if (showStreak) {
+    const missingChecks = STREAK_CHECKS.filter((c) => !streakToday?.[c.key]);
+    if (missingChecks.length > 0) {
+      missionItems.push({
+        key: "core-run",
+        icon: "🔥",
+        text: "Finish your Core Run",
+        sub: `Still need: ${missingChecks.map((c) => c.label).join(", ")}`,
+        href: "/streak",
+        actionLabel: "Log It",
+      });
+    }
+  }
+
+  if (showGoals && showPipeline && todayPipeline) {
+    for (const [metric, noun] of [
+      ["questions", "question"],
+      ["yeses", "yes"],
+    ] as const) {
+      const target = goalTarget(metric);
+      const actual = (todayPipeline[metric] as number) ?? 0;
+      if (target > 0 && actual < target) {
+        const remaining = target - actual;
+        missionItems.push({
+          key: `goal-${metric}`,
+          icon: "🎯",
+          text: `${remaining} more ${noun}${remaining === 1 ? "" : "s"} today`,
+          href: "/streak",
+          actionLabel: "Log It",
+        });
+      }
+    }
+  }
+
+  // Doc's own cap: no more than 3-5 items so this stays a quick scan, not
+  // another wall of stuff to read - priority order above (stale
+  // candidate, meetings, Core Run, goal gaps) already puts the most
+  // time-sensitive things first.
+  const mission = missionItems.slice(0, 5);
+
   const todayStats = [
     ...(todayPipeline
       ? PIPELINE_STAGES.map((s) => ({ label: s.label, value: todayPipeline[s.key] as number }))
@@ -211,6 +338,33 @@ export default function DashboardPage() {
           <div className="empty-state">Loading today…</div>
         ) : (
           <>
+            <div className="card space-y-2">
+              <p className="section-title">🎯 Today&apos;s Mission</p>
+              {mission.length === 0 ? (
+                <p className="text-sm text-slate-400">
+                  🎉 You&apos;re all caught up — nothing urgent right now.
+                </p>
+              ) : (
+                <div className="space-y-1.5">
+                  {mission.map((item) => (
+                    <Link
+                      key={item.key}
+                      href={item.href}
+                      className="flex items-center justify-between gap-2 rounded-lg bg-navy px-3 py-2"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-white">
+                          {item.icon} {item.text}
+                        </p>
+                        {item.sub && <p className="truncate text-xs text-slate-400">{item.sub}</p>}
+                      </div>
+                      <span className="pill-amber shrink-0 text-xs">{item.actionLabel}</span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {showGoals && dream && (
               <Link href="/goals" className="card block space-y-1">
                 <p className="section-title">🌟 Remember Your Why</p>

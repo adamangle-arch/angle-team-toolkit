@@ -66,7 +66,10 @@ export default function NotificationsPage() {
           <p className="text-sm text-slate-400">Loading...</p>
         ) : notifications.length === 0 ? (
           <div className="card">
-            <p className="text-sm text-slate-400">No notifications yet.</p>
+            <p className="text-sm text-slate-400">
+              No notifications yet — you&apos;ll see updates here when a candidate moves forward,
+              your team hits a milestone, or your upline sends you something.
+            </p>
           </div>
         ) : (
           notifications.map((n) => (

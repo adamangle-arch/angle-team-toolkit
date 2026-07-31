@@ -114,8 +114,18 @@ export default function ContactsPage() {
   }
 
   async function deleteContact(id: string) {
+    const contact = contacts.find((c) => c.id === id);
+    if (contact && !window.confirm(`Delete ${contact.name}? This can't be undone.`)) return;
+    const previous = contacts;
     setContacts((prev) => prev.filter((c) => c.id !== id));
-    await supabase.from("contacts").delete().eq("id", id);
+    const { error } = await supabase.from("contacts").delete().eq("id", id);
+    if (error) {
+      // Revert - otherwise a failed delete still looks like it worked.
+      setContacts(previous);
+      setUpdateError(error.message);
+    } else {
+      setUpdateError(null);
+    }
   }
 
   const networkingContacts = useMemo(

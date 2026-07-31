@@ -318,7 +318,11 @@ export default function EventsPage() {
                 </div>
 
                 {media.length === 0 ? (
-                  <p className="text-sm text-slate-400">No photos or videos yet.</p>
+                  <p className="text-sm text-slate-400">
+                    {isAdmin
+                      ? "No photos or videos yet — add some below."
+                      : "No photos or videos yet — check back after the event."}
+                  </p>
                 ) : (
                   <div className="grid grid-cols-3 gap-1.5">
                     {media.map((item, index) => (

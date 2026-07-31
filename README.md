@@ -914,6 +914,66 @@ however people phrase it, unlike `read_items`, which is already a clean
 count from the same add-one-at-a-time list used for the badge system's
 own "5 Audios in a Day" style thresholds.
 
+### Today's Mission, safer deletes, and warmer empty states
+
+A user pasted a long third-party ("ChatGPT") UX proposal aimed at making
+the app feel less like a CRM and more like a daily coaching app. Rather
+than build it wholesale, this was audited against what the app already
+does (most of it — 5-tab-plus-More nav, grouped universal search, a
+one-screen Core Run, minimal candidate cards, a 1-field add-candidate
+flow — already matches or exceeds the proposal) and only the genuinely
+missing, low-risk pieces were built:
+
+- **Today's Mission** (`app/dashboard/page.tsx`) — a new card at the very
+  top of Today, above every existing stats card, surfacing up to 5
+  concrete "do this next" items instead of leaving Today as a pure
+  stats/status recap:
+  - 👋 **Follow up with X** — the single longest-untouched active
+    candidate, if any candidate hasn't been touched (step move, note,
+    launch/filter) in `STALE_CANDIDATE_DAYS` (5) days. Needed no new
+    schema: `candidates.updated_at` already exists and is already
+    stamped on every real edit by `updateCandidate()` in
+    `app/pipeline/page.tsx` — it was just never read anywhere until now.
+  - 📅 **Today's meetings** — reuses the same `todayEvents` already
+    fetched for the existing Calendar card.
+  - 🔥 **Finish your Core Run** — only appears if something's still
+    unchecked, naming exactly which of Read/Listen/Daily Update/Story
+    Share remain; reuses the same `streakToday` row already fetched.
+  - 🎯 **N more questions/yeses today** — a real goal-vs-actual gap,
+    but deliberately limited to just Questions and Yeses. An earlier
+    goals-progress attempt (see `app/goals/page.tsx`'s own comment on
+    `qi1Weekly`/`qi1Monthly`) tried this for every daily goal metric and
+    was dropped because most of them (reading minutes, audios,
+    conversations) don't have one single reliable "actual" source and
+    the mismatch was confusing. Questions/Yeses are the exception —
+    they already come straight from `pipeline_periods`, the same row
+    the Pipeline Tracker itself displays, so there's nothing to be
+    confused about.
+  - If nothing qualifies, shows "🎉 You're all caught up" instead of an
+    empty section. All four sources were already being fetched for
+    other cards on this page (plus the one new stale-candidate query) —
+    no new round-trips beyond that.
+- **Contacts and Calendar events now confirm before deleting**
+  (`deleteContact` in `app/contacts/page.tsx`, `deleteEvent` in
+  `app/calendar/page.tsx`) — previously both deleted on a single tap
+  with no confirmation and no error handling at all, unlike Candidates
+  (which already had a `window.confirm` + permanent-delete framing).
+  Both now match that same confirm-then-optimistic-delete-with-revert-
+  on-error pattern already used elsewhere in this app.
+- **A few terse empty states got warmer, specific copy**: Notifications'
+  "No notifications yet." now explains what will show up there and why;
+  a team-event album's "No photos or videos yet." now tells an admin to
+  add some below versus telling a regular member to check back after
+  the event (upload is admin-only for that album, so the copy no longer
+  implies an action a regular member can't actually take).
+
+Left alone on purpose (see the full audit note above): nav restructure,
+universal search, Core Run screen consolidation, candidate-card
+minimalism, add-candidate simplification, the onboarding session-gating
+model, and most of Team's per-member stats view — all either already
+match the proposal or are deliberate existing product decisions, not
+oversights.
+
 ### Editing a previous day (backfilling / filing after midnight)
 
 Every field on the Core Run Streak page — Read, Listen, Daily Update,
