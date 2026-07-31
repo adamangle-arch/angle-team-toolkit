@@ -7,7 +7,7 @@ import { SkeletonList, SkeletonRows } from "@/components/Skeleton";
 import { useAuth } from "@/components/AuthGate";
 import FeatureGate from "@/components/FeatureGate";
 import { supabase } from "@/lib/supabaseClient";
-import { getMonthStart, formatMonthLabel, formatShortMonthLabel } from "@/lib/dates";
+import { getMonthStart, getMonthStartOffset, formatMonthLabel, formatShortMonthLabel } from "@/lib/dates";
 import type { MonthlyPv, CustomerSale, SaleCategory } from "@/lib/types";
 
 const CORE_300_TARGET = 300;
@@ -135,6 +135,37 @@ export default function VolumePage() {
   }, [history, dittoPv, periodStart]);
 
   const highestPv = useMemo(() => sales.reduce((max, s) => Math.max(max, s.amount), 0), [sales]);
+
+  // How much PV/Ditto someone typically brings in per month - same
+  // fairness principle as the Core Run and Pipeline averages: a month
+  // with nothing logged still counts as a 0 (real consistency, not just
+  // "how much on months you engage"), but the window is clamped to start
+  // at the earliest month that actually has data (current month always
+  // counts, even before it's been saved, so a first-time user isn't
+  // divided across 6 months that predate them).
+  const monthlyAverages = useMemo(() => {
+    const windowSize = 6;
+    const byMonth = new Map<string, { pv: number; ditto: number }>();
+    for (const h of history) {
+      byMonth.set(h.period_start, { pv: h.pv, ditto: h.day1_ditto_pv });
+    }
+    byMonth.set(periodStart, { pv: corePv, ditto: dittoPv });
+
+    const firstStart = Array.from(byMonth.keys()).sort()[0];
+    const theoretical = Array.from({ length: windowSize }, (_, i) =>
+      getMonthStartOffset(windowSize - 1 - i)
+    ).filter((s) => s >= firstStart);
+
+    let pvTotal = 0;
+    let dittoTotal = 0;
+    for (const start of theoretical) {
+      const row = byMonth.get(start);
+      pvTotal += row?.pv ?? 0;
+      dittoTotal += row?.ditto ?? 0;
+    }
+    const n = theoretical.length || 1;
+    return { pvPerMonth: pvTotal / n, dittoPerMonth: dittoTotal / n, windowCount: theoretical.length };
+  }, [history, periodStart, corePv, dittoPv]);
 
   async function savePv() {
     const pv = Math.max(0, parseInt(pvInput, 10) || 0);
@@ -297,6 +328,30 @@ export default function VolumePage() {
         <div className="card space-y-2">
           <p className="section-title">PV Trend</p>
           <TrendChart data={chartData} valueSuffix=" PV" />
+        </div>
+
+        <div className="card space-y-2">
+          <p className="section-title">
+            Your Averages (Last {monthlyAverages.windowCount}{" "}
+            Month{monthlyAverages.windowCount === 1 ? "" : "s"})
+          </p>
+          <div className="flex items-center justify-between rounded-lg bg-navy px-3 py-2">
+            <span className="text-sm text-slate-200">🚀 PV per month</span>
+            <span className="text-lg font-bold text-amber">
+              {monthlyAverages.pvPerMonth.toFixed(1)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between rounded-lg bg-navy px-3 py-2">
+            <span className="text-sm text-slate-200">💧 Ditto per month</span>
+            <span className="text-lg font-bold text-amber">
+              {monthlyAverages.dittoPerMonth.toFixed(1)}
+            </span>
+          </div>
+          <p className="text-xs text-slate-400">
+            Averaged across the months since you started logging Volume (up to the last 6) — a
+            month with nothing logged still counts as a 0, so this reflects real month-to-month
+            consistency since you started, not just how much you do on months you actually engage.
+          </p>
         </div>
 
         <div className="card space-y-1.5">

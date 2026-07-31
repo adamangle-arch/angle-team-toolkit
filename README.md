@@ -3860,6 +3860,26 @@ is currently selected and is capped at a handful of periods for charting,
 which isn't enough range for a fair "since you started" average across
 all three granularities at once.
 
+### Volume: monthly PV/Ditto averages
+
+Volume only ever tracks one granularity — `monthly_pv` is one row per
+user per calendar month, there's no daily/weekly PV concept — so this is
+simpler than the Pipeline averages above: a "Your Averages" card right
+after the PV Trend chart shows 🚀 PV per month and 💧 Ditto per month,
+averaged the same fair way (a month with nothing logged still counts as
+a 0, clamped to start at the earliest month that actually has data, so a
+new team member isn't averaged against months before they joined).
+
+One wrinkle here that Pipeline's version didn't have: the current
+month's PV/Ditto live in local input state (`corePv`/`dittoPv`) rather
+than a saved `monthly_pv` row until you hit Save, but they should still
+count toward the average as whatever's currently in the input — someone
+checking this mid-month with 150 PV typed in but not yet saved shouldn't
+see it excluded just because they haven't tapped Save. `monthlyAverages`
+merges `history` (the last 6 *saved* months, already fetched for Recent
+Months/the trend charts) with the current month's live input values
+before averaging, so the current month is always included.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)
