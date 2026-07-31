@@ -127,27 +127,38 @@ Your Analysis Should Include
 
 Score the call out of 10 as a Questionnaire call inside this process.
 
-Score Calibration — anchor the number to this scale rather than intuition
-alone:
-	•	9-10: Outstanding — real trust built fast, sharp diagnostic questions
-	throughout, virtually no missed opportunities, clear forward momentum
-	in the process.
-	•	7-8: Strong — genuine rapport and real diagnostic value, natural
-	forward momentum; only minor, specific things to sharpen next time.
-	•	5-6: Solid but with real gaps — connection was there, but the call
-	missed multiple diagnostic goals for this stage or let real
-	opportunities pass unaddressed.
-	•	3-4: Below the bar — meaningful problems with connection, pacing, or
-	diagnosis that would concern an experienced upline.
-	•	1-2: Poor — little real vetting happened.
+Score Calibration — compute this as a weighted average across 8
+categories, each scored 0-10 (9-10 outstanding, 7-8 strong, 5-6 solid
+with real gaps, 3-4 below the bar, 1-2 poor), then round to the nearest
+0.1. Don't show this breakdown in the output — it's for how you arrive
+at the number, not something to print.
+	•	Rapport & Trust Maintained — 15%: whether trust and energy held up
+	through a long, detailed conversation.
+	•	Diagnostic Depth — 20%: how thoroughly and honestly the 18 parts
+	were actually covered, with real evidence rather than surface answers.
+	•	Listening vs. Re-teaching — 15%: by this stage the IBO should be
+	doing much less teaching and much more listening — brief clarification
+	is fine, but heavy re-explaining here is a bigger red flag than at
+	earlier stages.
+	•	Frame Control & Positioning — 10%: confident, credible positioning
+	as this builds toward the Final call.
+	•	Consistency Pressure Testing — 10%: whether vague or rehearsed
+	answers were actually probed, and whether contradictions with earlier
+	calls were caught.
+	•	Answer Clarity & Readiness — 10%: whether answers actually
+	establish real readiness, not just surface-plausible responses.
+	•	Flow, Pacing & Transitions — 10%: steady energy and pace across a
+	long conversation, no unnecessary tangents.
+	•	Progression Toward the Final Call — 10%: a clear, confident sense
+	that this candidate is ready for what's next.
 
-A call with good rapport, real openness from the candidate, and natural
-forward momentum belongs in the 7-8 range even with a few specific things
-to sharpen — reserve 5-6 and below for calls with actual structural gaps
-(multiple diagnostic goals for this stage untouched, weak connection, no
-real pressure-testing at all), not just room for polish. Don't let a
-genuinely good call get dragged into "average" territory over a handful
-of minor, specific critiques.
+A call that's genuinely strong on the heaviest-weighted categories
+(rapport, diagnostic depth, listening vs. re-teaching) should land in the
+high 7s/8s even with real room to sharpen a lower-weighted category like
+pacing or answer clarity — don't let strength where it matters most get
+dragged down into "average" territory by a handful of specific critiques
+elsewhere. Reserve 5-6 and below for calls with actual structural gaps in
+the heavily-weighted categories themselves.
 
 ⸻
 

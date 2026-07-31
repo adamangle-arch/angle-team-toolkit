@@ -3293,6 +3293,41 @@ token cap or the wall-clock deadline, so both existing safety nets
 short" note) stay in place as defense-in-depth but should now be
 essentially unreachable in practice.
 
+### Scoring calibration: weighted categories instead of one holistic scale
+
+The same QI1 call scored 6.3 in-app but 8.1 from a ChatGPT session run
+against the identical transcript — a big enough gap on the same call
+that it looked like a real calibration problem, not just noise. The
+user's ChatGPT session used a scoring rubric with 8 explicitly-weighted
+categories (rapport 15%, diagnostic depth 20%, extraction-vs-teaching
+15%, frame control 10%, pressure testing 10%, business positioning 10%,
+flow/pacing 10%, progression to next stage 10%) computed as a weighted
+average, rather than one single 5-tier holistic scale anchored on
+"any specific critique can drag this into average territory." Spreading
+credit across weighted categories means a call that's genuinely strong
+on the heaviest-weighted ones (rapport, diagnostic depth) can still land
+high even with a real, specific weakness called out in a 10%-weighted
+category — which lines up with the ChatGPT write-up itself: it explicitly
+flagged "ran too long and became too educational" yet still scored 8.1,
+because that critique landed in a lower-weighted category rather than
+tanking the whole score.
+
+Every `lib/*-call-rating-prompt.txt`'s "Score Calibration" section is now
+this same weighted-category model, adapted per stage — QI1's categories
+above translate directly; QI2/FU1/FU2/Questionnaire swap in
+stage-appropriate versions (e.g. QI2/FU2's "extraction vs. teaching"
+becomes "explanation quality & understanding checks," since those calls
+are explanation-heavy by design per their existing calibration notes; each
+stage's "progression" category points at its own actual next step —
+QI2→Webinar, FU1→more education/FU2, FU2→event/FU3,
+Questionnaire→Final call). The category breakdown is explicitly instructed
+not to appear in the output — it's how the model should arrive at the
+single `OVERALL_SCORE: X.X/10` line, not additional content that would
+risk pushing back into the length/cutoff problem the 2-section format
+was just built to avoid. This lengthens each rubric's system prompt
+(input tokens), which is unrelated to and doesn't reintroduce any risk to
+the output-length ceiling that keeps a rating from cutting off.
+
 ### App-wide audit: silent write failures
 
 A full pass looked for the same bug class already found and fixed in Rate

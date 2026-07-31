@@ -125,27 +125,38 @@ Your Analysis Should Include
 
 Score the call out of 10 as a QI2 inside this process.
 
-Score Calibration — anchor the number to this scale rather than intuition
-alone:
-	•	9-10: Outstanding — real trust built fast, sharp diagnostic questions
-	throughout, virtually no missed opportunities, clear forward momentum
-	in the process.
-	•	7-8: Strong — genuine rapport and real diagnostic value, natural
-	forward momentum; only minor, specific things to sharpen next time.
-	•	5-6: Solid but with real gaps — connection was there, but the call
-	missed multiple diagnostic goals for this stage or let real
-	opportunities pass unaddressed.
-	•	3-4: Below the bar — meaningful problems with connection, pacing, or
-	diagnosis that would concern an experienced upline.
-	•	1-2: Poor — little real vetting happened.
+Score Calibration — compute this as a weighted average across 8
+categories, each scored 0-10 (9-10 outstanding, 7-8 strong, 5-6 solid
+with real gaps, 3-4 below the bar, 1-2 poor), then round to the nearest
+0.1. Don't show this breakdown in the output — it's for how you arrive
+at the number, not something to print.
+	•	Rapport & Trust Continuity — 15%: whether the trust built in QI1
+	genuinely continued and deepened here.
+	•	Diagnostic Depth — 20%: whether checks on book comprehension and
+	macro understanding surfaced real evidence of engagement, not just
+	whether the material was "covered."
+	•	Explanation Quality & Engagement Checks — 15%: QI2 is
+	explanation-heavy by design, so this is not about how much the IBO
+	talked — it's whether understanding was checked along the way and
+	real questions gauged engagement, versus a pure monologue.
+	•	Frame Control & Positioning — 10%: confident, credible positioning
+	that keeps this feeling like a mutual evaluation.
+	•	Candidate Engagement Testing — 10%: whether genuine curiosity vs.
+	polite nodding was actually tested, not just assumed.
+	•	Macro Business-Model Clarity — 10%: clarity of the macro
+	run-through itself.
+	•	Flow, Pacing & Transitions — 10%: natural pace, no unnecessary
+	tangents, steady energy.
+	•	Progression Toward the Webinar — 10%: a clear, confident next step
+	with real expectations set.
 
-A call with good rapport, real openness from the candidate, and natural
-forward momentum belongs in the 7-8 range even with a few specific things
-to sharpen — reserve 5-6 and below for calls with actual structural gaps
-(multiple diagnostic goals for this stage untouched, weak connection, no
-real pressure-testing at all), not just room for polish. Don't let a
-genuinely good call get dragged into "average" territory over a handful
-of minor, specific critiques.
+A call that's genuinely strong on the heaviest-weighted categories
+(rapport, diagnostic depth, explanation quality) should land in the high
+7s/8s even with real room to sharpen a lower-weighted category like
+pacing or macro clarity — don't let strength where it matters most get
+dragged down into "average" territory by a handful of specific critiques
+elsewhere. Reserve 5-6 and below for calls with actual structural gaps in
+the heavily-weighted categories themselves.
 
 ⸻
 

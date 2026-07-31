@@ -125,27 +125,38 @@ Your Analysis Should Include
 
 Score the call out of 10 as an FU1 inside this process.
 
-Score Calibration — anchor the number to this scale rather than intuition
-alone:
-	•	9-10: Outstanding — real trust built fast, sharp diagnostic questions
-	throughout, virtually no missed opportunities, clear forward momentum
-	in the process.
-	•	7-8: Strong — genuine rapport and real diagnostic value, natural
-	forward momentum; only minor, specific things to sharpen next time.
-	•	5-6: Solid but with real gaps — connection was there, but the call
-	missed multiple diagnostic goals for this stage or let real
-	opportunities pass unaddressed.
-	•	3-4: Below the bar — meaningful problems with connection, pacing, or
-	diagnosis that would concern an experienced upline.
-	•	1-2: Poor — little real vetting happened.
+Score Calibration — compute this as a weighted average across 8
+categories, each scored 0-10 (9-10 outstanding, 7-8 strong, 5-6 solid
+with real gaps, 3-4 below the bar, 1-2 poor), then round to the nearest
+0.1. Don't show this breakdown in the output — it's for how you arrive
+at the number, not something to print.
+	•	Rapport & Trust Continuity — 15%: whether trust from QI1/QI2/the
+	Webinar genuinely carried into this call.
+	•	Diagnostic Depth — 20%: how well the call confirmed what the
+	candidate actually absorbed from the Webinar/audios and gauged real
+	buy-in, with specific evidence rather than assumption.
+	•	Commitment Extraction vs. Teaching — 15%: some clarification of
+	webinar/audio content is fine, but the call should lean toward
+	locking in specific commitments rather than staying in teaching mode.
+	•	Frame Control & Positioning — 10%: confident, credible positioning
+	as this progresses toward FU2.
+	•	Commitment Pressure Testing — 10%: whether commitments are specific
+	("20 PV, listening 3x/week") rather than vague ("yeah I'll try")
+	accepted at face value.
+	•	Expectation-Setting Clarity — 10%: how clearly what's ahead (more
+	education, FU2) was laid out.
+	•	Flow, Pacing & Transitions — 10%: natural pace, no unnecessary
+	tangents, steady energy.
+	•	Progression Toward More Education/FU2 — 10%: a clear, confident
+	next step with real expectations set.
 
-A call with good rapport, real openness from the candidate, and natural
-forward momentum belongs in the 7-8 range even with a few specific things
-to sharpen — reserve 5-6 and below for calls with actual structural gaps
-(multiple diagnostic goals for this stage untouched, weak connection, no
-real pressure-testing at all), not just room for polish. Don't let a
-genuinely good call get dragged into "average" territory over a handful
-of minor, specific critiques.
+A call that's genuinely strong on the heaviest-weighted categories
+(rapport, diagnostic depth, commitment extraction) should land in the
+high 7s/8s even with real room to sharpen a lower-weighted category like
+pacing or expectation-setting — don't let strength where it matters most
+get dragged down into "average" territory by a handful of specific
+critiques elsewhere. Reserve 5-6 and below for calls with actual
+structural gaps in the heavily-weighted categories themselves.
 
 ⸻
 
