@@ -61,6 +61,44 @@ function periodLabelFor(periodType: PeriodType, periodStart: string): string {
   return formatMonthLabel(periodStart);
 }
 
+// How many periods back each average window looks - 30 days ~ a month,
+// 12 weeks ~ a quarter, 6 months ~ half a year.
+const AVERAGES_WINDOW: Record<PeriodType, number> = { daily: 30, weekly: 12, monthly: 6 };
+
+const AVERAGE_METRICS: { key: "questions" | "yeses" | "qi1"; label: string }[] = [
+  { key: "questions", label: "Questions" },
+  { key: "yeses", label: "Yeses" },
+  { key: "qi1", label: "QI1s" },
+];
+
+// Same fairness principle as Core Run's averages: a day/week/month with
+// no row still counts as a 0 (real consistency, not just "how much on
+// days you engage"), but the window is clamped to start at the earliest
+// period that actually exists - someone who joined 3 weeks ago hasn't
+// "missed" the 9 weeks before that.
+function averagesForPeriods(
+  periodType: PeriodType,
+  rows: PipelinePeriod[],
+  windowSize: number
+): { questions: number; yeses: number; qi1: number; windowCount: number } {
+  const byStart = new Map(rows.map((r) => [r.period_start, r]));
+  const existingStarts = rows.map((r) => r.period_start).sort();
+  const firstStart = existingStarts.length > 0 ? existingStarts[0] : periodStartFor(periodType, 0);
+  const theoretical = Array.from({ length: windowSize }, (_, i) =>
+    periodStartFor(periodType, windowSize - 1 - i)
+  ).filter((s) => s >= firstStart);
+
+  const sums = { questions: 0, yeses: 0, qi1: 0 };
+  for (const start of theoretical) {
+    const row = byStart.get(start);
+    sums.questions += row?.questions ?? 0;
+    sums.yeses += row?.yeses ?? 0;
+    sums.qi1 += row?.qi1 ?? 0;
+  }
+  const n = theoretical.length || 1;
+  return { questions: sums.questions / n, yeses: sums.yeses / n, qi1: sums.qi1 / n, windowCount: theoretical.length };
+}
+
 function pct(numerator: number, denominator: number): string {
   if (!denominator) return "—";
   return `${Math.round((numerator / denominator) * 100)}%`;
@@ -178,6 +216,14 @@ export default function PipelinePage() {
 
   const [trendStage, setTrendStage] = useState<PipelineStageKey>("questions");
   const [trendHistory, setTrendHistory] = useState<PipelinePeriod[]>([]);
+
+  // Daily/Weekly/Monthly averages for Questions/Yeses/QI1s - independent of
+  // whichever periodType tab is currently selected above (that only
+  // governs the single period being viewed/edited), so all three windows
+  // load together regardless of which tab someone's on.
+  const [dailyAvgPeriods, setDailyAvgPeriods] = useState<PipelinePeriod[]>([]);
+  const [weeklyAvgPeriods, setWeeklyAvgPeriods] = useState<PipelinePeriod[]>([]);
+  const [monthlyAvgPeriods, setMonthlyAvgPeriods] = useState<PipelinePeriod[]>([]);
 
   // History tab - reuses the same `candidates` already loaded for the
   // Candidate Roadmap tab (every candidate for this owner, not just
@@ -352,6 +398,59 @@ export default function PipelinePage() {
       cancelled = true;
     };
   }, [periodType, effectiveOwnerId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      const dailyStart = periodStartFor("daily", AVERAGES_WINDOW.daily - 1);
+      const weeklyStart = periodStartFor("weekly", AVERAGES_WINDOW.weekly - 1);
+      const monthlyStart = periodStartFor("monthly", AVERAGES_WINDOW.monthly - 1);
+      const [{ data: dailyRows }, { data: weeklyRows }, { data: monthlyRows }] = await Promise.all([
+        supabase
+          .from("pipeline_periods")
+          .select("*")
+          .eq("user_id", effectiveOwnerId)
+          .eq("period_type", "daily")
+          .gte("period_start", dailyStart),
+        supabase
+          .from("pipeline_periods")
+          .select("*")
+          .eq("user_id", effectiveOwnerId)
+          .eq("period_type", "weekly")
+          .gte("period_start", weeklyStart),
+        supabase
+          .from("pipeline_periods")
+          .select("*")
+          .eq("user_id", effectiveOwnerId)
+          .eq("period_type", "monthly")
+          .gte("period_start", monthlyStart),
+      ]);
+      if (!cancelled) {
+        setDailyAvgPeriods((dailyRows as PipelinePeriod[]) ?? []);
+        setWeeklyAvgPeriods((weeklyRows as PipelinePeriod[]) ?? []);
+        setMonthlyAvgPeriods((monthlyRows as PipelinePeriod[]) ?? []);
+      }
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [effectiveOwnerId]);
+
+  const dailyAverages = useMemo(
+    () => averagesForPeriods("daily", dailyAvgPeriods, AVERAGES_WINDOW.daily),
+    [dailyAvgPeriods]
+  );
+  const weeklyAverages = useMemo(
+    () => averagesForPeriods("weekly", weeklyAvgPeriods, AVERAGES_WINDOW.weekly),
+    [weeklyAvgPeriods]
+  );
+  const monthlyAverages = useMemo(
+    () => averagesForPeriods("monthly", monthlyAvgPeriods, AVERAGES_WINDOW.monthly),
+    [monthlyAvgPeriods]
+  );
 
   const chartData = useMemo(() => {
     const merged = [...trendHistory];
@@ -782,6 +881,51 @@ export default function PipelinePage() {
                 </select>
               </div>
               <TrendChart data={chartData} />
+            </div>
+
+            <div className="card space-y-2">
+              <p className="section-title">Your Averages</p>
+              <div className="no-scrollbar overflow-x-auto">
+                <table className="w-full min-w-[380px] text-left text-xs">
+                  <thead>
+                    <tr className="text-slate-500">
+                      <th className="pb-1.5 pr-2 font-medium"></th>
+                      <th className="pb-1.5 pr-2 text-right font-medium">
+                        Daily ({dailyAverages.windowCount}d)
+                      </th>
+                      <th className="pb-1.5 pr-2 text-right font-medium">
+                        Weekly ({weeklyAverages.windowCount}w)
+                      </th>
+                      <th className="pb-1.5 text-right font-medium">
+                        Monthly ({monthlyAverages.windowCount}mo)
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {AVERAGE_METRICS.map((metric) => (
+                      <tr key={metric.key} className="border-t border-white/5">
+                        <td className="py-1.5 pr-2 font-medium text-white">{metric.label}</td>
+                        <td className="py-1.5 pr-2 text-right font-bold text-amber">
+                          {dailyAverages[metric.key].toFixed(1)}
+                        </td>
+                        <td className="py-1.5 pr-2 text-right font-bold text-amber">
+                          {weeklyAverages[metric.key].toFixed(1)}
+                        </td>
+                        <td className="py-1.5 text-right font-bold text-amber">
+                          {monthlyAverages[metric.key].toFixed(1)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-xs text-slate-400">
+                Averaged across the days/weeks/months since you started logging (up to{" "}
+                {AVERAGES_WINDOW.daily} days, {AVERAGES_WINDOW.weekly} weeks, or{" "}
+                {AVERAGES_WINDOW.monthly} months back) — a period with nothing logged still counts
+                as a 0, so this reflects real consistency since you started, not just how much you
+                do on periods you actually engage.
+              </p>
             </div>
 
             {period && (

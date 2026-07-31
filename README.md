@@ -3826,6 +3826,40 @@ encountered earlier for `Date.now()` — moved into the `isoDaysAgo()`
 helper instead, matching the existing `getToday()` pattern already used
 throughout the app.
 
+### Pipeline Tracker: Daily/Weekly/Monthly averages for Questions, Yeses, QI1s
+
+A "Your Averages" card on the Tally tab (`app/pipeline/page.tsx`), right
+below the Trend chart, answers "how many Questions/Yeses/QI1s do I
+actually average" at each of the three granularities at once — a small
+table with one row per metric and one column per period type, rather than
+having to flip between Daily/Weekly/Monthly up top and do the math
+yourself. Independent of whichever periodType tab is currently selected
+(that only controls the single period being viewed/edited) — all three
+windows load and show together regardless.
+
+Same two fairness principles as the Core Run averages above, applied to
+pipeline periods instead of streak days:
+
+- A day/week/month with no `pipeline_periods` row still counts as a 0
+  (real consistency, not just "how much on periods you engage") —
+  `averagesForPeriods()` builds the theoretical list of period starts via
+  the already-existing `periodStartFor()` and zero-fills any that don't
+  have a row.
+- The window is clamped to start at the earliest period that actually
+  exists for that owner, so someone who joined a few weeks ago doesn't
+  get dragged down by weeks before they'd even started. Defaults to 30
+  days / 12 weeks / 6 months back (`AVERAGES_WINDOW`), and the card's
+  column headers show the actual window size (`Daily (12d)`) whenever
+  it's been clamped shorter than that.
+
+Reuses the "Filling In For" downline picker already on this tab (the
+averages reflect `effectiveOwnerId`, the same person whose numbers you're
+viewing/editing above), and fetches independently of the existing
+`trendHistory` query — that one only loads whichever single `periodType`
+is currently selected and is capped at a handful of periods for charting,
+which isn't enough range for a fair "since you started" average across
+all three granularities at once.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)
