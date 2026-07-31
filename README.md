@@ -3363,6 +3363,14 @@ less like a chore and more like something reps actually want to open:
   check constantly are visible with zero scrolling and no longer share
   space with the roadmap at all; **Candidate Roadmap** (active-pipeline
   summary, Add Candidate, candidate list) is one tap away.
+- **Tally tab: Copy Summary.** A read-only textarea plus "Copy Summary"
+  button at the bottom of the Tally tab, same clipboard pattern as Core
+  Run Streak's Daily Update Summary — one tap copies every
+  `PIPELINE_STAGES` count (Questions through Launches) for whichever
+  period and offset is currently selected above it (Daily/Weekly/Monthly,
+  today or several back), plus the overall Questions → Launches
+  conversion, so a rep can paste their numbers into an upline text/chat
+  without retyping each stage by hand.
 - **Search now finds your actual people, not just app content.**
   `app/search/page.tsx` used to only search static content — page names,
   Scripts & FAQ, Products, Leaders. Typing a name now also runs a

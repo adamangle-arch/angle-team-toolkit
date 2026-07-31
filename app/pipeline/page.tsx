@@ -166,6 +166,7 @@ export default function PipelinePage() {
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
+  const [tallyCopied, setTallyCopied] = useState(false);
 
   const [trendStage, setTrendStage] = useState<PipelineStageKey>("questions");
   const [trendHistory, setTrendHistory] = useState<PipelinePeriod[]>([]);
@@ -542,6 +543,35 @@ export default function PipelinePage() {
   const questions = period?.questions ?? 0;
   const launches = period?.launches ?? 0;
 
+  // Copy/paste summary of whichever period (Daily/Weekly/Monthly) and
+  // offset is currently selected above - same idea as Core Run Streak's
+  // Daily Update Summary, so a rep can drop their numbers into an upline
+  // text/chat without retyping each stage count by hand.
+  const tallyPeriodLabel =
+    periodType === "daily" ? "Daily" : periodType === "weekly" ? "Weekly" : "Monthly";
+  const tallySummaryText = useMemo(() => {
+    if (!period) return "";
+    const lines: string[] = [];
+    lines.push(`📊 ${tallyPeriodLabel} Pipeline — ${periodLabelFor(periodType, period.period_start)}`);
+    lines.push("");
+    for (const stage of PIPELINE_STAGES) {
+      lines.push(`${stage.label}: ${period[stage.key] as number}`);
+    }
+    lines.push("");
+    lines.push(`Questions → Launches: ${pct(launches, questions)}`);
+    return lines.join("\n");
+  }, [period, periodType, tallyPeriodLabel, questions, launches]);
+
+  async function copyTallySummary() {
+    try {
+      await navigator.clipboard.writeText(tallySummaryText);
+      setTallyCopied(true);
+      setTimeout(() => setTallyCopied(false), 2000);
+    } catch {
+      setTallyCopied(false);
+    }
+  }
+
   // Filtered-out candidates disappear from the active roadmap once they're
   // filtered out — they only live on in the Candidate History tab.
   // Left in the order the query already returns them (newest-first,
@@ -744,6 +774,24 @@ export default function PipelinePage() {
               </div>
               <TrendChart data={chartData} />
             </div>
+
+            {period && (
+              <div className="card space-y-2">
+                <p className="section-title">Copy Summary</p>
+                <p className="text-xs text-slate-400">
+                  Copy/paste this {tallyPeriodLabel.toLowerCase()} pipeline summary — reflects
+                  whichever period is selected above ({periodLabelFor(periodType, period.period_start)}).
+                </p>
+                <textarea
+                  readOnly
+                  className="textarea min-h-[180px] font-mono text-xs"
+                  value={tallySummaryText}
+                />
+                <button className="btn-primary w-full" onClick={copyTallySummary}>
+                  {tallyCopied ? "Copied!" : "Copy Summary"}
+                </button>
+              </div>
+            )}
           </>
         )}
 
