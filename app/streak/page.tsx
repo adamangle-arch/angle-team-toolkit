@@ -633,7 +633,17 @@ export default function StreakPage() {
     for (const day of days) {
       const row = history[day];
       audioTotal += row?.listen_count ?? 0;
-      readTotal += row?.read_items.length ?? 0;
+      // read_items only has entries when a title was added via "What are
+      // you reading? -> Add" - but the streak's qualifying "read" flag
+      // (see withDerived) only requires read_amount (e.g. "20 pages") to
+      // be filled in, which plenty of people do without ever adding a
+      // title. Without this fallback, a real daily reading habit logged
+      // only as an amount averaged out to 0.0 here despite streaking
+      // every day.
+      const readCount = row
+        ? Math.max(row.read_items.length, row.read_amount.trim() !== "" ? 1 : 0)
+        : 0;
+      readTotal += readCount;
     }
     return {
       audiosPerDay: audioTotal / days.length,
@@ -878,7 +888,8 @@ export default function StreakPage() {
             </span>
           </div>
           <p className="text-xs text-slate-400">
-            Counts each individually-logged audio/reading entry, averaged across all 30 days —
+            Counts each individually-logged audio/reading entry (a day where you only logged an
+            amount, like &quot;20 pages&quot;, still counts as 1), averaged across all 30 days —
             including days with nothing logged, so this reflects real day-to-day consistency,
             not just how much you do on days you actually engage.
           </p>

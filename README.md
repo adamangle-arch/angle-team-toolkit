@@ -914,6 +914,16 @@ however people phrase it, unlike `read_items`, which is already a clean
 count from the same add-one-at-a-time list used for the badge system's
 own "5 Audios in a Day" style thresholds.
 
+**Correction:** a user who reads daily by filling in `read_amount` ("20
+pages") without ever tapping "Add" for a title saw "Things read per day"
+sit at 0.0 despite an unbroken streak — because the streak's qualifying
+`read` flag (`withDerived` in `app/streak/page.tsx`) only checks
+`read_amount`, but the average above only counted `read_items.length`,
+and plenty of people log an amount without a title. Fixed by having
+`last30Averages` count a day as at least 1 reading entry whenever
+`read_amount` is non-empty, taking the max against `read_items.length` so
+someone who does log titles still gets full credit for each one.
+
 ### Today's Mission, safer deletes, and warmer empty states
 
 A user pasted a long third-party ("ChatGPT") UX proposal aimed at making
