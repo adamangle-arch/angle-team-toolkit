@@ -924,6 +924,18 @@ and plenty of people log an amount without a title. Fixed by having
 `read_amount` is non-empty, taking the max against `read_items.length` so
 someone who does log titles still gets full credit for each one.
 
+**Second correction:** the average always divided by a fixed 30 days,
+even for someone who joined the app 8 days ago — the 22 days before they
+even started counted as zeros, dragging a perfectly consistent new
+user's average down for reasons that had nothing to do with their actual
+consistency. `last30Averages` now finds the earliest day present in the
+already-loaded `history` map (their first-ever logged Core Run day) and
+clamps the averaging window to start there instead of always 30 days
+back — someone active every day since joining 8 days ago now sees a
+window of 8, not 30. The card title and description now say "Last N
+Days" to match whichever window actually applied, so it's never
+ambiguous which one is being shown.
+
 ### Today's Mission, safer deletes, and warmer empty states
 
 A user pasted a long third-party ("ChatGPT") UX proposal aimed at making

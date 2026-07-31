@@ -623,12 +623,19 @@ export default function StreakPage() {
 
   // How much someone typically reads/listens on an average day, not just
   // whether they hit the qualifying minimum - counted the same way the
-  // Audios badges are (listen_count, read_items.length), over the fixed
-  // Last 30 Days window already shown below, so a day with nothing logged
-  // still counts as a 0 rather than being excluded and inflating the
-  // average.
+  // Audios badges are (listen_count, read_items.length), over the Last 30
+  // Days window already shown below, so a day with nothing logged still
+  // counts as a 0 rather than being excluded and inflating the average.
+  //
+  // Clamped to start no earlier than their first-ever logged day, though -
+  // someone who joined 8 days ago hasn't "missed" the 22 days before that,
+  // so counting those as zeros against a brand-new user isn't a fair
+  // reflection of their consistency since they actually started.
   const last30Averages = useMemo(() => {
-    const days = Array.from({ length: 30 }, (_, i) => addDays(today, -29 + i));
+    const windowDays = Array.from({ length: 30 }, (_, i) => addDays(today, -29 + i));
+    const loggedDays = Object.keys(history).sort();
+    const firstActivityDay = loggedDays.length > 0 ? loggedDays[0] : today;
+    const days = windowDays.filter((day) => day >= firstActivityDay);
     let audioTotal = 0;
     let readTotal = 0;
     for (const day of days) {
@@ -649,6 +656,7 @@ export default function StreakPage() {
     return {
       audiosPerDay: audioTotal / days.length,
       readItemsPerDay: readTotal / days.length,
+      windowDays: days.length,
     };
   }, [history, today]);
 
@@ -875,7 +883,10 @@ export default function StreakPage() {
         </div>
 
         <div className="card space-y-2">
-          <p className="section-title">Your Averages (Last 30 Days)</p>
+          <p className="section-title">
+            Your Averages (Last {last30Averages.windowDays}{" "}
+            Day{last30Averages.windowDays === 1 ? "" : "s"})
+          </p>
           <div className="flex items-center justify-between rounded-lg bg-navy px-3 py-2">
             <span className="text-sm text-slate-200">🎧 Audios per day</span>
             <span className="text-lg font-bold text-amber">
@@ -890,9 +901,10 @@ export default function StreakPage() {
           </div>
           <p className="text-xs text-slate-400">
             Counts each individually-logged audio/reading entry (a day where you only logged an
-            amount, like &quot;20 pages&quot;, still counts as 1), averaged across all 30 days —
-            including days with nothing logged, so this reflects real day-to-day consistency,
-            not just how much you do on days you actually engage.
+            amount, like &quot;20 pages&quot;, still counts as 1), averaged across the days since
+            you started logging Core Run (up to the last 30) — including days with nothing
+            logged, so this reflects real day-to-day consistency since you started, not just how
+            much you do on days you actually engage.
           </p>
         </div>
 
