@@ -936,6 +936,19 @@ window of 8, not 30. The card title and description now say "Last N
 Days" to match whichever window actually applied, so it's never
 ambiguous which one is being shown.
 
+**Third correction:** "Read per day" was counting how many reading
+*entries* got logged, not how much was actually read — a day with "20
+pages" and a day with "200 pages" both just counted as 1. `leadingNumber()`
+in `app/streak/page.tsx` now pulls the leading number straight out of
+`read_amount` (whatever unit someone actually writes — pages, minutes,
+chapters-as-a-number) and averages that instead, so the card reflects an
+actual amount read per day rather than a count of logging events. Text
+with no leading number (e.g. "a few chapters") can't be turned into a
+number, so it contributes 0 for that day, same as a day with nothing
+logged at all - this only works as well as people are consistent about
+starting the field with a digit, which the card's description now asks
+for directly.
+
 ### Today's Mission, safer deletes, and warmer empty states
 
 A user pasted a long third-party ("ChatGPT") UX proposal aimed at making

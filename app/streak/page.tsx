@@ -50,6 +50,16 @@ function qualifies(day: StreakDay): boolean {
   return day.read && day.listen && day.daily_update && day.story_share;
 }
 
+// read_amount is free text ("20 pages", "30 min", "a couple chapters") -
+// pulling out the leading number is the only way to get something
+// averageable out of it. Text with no leading number (can't tell how
+// much) contributes 0, same as a day with nothing logged - there's no
+// reliable way to guess an amount from "a couple chapters."
+function leadingNumber(text: string): number {
+  const match = text.trim().match(/^(\d+(\.\d+)?)/);
+  return match ? parseFloat(match[1]) : 0;
+}
+
 function addDays(dateStr: string, delta: number): string {
   const d = new Date(`${dateStr}T00:00:00`);
   d.setDate(d.getDate() + delta);
@@ -622,8 +632,10 @@ export default function StreakPage() {
   const streak = useMemo(() => computeStreakAsOf(history, today), [history, today]);
 
   // How much someone typically reads/listens on an average day, not just
-  // whether they hit the qualifying minimum - counted the same way the
-  // Audios badges are (listen_count, read_items.length), over the Last 30
+  // whether they hit the qualifying minimum - audios counted the same way
+  // the Audios badges are (listen_count), reading counted as whatever
+  // number they wrote in read_amount (pages, minutes, whatever unit
+  // someone actually uses - see leadingNumber above), over the Last 30
   // Days window already shown below, so a day with nothing logged still
   // counts as a 0 rather than being excluded and inflating the average.
   //
@@ -637,25 +649,15 @@ export default function StreakPage() {
     const firstActivityDay = loggedDays.length > 0 ? loggedDays[0] : today;
     const days = windowDays.filter((day) => day >= firstActivityDay);
     let audioTotal = 0;
-    let readTotal = 0;
+    let readAmountTotal = 0;
     for (const day of days) {
       const row = history[day];
       audioTotal += row?.listen_count ?? 0;
-      // read_items only has entries when a title was added via "What are
-      // you reading? -> Add" - but the streak's qualifying "read" flag
-      // (see withDerived) only requires read_amount (e.g. "20 pages") to
-      // be filled in, which plenty of people do without ever adding a
-      // title. Without this fallback, a real daily reading habit logged
-      // only as an amount averaged out to 0.0 here despite streaking
-      // every day.
-      const readCount = row
-        ? Math.max(row.read_items.length, row.read_amount.trim() !== "" ? 1 : 0)
-        : 0;
-      readTotal += readCount;
+      readAmountTotal += row ? leadingNumber(row.read_amount) : 0;
     }
     return {
       audiosPerDay: audioTotal / days.length,
-      readItemsPerDay: readTotal / days.length,
+      readAmountPerDay: readAmountTotal / days.length,
       windowDays: days.length,
     };
   }, [history, today]);
@@ -894,17 +896,18 @@ export default function StreakPage() {
             </span>
           </div>
           <div className="flex items-center justify-between rounded-lg bg-navy px-3 py-2">
-            <span className="text-sm text-slate-200">📖 Things read per day</span>
+            <span className="text-sm text-slate-200">📖 Read per day</span>
             <span className="text-lg font-bold text-amber">
-              {last30Averages.readItemsPerDay.toFixed(1)}
+              {last30Averages.readAmountPerDay.toFixed(1)}
             </span>
           </div>
           <p className="text-xs text-slate-400">
-            Counts each individually-logged audio/reading entry (a day where you only logged an
-            amount, like &quot;20 pages&quot;, still counts as 1), averaged across the days since
-            you started logging Core Run (up to the last 30) — including days with nothing
-            logged, so this reflects real day-to-day consistency since you started, not just how
-            much you do on days you actually engage.
+            Audios counts each one you&apos;ve added. Read pulls the number straight out of
+            &quot;How much today?&quot; — pages, minutes, whatever unit you actually use — so make
+            sure it starts with a number (&quot;20 pages&quot;, not &quot;a few chapters&quot;).
+            Both are averaged across the days since you started logging Core Run (up to the last
+            30) — including days with nothing logged, so this reflects real day-to-day
+            consistency since you started, not just how much you do on days you actually engage.
           </p>
         </div>
 
