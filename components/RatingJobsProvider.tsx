@@ -24,6 +24,7 @@ type SubmitRatingInput = {
   candidateId: string | null;
   candidateName: string;
   candidateContext: string;
+  growthContext: string;
 };
 
 type RatingJobsContextValue = {
@@ -95,6 +96,7 @@ export default function RatingJobsProvider({ children }: { children: React.React
           call_type: input.callType,
           transcript: input.transcript,
           candidate_context: input.candidateContext,
+          rep_growth_context: input.growthContext,
         }),
       });
 

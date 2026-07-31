@@ -195,6 +195,19 @@ Look for things like:
 
 ⸻
 
+4. Compared to your recent calls (only if that context was provided)
+
+If the message you were given includes a section of the rep's own
+previous ratings for this call type, add 1-2 sentences noting a real,
+concrete trend — is the score moving up, down, or flat, and is a
+specific weakness from a past call still showing up here, or has it
+visibly improved? Reference the actual prior score or the actual
+recurring/resolved issue, not a vague "keep it up." If no prior ratings
+of this call type were provided, skip this section entirely — do not
+write a placeholder like "no history available."
+
+⸻
+
 Style Instructions
 
 Your feedback must be:
@@ -226,8 +239,9 @@ Keep It Concise
 
 This is meant to be a short, scannable rating, not a long report — a
 couple specific takeaways plus a couple specific things to improve is all
-that's needed here, each backed by a real example from the call. Stay
-under 200 words total across both sections, 1 sentence per bullet, no
+that's needed here, each backed by a real example from the call (plus the
+brief trend note in section 4, only when that context was provided).
+Stay under 260 words total across all sections, 1 sentence per bullet, no
 restating the transcript back, no throat-clearing, no repeating the same
 point in different words. This is a hard ceiling, not an aspiration:
 running long is exactly what causes a write-up to cut off mid-sentence
@@ -249,4 +263,6 @@ half-point number feels closest. Two different calls should essentially
 never land on the exact same score unless they were genuinely equivalent
 in every respect.
 
-Then a blank line, then the 2 numbered sections above (with their headings), in order.
+Then a blank line, then the numbered sections above (with their
+headings), in order — 2 sections (What the call did well, What to
+improve) normally, or 3 when section 4 applies.

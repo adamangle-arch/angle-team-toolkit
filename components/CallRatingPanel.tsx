@@ -20,6 +20,12 @@ type CandidateOption = {
 const MAX_PRIOR_RATINGS = 3;
 const MAX_PRIOR_ANALYSIS_CHARS = 3000;
 
+// Same idea, but across every candidate of this call type — this is what
+// lets the model comment on the rep's own growth ("still doing X you did
+// last time" / "score is trending up") instead of judging each call in
+// total isolation.
+const MAX_GROWTH_RATINGS = 4;
+
 export default function CallRatingPanel() {
   const { user } = useAuth();
   const { jobs, submitRating } = useRatingJobs();
@@ -122,6 +128,22 @@ export default function CallRatingPanel() {
       candidateContext = `${notesPart}${priorPart}`.trim();
     }
 
+    // The rep's own last few ratings of this same call type, regardless of
+    // candidate — already sitting in `history` from this panel's initial
+    // load, so no extra query needed. Oldest-first, same ordering as the
+    // candidate-specific context above, so the write-up reads as a
+    // timeline rather than most-recent-first.
+    const growthContext = history
+      .filter((h) => h.call_type === callType)
+      .slice(0, MAX_GROWTH_RATINGS)
+      .slice()
+      .reverse()
+      .map(
+        (r) =>
+          `--- ${r.call_type} on ${new Date(r.created_at).toLocaleDateString()}, scored ${r.overall_score ?? "—"}/10 ---\n${(r.analysis || "").slice(0, MAX_PRIOR_ANALYSIS_CHARS)}`
+      )
+      .join("\n\n");
+
     // Hand the actual rating off to RatingJobsProvider (mounted at the app
     // root) and clear the form right away - the job now runs independently
     // of this panel, so there's nothing left here to wait on. It'll keep
@@ -134,6 +156,7 @@ export default function CallRatingPanel() {
       candidateId: candidate?.id ?? null,
       candidateName: finalCandidateName,
       candidateContext,
+      growthContext,
     });
     setMyJobIds((prev) => [...prev, jobId]);
     setTranscript("");

@@ -78,7 +78,12 @@ export async function POST(request: Request) {
     );
   }
 
-  let body: { call_type?: string; transcript?: string; candidate_context?: string };
+  let body: {
+    call_type?: string;
+    transcript?: string;
+    candidate_context?: string;
+    rep_growth_context?: string;
+  };
   try {
     body = await request.json();
   } catch {
@@ -112,11 +117,30 @@ export async function POST(request: Request) {
 
   // If this candidate has been rated before (or has rep notes on file), that
   // context is passed along so the model "remembers" what came up in earlier
-  // meetings with them instead of judging this call in isolation.
+  // meetings with them instead of judging this call in isolation. Separately,
+  // the rep's own last few ratings of this same call type (any candidate) let
+  // the model comment on the rep's own growth - see each rubric's "Compared
+  // to your recent calls" section, which is written to stay silent when this
+  // is empty (e.g. their first-ever rating of this call type).
   const candidateContext = body.candidate_context?.trim();
-  const userContent = candidateContext
-    ? `Context on this candidate from prior meetings and the rep's notes:\n${candidateContext}\n\n---\n\nNew call transcript to analyze:\n\n${transcript}`
-    : transcript;
+  const growthContext = body.rep_growth_context?.trim();
+
+  const contextBlocks: string[] = [];
+  if (candidateContext) {
+    contextBlocks.push(
+      `Context on this candidate from prior meetings and the rep's notes:\n${candidateContext}`
+    );
+  }
+  if (growthContext) {
+    contextBlocks.push(
+      `The rep's own previous ${callType} ratings, oldest first (use this only for the "Compared to your recent calls" section):\n${growthContext}`
+    );
+  }
+
+  const userContent =
+    contextBlocks.length > 0
+      ? `${contextBlocks.join("\n\n---\n\n")}\n\n---\n\nNew call transcript to analyze:\n\n${transcript}`
+      : transcript;
 
   let ratingPrompts: Record<CallType, string>;
   try {

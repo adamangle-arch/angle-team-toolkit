@@ -3355,6 +3355,37 @@ concrete evidence is a pattern a generation pass can actually follow,
 unlike reconstructing a percentage-weighted average from a category list
 with no arithmetic engine behind it.
 
+### Rate a Call now sees your own growth across past ratings
+
+Every rating used to be judged in total isolation — even with a repeat
+candidate's prior calls folded in (`candidateContext`, existing), there
+was nothing telling the model how *this rep* has been trending across
+different candidates over time, so "you're still doing the thing you did
+last time" or "your scores are climbing" was never something it could
+actually say.
+
+`CallRatingPanel.tsx`'s `handleRate()` now also builds a `growthContext`
+string from `history` — this panel's own already-loaded list of every
+rating this rep has ever submitted — filtered to the last `MAX_GROWTH_RATINGS`
+(4) ratings of the *same call type* (QI1, QI2, FU1, FU2, or Questionnaire),
+regardless of which candidate each one was about, oldest first. No new
+query: `history` was already sitting in state for the Your Ratings list.
+This travels alongside the existing candidate-specific context through
+`RatingJobsProvider`'s `submitRating()` to `/api/assistant/rate-call` as
+a new `rep_growth_context` field, and `route.ts` folds it into the same
+context block already used for candidate history, clearly labeled so the
+model knows it's the rep's own trend, not this candidate's.
+
+Every `lib/*-call-rating-prompt.txt` rubric gained a new, conditional 4th
+section — **Compared to your recent calls** — instructed to add 1-2
+concrete sentences (is the score trending up/down/flat, is a specific
+past weakness recurring or resolved) *only* when that context was
+actually provided, and to skip the section entirely (no "no history
+available" filler) on a rep's first-ever rating of a given call type.
+The word ceiling moved from 200 to 260 to leave room for this one
+optional addition without reopening the length/cutoff problem the
+2-section rewrite was built to avoid.
+
 ### App-wide audit: silent write failures
 
 A full pass looked for the same bug class already found and fixed in Rate
