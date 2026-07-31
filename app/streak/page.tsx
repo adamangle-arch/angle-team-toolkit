@@ -576,6 +576,27 @@ export default function StreakPage() {
 
   const streak = useMemo(() => computeStreakAsOf(history, today), [history, today]);
 
+  // How much someone typically reads/listens on an average day, not just
+  // whether they hit the qualifying minimum - counted the same way the
+  // Audios badges are (listen_count, read_items.length), over the fixed
+  // Last 30 Days window already shown below, so a day with nothing logged
+  // still counts as a 0 rather than being excluded and inflating the
+  // average.
+  const last30Averages = useMemo(() => {
+    const days = Array.from({ length: 30 }, (_, i) => addDays(today, -29 + i));
+    let audioTotal = 0;
+    let readTotal = 0;
+    for (const day of days) {
+      const row = history[day];
+      audioTotal += row?.listen_count ?? 0;
+      readTotal += row?.read_items.length ?? 0;
+    }
+    return {
+      audiosPerDay: audioTotal / days.length,
+      readItemsPerDay: readTotal / days.length,
+    };
+  }, [history, today]);
+
   const streakAsOfSelectedDay = useMemo(
     () => computeStreakAsOf(history, selectedDay),
     [history, selectedDay]
@@ -790,6 +811,27 @@ export default function StreakPage() {
               );
             })}
           </div>
+        </div>
+
+        <div className="card space-y-2">
+          <p className="section-title">Your Averages (Last 30 Days)</p>
+          <div className="flex items-center justify-between rounded-lg bg-navy px-3 py-2">
+            <span className="text-sm text-slate-200">🎧 Audios per day</span>
+            <span className="text-lg font-bold text-amber">
+              {last30Averages.audiosPerDay.toFixed(1)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between rounded-lg bg-navy px-3 py-2">
+            <span className="text-sm text-slate-200">📖 Things read per day</span>
+            <span className="text-lg font-bold text-amber">
+              {last30Averages.readItemsPerDay.toFixed(1)}
+            </span>
+          </div>
+          <p className="text-xs text-slate-400">
+            Counts each individually-logged audio/reading entry, averaged across all 30 days —
+            including days with nothing logged, so this reflects real day-to-day consistency,
+            not just how much you do on days you actually engage.
+          </p>
         </div>
 
         {selectedDay !== today && (

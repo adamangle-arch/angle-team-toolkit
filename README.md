@@ -896,6 +896,24 @@ of being separate manual toggles. This was a deliberate choice so adding
 these fields couldn't retroactively break anyone's existing streak
 history; `daily_update` stays a plain manual toggle either way.
 
+### Your Averages (Last 30 Days)
+
+A small stats card, right under the existing Last 30 Days grid, answers
+"how much do I actually average per day" for Read and Listen — 🎧 Audios
+per day and 📖 Things read per day, each an average of `listen_count` /
+`read_items.length` across the fixed 30-day window (`last30Averages` in
+`app/streak/page.tsx`), reusing the same `history` map already loaded for
+that grid rather than a new query. Deliberately divides by all 30 days,
+not just the days with something logged — a day with nothing recorded
+counts as a 0 in the average, so this reads as real day-to-day
+consistency rather than "how much do I do on days I bother to log
+something," which would flatter someone who's active 3 days a week and
+silent the rest. `read_amount`/"how much today" (free text like "20
+pages") isn't averaged — it's not a consistently parseable number across
+however people phrase it, unlike `read_items`, which is already a clean
+count from the same add-one-at-a-time list used for the badge system's
+own "5 Audios in a Day" style thresholds.
+
 ### Editing a previous day (backfilling / filing after midnight)
 
 Every field on the Core Run Streak page — Read, Listen, Daily Update,
