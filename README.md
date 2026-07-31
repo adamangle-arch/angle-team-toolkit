@@ -974,6 +974,21 @@ model, and most of Team's per-member stats view — all either already
 match the proposal or are deliberate existing product decisions, not
 oversights.
 
+### Core Run: quick-add chips for recently used titles
+
+Continuing the same audit's "smart defaults" idea for Read and Listen —
+adding an audio or a book used to always mean typing the exact same
+title again if it's a series you're partway through or a book you're
+still reading. `recentTitles` in `app/streak/page.tsx` scans the already-
+loaded `history` map (no new query), most-recent-day-first, collecting
+each list's distinct titles not already on today's entry, capped at 5
+each. Rendered as small "+ {title}" pills above each add-input; tapping
+one calls a new `quickAddAudio`/`quickAddRead` that appends straight to
+`saveAudios`/`saveReads`, same as typing it and hitting Add. No special
+case needed for "one-tap repeat of yesterday's book" specifically —
+since the list is already most-recent-first, yesterday's book (or
+audio) is simply whatever shows up first.
+
 ### Editing a previous day (backfilling / filing after midnight)
 
 Every field on the Core Run Streak page — Read, Listen, Daily Update,

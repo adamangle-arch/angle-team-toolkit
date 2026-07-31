@@ -522,6 +522,37 @@ export default function StreakPage() {
     }
   }
 
+  // Recently logged titles, most-recent-first, one per distinct title,
+  // excluding whatever's already on today's list - so re-listening to the
+  // same audio series or continuing the same book is a tap on a chip
+  // instead of retyping the exact same title. Yesterday's book naturally
+  // surfaces first here (nothing to special-case for "repeat yesterday"),
+  // since it's simply the most recent entry.
+  const recentTitles = useMemo(() => {
+    const days = Object.keys(history).sort((a, b) => b.localeCompare(a));
+    const audio: string[] = [];
+    const read: string[] = [];
+    const seenAudio = new Set(selectedRow.listen_items);
+    const seenRead = new Set(selectedRow.read_items);
+    for (const day of days) {
+      const row = history[day];
+      for (const item of row.listen_items) {
+        if (!seenAudio.has(item)) {
+          seenAudio.add(item);
+          audio.push(item);
+        }
+      }
+      for (const item of row.read_items) {
+        if (!seenRead.has(item)) {
+          seenRead.add(item);
+          read.push(item);
+        }
+      }
+      if (audio.length >= 5 && read.length >= 5) break;
+    }
+    return { audio: audio.slice(0, 5), read: read.slice(0, 5) };
+  }, [history, selectedRow.listen_items, selectedRow.read_items]);
+
   function saveReads(items: string[]) {
     saveToday({
       read_items: items,
@@ -538,6 +569,13 @@ export default function StreakPage() {
 
   function removeRead(index: number) {
     saveReads(selectedRow.read_items.filter((_, i) => i !== index));
+  }
+
+  // Tapping a "recently" chip - same effect as typing the exact same
+  // title into the input and hitting Add, just one tap instead of retyping.
+  function quickAddRead(title: string) {
+    if (selectedRow.read_items.includes(title)) return;
+    saveReads([...selectedRow.read_items, title]);
   }
 
   function saveAudios(items: string[]) {
@@ -557,6 +595,11 @@ export default function StreakPage() {
 
   function removeAudio(index: number) {
     saveAudios(selectedRow.listen_items.filter((_, i) => i !== index));
+  }
+
+  function quickAddAudio(title: string) {
+    if (selectedRow.listen_items.includes(title)) return;
+    saveAudios([...selectedRow.listen_items, title]);
   }
 
   function saveMeetings(items: string[]) {
@@ -870,6 +913,20 @@ export default function StreakPage() {
                   ))}
                 </div>
               )}
+              {recentTitles.read.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {recentTitles.read.map((title) => (
+                    <button
+                      key={title}
+                      type="button"
+                      className="pill"
+                      onClick={() => quickAddRead(title)}
+                    >
+                      + {title}
+                    </button>
+                  ))}
+                </div>
+              )}
               <div className="flex gap-2">
                 <input
                   className="input flex-1"
@@ -916,6 +973,20 @@ export default function StreakPage() {
                         ✕
                       </button>
                     </div>
+                  ))}
+                </div>
+              )}
+              {recentTitles.audio.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {recentTitles.audio.map((title) => (
+                    <button
+                      key={title}
+                      type="button"
+                      className="pill"
+                      onClick={() => quickAddAudio(title)}
+                    >
+                      + {title}
+                    </button>
                   ))}
                 </div>
               )}
