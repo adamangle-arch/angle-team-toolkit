@@ -518,6 +518,7 @@ create table if not exists streak_days (
   story_share boolean not null default false,
   read_what text not null default '',
   read_amount text not null default '',
+  read_items text[] not null default '{}'::text[],
   listen_what text not null default '',
   listen_count int not null default 0,
   listen_items text[] not null default '{}'::text[],
@@ -539,6 +540,12 @@ create table if not exists streak_days (
 -- counts with no bearing on the streak itself.
 alter table streak_days add column if not exists read_what text not null default '';
 alter table streak_days add column if not exists read_amount text not null default '';
+-- Individual "what I'm reading" entries, added/removed one at a time -
+-- same one-at-a-time pattern as listen_items below. read_what/read_amount
+-- are kept in sync (joined titles / joined amounts) purely so existing
+-- readers (get_public_profile, the daily update summary) keep working
+-- unchanged.
+alter table streak_days add column if not exists read_items text[] not null default '{}'::text[];
 alter table streak_days add column if not exists listen_what text not null default '';
 alter table streak_days add column if not exists listen_count int not null default 0;
 -- Individual audios logged for the day, added/removed one at a time in

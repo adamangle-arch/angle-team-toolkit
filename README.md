@@ -121,6 +121,10 @@ More instead — a better fit for what actually gets checked constantly
 lookup (a specific contact, a downline member's page). Same 5-tabs-plus-More
 shape, just which 5.
 
+**Label shortened since**: the Core Run Streak tab's nav label was "Run
+Streak," which wraps to two lines on the tab bar while every sibling tab
+stays on one — shortened to **Core Run** to match.
+
 ## 1. Set up Supabase
 
 1. Create a free project at [supabase.com](https://supabase.com).
@@ -861,12 +865,15 @@ through Supabase directly).
 Beyond the 4 qualifying checks (Read / Listen / Daily Update / Story
 Share), each day's Core Run Streak entry now also captures:
 
-- **Read** — what you're reading (free text) plus how much today (free
-  text, e.g. "20 pages"). A numeric Minutes Read counter (`read_minutes`
-  on `streak_days`) briefly lived here too but was removed from this
-  card — the column and its Goals metric (`READING` in
-  `GOAL_ITEMS_BY_PERIOD`) still exist, just with no UI writing to it
-  anymore.
+- **Read** — add each thing you're reading today one at a time (type a
+  title, hit Add or Enter), with a ✕ to remove any of them, same pattern
+  as Listen — plus a separate "how much today" free-text field (e.g.
+  "20 pages"). `read_what` is still derived from the list (joined
+  titles) so nothing downstream (public profile, Daily Update summary)
+  needed to change. A numeric Minutes Read counter (`read_minutes` on
+  `streak_days`) briefly lived here too but was removed from this card —
+  the column and its Goals metric (`READING` in `GOAL_ITEMS_BY_PERIOD`)
+  still exist, just with no UI writing to it anymore.
 - **Listen** — add each audio you listened to today one at a time (type
   a name, hit Add or Enter), with a ✕ to remove any of them — instead of
   cramming them all into one text field. `listen_what`/`listen_count`
@@ -2533,6 +2540,15 @@ existing way to know someone actually read something).
   Library Legend (75 lifetime books) — all reuse metrics `get_badge_metrics`
   already computed for earlier tiers, so no schema changes were needed
   for this last batch.
+- **Fixed: logging enough audios for "5 Audios in a Day" on the Core Run
+  Streak page didn't award it right away.** `checkAndAwardBadges` only
+  ran on Today's and Badges' own mount — the Core Run Streak page's
+  `saveToday` (used by every Read/Listen/Meetings add, and every
+  counter change) never called it, so a badge earned there sat
+  un-awarded until something else happened to trigger the next Today or
+  Badges page load. `saveToday` now fires `checkAndAwardBadges(ownerId)`
+  right after every successful save, same as `logBook`/`logActivity` on
+  the Badges tab already did for their own actions.
 
 ### Tapping a badge shows its description
 

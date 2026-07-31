@@ -2,11 +2,12 @@ import { supabase } from "@/lib/supabaseClient";
 import { BADGE_DEFINITIONS, isBadgeEarned } from "@/lib/badges";
 import type { BadgeMetrics, UserBadge } from "@/lib/types";
 
-// Called opportunistically (Today dashboard load, Badges tab load) -
-// not from every single save action across the app, since almost
-// every metric a badge checks is "longest/max ever" rather than
-// "just now," so it doesn't need to fire the instant a number changes
-// to still feel prompt. ownerId is the same household-owner id used
+// Called opportunistically (Today dashboard load, Badges tab load, the
+// Badges tab's own log actions, and every Core Run Streak save) rather
+// than gated behind some central scheduler - it's cheap and fully
+// idempotent (existing badges are always excluded before inserting), so
+// calling it "too often" just means a newly-crossed threshold shows up
+// sooner. ownerId is the same household-owner id used
 // everywhere else (Pipeline Tracker, Volume, Core Run Streak) - an
 // upline filling in a downline's numbers still awards the badge (and
 // notification) to that downline's own ownerId, never the upline.

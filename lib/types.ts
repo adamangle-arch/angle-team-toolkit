@@ -342,6 +342,7 @@ export type StreakDay = {
   story_share: boolean;
   read_what: string;
   read_amount: string;
+  read_items: string[];
   listen_what: string;
   listen_count: number;
   listen_items: string[];

@@ -13,7 +13,7 @@ const NAV_ITEMS = [
   { href: "/dashboard", label: "Today", icon: "🏠" },
   { href: "/pipeline", label: "Pipeline", icon: "📊" },
   { href: "/calendar", label: "Calendar", icon: "📅" },
-  { href: "/streak", label: "Run Streak", icon: "🔥" },
+  { href: "/streak", label: "Core Run", icon: "🔥" },
   { href: "/leaderboard", label: "Leaderboard", icon: "🏆" },
 ];
 

@@ -14,6 +14,7 @@ import {
   type PipelineStageKey,
 } from "@/lib/constants";
 import { fireNotifyEvent } from "@/lib/notifyClient";
+import { checkAndAwardBadges } from "@/lib/badgeEngine";
 import type { StreakDay, PipelinePeriod, MonthlyPv, Candidate, Profile } from "@/lib/types";
 
 // LTD Messaging's App Store listing. There's no public custom URL scheme
@@ -79,6 +80,7 @@ function computeStreakAsOf(history: Record<string, StreakDay>, day: string): num
 function normalizeRow(row: StreakDay): StreakDay {
   return {
     ...row,
+    read_items: row.read_items ?? [],
     listen_items: row.listen_items ?? [],
     meeting_items: row.meeting_items ?? [],
     read_minutes: row.read_minutes ?? 0,
@@ -97,6 +99,7 @@ function emptyDay(userId: string, day: string): StreakDay {
     story_share: false,
     read_what: "",
     read_amount: "",
+    read_items: [],
     listen_what: "",
     listen_count: 0,
     listen_items: [],
@@ -211,8 +214,8 @@ export default function StreakPage() {
   // ended, without disturbing any other day's entries.
   const [selectedDay, setSelectedDay] = useState(today);
 
-  const [readWhat, setReadWhat] = useState("");
   const [readAmount, setReadAmount] = useState("");
+  const [newRead, setNewRead] = useState("");
   const [newAudio, setNewAudio] = useState("");
   const [newMeeting, setNewMeeting] = useState("");
 
@@ -359,8 +362,8 @@ export default function StreakPage() {
   const [syncedKey, setSyncedKey] = useState(rowSyncKey);
   if (syncedKey !== rowSyncKey) {
     setSyncedKey(rowSyncKey);
-    setReadWhat(selectedRow.read_what);
     setReadAmount(selectedRow.read_amount);
+    setNewRead("");
     setNewAudio("");
     setNewMeeting("");
   }
@@ -468,6 +471,7 @@ export default function StreakPage() {
           story_share: merged.story_share,
           read_what: merged.read_what,
           read_amount: merged.read_amount,
+          read_items: merged.read_items,
           read_minutes: merged.read_minutes,
           listen_what: merged.listen_what,
           listen_count: merged.listen_count,
@@ -491,6 +495,10 @@ export default function StreakPage() {
     } else if (data) {
       setSaveError(null);
       setHistory((prev) => ({ ...prev, [selectedDay]: normalizeRow(data as StreakDay) }));
+      // Evaluate right away instead of waiting for the next Dashboard/Badges
+      // mount - otherwise a badge earned here (e.g. 5 Audios in a Day) sits
+      // un-awarded until something else happens to trigger a re-check.
+      checkAndAwardBadges(ownerId);
     }
   }
 
@@ -512,6 +520,24 @@ export default function StreakPage() {
         p_delta: delta,
       });
     }
+  }
+
+  function saveReads(items: string[]) {
+    saveToday({
+      read_items: items,
+      read_what: items.join(", "),
+    });
+  }
+
+  function addRead() {
+    const trimmed = newRead.trim();
+    if (!trimmed) return;
+    saveReads([...selectedRow.read_items, trimmed]);
+    setNewRead("");
+  }
+
+  function removeRead(index: number) {
+    saveReads(selectedRow.read_items.filter((_, i) => i !== index));
   }
 
   function saveAudios(items: string[]) {
@@ -783,15 +809,42 @@ export default function StreakPage() {
           <>
             <div className="card space-y-2">
               <p className="section-title">📖 Read</p>
-              <input
-                className="input"
-                placeholder="What are you reading?"
-                value={readWhat}
-                onChange={(e) => setReadWhat(e.target.value)}
-                onBlur={() => {
-                  if (readWhat !== selectedRow.read_what) saveToday({ read_what: readWhat });
-                }}
-              />
+              {selectedRow.read_items.length > 0 && (
+                <div className="space-y-1.5">
+                  {selectedRow.read_items.map((item, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center justify-between rounded-lg bg-navy px-2 py-1.5"
+                    >
+                      <span className="text-sm text-white">{item}</span>
+                      <button
+                        className="btn-icon !h-6 !w-6 text-xs"
+                        onClick={() => removeRead(i)}
+                        aria-label={`Remove ${item}`}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-2">
+                <input
+                  className="input flex-1"
+                  placeholder="What are you reading?"
+                  value={newRead}
+                  onChange={(e) => setNewRead(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addRead();
+                    }
+                  }}
+                />
+                <button className="btn-primary shrink-0 px-4" onClick={addRead}>
+                  Add
+                </button>
+              </div>
               <input
                 className="input"
                 placeholder="How much today? (e.g. 20 pages)"
