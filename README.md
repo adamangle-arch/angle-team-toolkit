@@ -389,11 +389,17 @@ A roster of 20+ active candidates used to mean scrolling past everyone's
 full notes and buttons to find one name — now it's 20 one-line rows,
 expand only the one you're actually working on.
 
-A horizontally-scrolling row of pills above the active list — All, then
-each of the 9 roadmap steps by name ("1. Yes", "2. QI1", …) — narrows it
-down to one step, so finding everyone stuck at a specific point in the
-process doesn't mean scrolling past everyone else. It only shows up once
-there's at least one active candidate.
+A step filter above the active list — All Steps, then each of the 9
+roadmap steps by name ("1. Yes", "2. QI1", …) — narrows it down to one
+step, so finding everyone stuck at a specific point in the process
+doesn't mean scrolling past everyone else. It only shows up once there's
+at least one active candidate. This was originally a horizontally-scrolling
+row of pills, one per step; on a phone screen most of those 10 options sat
+off-screen to the right with no visual hint there was more to scroll to,
+which just looked like clutter rather than a usable filter. It's now a
+single `<select>` dropdown (`roadmapStepFilter` state is unchanged) —
+same 10 options, one tap to see and pick from all of them instead of
+scrolling to find the one you want.
 
 Marking a candidate "Filtered Out" removes them from the active roadmap
 board immediately — they're not deleted from the database, just hidden

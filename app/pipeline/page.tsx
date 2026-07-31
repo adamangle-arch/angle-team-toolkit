@@ -779,27 +779,20 @@ export default function PipelinePage() {
               </div>
 
               {active.length > 0 && (
-                <div className="no-scrollbar flex gap-1.5 overflow-x-auto pb-1">
-                  <button
-                    className={
-                      roadmapStepFilter === "all" ? "toggle-pill-active shrink-0" : "toggle-pill-inactive shrink-0"
-                    }
-                    onClick={() => setRoadmapStepFilter("all")}
-                  >
-                    All
-                  </button>
+                <select
+                  className="input"
+                  value={roadmapStepFilter === "all" ? "all" : String(roadmapStepFilter)}
+                  onChange={(e) =>
+                    setRoadmapStepFilter(e.target.value === "all" ? "all" : Number(e.target.value))
+                  }
+                >
+                  <option value="all">All Steps</option>
                   {CANDIDATE_STEPS.map((step, i) => (
-                    <button
-                      key={i}
-                      className={
-                        roadmapStepFilter === i ? "toggle-pill-active shrink-0" : "toggle-pill-inactive shrink-0"
-                      }
-                      onClick={() => setRoadmapStepFilter(i)}
-                    >
+                    <option key={i} value={i}>
                       {i + 1}. {step.label}
-                    </button>
+                    </option>
                   ))}
-                </div>
+                </select>
               )}
 
               {loadingCandidates ? (
