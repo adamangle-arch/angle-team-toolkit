@@ -164,15 +164,16 @@ export async function POST(request: Request) {
     ): Promise<{ analysis: string; stopReason: string | null; truncated: boolean; connected: boolean }> {
       const stream = anthropic.messages.stream({
         model: "claude-sonnet-5",
-        // The rubrics now ask for a hard 500-word ceiling (see "Keep It
-        // Concise" in each lib/*-call-rating-prompt.txt) specifically so
-        // generation reliably finishes inside this route's fixed time
-        // budget - this Hobby-plan Vercel project can't raise maxDuration
-        // past 60s, so making the model say less, faster is the only real
-        // lever. 4000 is generous headroom above that target - if a call
-        // still manages to overrun it, the truncated check below (stop_reason
-        // === "max_tokens") catches it instead of returning a silently
-        // incomplete write-up.
+        // The rubrics now ask for just 2 short sections (what went well,
+        // what to improve) under a hard 200-word ceiling (see "Keep It
+        // Concise" in each lib/*-call-rating-prompt.txt) - a couple
+        // specific, example-backed takeaways is all a rep actually wants,
+        // and it reliably finishes in a fraction of this route's fixed
+        // time budget (this Hobby-plan Vercel project can't raise
+        // maxDuration past 60s). 4000 is enormous headroom above that
+        // target - if a call still somehow overruns it, the truncated
+        // check below (stop_reason === "max_tokens") catches it instead of
+        // returning a silently incomplete write-up.
         max_tokens: 4000,
         system: [
           {

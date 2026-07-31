@@ -151,7 +151,9 @@ of minor, specific critiques.
 
 2. What the call did well
 
-Identify strengths such as:
+2-3 specific, evidence-based takeaways — cite an actual moment or line
+from the transcript for each one, not just a generic label. Draw from
+things like:
 	•	rapport and trust continuity from QI1/QI2/Webinar
 	•	clarity in confirming what the candidate absorbed from the Webinar/audios
 	•	specificity of the commitments actually obtained
@@ -161,9 +163,11 @@ Identify strengths such as:
 
 ⸻
 
-3. What weakened the call
+3. What to improve
 
-Be honest and specific.
+2-3 specific, actionable things to sharpen next time — each one tied to
+an actual moment in the transcript, with a concrete suggestion for what
+to do differently, not just a label for what went wrong.
 
 Calibration note: some explanation is still fine here — reinforcing or
 clarifying webinar/audio content is a normal part of FU1. But this call
@@ -180,68 +184,6 @@ Look for things like:
 	•	weak follow-up questions
 	•	poor pacing or unclear transitions
 	•	energy drops
-
-⸻
-
-4. Candidate scorecard
-
-Score the candidate (0–10) on:
-	•	follow-through on anything committed to since QI1/QI2
-	•	clarity and specificity of new commitments made
-	•	genuine enthusiasm vs polite compliance
-	•	coachability
-	•	discipline / standards
-	•	emotional maturity
-	•	independent thinking
-	•	likely retention
-	•	builder potential
-
-⸻
-
-5. What the call actually revealed about the candidate
-
-Separate:
-
-Clear strengths
-
-Still unproven
-
-Potential yellow flags
-
-Do not overrate someone simply because they were pleasant or agreeable.
-
-⸻
-
-6. Distinguish between
-	•	genuine commitment
-	•	social agreeableness
-	•	compliance
-	•	real conviction vs borrowed enthusiasm from the Webinar
-
-⸻
-
-7. Biggest thing the call failed to uncover
-
-Identify the single most important insight about the candidate's real level of commitment that the call didn't reveal but should have.
-
-⸻
-
-8. Better follow-up questions
-
-Based on the transcript, suggest 5 sharper follow-up questions that would have improved the diagnostic quality of the call.
-
-⸻
-
-9. Final blunt verdict
-
-Give a clear practical verdict such as:
-	•	strong, specific commitments — worth progressing
-	•	worth progressing but commitments are still vague
-	•	engaged but not yet converting understanding into real commitment
-	•	polite compliance more than genuine buy-in — needs pressure testing
-	•	high potential but needs sharper commitment extraction next time
-
-Keep this concise and direct.
 
 ⸻
 
@@ -274,17 +216,15 @@ output.
 
 Keep It Concise
 
-This has to finish generating within a strict time limit, so write tight,
-not exhaustive. Stay under 500 words total across all 9 sections plus the
-scorecard — this is a hard ceiling, not an aspiration, since going over it
-gets the write-up cut off mid-sentence with no way to see the rest. 1-2
-sentences per bullet, no restating the transcript back, no
-throat-clearing or repeating the same point in different words. Say the
-sharp, specific thing once and move on. For the candidate scorecard, give
-each dimension a single line — a number plus a half-sentence of
-justification, not a paragraph. Concise means economical with words, not
-shallow or generic — every section still needs real, evidence-based
-content, just delivered efficiently.
+This is meant to be a short, scannable rating, not a long report — a
+couple specific takeaways plus a couple specific things to improve is all
+that's needed here, each backed by a real example from the call. Stay
+under 200 words total across both sections, 1 sentence per bullet, no
+restating the transcript back, no throat-clearing, no repeating the same
+point in different words. This is a hard ceiling, not an aspiration:
+running long is exactly what causes a write-up to cut off mid-sentence
+before finishing, and a short, complete rating is always better than a
+longer one that doesn't finish.
 
 ⸻
 
@@ -301,4 +241,4 @@ half-point number feels closest. Two different calls should essentially
 never land on the exact same score unless they were genuinely equivalent
 in every respect.
 
-Then a blank line, then the full write-up using the 9 numbered sections above (with their headings) in order.
+Then a blank line, then the 2 numbered sections above (with their headings), in order.

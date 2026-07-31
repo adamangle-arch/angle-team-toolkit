@@ -3225,11 +3225,12 @@ produce that was ever detected. `attempt()` now marks `truncated` whenever
 `stop_reason === "max_tokens"` too, so a cutoff from either cause gets the
 same honest note instead of silently reading as a finished analysis.
 
-The more durable fix is making the cutoff far less likely in the first
-place: every `lib/*-call-rating-prompt.txt`'s "Keep It Concise" section
-tightened its word budget from a 700-900 word *target* down to a 500 word
-*hard ceiling* (explicitly framed as non-negotiable, since going over it
-is what gets a write-up cut off with nothing to show for the rest), with
+The more durable fix (superseded by the much bigger simplification
+below) was making the cutoff far less likely in the first place: every
+`lib/*-call-rating-prompt.txt`'s "Keep It Concise" section tightened its
+word budget from a 700-900 word *target* down to a 500 word *hard
+ceiling* (explicitly framed as non-negotiable, since going over it is
+what gets a write-up cut off with nothing to show for the rest), with
 the candidate scorecard specifically told to fit one line per dimension
 instead of a paragraph each.
 
@@ -3248,6 +3249,31 @@ defaulting to a whole or half-point number. Every place a score displays
 `app/team/page.tsx`'s upline view) now formats it with `.toFixed(1)` so a
 call that does land on a clean whole number still shows consistently
 (e.g. "8.0/10") next to one that shows "7.2/10".
+
+### It cut off again — the real fix was making the rubric much shorter, not just detecting the cutoff
+
+The fix above (catching `stop_reason === "max_tokens"`, tightening to a
+500-word ceiling) reduced how often a write-up ran long, but a
+9-section-plus-10-dimension-scorecard analysis was still enough content
+that it could still happen — and did, again, on the very next long call.
+Told directly that a couple of specific, example-backed takeaways is all
+that's actually wanted (not the full scorecard/verdict/follow-up-question
+treatment), every `lib/*-call-rating-prompt.txt` rubric was cut from 9
+sections down to 3: **Overall score**, **What the call did well** (2-3
+specific takeaways, each citing an actual moment from the transcript),
+and **What to improve** (2-3 specific, actionable suggestions, same
+evidence-based bar). The candidate scorecard, "genuine vs performed"
+breakdown, "biggest missed insight," 5 suggested follow-up questions, and
+"final blunt verdict" sections are gone entirely — that depth wasn't
+what was being asked for, it was just the thing most likely to run the
+write-up past its budget. "Keep It Concise" now caps the whole reply at
+200 words (down from 500), explicitly stated as a hard ceiling that
+exists so the write-up always finishes, never something to trade away
+for extra depth. At this length a rating is nowhere near either the
+token cap or the wall-clock deadline, so both existing safety nets
+(the `stop_reason === "max_tokens"` check, the soft deadline's own "cut
+short" note) stay in place as defense-in-depth but should now be
+essentially unreachable in practice.
 
 ### App-wide audit: silent write failures
 
