@@ -195,12 +195,17 @@ export default function GoalsPage() {
 
   useEffect(() => {
     async function load() {
-      const since = getDateOffset(CORE_RUN_WINDOW - 1);
+      // Today is never counted (see coreRunAverages below), so this needs
+      // to reach one day further back to still cover CORE_RUN_WINDOW
+      // completed days.
+      const since = getDateOffset(CORE_RUN_WINDOW);
+      const today = getDateOffset(0);
       const { data } = await supabase
         .from("streak_days")
         .select("day,read_amount,listen_count")
         .eq("user_id", user.id)
-        .gte("day", since);
+        .gte("day", since)
+        .lt("day", today);
       setStreakAvgRows((data as Pick<StreakDay, "day" | "read_amount" | "listen_count">[]) ?? []);
     }
     load();
@@ -208,9 +213,13 @@ export default function GoalsPage() {
 
   useEffect(() => {
     async function load() {
-      const dailyStart = periodStartFor("daily", AVERAGES_WINDOW.daily - 1);
-      const weeklyStart = periodStartFor("weekly", AVERAGES_WINDOW.weekly - 1);
-      const monthlyStart = periodStartFor("monthly", AVERAGES_WINDOW.monthly - 1);
+      // +1 further back than each window size - the current (in-progress)
+      // period is never counted (see averagesForPeriods), so this still
+      // needs to reach far enough back for a full window of *completed*
+      // periods.
+      const dailyStart = periodStartFor("daily", AVERAGES_WINDOW.daily);
+      const weeklyStart = periodStartFor("weekly", AVERAGES_WINDOW.weekly);
+      const monthlyStart = periodStartFor("monthly", AVERAGES_WINDOW.monthly);
       const [{ data: d }, { data: w }, { data: m }] = await Promise.all([
         supabase
           .from("pipeline_periods")
@@ -240,22 +249,27 @@ export default function GoalsPage() {
 
   useEffect(() => {
     async function load() {
-      const since = getMonthStartOffset(VOLUME_WINDOW - 1);
+      const since = getMonthStartOffset(VOLUME_WINDOW);
+      const thisMonth = getMonthStart();
       const { data } = await supabase
         .from("monthly_pv")
         .select("*")
         .eq("user_id", ownerId)
-        .gte("period_start", since);
+        .gte("period_start", since)
+        .lt("period_start", thisMonth);
       setVolumeRows((data as MonthlyPv[]) ?? []);
     }
     load();
   }, [ownerId]);
 
+  // Today isn't counted, on top of the usual fairness clamp - a day
+  // that isn't over yet will always look emptier than a finished one
+  // purely because there's still time left to log something in it.
   const coreRunAverages = useMemo(() => {
     const byDay = new Map(streakAvgRows.map((r) => [r.day, r]));
-    const firstDay = streakAvgRows.map((r) => r.day).sort()[0] ?? getDateOffset(0);
+    const firstDay = streakAvgRows.map((r) => r.day).sort()[0] ?? getDateOffset(1);
     const days = Array.from({ length: CORE_RUN_WINDOW }, (_, i) =>
-      getDateOffset(CORE_RUN_WINDOW - 1 - i)
+      getDateOffset(CORE_RUN_WINDOW - i)
     ).filter((d) => d >= firstDay);
 
     let audioTotal = 0;
@@ -282,11 +296,12 @@ export default function GoalsPage() {
     [monthlyPipelineRows]
   );
 
+  // This month isn't counted either, same reasoning - it isn't over yet.
   const volumeAverages = useMemo(() => {
     const byMonth = new Map(volumeRows.map((r) => [r.period_start, r]));
-    const firstStart = volumeRows.map((r) => r.period_start).sort()[0] ?? getMonthStart();
+    const firstStart = volumeRows.map((r) => r.period_start).sort()[0] ?? getMonthStartOffset(1);
     const months = Array.from({ length: VOLUME_WINDOW }, (_, i) =>
-      getMonthStartOffset(VOLUME_WINDOW - 1 - i)
+      getMonthStartOffset(VOLUME_WINDOW - i)
     ).filter((s) => s >= firstStart);
 
     let pvTotal = 0;
@@ -367,7 +382,9 @@ export default function GoalsPage() {
           <p className="text-xs text-slate-400">
             The same averages already shown on Core Run, the Pipeline Tracker, and Volume — pulled
             together here so you can see how you&apos;re actually pacing right next to the goals
-            below.
+            below. None of these count the current, still-in-progress day/week/month — only
+            completed ones, since a period that isn&apos;t over yet isn&apos;t a fair comparison to
+            a finished one.
           </p>
           <div className="flex items-center justify-between rounded-lg bg-navy px-3 py-2">
             <span className="text-sm text-slate-200">🎧 Audios per day</span>

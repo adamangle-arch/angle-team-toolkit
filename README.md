@@ -3905,6 +3905,38 @@ than extracted, since each is a small, self-contained handful of lines
 tied to its own table shape, not shared business logic the way the
 period-clamping rule is.
 
+### The current day/week/month never counts toward its own average
+
+All of the averages above (Core Run, Pipeline, Volume, and their
+recap on Goals) had a second fairness gap on top of the "clamp to when
+you started" one: they included the current, still-in-progress
+day/week/month right alongside fully completed ones. A day that's only
+half over will always look emptier than a finished day purely because
+there's still time left in it to log something — averaging it in made
+someone's own pace look artificially worse than it actually is, not
+better.
+
+Every one of these averages now excludes the current period entirely:
+
+- `lib/periodAverages.ts`'s `averagesForPeriods()` (shared by Pipeline
+  and Goals) filters the current period's row out before summing, and
+  generates its theoretical period list from offsets `windowSize` down
+  to `1` — never `0`, which is the in-progress period. The fetch queries
+  in both pages were widened by one more period back so a full window of
+  *completed* periods is still available after the exclusion.
+- Core Run's `last30Averages` (`app/streak/page.tsx`) and its recap on
+  Goals shift their 30-day window to end at yesterday instead of today.
+- Volume's `monthlyAverages` (`app/volume/page.tsx`) no longer merges in
+  the current month's live (unsaved) PV/Ditto input at all — a dedicated
+  `avgMonthlyRows` fetch with an explicit `.lt("period_start", periodStart)`
+  bound replaces the old current-month merge, decoupled from `history`
+  (which stays as-is for Recent Months/the trend charts). The Goals page
+  recap got the equivalent `.lt()` bound on its own `monthly_pv` fetch.
+
+Card copy on all four pages now says "completed" days/weeks/months and
+notes that the current one isn't counted yet, so it's never ambiguous
+why today's or this week's activity doesn't show up in its own average.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

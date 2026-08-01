@@ -28,16 +28,25 @@ export const AVERAGE_METRICS: { key: "questions" | "yeses" | "qi1"; label: strin
 // period that actually exists - someone who joined 3 weeks ago hasn't
 // "missed" the 9 weeks before that. Shared by the Pipeline Tracker's
 // Tally tab and the Goals page, so both show the exact same numbers.
+//
+// The current (still in-progress) period is never counted, on top of
+// that - a day/week/month that isn't over yet will always look lower
+// than a completed one purely because it hasn't finished, so including
+// it would make someone's own pace look artificially worse than it is.
+// Offsets run from windowSize back through 1 (never 0, which is the
+// current period), so the window is windowSize *completed* periods.
 export function averagesForPeriods(
   periodType: PeriodType,
   rows: PipelinePeriod[],
   windowSize: number
 ): { questions: number; yeses: number; qi1: number; windowCount: number } {
-  const byStart = new Map(rows.map((r) => [r.period_start, r]));
-  const existingStarts = rows.map((r) => r.period_start).sort();
-  const firstStart = existingStarts.length > 0 ? existingStarts[0] : periodStartFor(periodType, 0);
+  const currentStart = periodStartFor(periodType, 0);
+  const completedRows = rows.filter((r) => r.period_start !== currentStart);
+  const byStart = new Map(completedRows.map((r) => [r.period_start, r]));
+  const existingStarts = completedRows.map((r) => r.period_start).sort();
+  const firstStart = existingStarts.length > 0 ? existingStarts[0] : periodStartFor(periodType, 1);
   const theoretical = Array.from({ length: windowSize }, (_, i) =>
-    periodStartFor(periodType, windowSize - 1 - i)
+    periodStartFor(periodType, windowSize - i)
   ).filter((s) => s >= firstStart);
 
   const sums = { questions: 0, yeses: 0, qi1: 0 };

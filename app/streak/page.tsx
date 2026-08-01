@@ -643,10 +643,15 @@ export default function StreakPage() {
   // someone who joined 8 days ago hasn't "missed" the 22 days before that,
   // so counting those as zeros against a brand-new user isn't a fair
   // reflection of their consistency since they actually started.
+  //
+  // Today itself is never included, on top of that - a day that isn't
+  // over yet will always look emptier than a finished one purely because
+  // there's still time left to log something, so counting it would make
+  // today's average look artificially worse than a fair comparison.
   const last30Averages = useMemo(() => {
-    const windowDays = Array.from({ length: 30 }, (_, i) => addDays(today, -29 + i));
-    const loggedDays = Object.keys(history).sort();
-    const firstActivityDay = loggedDays.length > 0 ? loggedDays[0] : today;
+    const windowDays = Array.from({ length: 30 }, (_, i) => addDays(today, -30 + i));
+    const loggedDays = Object.keys(history).filter((d) => d !== today).sort();
+    const firstActivityDay = loggedDays.length > 0 ? loggedDays[0] : addDays(today, -1);
     const days = windowDays.filter((day) => day >= firstActivityDay);
     let audioTotal = 0;
     let readAmountTotal = 0;
@@ -905,9 +910,11 @@ export default function StreakPage() {
             Audios counts each one you&apos;ve added. Read pulls the number straight out of
             &quot;How much today?&quot; — pages, minutes, whatever unit you actually use — so make
             sure it starts with a number (&quot;20 pages&quot;, not &quot;a few chapters&quot;).
-            Both are averaged across the days since you started logging Core Run (up to the last
-            30) — including days with nothing logged, so this reflects real day-to-day
+            Both are averaged across the completed days since you started logging Core Run (up to
+            the last 30) — including days with nothing logged, so this reflects real day-to-day
             consistency since you started, not just how much you do on days you actually engage.
+            Today itself isn&apos;t counted yet — it isn&apos;t over, so it can&apos;t be compared
+            fairly to a finished day.
           </p>
         </div>
 

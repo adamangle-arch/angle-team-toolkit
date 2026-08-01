@@ -359,9 +359,13 @@ export default function PipelinePage() {
     let cancelled = false;
 
     async function load() {
-      const dailyStart = periodStartFor("daily", AVERAGES_WINDOW.daily - 1);
-      const weeklyStart = periodStartFor("weekly", AVERAGES_WINDOW.weekly - 1);
-      const monthlyStart = periodStartFor("monthly", AVERAGES_WINDOW.monthly - 1);
+      // +1 further back than the window size - the current (in-progress)
+      // period is fetched too but never counted (see averagesForPeriods),
+      // so this still needs to reach back far enough for windowSize
+      // *completed* periods.
+      const dailyStart = periodStartFor("daily", AVERAGES_WINDOW.daily);
+      const weeklyStart = periodStartFor("weekly", AVERAGES_WINDOW.weekly);
+      const monthlyStart = periodStartFor("monthly", AVERAGES_WINDOW.monthly);
       const [{ data: dailyRows }, { data: weeklyRows }, { data: monthlyRows }] = await Promise.all([
         supabase
           .from("pipeline_periods")
@@ -876,11 +880,13 @@ export default function PipelinePage() {
                 </table>
               </div>
               <p className="text-xs text-slate-400">
-                Averaged across the days/weeks/months since you started logging (up to{" "}
+                Averaged across the completed days/weeks/months since you started logging (up to{" "}
                 {AVERAGES_WINDOW.daily} days, {AVERAGES_WINDOW.weekly} weeks, or{" "}
                 {AVERAGES_WINDOW.monthly} months back) — a period with nothing logged still counts
                 as a 0, so this reflects real consistency since you started, not just how much you
-                do on periods you actually engage.
+                do on periods you actually engage. The current, still-in-progress day/week/month
+                is never included — it hasn&apos;t finished yet, so it isn&apos;t a fair comparison
+                to a completed one.
               </p>
             </div>
 
