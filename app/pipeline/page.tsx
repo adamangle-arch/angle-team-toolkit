@@ -21,8 +21,6 @@ import {
 } from "@/lib/constants";
 import {
   getMonthStartOffset,
-  getWeekStartOffset,
-  getDateOffset,
   isoDaysAgo,
   formatDateLabel,
   formatMonthLabel,
@@ -33,6 +31,13 @@ import {
   formatWebinarTime,
 } from "@/lib/dates";
 import { fireNotifyEvent } from "@/lib/notifyClient";
+import {
+  periodStartFor,
+  averagesForPeriods,
+  AVERAGES_WINDOW,
+  AVERAGE_METRICS,
+  type PeriodType,
+} from "@/lib/periodAverages";
 import type {
   PipelinePeriod,
   Candidate,
@@ -42,61 +47,12 @@ import type {
   Profile,
 } from "@/lib/types";
 
-type PeriodType = "daily" | "weekly" | "monthly";
-
 type DownlineOption = { id: string; ownerId: string; name: string; accountNumber: string | null };
-
-// offset = 0 is the current day/week/month, 1 is one back, etc. - mirrors
-// the same back-navigation already on the Team tab's Teams view and the
-// Leaderboard's monthly nav.
-function periodStartFor(periodType: PeriodType, offset: number): string {
-  if (periodType === "daily") return getDateOffset(offset);
-  if (periodType === "weekly") return getWeekStartOffset(offset);
-  return getMonthStartOffset(offset);
-}
 
 function periodLabelFor(periodType: PeriodType, periodStart: string): string {
   if (periodType === "daily") return formatDateLabel(periodStart);
   if (periodType === "weekly") return formatWeekRangeLabel(periodStart);
   return formatMonthLabel(periodStart);
-}
-
-// How many periods back each average window looks - 30 days ~ a month,
-// 12 weeks ~ a quarter, 6 months ~ half a year.
-const AVERAGES_WINDOW: Record<PeriodType, number> = { daily: 30, weekly: 12, monthly: 6 };
-
-const AVERAGE_METRICS: { key: "questions" | "yeses" | "qi1"; label: string }[] = [
-  { key: "questions", label: "Questions" },
-  { key: "yeses", label: "Yeses" },
-  { key: "qi1", label: "QI1s" },
-];
-
-// Same fairness principle as Core Run's averages: a day/week/month with
-// no row still counts as a 0 (real consistency, not just "how much on
-// days you engage"), but the window is clamped to start at the earliest
-// period that actually exists - someone who joined 3 weeks ago hasn't
-// "missed" the 9 weeks before that.
-function averagesForPeriods(
-  periodType: PeriodType,
-  rows: PipelinePeriod[],
-  windowSize: number
-): { questions: number; yeses: number; qi1: number; windowCount: number } {
-  const byStart = new Map(rows.map((r) => [r.period_start, r]));
-  const existingStarts = rows.map((r) => r.period_start).sort();
-  const firstStart = existingStarts.length > 0 ? existingStarts[0] : periodStartFor(periodType, 0);
-  const theoretical = Array.from({ length: windowSize }, (_, i) =>
-    periodStartFor(periodType, windowSize - 1 - i)
-  ).filter((s) => s >= firstStart);
-
-  const sums = { questions: 0, yeses: 0, qi1: 0 };
-  for (const start of theoretical) {
-    const row = byStart.get(start);
-    sums.questions += row?.questions ?? 0;
-    sums.yeses += row?.yeses ?? 0;
-    sums.qi1 += row?.qi1 ?? 0;
-  }
-  const n = theoretical.length || 1;
-  return { questions: sums.questions / n, yeses: sums.yeses / n, qi1: sums.qi1 / n, windowCount: theoretical.length };
 }
 
 function pct(numerator: number, denominator: number): string {

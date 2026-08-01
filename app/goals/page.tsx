@@ -1,19 +1,32 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
 import FeatureGate from "@/components/FeatureGate";
 import { SkeletonList } from "@/components/Skeleton";
 import { supabase } from "@/lib/supabaseClient";
-import { getWeekStart, getMonthStart } from "@/lib/dates";
+import { getWeekStart, getMonthStart, getDateOffset, getMonthStartOffset } from "@/lib/dates";
 import {
   GOAL_ITEMS_BY_PERIOD,
   GOAL_PERIODS,
   type GoalMetric,
   type GoalPeriod,
 } from "@/lib/constants";
-import type { Goal, PipelinePeriod, Profile } from "@/lib/types";
+import { periodStartFor, averagesForPeriods, AVERAGES_WINDOW, AVERAGE_METRICS } from "@/lib/periodAverages";
+import type { Goal, PipelinePeriod, Profile, StreakDay, MonthlyPv } from "@/lib/types";
+
+// Same leading-number parse as app/streak/page.tsx's read_amount average -
+// duplicated rather than imported since it's a tiny, self-contained piece
+// of text parsing, not shared business logic like the period-averaging
+// fairness rules above.
+function leadingNumber(text: string): number {
+  const match = text.trim().match(/^(\d+(\.\d+)?)/);
+  return match ? parseFloat(match[1]) : 0;
+}
+
+const CORE_RUN_WINDOW = 30;
+const VOLUME_WINDOW = 6;
 
 function inputKey(metric: GoalMetric, period: GoalPeriod): string {
   return `${metric}:${period}`;
@@ -168,6 +181,125 @@ export default function GoalsPage() {
     load();
   }, [ownerId]);
 
+  // Same three average sources already shown on their own pages (Core
+  // Run, Pipeline Tracker, Volume) - repeated here so goals and "am I
+  // actually on pace" live on one screen together, without replacing
+  // where they already are.
+  const [streakAvgRows, setStreakAvgRows] = useState<
+    Pick<StreakDay, "day" | "read_amount" | "listen_count">[]
+  >([]);
+  const [dailyPipelineRows, setDailyPipelineRows] = useState<PipelinePeriod[]>([]);
+  const [weeklyPipelineRows, setWeeklyPipelineRows] = useState<PipelinePeriod[]>([]);
+  const [monthlyPipelineRows, setMonthlyPipelineRows] = useState<PipelinePeriod[]>([]);
+  const [volumeRows, setVolumeRows] = useState<MonthlyPv[]>([]);
+
+  useEffect(() => {
+    async function load() {
+      const since = getDateOffset(CORE_RUN_WINDOW - 1);
+      const { data } = await supabase
+        .from("streak_days")
+        .select("day,read_amount,listen_count")
+        .eq("user_id", user.id)
+        .gte("day", since);
+      setStreakAvgRows((data as Pick<StreakDay, "day" | "read_amount" | "listen_count">[]) ?? []);
+    }
+    load();
+  }, [user.id]);
+
+  useEffect(() => {
+    async function load() {
+      const dailyStart = periodStartFor("daily", AVERAGES_WINDOW.daily - 1);
+      const weeklyStart = periodStartFor("weekly", AVERAGES_WINDOW.weekly - 1);
+      const monthlyStart = periodStartFor("monthly", AVERAGES_WINDOW.monthly - 1);
+      const [{ data: d }, { data: w }, { data: m }] = await Promise.all([
+        supabase
+          .from("pipeline_periods")
+          .select("*")
+          .eq("user_id", ownerId)
+          .eq("period_type", "daily")
+          .gte("period_start", dailyStart),
+        supabase
+          .from("pipeline_periods")
+          .select("*")
+          .eq("user_id", ownerId)
+          .eq("period_type", "weekly")
+          .gte("period_start", weeklyStart),
+        supabase
+          .from("pipeline_periods")
+          .select("*")
+          .eq("user_id", ownerId)
+          .eq("period_type", "monthly")
+          .gte("period_start", monthlyStart),
+      ]);
+      setDailyPipelineRows((d as PipelinePeriod[]) ?? []);
+      setWeeklyPipelineRows((w as PipelinePeriod[]) ?? []);
+      setMonthlyPipelineRows((m as PipelinePeriod[]) ?? []);
+    }
+    load();
+  }, [ownerId]);
+
+  useEffect(() => {
+    async function load() {
+      const since = getMonthStartOffset(VOLUME_WINDOW - 1);
+      const { data } = await supabase
+        .from("monthly_pv")
+        .select("*")
+        .eq("user_id", ownerId)
+        .gte("period_start", since);
+      setVolumeRows((data as MonthlyPv[]) ?? []);
+    }
+    load();
+  }, [ownerId]);
+
+  const coreRunAverages = useMemo(() => {
+    const byDay = new Map(streakAvgRows.map((r) => [r.day, r]));
+    const firstDay = streakAvgRows.map((r) => r.day).sort()[0] ?? getDateOffset(0);
+    const days = Array.from({ length: CORE_RUN_WINDOW }, (_, i) =>
+      getDateOffset(CORE_RUN_WINDOW - 1 - i)
+    ).filter((d) => d >= firstDay);
+
+    let audioTotal = 0;
+    let readTotal = 0;
+    for (const day of days) {
+      const row = byDay.get(day);
+      audioTotal += row?.listen_count ?? 0;
+      readTotal += row ? leadingNumber(row.read_amount) : 0;
+    }
+    const n = days.length || 1;
+    return { audiosPerDay: audioTotal / n, readAmountPerDay: readTotal / n, windowCount: days.length };
+  }, [streakAvgRows]);
+
+  const dailyAverages = useMemo(
+    () => averagesForPeriods("daily", dailyPipelineRows, AVERAGES_WINDOW.daily),
+    [dailyPipelineRows]
+  );
+  const weeklyAverages = useMemo(
+    () => averagesForPeriods("weekly", weeklyPipelineRows, AVERAGES_WINDOW.weekly),
+    [weeklyPipelineRows]
+  );
+  const monthlyAverages = useMemo(
+    () => averagesForPeriods("monthly", monthlyPipelineRows, AVERAGES_WINDOW.monthly),
+    [monthlyPipelineRows]
+  );
+
+  const volumeAverages = useMemo(() => {
+    const byMonth = new Map(volumeRows.map((r) => [r.period_start, r]));
+    const firstStart = volumeRows.map((r) => r.period_start).sort()[0] ?? getMonthStart();
+    const months = Array.from({ length: VOLUME_WINDOW }, (_, i) =>
+      getMonthStartOffset(VOLUME_WINDOW - 1 - i)
+    ).filter((s) => s >= firstStart);
+
+    let pvTotal = 0;
+    let dittoTotal = 0;
+    for (const start of months) {
+      const row = byMonth.get(start);
+      pvTotal += row?.pv ?? 0;
+      dittoTotal += row?.day1_ditto_pv ?? 0;
+    }
+    const n = months.length || 1;
+    return { pvPerMonth: pvTotal / n, dittoPerMonth: dittoTotal / n, windowCount: months.length };
+  }, [volumeRows]);
+
   function targetFor(metric: GoalMetric, period: GoalPeriod): number {
     return goalRows.find((g) => g.metric === metric && g.period === period)?.target ?? 0;
   }
@@ -228,6 +360,75 @@ export default function GoalsPage() {
               onSave={(value) => saveDream(field.key, value)}
             />
           ))}
+        </div>
+
+        <div className="card space-y-2">
+          <p className="section-title">Your Averages</p>
+          <p className="text-xs text-slate-400">
+            The same averages already shown on Core Run, the Pipeline Tracker, and Volume — pulled
+            together here so you can see how you&apos;re actually pacing right next to the goals
+            below.
+          </p>
+          <div className="flex items-center justify-between rounded-lg bg-navy px-3 py-2">
+            <span className="text-sm text-slate-200">🎧 Audios per day</span>
+            <span className="text-lg font-bold text-amber">
+              {coreRunAverages.audiosPerDay.toFixed(1)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between rounded-lg bg-navy px-3 py-2">
+            <span className="text-sm text-slate-200">📖 Read per day</span>
+            <span className="text-lg font-bold text-amber">
+              {coreRunAverages.readAmountPerDay.toFixed(1)}
+            </span>
+          </div>
+
+          <div className="no-scrollbar overflow-x-auto pt-1">
+            <table className="w-full min-w-[380px] text-left text-xs">
+              <thead>
+                <tr className="text-slate-500">
+                  <th className="pb-1.5 pr-2 font-medium"></th>
+                  <th className="pb-1.5 pr-2 text-right font-medium">
+                    Daily ({dailyAverages.windowCount}d)
+                  </th>
+                  <th className="pb-1.5 pr-2 text-right font-medium">
+                    Weekly ({weeklyAverages.windowCount}w)
+                  </th>
+                  <th className="pb-1.5 text-right font-medium">
+                    Monthly ({monthlyAverages.windowCount}mo)
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {AVERAGE_METRICS.map((metric) => (
+                  <tr key={metric.key} className="border-t border-white/5">
+                    <td className="py-1.5 pr-2 font-medium text-white">{metric.label}</td>
+                    <td className="py-1.5 pr-2 text-right font-bold text-amber">
+                      {dailyAverages[metric.key].toFixed(1)}
+                    </td>
+                    <td className="py-1.5 pr-2 text-right font-bold text-amber">
+                      {weeklyAverages[metric.key].toFixed(1)}
+                    </td>
+                    <td className="py-1.5 text-right font-bold text-amber">
+                      {monthlyAverages[metric.key].toFixed(1)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex items-center justify-between rounded-lg bg-navy px-3 py-2">
+            <span className="text-sm text-slate-200">🚀 PV per month</span>
+            <span className="text-lg font-bold text-amber">
+              {volumeAverages.pvPerMonth.toFixed(1)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between rounded-lg bg-navy px-3 py-2">
+            <span className="text-sm text-slate-200">💧 Ditto per month</span>
+            <span className="text-lg font-bold text-amber">
+              {volumeAverages.dittoPerMonth.toFixed(1)}
+            </span>
+          </div>
         </div>
 
         {loading ? (

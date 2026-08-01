@@ -3880,6 +3880,31 @@ merges `history` (the last 6 *saved* months, already fetched for Recent
 Months/the trend charts) with the current month's live input values
 before averaging, so the current month is always included.
 
+### All averages, together, on the Goals page
+
+Every average built above (Core Run's Audios/Read per day, Pipeline's
+Daily/Weekly/Monthly Questions/Yeses/QI1s, Volume's PV/Ditto per month)
+now also shows on the Goals page, in a new "Your Averages" card right
+after Your Dreams and before the goal targets — without removing any of
+them from where they already lived. The idea: goals and "am I actually
+on pace" now live on one screen together, since Goals is where someone's
+actually deciding what to aim for.
+
+This is also the point where the same fairness-clamped averaging math
+had been written independently three separate times (Core Run, Pipeline,
+Volume) and was about to become a fourth copy for Goals — worth
+centralizing at that point. `periodStartFor`, `averagesForPeriods`,
+`AVERAGES_WINDOW`, and `AVERAGE_METRICS` moved out of
+`app/pipeline/page.tsx` into a new `lib/periodAverages.ts`, and both
+`app/pipeline/page.tsx` and `app/goals/page.tsx` now import the same
+functions — so the Questions/Yeses/QI1s numbers can never drift between
+the two pages, and any future change to the fairness rule only needs to
+happen once. The Core Run-style (`leadingNumber` text parsing) and
+Volume-style (monthly PV/Ditto merge) averaging stayed duplicated rather
+than extracted, since each is a small, self-contained handful of lines
+tied to its own table shape, not shared business logic the way the
+period-clamping rule is.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)
