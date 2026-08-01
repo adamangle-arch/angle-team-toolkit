@@ -13,7 +13,9 @@ import {
   PIPELINE_STAGES,
   CANDIDATE_STEP_SHORT_LABELS,
   ACTIVE_PIPELINE_MIN_STEP,
+  READING_UNITS,
   type PipelineStageKey,
+  type ReadingUnit,
 } from "@/lib/constants";
 import { fireNotifyEvent } from "@/lib/notifyClient";
 import { checkAndAwardBadges } from "@/lib/badgeEngine";
@@ -230,6 +232,37 @@ export default function StreakPage() {
   const [newRead, setNewRead] = useState("");
   const [newAudio, setNewAudio] = useState("");
   const [newMeeting, setNewMeeting] = useState("");
+
+  // Which unit reading is tracked in - shared with the Reading goal on
+  // Goals via profiles.reading_unit, so switching it here keeps that page
+  // in sync too. Purely a label/entry preference: read_amount stays free
+  // text either way.
+  const [readingUnit, setReadingUnit] = useState<ReadingUnit>("minutes");
+  const [readingUnitError, setReadingUnitError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function load() {
+      const { data } = await supabase
+        .from("profiles")
+        .select("reading_unit")
+        .eq("id", user.id)
+        .single();
+      if (data) setReadingUnit((data as Pick<Profile, "reading_unit">).reading_unit);
+    }
+    load();
+  }, [user.id]);
+
+  async function saveReadingUnit(unit: ReadingUnit) {
+    const previous = readingUnit;
+    setReadingUnit(unit);
+    const { error } = await supabase.from("profiles").update({ reading_unit: unit }).eq("id", user.id);
+    if (error) {
+      setReadingUnit(previous);
+      setReadingUnitError(error.message);
+    } else {
+      setReadingUnitError(null);
+    }
+  }
 
   const [weekly, setWeekly] = useState<PipelinePeriod | null>(null);
   const [monthly, setMonthly] = useState<PipelinePeriod | null>(null);
@@ -672,6 +705,8 @@ export default function StreakPage() {
     [history, selectedDay]
   );
 
+  const readingUnitLabel = READING_UNITS.find((u) => u.key === readingUnit)?.label ?? "Minutes";
+
   const selectedQualifies = qualifies(selectedRow);
   const selectedDoneCount = [
     selectedRow.read,
@@ -901,20 +936,20 @@ export default function StreakPage() {
             </span>
           </div>
           <div className="flex items-center justify-between rounded-lg bg-navy px-3 py-2">
-            <span className="text-sm text-slate-200">📖 Read per day</span>
+            <span className="text-sm text-slate-200">📖 {readingUnitLabel} per day</span>
             <span className="text-lg font-bold text-amber">
               {last30Averages.readAmountPerDay.toFixed(1)}
             </span>
           </div>
           <p className="text-xs text-slate-400">
-            Audios counts each one you&apos;ve added. Read pulls the number straight out of
-            &quot;How much today?&quot; — pages, minutes, whatever unit you actually use — so make
-            sure it starts with a number (&quot;20 pages&quot;, not &quot;a few chapters&quot;).
-            Both are averaged across the completed days since you started logging Core Run (up to
-            the last 30) — including days with nothing logged, so this reflects real day-to-day
-            consistency since you started, not just how much you do on days you actually engage.
-            Today itself isn&apos;t counted yet — it isn&apos;t over, so it can&apos;t be compared
-            fairly to a finished day.
+            Audios counts each one you&apos;ve added. {readingUnitLabel} pulls the number straight
+            out of &quot;How many {readingUnit} today?&quot; below — so make sure it starts with a
+            number. Switching Track In changes what the app labels and averages here, but doesn&apos;t
+            convert anything you&apos;ve already logged. Both are averaged across the completed
+            days since you started logging Core Run (up to the last 30) — including days with
+            nothing logged, so this reflects real day-to-day consistency since you started, not
+            just how much you do on days you actually engage. Today itself isn&apos;t counted yet —
+            it isn&apos;t over, so it can&apos;t be compared fairly to a finished day.
           </p>
         </div>
 
@@ -985,9 +1020,27 @@ export default function StreakPage() {
                   Add
                 </button>
               </div>
+              <div className="flex items-center gap-1.5">
+                <span className="shrink-0 text-xs text-slate-400">Track in:</span>
+                <div className="flex flex-1 gap-1.5">
+                  {READING_UNITS.map((u) => (
+                    <button
+                      key={u.key}
+                      type="button"
+                      className={readingUnit === u.key ? "toggle-pill-active" : "toggle-pill-inactive"}
+                      onClick={() => saveReadingUnit(u.key)}
+                    >
+                      {u.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {readingUnitError && <p className="text-xs text-red-400">{readingUnitError}</p>}
               <input
+                type="number"
+                min={0}
                 className="input"
-                placeholder="How much today? (e.g. 20 pages)"
+                placeholder={`How many ${readingUnit} today?`}
                 value={readAmount}
                 onChange={(e) => setReadAmount(e.target.value)}
                 onBlur={() => {

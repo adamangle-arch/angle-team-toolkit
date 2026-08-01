@@ -3937,6 +3937,30 @@ Card copy on all four pages now says "completed" days/weeks/months and
 notes that the current one isn't counted yet, so it's never ambiguous
 why today's or this week's activity doesn't show up in its own average.
 
+### Reading: minutes or pages, your choice
+
+Reading was always tracked as free text ("How much today?") with no
+fixed unit — fine for logging, but meant the "Read per day" average was
+mixing whatever unit someone happened to type that day, and the Reading
+goal on Goals was hardcoded to say "minutes" regardless of how anyone
+actually measures their own reading.
+
+A new `profiles.reading_unit` column ("minutes" or "pages", default
+"minutes") is now a single shared preference with a "Track in:"
+toggle in two places — Core Run's Read card (`app/streak/page.tsx`) and
+the Reading goal row on Goals (`app/goals/page.tsx`) — switching it in
+either spot updates the same column, so the two pages can never show a
+different unit for the same person. Both pages' averages/labels
+(`📖 Minutes per day` / `📖 Pages per day`, and the goal row's
+"Reading [N] minutes"/"pages" suffix) follow the current preference.
+
+The "How much today?" input on Core Run is now a plain number field
+instead of open-ended free text, since the unit is already fixed by the
+toggle — no more needing to type "20 pages" for the number to be
+parseable. Switching the toggle is a go-forward preference only; it
+doesn't retroactively convert anything already logged under the other
+unit, the same way changing any other setting doesn't rewrite history.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

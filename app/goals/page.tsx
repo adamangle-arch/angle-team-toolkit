@@ -10,8 +10,10 @@ import { getWeekStart, getMonthStart, getDateOffset, getMonthStartOffset } from 
 import {
   GOAL_ITEMS_BY_PERIOD,
   GOAL_PERIODS,
+  READING_UNITS,
   type GoalMetric,
   type GoalPeriod,
+  type ReadingUnit,
 } from "@/lib/constants";
 import { periodStartFor, averagesForPeriods, AVERAGES_WINDOW, AVERAGE_METRICS } from "@/lib/periodAverages";
 import type { Goal, PipelinePeriod, Profile, StreakDay, MonthlyPv } from "@/lib/types";
@@ -146,6 +148,35 @@ export default function GoalsPage() {
     setDreams((prev) => ({ ...prev, [field]: value }));
     const { error } = await supabase.from("profiles").update({ [field]: value }).eq("id", user.id);
     if (error) {
+      setSaveError(`Couldn't save that: ${error.message}`);
+    } else {
+      setSaveError(null);
+    }
+  }
+
+  // Which unit the Reading goal (and Core Run's reading input) is tracked
+  // in - shared via profiles.reading_unit, so switching it here keeps
+  // Core Run in sync too.
+  const [readingUnit, setReadingUnit] = useState<ReadingUnit>("minutes");
+
+  useEffect(() => {
+    async function load() {
+      const { data } = await supabase
+        .from("profiles")
+        .select("reading_unit")
+        .eq("id", user.id)
+        .single();
+      if (data) setReadingUnit((data as Pick<Profile, "reading_unit">).reading_unit);
+    }
+    load();
+  }, [user.id]);
+
+  async function saveReadingUnit(unit: ReadingUnit) {
+    const previous = readingUnit;
+    setReadingUnit(unit);
+    const { error } = await supabase.from("profiles").update({ reading_unit: unit }).eq("id", user.id);
+    if (error) {
+      setReadingUnit(previous);
       setSaveError(`Couldn't save that: ${error.message}`);
     } else {
       setSaveError(null);
@@ -348,6 +379,8 @@ export default function GoalsPage() {
     return null;
   }
 
+  const readingUnitLabel = READING_UNITS.find((u) => u.key === readingUnit)?.label ?? "Minutes";
+
   return (
     <FeatureGate minSession={5}>
       <PageHeader title="Goals" subtitle="Your goal today is:" />
@@ -393,7 +426,7 @@ export default function GoalsPage() {
             </span>
           </div>
           <div className="flex items-center justify-between rounded-lg bg-navy px-3 py-2">
-            <span className="text-sm text-slate-200">📖 Read per day</span>
+            <span className="text-sm text-slate-200">📖 {readingUnitLabel} per day</span>
             <span className="text-lg font-bold text-amber">
               {coreRunAverages.readAmountPerDay.toFixed(1)}
             </span>
@@ -459,37 +492,60 @@ export default function GoalsPage() {
               </p>
               {GOAL_ITEMS_BY_PERIOD[period.key].map((item) => {
                 const qi1Count = item.key === "qi1s" ? qi1CountFor(period.key) : null;
+                const isReading = item.key === "read_minutes";
+                const suffix = isReading ? readingUnit : item.suffix;
                 return (
-                  <div key={item.key} className="flex items-center gap-2 text-sm text-slate-200">
-                    {item.prefix && <span>{item.prefix}</span>}
-                    <input
-                      type="number"
-                      min={0}
-                      inputMode="numeric"
-                      className="input !w-16 !p-1.5 text-center"
-                      value={inputs[inputKey(item.key, period.key)] ?? ""}
-                      onChange={(e) =>
-                        setInputs((prev) => ({
-                          ...prev,
-                          [inputKey(item.key, period.key)]: e.target.value,
-                        }))
-                      }
-                      onBlur={(e) => {
-                        const parsed = Math.max(0, parseInt(e.target.value, 10) || 0);
-                        setInputs((prev) => ({
-                          ...prev,
-                          [inputKey(item.key, period.key)]: parsed > 0 ? String(parsed) : "",
-                        }));
-                        if (parsed !== targetFor(item.key, period.key)) {
-                          setTarget(item.key, period.key, parsed);
+                  <div key={item.key} className="space-y-1.5">
+                    <div className="flex items-center gap-2 text-sm text-slate-200">
+                      {item.prefix && <span>{item.prefix}</span>}
+                      <input
+                        type="number"
+                        min={0}
+                        inputMode="numeric"
+                        className="input !w-16 !p-1.5 text-center"
+                        value={inputs[inputKey(item.key, period.key)] ?? ""}
+                        onChange={(e) =>
+                          setInputs((prev) => ({
+                            ...prev,
+                            [inputKey(item.key, period.key)]: e.target.value,
+                          }))
                         }
-                      }}
-                    />
-                    <span>{item.suffix}</span>
-                    {qi1Count !== null && (
-                      <span className="text-xs text-amber-light">
-                        (you&apos;ve shown {qi1Count} so far)
-                      </span>
+                        onBlur={(e) => {
+                          const parsed = Math.max(0, parseInt(e.target.value, 10) || 0);
+                          setInputs((prev) => ({
+                            ...prev,
+                            [inputKey(item.key, period.key)]: parsed > 0 ? String(parsed) : "",
+                          }));
+                          if (parsed !== targetFor(item.key, period.key)) {
+                            setTarget(item.key, period.key, parsed);
+                          }
+                        }}
+                      />
+                      <span>{suffix}</span>
+                      {qi1Count !== null && (
+                        <span className="text-xs text-amber-light">
+                          (you&apos;ve shown {qi1Count} so far)
+                        </span>
+                      )}
+                    </div>
+                    {isReading && (
+                      <div className="flex items-center gap-1.5 pl-1">
+                        <span className="shrink-0 text-xs text-slate-400">Track in:</span>
+                        <div className="flex flex-1 gap-1.5">
+                          {READING_UNITS.map((u) => (
+                            <button
+                              key={u.key}
+                              type="button"
+                              className={
+                                readingUnit === u.key ? "toggle-pill-active" : "toggle-pill-inactive"
+                              }
+                              onClick={() => saveReadingUnit(u.key)}
+                            >
+                              {u.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     )}
                   </div>
                 );

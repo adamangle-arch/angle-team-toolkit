@@ -1,4 +1,4 @@
-import type { PipelineStageKey, GoalMetric, GoalPeriod, CallRatingType, CalendarEventType, ActivityLogKind, NotificationKind } from "./constants";
+import type { PipelineStageKey, GoalMetric, GoalPeriod, CallRatingType, CalendarEventType, ActivityLogKind, NotificationKind, ReadingUnit } from "./constants";
 
 export type Profile = {
   id: string;
@@ -27,6 +27,7 @@ export type Profile = {
   dream_lifetime: string;
   onboarding_completed_at: string | null;
   muted_notification_kinds: NotificationKind[];
+  reading_unit: ReadingUnit;
   created_at: string;
 };
 

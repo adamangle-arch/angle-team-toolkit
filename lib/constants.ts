@@ -49,6 +49,16 @@ export const NOTIFICATION_KIND_LABELS = Object.fromEntries(
   NOTIFICATION_KINDS.map((n) => [n.kind, n.label])
 ) as Record<NotificationKind, string>;
 
+// Which unit someone tracks reading in - shared by Core Run's reading
+// input (app/streak/page.tsx) and the Reading goal (app/goals/page.tsx)
+// via profiles.reading_unit, so switching it on either page keeps both
+// in sync.
+export const READING_UNITS = [
+  { key: "minutes", label: "Minutes" },
+  { key: "pages", label: "Pages" },
+] as const;
+export type ReadingUnit = (typeof READING_UNITS)[number]["key"];
+
 // One-off/repeatable self-report actions with no other way to auto-detect
 // them (same gap book_completions solved for reading) — must match the
 // activity_logs.kind check constraint in supabase/schema.sql. Logged from

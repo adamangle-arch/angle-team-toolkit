@@ -770,6 +770,15 @@ alter table profiles add column if not exists notifications_last_viewed_at times
 -- up in their own Notifications history.
 alter table profiles add column if not exists muted_notification_kinds text[] not null default '{}'::text[];
 
+-- Which unit someone tracks reading in - "minutes" or "pages" - shared
+-- by the Core Run reading input (app/streak/page.tsx) and the Reading
+-- goal (app/goals/page.tsx), so both stay in sync no matter which page
+-- it's changed from. Purely a display/entry preference: read_amount
+-- itself stays free text either way, this just decides what the app
+-- labels it as and assumes when averaging.
+alter table profiles add column if not exists reading_unit text not null default 'minutes'
+  check (reading_unit in ('minutes', 'pages'));
+
 create or replace function public.generate_account_number()
 returns text
 language plpgsql
