@@ -3961,6 +3961,36 @@ parseable. Switching the toggle is a go-forward preference only; it
 doesn't retroactively convert anything already logged under the other
 unit, the same way changing any other setting doesn't rewrite history.
 
+### Skipping First 30 Days Onboarding for people who aren't actually new
+
+Rolling this app out to an already-active team meant an admin would
+otherwise have to manually unlock all 5 Onboarding sessions for every
+single existing person, one at a time — First 30 Days Onboarding
+(progressive feature gating via `profiles.onboarding_unlocked_through`)
+is meant for someone genuinely brand new, not a whole existing team
+just moving onto the app.
+
+`components/ProfileGate.tsx` (the one-time "finish your profile" step
+right after signup, alongside name/team/upline) now asks directly: "Did
+you just get your Amway business launched within the last 30 days, or
+are you already active and just transitioning to the app?" — with an
+explanation of why it's asking, so nobody accidentally picks the wrong
+one without understanding what it does. Answering "already active"
+sets `onboarding_unlocked_through` to `ONBOARDING_SESSIONS.length` and
+stamps `onboarding_completed_at` in the same update that already saves
+first/last name and team, so it's a self-service skip at signup instead
+of a manual per-person admin action. Skipped for admins (`isPrimaryUser`)
+since they're always fully unlocked regardless of this column (see
+`AuthGate`'s `isAdmin` check) — asking them the question would just be
+noise.
+
+This reuses the exact same `update_own` RLS policy already trusted for
+the other fields on this same form (a profile row can always be updated
+by its own owner) rather than needing a new RPC — `grant_all_onboarding_sessions`
+already exists in `schema.sql` for the *admin/upline unlocking someone
+else* case, but is deliberately scoped to reject self-calls, so it isn't
+the right fit for a person unlocking their own account during signup.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)
