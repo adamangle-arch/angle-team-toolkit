@@ -42,6 +42,7 @@ import type {
   PipelinePeriod,
   Candidate,
   CandidateSpecificResource,
+  CandidateQuestion,
   MemberResource,
   OptionalResource,
   Profile,
@@ -1380,9 +1381,127 @@ function CandidateCard({
             }}
           />
 
+          <CandidateQuestions candidateId={candidate.id} />
+
           <CandidateResourceProgress candidate={candidate} />
 
           <CandidateResourceSender candidateId={candidate.id} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Whatever a candidate has jotted down in /prospect throughout the
+// whole interview process (not tied to any one step) - so it's visible
+// here and doesn't get forgotten before the next time you actually meet
+// with them. "Mark answered" is just a strikethrough/dim, not a delete,
+// so it stays as a record of what's already been talked about; the ✕
+// is a real delete for once it's fully done with.
+function CandidateQuestions({ candidateId }: { candidateId: string }) {
+  const [questions, setQuestions] = useState<CandidateQuestion[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      const { data } = await supabase
+        .from("candidate_questions")
+        .select("*")
+        .eq("candidate_id", candidateId)
+        .order("created_at", { ascending: true });
+      if (!cancelled) {
+        setQuestions((data as CandidateQuestion[]) ?? []);
+        setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [candidateId]);
+
+  async function toggleAnswered(q: CandidateQuestion) {
+    const previous = questions;
+    setQuestions((prev) => prev.map((x) => (x.id === q.id ? { ...x, answered: !x.answered } : x)));
+    const { error } = await supabase
+      .from("candidate_questions")
+      .update({ answered: !q.answered })
+      .eq("id", q.id);
+    if (error) {
+      setQuestions(previous);
+      setError(error.message);
+    }
+  }
+
+  async function removeQuestion(id: string) {
+    const previous = questions;
+    setQuestions((prev) => prev.filter((x) => x.id !== id));
+    const { error } = await supabase.from("candidate_questions").delete().eq("id", id);
+    if (error) {
+      setQuestions(previous);
+      setError(error.message);
+    }
+  }
+
+  if (loading || questions.length === 0) return null;
+
+  const openCount = questions.filter((q) => !q.answered).length;
+
+  return (
+    <div className="space-y-1.5 rounded-lg bg-navy px-3 py-2">
+      <div
+        className="flex cursor-pointer items-center justify-between"
+        role="button"
+        tabIndex={0}
+        onClick={() => setExpanded((e) => !e)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setExpanded((exp) => !exp);
+          }
+        }}
+        aria-expanded={expanded}
+      >
+        <span className="text-xs font-semibold text-slate-200">
+          ❓ Questions{openCount > 0 ? `: ${openCount} unanswered` : " — all answered"}
+        </span>
+        <span className="text-slate-500">{expanded ? "▾" : "▸"}</span>
+      </div>
+      {expanded && (
+        <div className="space-y-1.5 pt-1">
+          {questions.map((q) => (
+            <div
+              key={q.id}
+              className={`flex items-start justify-between gap-2 rounded-lg bg-navy-lighter px-2 py-1.5 ${
+                q.answered ? "opacity-60" : ""
+              }`}
+            >
+              <p className={`text-xs ${q.answered ? "text-slate-500 line-through" : "text-slate-200"}`}>
+                {q.question}
+              </p>
+              <div className="flex shrink-0 items-center gap-1">
+                <button
+                  className="btn-icon !h-6 !w-6 text-xs"
+                  onClick={() => toggleAnswered(q)}
+                  aria-label={q.answered ? `Mark "${q.question}" unanswered` : `Mark "${q.question}" answered`}
+                >
+                  {q.answered ? "↺" : "✓"}
+                </button>
+                <button
+                  className="btn-icon !h-6 !w-6 text-xs"
+                  onClick={() => removeQuestion(q.id)}
+                  aria-label={`Remove question: ${q.question}`}
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          ))}
+          {error && <p className="text-xs text-red-400">{error}</p>}
         </div>
       )}
     </div>
@@ -1892,6 +2011,7 @@ function DownlineCandidateRow({ candidate }: { candidate: Candidate }) {
 
       {expanded && (
         <div className="space-y-3 pt-3">
+          <CandidateQuestions candidateId={candidate.id} />
           <CandidateResourceProgress candidate={candidate} />
           <CandidateResourceSender candidateId={candidate.id} />
         </div>

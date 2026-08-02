@@ -3581,6 +3581,132 @@ $$;
 grant execute on function public.toggle_candidate_resource_completion(text, text) to anon, authenticated;
 
 -- ============================================================
+-- Candidate Questions: a running list a candidate can jot questions into
+-- throughout the whole interview process (not tied to any one step), so
+-- something that occurs to them between meetings doesn't get forgotten
+-- by the time they're actually face to face with their IBO again. The
+-- IBO/upline/admin side is read+mark-answered+delete only via normal
+-- authenticated CRUD (same as candidate_specific_resources); adding one
+-- is candidate-only, via the anon RPC below.
+-- ============================================================
+create table if not exists candidate_questions (
+  id uuid primary key default gen_random_uuid(),
+  candidate_id uuid not null references candidates(id) on delete cascade,
+  question text not null,
+  answered boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+alter table candidate_questions enable row level security;
+
+drop policy if exists "select_own_or_upline_or_admin" on candidate_questions;
+create policy "select_own_or_upline_or_admin" on candidate_questions for select using (
+  exists (
+    select 1 from candidates c
+    where c.id = candidate_questions.candidate_id
+      and (
+        c.user_id = auth.uid()
+        or c.user_id = (select household_id from profiles where id = auth.uid())
+        or public.is_upline_of(auth.uid(), c.user_id)
+        or public.is_app_admin()
+      )
+  )
+);
+
+-- Marking a question answered (after actually discussing it) is the only
+-- IBO-side write - no insert policy here since a candidate's own RPC
+-- below is the only way a row gets created.
+drop policy if exists "update_own_or_upline_or_admin" on candidate_questions;
+create policy "update_own_or_upline_or_admin" on candidate_questions for update using (
+  exists (
+    select 1 from candidates c
+    where c.id = candidate_questions.candidate_id
+      and (
+        c.user_id = auth.uid()
+        or c.user_id = (select household_id from profiles where id = auth.uid())
+        or public.is_upline_of(auth.uid(), c.user_id)
+        or public.is_app_admin()
+      )
+  )
+);
+
+drop policy if exists "delete_own_or_upline_or_admin" on candidate_questions;
+create policy "delete_own_or_upline_or_admin" on candidate_questions for delete using (
+  exists (
+    select 1 from candidates c
+    where c.id = candidate_questions.candidate_id
+      and (
+        c.user_id = auth.uid()
+        or c.user_id = (select household_id from profiles where id = auth.uid())
+        or public.is_upline_of(auth.uid(), c.user_id)
+        or public.is_app_admin()
+      )
+  )
+);
+
+-- Powers /prospect's question list - callable by anon for the same
+-- reason every other /prospect RPC is.
+create or replace function public.get_candidate_questions(p_code text)
+returns table (id uuid, question text, answered boolean, created_at timestamptz)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select q.id, q.question, q.answered, q.created_at
+  from candidate_questions q
+  join candidates c on c.id = q.candidate_id
+  where upper(c.access_code) = upper(p_code)
+  order by q.created_at asc;
+$$;
+
+grant execute on function public.get_candidate_questions(text) to anon, authenticated;
+
+create or replace function public.add_candidate_question(p_code text, p_question text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_candidate_id uuid;
+begin
+  if trim(coalesce(p_question, '')) = '' then
+    raise exception 'Question cannot be empty.';
+  end if;
+
+  select id into v_candidate_id from candidates where upper(access_code) = upper(p_code);
+  if v_candidate_id is null then
+    raise exception 'invalid code';
+  end if;
+
+  insert into candidate_questions (candidate_id, question) values (v_candidate_id, trim(p_question));
+end;
+$$;
+
+grant execute on function public.add_candidate_question(text, text) to anon, authenticated;
+
+-- Lets a candidate undo a mis-typed or since-irrelevant question of
+-- their own - scoped to p_code so one candidate can't remove another's
+-- (the id alone wouldn't otherwise prove ownership for an anon caller).
+create or replace function public.remove_candidate_question(p_code text, p_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  delete from candidate_questions q
+  using candidates c
+  where q.candidate_id = c.id
+    and upper(c.access_code) = upper(p_code)
+    and q.id = p_id;
+end;
+$$;
+
+grant execute on function public.remove_candidate_question(text, uuid) to anon, authenticated;
+
+-- ============================================================
 -- Optional Resources: a shared, admin-managed library of podcasts/
 -- articles/etc. that any IBO can choose to send - either as a one-off to
 -- a specific candidate (candidate_specific_resources) or added to their

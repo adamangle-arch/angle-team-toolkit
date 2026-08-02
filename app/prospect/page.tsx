@@ -47,6 +47,13 @@ type SpecificResource = {
   estimate: string | null;
 };
 
+type QuestionRow = {
+  id: string;
+  question: string;
+  answered: boolean;
+  created_at: string;
+};
+
 function formatEventAt(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
     weekday: "short",
@@ -76,6 +83,11 @@ export default function ProspectPage() {
   const [loading, setLoading] = useState(false);
   const [checkedStorage, setCheckedStorage] = useState(false);
 
+  const [questions, setQuestions] = useState<QuestionRow[]>([]);
+  const [newQuestion, setNewQuestion] = useState("");
+  const [addingQuestion, setAddingQuestion] = useState(false);
+  const [questionError, setQuestionError] = useState<string | null>(null);
+
   async function lookup(codeToTry: string, persist: boolean) {
     const trimmed = codeToTry.trim();
     if (!trimmed) return;
@@ -88,6 +100,7 @@ export default function ProspectPage() {
       { data: specificRows },
       { data: flyerRow },
       { data: completionRows },
+      { data: questionRows },
     ] = await Promise.all([
       supabase.rpc("get_candidate_by_access_code", { p_code: trimmed }).maybeSingle(),
       supabase.rpc("get_candidate_upcoming_events", { p_code: trimmed }),
@@ -95,6 +108,7 @@ export default function ProspectPage() {
       supabase.rpc("get_candidate_specific_resources", { p_code: trimmed }),
       supabase.rpc("get_current_info_session_flyer").maybeSingle(),
       supabase.rpc("get_candidate_resource_completions", { p_code: trimmed }),
+      supabase.rpc("get_candidate_questions", { p_code: trimmed }),
     ]);
     setLoading(false);
     setCheckedStorage(true);
@@ -111,6 +125,7 @@ export default function ProspectPage() {
     setCompletedLabels(
       new Set(((completionRows as { resource_label: string }[]) ?? []).map((r) => r.resource_label))
     );
+    setQuestions((questionRows as QuestionRow[]) ?? []);
     setVerifiedCode(trimmed);
     if (persist) localStorage.setItem(STORAGE_KEY, trimmed);
   }
@@ -145,6 +160,39 @@ export default function ProspectPage() {
         else next.delete(label);
         return next;
       });
+    }
+  }
+
+  async function addQuestion() {
+    const trimmed = newQuestion.trim();
+    if (!trimmed) return;
+    setAddingQuestion(true);
+    setQuestionError(null);
+    const { error } = await supabase.rpc("add_candidate_question", {
+      p_code: verifiedCode,
+      p_question: trimmed,
+    });
+    if (error) {
+      setQuestionError(error.message);
+      setAddingQuestion(false);
+      return;
+    }
+    const { data } = await supabase.rpc("get_candidate_questions", { p_code: verifiedCode });
+    setQuestions((data as QuestionRow[]) ?? []);
+    setNewQuestion("");
+    setAddingQuestion(false);
+  }
+
+  async function removeQuestion(id: string) {
+    const previous = questions;
+    setQuestions((prev) => prev.filter((q) => q.id !== id));
+    const { error } = await supabase.rpc("remove_candidate_question", {
+      p_code: verifiedCode,
+      p_id: id,
+    });
+    if (error) {
+      setQuestions(previous);
+      setQuestionError(error.message);
     }
   }
 
@@ -252,6 +300,63 @@ export default function ProspectPage() {
             onMarkWatched={() => markWatched(infoSessionStep)}
           />
         )}
+
+        <div className="card space-y-2">
+          <p className="section-title">❓ Got a Question?</p>
+          <p className="text-xs text-slate-400">
+            Jot down anything you&apos;re wondering about as it comes up — {inviterName} will see it
+            here and you can talk through it together next time you meet, instead of it slipping
+            your mind.
+          </p>
+          {questions.length > 0 && (
+            <div className="space-y-1.5">
+              {questions.map((q) => (
+                <div
+                  key={q.id}
+                  className={`flex items-start justify-between gap-2 rounded-lg bg-navy px-2 py-1.5 ${
+                    q.answered ? "opacity-70" : ""
+                  }`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className={`text-sm ${q.answered ? "text-slate-400 line-through" : "text-white"}`}>
+                      {q.question}
+                    </p>
+                    {q.answered && <p className="text-xs text-amber-light">✅ Talked about this</p>}
+                  </div>
+                  <button
+                    className="btn-icon !h-6 !w-6 shrink-0 text-xs"
+                    onClick={() => removeQuestion(q.id)}
+                    aria-label={`Remove question: ${q.question}`}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="flex gap-2">
+            <input
+              className="input flex-1"
+              placeholder="What do you want to ask?"
+              value={newQuestion}
+              onChange={(e) => setNewQuestion(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addQuestion();
+                }
+              }}
+            />
+            <button
+              className="btn-primary shrink-0 px-4"
+              onClick={addQuestion}
+              disabled={addingQuestion || !newQuestion.trim()}
+            >
+              {addingQuestion ? "Saving…" : "Save"}
+            </button>
+          </div>
+          {questionError && <p className="text-xs text-red-400">{questionError}</p>}
+        </div>
 
         {events.length > 0 && (
           <div className="space-y-1.5">

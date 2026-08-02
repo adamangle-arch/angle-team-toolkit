@@ -3991,6 +3991,37 @@ already exists in `schema.sql` for the *admin/upline unlocking someone
 else* case, but is deliberately scoped to reject self-calls, so it isn't
 the right fit for a person unlocking their own account during signup.
 
+### Candidate Questions: a running list for the interview process
+
+A candidate meeting with their IBO across weeks (or longer) inevitably
+thinks of things to ask *between* meetings — and just as often forgets
+them by the time they're actually face to face again. A new "❓ Got a
+Question?" card on `/prospect` (right after the Info Session card, so
+it's easy to find any time) lets them jot one down whenever it occurs to
+them; it's not tied to any particular step, since the whole point is a
+running list across the entire process.
+
+New `candidate_questions` table (`candidate_id`, `question`, `answered`,
+`created_at`), following the exact same shape as every other candidate
+table this session: RLS restricts the IBO/upline/admin side to
+select/update/delete only (self/household/upline/admin, same clause
+used by `candidate_specific_resources`), and every write from the
+candidate's side goes through an anon-callable `security definer` RPC
+keyed by access code rather than a direct table policy —
+`get_candidate_questions`, `add_candidate_question`, and
+`remove_candidate_question` (the last one scoped to `p_code` so one
+candidate's code can't delete another's question by guessing an id).
+
+On the Candidate Roadmap (`app/pipeline/page.tsx`), a new
+`CandidateQuestions` component sits in the same expanded-card spot as
+the existing resource-progress view — collapsed by default showing an
+unanswered count, expands to the full list where the IBO can mark each
+one ✓ answered (a strikethrough, not a delete — it stays as a record of
+what's already been discussed) or ✕ remove it once it's fully done with.
+Wired into both places a candidate's expanded card already appears: the
+IBO's own Candidate Roadmap and the read-only view when filling in for a
+downline's candidate.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

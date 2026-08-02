@@ -274,6 +274,14 @@ export type CandidateSpecificResource = {
   created_at: string;
 };
 
+export type CandidateQuestion = {
+  id: string;
+  candidate_id: string;
+  question: string;
+  answered: boolean;
+  created_at: string;
+};
+
 export type OptionalResourceKind = "audio" | "reading" | "other";
 
 export type OptionalResource = {
