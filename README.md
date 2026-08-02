@@ -4022,6 +4022,46 @@ Wired into both places a candidate's expanded card already appears: the
 IBO's own Candidate Roadmap and the read-only view when filling in for a
 downline's candidate.
 
+### Fixed: a reading item added right after typing an amount could vanish
+
+Reported bug: type a number into "How many minutes/pages today?", then
+quickly tap "Add" on a book title — the title would flash in, then
+disappear. It still counted toward the Core Run and the day's streak
+(since `read`/`listen`/etc. flip based on the amount field alone), but it
+never showed up in the item list or the Daily Update summary, which pulls
+`read_what` from those same items.
+
+Two independent bugs stacked on top of each other here, on
+`app/streak/page.tsx`:
+
+1. The local input fields (amount, new read/audio/meeting title) were
+   re-primed from the freshly-loaded row every time `selectedRow.id`
+   changed — meant to catch a genuine day switch, but today's row starts
+   with no id at all until *something* is saved for the first time, so
+   the very first save of the day (whichever field triggers it) also
+   flips the id from empty to a real one and re-triggers the same reset,
+   wiping out whatever was typed into any other field that hadn't been
+   saved yet. This is now keyed on the selected day alone, not the row's
+   id, so it only fires on an actual day switch.
+2. `saveToday()` does a full-row upsert — every field, not just the one
+   that changed — built from whatever the on-screen row looked like at
+   the moment it was called. Two saves fired close together (blurring the
+   amount field, then tapping Add) each build their own full snapshot of
+   the row **before either one's server response comes back**, so the
+   second save's snapshot doesn't include the first save's change. Worse,
+   whichever request's response happened to arrive last would overwrite
+   local state (and the database) with its own, now-stale snapshot —
+   silently reverting the other field's change regardless of which one
+   was actually typed more recently.
+
+Fixed by queuing every `saveToday()` call onto a single promise chain (so
+overlapping saves for the same page always run one at a time, in the
+order they were fired) and reading the row to patch from a ref that's
+updated the instant each save starts and finishes — not from a stale
+render's snapshot. That way the second of two quick saves always builds
+on top of the first one's change, and a server response can never land
+out of order and undo a save that came after it.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

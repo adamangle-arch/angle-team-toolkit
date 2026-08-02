@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import FirstVisitTip from "@/components/FirstVisitTip";
@@ -217,6 +217,17 @@ export default function StreakPage() {
   const { user, ownerId } = useAuth();
   const [history, setHistory] = useState<Record<string, StreakDay>>({});
   const [loading, setLoading] = useState(true);
+
+  // Mirrors `history`, but updated synchronously (not on the next render)
+  // so back-to-back saveToday() calls each build their patch on top of the
+  // other's latest change instead of a stale render's snapshot. Also holds
+  // the per-day promise chain each save is queued onto, so two saves fired
+  // close together (e.g. blurring the amount field, then tapping Add on a
+  // reading title) always finish - and apply their server response - in
+  // the order they were fired, instead of whichever network response
+  // happens to land first clobbering the other with older data.
+  const historyRef = useRef<Record<string, StreakDay>>({});
+  const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const today = getToday();
   const since = addDays(today, -120);
 
@@ -293,6 +304,7 @@ export default function StreakPage() {
       for (const row of (data as StreakDay[]) ?? []) {
         map[row.day] = normalizeRow(row);
       }
+      historyRef.current = map;
       setHistory(map);
       setLoading(false);
     }
@@ -398,15 +410,21 @@ export default function StreakPage() {
 
   // Adjust local input state during render (React's recommended pattern)
   // instead of in an effect, so it stays in sync whenever a fresh row
-  // loads without triggering an extra render pass. Keyed on both the day
-  // and the row id: the day alone catches switching between two days
-  // that both happen to have no saved row yet (id "" both times, which
-  // an id-only key would miss), and the id alone catches history finishing
-  // its initial load or a fresh save creating a row for the same day.
-  const rowSyncKey = `${selectedDay}:${selectedRow.id}`;
-  const [syncedKey, setSyncedKey] = useState(rowSyncKey);
-  if (syncedKey !== rowSyncKey) {
-    setSyncedKey(rowSyncKey);
+  // loads without triggering an extra render pass. Keyed on selectedDay
+  // alone, gated on loading having finished - NOT on selectedRow.id, which
+  // used to also be part of this key. That caused a real bug: today's row
+  // starts out with id "" (no row saved yet) and only gets a real id once
+  // *anything* is saved for the first time - so if someone typed into the
+  // pages/minutes field but hadn't blurred it yet (nothing saved) and then
+  // tapped Add on a reading title, that Add's save round-trip assigned
+  // today's row a real id, which re-triggered this reset and wiped the
+  // still-unsaved amount straight out of the input, even though nothing
+  // about which day was selected had changed. Gating on `loading` instead
+  // still correctly primes these fields the moment history finishes its
+  // initial fetch, without re-firing on every subsequent save.
+  const [syncedDay, setSyncedDay] = useState<string | null>(null);
+  if (!loading && syncedDay !== selectedDay) {
+    setSyncedDay(selectedDay);
     setReadAmount(selectedRow.read_amount);
     setNewRead("");
     setNewAudio("");
@@ -494,57 +512,73 @@ export default function StreakPage() {
   // Saves to whichever day is currently selected - defaults to today, but
   // picking a previous day (date picker or the Last 30 Days grid) lets
   // you fill in something you missed without disturbing any other day.
-  async function saveToday(patch: Partial<StreakDay>) {
-    const merged = withDerived({ ...selectedRow, ...patch });
-    const isToday = selectedDay === today;
-    const justUnlockedGames = isToday && !qualifies(selectedRow) && qualifies(merged);
-    setHistory((prev) => ({ ...prev, [selectedDay]: merged }));
-    if (justUnlockedGames) {
-      setShowGamesUnlocked(true);
-      fireNotifyEvent({ kind: "core_run_completed" });
-      fireNotifyEvent({ kind: "games_unlocked" });
-    }
-    const { data, error } = await supabase
-      .from("streak_days")
-      .upsert(
-        {
-          user_id: user.id,
-          day: selectedDay,
-          read: merged.read,
-          listen: merged.listen,
-          daily_update: merged.daily_update,
-          story_share: merged.story_share,
-          read_what: merged.read_what,
-          read_amount: merged.read_amount,
-          read_items: merged.read_items,
-          read_minutes: merged.read_minutes,
-          listen_what: merged.listen_what,
-          listen_count: merged.listen_count,
-          listen_items: merged.listen_items,
-          story_shares: merged.story_shares,
-          questions: merged.questions,
-          yeses: merged.yeses,
-          meetings: merged.meetings,
-          meeting_items: merged.meeting_items,
-          depth_texts: merged.depth_texts,
-        },
-        { onConflict: "user_id,day" }
-      )
-      .select("*")
-      .single();
-    if (error) {
-      // The checkbox/field above already flipped optimistically - without
-      // surfacing this, a failed save looks identical to a successful one
-      // and silently doesn't count toward the streak.
-      setSaveError(`Couldn't save that: ${error.message}`);
-    } else if (data) {
-      setSaveError(null);
-      setHistory((prev) => ({ ...prev, [selectedDay]: normalizeRow(data as StreakDay) }));
-      // Evaluate right away instead of waiting for the next Dashboard/Badges
-      // mount - otherwise a badge earned here (e.g. 5 Audios in a Day) sits
-      // un-awarded until something else happens to trigger a re-check.
-      checkAndAwardBadges(ownerId);
-    }
+  // Queued onto saveQueueRef (see historyRef above) so overlapping calls -
+  // one per changed field, fired independently from onBlur/onClick
+  // handlers - never race each other. Each queued turn re-reads the base
+  // row from historyRef.current *at the time it actually runs*, not from
+  // the selectedRow closure captured when it was fired, so the second of
+  // two quick saves always patches on top of the first's change rather
+  // than overwriting it.
+  function saveToday(patch: Partial<StreakDay>) {
+    const day = selectedDay;
+    const run = async () => {
+      const base = historyRef.current[day] ?? emptyDay(user.id, day);
+      const merged = withDerived({ ...base, ...patch });
+      const isToday = day === today;
+      const justUnlockedGames = isToday && !qualifies(base) && qualifies(merged);
+      historyRef.current = { ...historyRef.current, [day]: merged };
+      setHistory((prev) => ({ ...prev, [day]: merged }));
+      if (justUnlockedGames) {
+        setShowGamesUnlocked(true);
+        fireNotifyEvent({ kind: "core_run_completed" });
+        fireNotifyEvent({ kind: "games_unlocked" });
+      }
+      const { data, error } = await supabase
+        .from("streak_days")
+        .upsert(
+          {
+            user_id: user.id,
+            day,
+            read: merged.read,
+            listen: merged.listen,
+            daily_update: merged.daily_update,
+            story_share: merged.story_share,
+            read_what: merged.read_what,
+            read_amount: merged.read_amount,
+            read_items: merged.read_items,
+            read_minutes: merged.read_minutes,
+            listen_what: merged.listen_what,
+            listen_count: merged.listen_count,
+            listen_items: merged.listen_items,
+            story_shares: merged.story_shares,
+            questions: merged.questions,
+            yeses: merged.yeses,
+            meetings: merged.meetings,
+            meeting_items: merged.meeting_items,
+            depth_texts: merged.depth_texts,
+          },
+          { onConflict: "user_id,day" }
+        )
+        .select("*")
+        .single();
+      if (error) {
+        // The checkbox/field above already flipped optimistically - without
+        // surfacing this, a failed save looks identical to a successful one
+        // and silently doesn't count toward the streak.
+        setSaveError(`Couldn't save that: ${error.message}`);
+      } else if (data) {
+        setSaveError(null);
+        const normalized = normalizeRow(data as StreakDay);
+        historyRef.current = { ...historyRef.current, [day]: normalized };
+        setHistory((prev) => ({ ...prev, [day]: normalized }));
+        // Evaluate right away instead of waiting for the next Dashboard/Badges
+        // mount - otherwise a badge earned here (e.g. 5 Audios in a Day) sits
+        // un-awarded until something else happens to trigger a re-check.
+        checkAndAwardBadges(ownerId);
+      }
+    };
+    saveQueueRef.current = saveQueueRef.current.then(run, run);
+    return saveQueueRef.current;
   }
 
   // Questions/Yeses are shared with the Pipeline Tracker's Daily Tally -
