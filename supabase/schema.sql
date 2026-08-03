@@ -2095,15 +2095,16 @@ begin
 end $$;
 
 -- ============================================================
--- Household-shareable tables: candidates, contacts, PV, customer sales,
--- and candidate resource overrides are the "same business" data — a
+-- Household-shareable tables: contacts, PV, customer sales, and
+-- candidate resource overrides are the "same business" data — a
 -- user_id here can be either the caller's own id OR the id they've
 -- linked to via link_spouse()
 -- (household_id), so a linked pair reads/writes one shared set of rows
 -- instead of two separate ones. Also readable (read-only) by an upline
--- at any level, or admin. (pipeline_periods used to be in this loop too
--- - it now gets its own explicit block below, since an upline can WRITE
--- it, not just read it - see "Pipeline Tracker: upline fill-in".)
+-- at any level, or admin. (pipeline_periods and candidates used to be in
+-- this loop too - they now get their own explicit blocks below, since an
+-- upline can WRITE them, not just read them - see "Pipeline Tracker:
+-- upline fill-in" and "Candidate Roadmap: upline fill-in".)
 -- ============================================================
 do $$
 declare
@@ -2111,7 +2112,7 @@ declare
 begin
   for t in
     select unnest(array[
-      'candidates', 'contacts', 'monthly_pv', 'customer_sales',
+      'contacts', 'monthly_pv', 'customer_sales',
       'candidate_resource_overrides', 'onboarding_resource_overrides'
     ])
   loop
@@ -2186,6 +2187,60 @@ create policy "update_own_or_upline_or_admin" on pipeline_periods for update usi
 
 drop policy if exists "delete_own_or_admin" on pipeline_periods;
 create policy "delete_own_or_admin" on pipeline_periods for delete using (
+  user_id = auth.uid()
+  or user_id = (select household_id from profiles where id = auth.uid())
+  or public.is_app_admin()
+);
+
+-- ============================================================
+-- Candidate Roadmap: upline fill-in
+-- Same idea as "Pipeline Tracker: upline fill-in" above - candidates
+-- used to be select-only for an upline (they could see a downline's
+-- roster but not touch it), which meant "filling in for a downline" on
+-- the Candidate Roadmap (Tally tab -> pick a downline member) could only
+-- ever send resources, never actually advance/reverse someone's step,
+-- mark them Launched/Filtered Out, or edit their Connected date/Time
+-- zone/Notes - everything an upline CAN already do for their own
+-- candidates. Pulled out of the household-shareable loop above (which
+-- only ever gave upline read access) into its own block so UPDATE alone
+-- carries the upline exception; INSERT and DELETE stay self/household/
+-- admin only - adding a brand new candidate or permanently deleting one
+-- on someone else's behalf isn't "filling in," unlike editing an
+-- existing one.
+-- ============================================================
+alter table candidates enable row level security;
+
+drop policy if exists "select_own_or_admin" on candidates;
+drop policy if exists "select_own_or_upline_or_admin" on candidates;
+create policy "select_own_or_upline_or_admin" on candidates for select using (
+  user_id = auth.uid()
+  or user_id = (select household_id from profiles where id = auth.uid())
+  or public.is_upline_of(auth.uid(), user_id)
+  or public.is_app_admin()
+);
+
+drop policy if exists "insert_own" on candidates;
+create policy "insert_own" on candidates for insert with check (
+  user_id = auth.uid()
+  or user_id = (select household_id from profiles where id = auth.uid())
+);
+
+drop policy if exists "update_own_or_admin" on candidates;
+drop policy if exists "update_own_or_upline_or_admin" on candidates;
+create policy "update_own_or_upline_or_admin" on candidates for update using (
+  user_id = auth.uid()
+  or user_id = (select household_id from profiles where id = auth.uid())
+  or public.is_upline_of(auth.uid(), user_id)
+  or public.is_app_admin()
+) with check (
+  user_id = auth.uid()
+  or user_id = (select household_id from profiles where id = auth.uid())
+  or public.is_upline_of(auth.uid(), user_id)
+  or public.is_app_admin()
+);
+
+drop policy if exists "delete_own_or_admin" on candidates;
+create policy "delete_own_or_admin" on candidates for delete using (
   user_id = auth.uid()
   or user_id = (select household_id from profiles where id = auth.uid())
   or public.is_app_admin()

@@ -2117,9 +2117,22 @@ function MemberResourceSender({ recipientId, recipientName }: { recipientId: str
   );
 }
 
+// Full parity with an upline's own Candidate Roadmap - advance/reverse
+// step, Mark Launched/Filtered Out, edit Connected/Time zone/Notes, copy
+// the invite link, book a meeting, everything CandidateCard already
+// does for your own candidates. Reuses that exact component (rather
+// than a separate read-only row) now that candidates' RLS carries the
+// same "upline can update, not just read" exception pipeline_periods
+// already had (see "Candidate Roadmap: upline fill-in" in
+// supabase/schema.sql) - the only thing still off-limits is adding a
+// brand new candidate or permanently deleting one on someone else's
+// behalf, neither of which "filling in" for an existing roster needs.
 function DownlineCandidateResources({ actingFor }: { actingFor: DownlineOption }) {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+  const [stepFilter, setStepFilter] = useState<"all" | number>("all");
+  const staleThresholdIso = isoDaysAgo(STALE_CANDIDATE_DAYS);
 
   useEffect(() => {
     let cancelled = false;
@@ -2129,8 +2142,6 @@ function DownlineCandidateResources({ actingFor }: { actingFor: DownlineOption }
         .from("candidates")
         .select("*")
         .eq("user_id", actingFor.ownerId)
-        .eq("launched", false)
-        .eq("filtered_out", false)
         .order("current_step", { ascending: false });
       if (!cancelled) {
         setCandidates((data as Candidate[]) ?? []);
@@ -2143,6 +2154,46 @@ function DownlineCandidateResources({ actingFor }: { actingFor: DownlineOption }
     };
   }, [actingFor.ownerId]);
 
+  async function updateCandidate(id: string, patch: Partial<Candidate>) {
+    const previous = candidates.find((c) => c.id === id);
+    setCandidates((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+    const { error } = await supabase
+      .from("candidates")
+      .update({ ...patch, updated_at: new Date().toISOString() })
+      .eq("id", id);
+    if (error) {
+      // Revert - otherwise a failed step move/status change still shows
+      // as if it saved.
+      if (previous) {
+        setCandidates((prev) => prev.map((c) => (c.id === id ? previous : c)));
+      }
+      setUpdateError(error.message);
+    } else {
+      setUpdateError(null);
+      // Deliberately skips try_claim_pipeline_threshold_notification /
+      // the pipeline_5plus push the main list's own updateCandidate
+      // fires - that RPC and its notify route both resolve "whose
+      // threshold" and "whose upline to tell" from the CALLER's own
+      // session, not an explicit target, so firing it here would
+      // credit this account's own 5+ milestone instead of the person
+      // actually being filled in for.
+    }
+  }
+
+  function moveStep(candidate: Candidate, delta: number) {
+    const next = Math.min(
+      CANDIDATE_STEPS.length - 1,
+      Math.max(0, candidate.current_step + delta)
+    );
+    if (next === candidate.current_step) return;
+    updateCandidate(candidate.id, { current_step: next });
+  }
+
+  const active = candidates.filter((c) => !c.launched && !c.filtered_out);
+  const launched = candidates.filter((c) => c.launched);
+  const filteredActive =
+    stepFilter === "all" ? active : active.filter((c) => c.current_step === stepFilter);
+
   return (
     <>
       <MemberResourceSender recipientId={actingFor.id} recipientName={actingFor.name} />
@@ -2152,56 +2203,65 @@ function DownlineCandidateResources({ actingFor }: { actingFor: DownlineOption }
         <p className="text-xs text-slate-400">
           As their upline, you can send a specific podcast, book, or article straight to one of
           their prospects — it shows up in that person&apos;s resources right away.
-          {actingFor.name}&apos;s roadmap steps and notes stay theirs to manage — switch back to
-          &quot;Me&quot; on the Tally tab for that.
         </p>
       </div>
+
+      {active.length > 0 && (
+        <select
+          className="input"
+          value={stepFilter === "all" ? "all" : String(stepFilter)}
+          onChange={(e) => setStepFilter(e.target.value === "all" ? "all" : Number(e.target.value))}
+        >
+          <option value="all">All Steps</option>
+          {CANDIDATE_STEPS.map((step, i) => (
+            <option key={i} value={i}>
+              {i + 1}. {step.label}
+            </option>
+          ))}
+        </select>
+      )}
 
       {loading ? (
         <SkeletonRows rows={3} />
       ) : candidates.length === 0 ? (
-        <div className="empty-state">No active candidates for {actingFor.name} right now.</div>
+        <div className="empty-state">No candidates for {actingFor.name} yet.</div>
       ) : (
-        candidates.map((c) => <DownlineCandidateRow key={c.id} candidate={c} />)
+        <>
+          {filteredActive.map((candidate) => (
+            <CandidateCard
+              key={candidate.id}
+              candidate={candidate}
+              onMoveStep={moveStep}
+              onUpdate={updateCandidate}
+              isStale={candidate.updated_at < staleThresholdIso}
+            />
+          ))}
+
+          {filteredActive.length === 0 && (
+            <p className="empty-state">
+              {active.length === 0
+                ? `No active candidates for ${actingFor.name} right now.`
+                : "Nobody's at that step right now."}
+            </p>
+          )}
+
+          {launched.length > 0 && (
+            <div className="space-y-2">
+              <p className="section-title px-1">Launched 🎉</p>
+              {launched.map((candidate) => (
+                <CandidateCard
+                  key={candidate.id}
+                  candidate={candidate}
+                  onMoveStep={moveStep}
+                  onUpdate={updateCandidate}
+                />
+              ))}
+            </div>
+          )}
+        </>
       )}
+
+      {updateError && <p className="text-xs text-red-400">{updateError}</p>}
     </>
-  );
-}
-
-function DownlineCandidateRow({ candidate }: { candidate: Candidate }) {
-  const [expanded, setExpanded] = useState(false);
-  const step = CANDIDATE_STEPS[candidate.current_step];
-
-  return (
-    <div className="card space-y-0">
-      <div
-        className="flex w-full cursor-pointer items-center justify-between gap-2 text-left"
-        role="button"
-        tabIndex={0}
-        onClick={() => setExpanded((e) => !e)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            setExpanded((exp) => !exp);
-          }
-        }}
-        aria-expanded={expanded}
-      >
-        <div className="min-w-0 flex-1">
-          <p className="truncate font-semibold text-white">{candidate.name}</p>
-          <p className="truncate text-xs text-amber-light">{step.label}</p>
-        </div>
-        <span className="text-slate-500">{expanded ? "▾" : "▸"}</span>
-      </div>
-
-      {expanded && (
-        <div className="space-y-3 pt-3">
-          <BookMeetingButton candidate={candidate} />
-          <CandidateQuestions candidateId={candidate.id} />
-          <CandidateResourceProgress candidate={candidate} />
-          <CandidateResourceSender candidateId={candidate.id} />
-        </div>
-      )}
-    </div>
   );
 }

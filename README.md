@@ -4182,6 +4182,38 @@ does that check itself (same self/household/upline/admin shape as
 candidate's actual owner, so the meeting always lands on the right
 person's Calendar.
 
+### Filling in for a downline's Candidate Roadmap: full parity
+
+An upline "filling in" for a downline (Pipeline Tracker's Tally tab ->
+pick a downline member) could see that person's candidates and send
+resources to them, but couldn't touch anything else - no advancing or
+reversing a step, no Mark Launched/Filtered Out, no editing Connected
+date/Time zone/Notes, none of the actions already available on an
+upline's own Candidate Roadmap. Fixed by giving `candidates` the same
+"upline fill-in" RLS upgrade `pipeline_periods` already got: UPDATE now
+carries an upline exception (self/household/upline/admin), not just
+SELECT. INSERT and DELETE stay self/household/admin only - adding a
+brand new candidate or permanently deleting one on someone else's behalf
+isn't part of "filling in" for an existing roster.
+
+On the client, the downline view (`DownlineCandidateResources` in
+`app/pipeline/page.tsx`) now reuses the exact same `CandidateCard`
+component an upline's own Roadmap uses, instead of a separate stripped-
+down read-only row - so it's genuinely the same feature, not a
+parallel one to keep in sync. That also means the invite-link copy
+button, the step filter, the Launched section, and the "📅 Book a
+Meeting" button all come along for free.
+
+One deliberate gap: updating a downline's candidate here skips the
+`try_claim_pipeline_threshold_notification` call (and the "5+ active
+candidates" push) that firing the same update on your own roster
+triggers. That RPC, and the notify route behind it, both resolve "whose
+threshold" and "whose upline to tell" from the calling session, not an
+explicit target - firing it while filling in for someone else would
+credit the wrong account's milestone rather than theirs. Left as a known
+limitation rather than plumbed through properly, since it's a narrow
+edge case relative to what was actually asked for here.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)
