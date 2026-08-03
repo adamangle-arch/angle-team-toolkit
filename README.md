@@ -1975,6 +1975,27 @@ Alerts are) and recomputes fresh on every page load via
 midnight - a new day just naturally starts from zero rows matching
 `created_at::date = current_date`.
 
+Two gaps fixed here:
+
+- **Linked-spouse households now show as both names**, same convention
+  already used by QI1 Rhythm and the Ditto leaderboard: `get_daily_sales_feed()`
+  gained a `left join profiles partner on partner.household_id = pr.id`
+  and returns `partner_user_id`/`partner_first_name`/`partner_last_name`
+  alongside the submitter's own, and the row now renders through
+  `CoupleLink` (already used elsewhere on this page) instead of a plain
+  `PersonLink`. Previously a sale logged by one half of a linked
+  household only ever showed that one person's name — which, combined
+  with a couple photo as their profile picture, could easily read as "a
+  shared account" when it was really just one spouse's own profile.
+- **Sale notes are now shown team-wide, not just on the Volume page.**
+  The free-text notes field captured when logging a sale
+  (`customer_sales.notes`) was already stored and already readable by
+  the whole team (`get_daily_sales_feed()` is `security definer`, so it
+  was never an RLS gap) — it just wasn't included in what the function
+  returned or rendered. Now returned as `notes` and shown as a line under
+  the category pills on each Today's Sales row, same as it already
+  appears on the submitter's own Volume page log.
+
 ### Daily period (Pipeline Tracker & Leaderboard)
 
 Both the **Pipeline Tracker** and **Leaderboard** now have a **Daily**

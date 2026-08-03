@@ -182,6 +182,10 @@ export type DailySaleEntry = {
   categories: SaleCategory[];
   amount: number;
   created_at: string;
+  notes: string | null;
+  partner_user_id: string | null;
+  partner_first_name: string | null;
+  partner_last_name: string | null;
 };
 
 export type MonthlyPv = {

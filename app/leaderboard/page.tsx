@@ -650,7 +650,7 @@ export default function LeaderboardPage() {
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-slate-200">
-                      <PersonLink entry={entry} />{" "}
+                      <CoupleLink entry={entry} />{" "}
                       <span className="text-xs text-slate-500">
                         ({entry.team}) — {time}
                       </span>
@@ -671,6 +671,7 @@ export default function LeaderboardPage() {
                       </span>
                     ))}
                   </div>
+                  {entry.notes && <p className="text-xs text-slate-400">{entry.notes}</p>}
                 </div>
               );
             })}

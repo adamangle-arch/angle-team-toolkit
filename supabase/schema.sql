@@ -2017,10 +2017,21 @@ drop function if exists public.get_daily_sales_leaderboard();
 -- above.
 --
 -- Dropped first because its return shape changed (category text ->
--- categories text[]) - Postgres won't let create or replace change an
--- existing function's return type.
+-- categories text[]; then again to add notes/partner_* below) - Postgres
+-- won't let create or replace change an existing function's return type.
 drop function if exists public.get_daily_sales_feed();
 
+-- notes: the sale-detail free text already captured on the Volume page's
+-- own log (customer_sales.notes) but never surfaced anywhere team-wide -
+-- exposed here so the whole team can read the story behind a sale, not
+-- just its PV/category tags. security definer already bypasses
+-- customer_sales's per-user RLS to show every sale team-wide, so this
+-- isn't a new privacy surface, just a wider column list.
+-- partner_user_id/partner_first_name/partner_last_name: same
+-- household-linked-spouse join used by get_qi1_rhythm_leaderboard and
+-- get_ditto_leaderboard above, so a sale logged by one half of a linked
+-- household renders as "both spouses" (via CoupleLink) the same way
+-- those leaderboards already do, instead of looking like a solo sale.
 create or replace function public.get_daily_sales_feed()
 returns table (
   sale_id uuid,
@@ -2030,16 +2041,22 @@ returns table (
   team text,
   categories text[],
   amount int,
-  created_at timestamptz
+  created_at timestamptz,
+  notes text,
+  partner_user_id uuid,
+  partner_first_name text,
+  partner_last_name text
 )
 language sql
 stable
 security definer
 set search_path = public
 as $$
-  select cs.id, pr.id, pr.first_name, pr.last_name, pr.team, cs.categories, cs.amount::int, cs.created_at
+  select cs.id, pr.id, pr.first_name, pr.last_name, pr.team, cs.categories, cs.amount::int, cs.created_at,
+         cs.notes, partner.id, partner.first_name, partner.last_name
   from customer_sales cs
   join profiles pr on pr.id = cs.user_id
+  left join profiles partner on partner.household_id = pr.id
   where cs.created_at::date = current_date
   order by cs.created_at desc;
 $$;
