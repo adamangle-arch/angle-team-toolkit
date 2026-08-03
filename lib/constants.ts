@@ -1,3 +1,5 @@
+import { getToday } from "./dates";
+
 // Accounts that can see every team member's data (Team tab: Members +
 // Teams views). Must match the emails hardcoded in is_app_admin() in
 // supabase/schema.sql.
@@ -705,3 +707,36 @@ export const CONNECTION_TAGS = [
 // Contact Builder: optional "best way to reconnect" single-pick, shown
 // alongside the connection tags in Add Contact.
 export const RECONNECT_METHODS = ["Text", "Instagram", "Facebook", "Snapchat", "Other"] as const;
+
+// Stories: one rotates in as "today's prompt" via getTodayStoryPrompt()
+// below - fixed editorial content, so it lives here as a plain list
+// rather than a database table, same as CANDIDATE_STEP_RESOURCES/
+// ONBOARDING_SESSIONS.
+export const STORY_PROMPTS = [
+  "Post yourself using your products out in public.",
+  "Post yourself doing a meeting for your business.",
+  "Post a team event or get-together.",
+  "Post where you're going to meet people today.",
+  "Post yourself sharing your story with someone.",
+  "Post a customer who loves your products.",
+  "Post your 'why' - what you're building this business for.",
+  "Post yourself reading or listening to something that's growing you today.",
+  "Post a win from today - a Yes, a QI1 booked, a sale, anything.",
+  "Post yourself getting ready for a big day - what's on deck?",
+  "Post your workspace, or wherever you get your business done.",
+  "Post a shoutout to someone on your team who's crushing it.",
+] as const;
+
+// A hash of the calendar date string rather than a day-of-year count -
+// deterministic and identical across every device for the same local
+// calendar day (see getToday() in lib/dates.ts), with no leap-year/
+// year-boundary edge cases to think about.
+export function getTodayStoryPrompt(): string {
+  const dateStr = getToday();
+  let hash = 0;
+  for (let i = 0; i < dateStr.length; i++) {
+    hash = (hash * 31 + dateStr.charCodeAt(i)) | 0;
+  }
+  const index = Math.abs(hash) % STORY_PROMPTS.length;
+  return STORY_PROMPTS[index];
+}

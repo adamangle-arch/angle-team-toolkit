@@ -1996,6 +1996,47 @@ Two gaps fixed here:
   the category pills on each Today's Sales row, same as it already
   appears on the submitter's own Volume page log.
 
+### Stories
+
+A new **Stories** tab (linked from **More**) gives everyone a rotating
+daily business-building prompt — "Post yourself doing a meeting for your
+business," "Post a win from today," etc. (`STORY_PROMPTS` in
+`lib/constants.ts`, 12 of them) — and a photo post that disappears after
+24 hours, the same "shared daily challenge" idea as Instagram/Snapchat
+Stories, but tied to actual business-building activities instead of
+whatever.
+
+- **Everyone sees the same prompt on the same day.** `getTodayStoryPrompt()`
+  hashes the local calendar date string (`getToday()` from `lib/dates.ts`)
+  to an index into `STORY_PROMPTS` — deterministic and identical across
+  every device for the same day, with no database row or cron needed to
+  "rotate" it.
+- **Company-wide feed, not scoped to a downline.** `story_posts` uses the
+  same `for select using (true)` convention as `company_events`/
+  `team_event_albums`/`event_media` in this file — the whole point is
+  everyone seeing everyone's answer to today's prompt, same as Today's
+  Sales. Posting is `insert own` only; a post can be taken down early by
+  its poster or an admin (`story_posts_delete_own_or_admin`).
+- **"Expires" without ever being deleted.** `get_active_stories()` only
+  returns posts from the last 24 hours (`security definer`, joined to
+  `profiles` for name/team, same shape as `get_daily_sales_feed()`) — a
+  post just stops coming back once its window passes, the same
+  no-cron-needed pattern `get_daily_sales_feed()`'s `current_date` window
+  already uses. Nothing is ever actually deleted by this, so there's no
+  data-loss risk in the "expiry."
+- **New `story-photos` storage bucket** — public read, per-user-folder
+  insert/delete, same pattern as the `avatars` bucket. Photos are resized/
+  re-encoded client-side before upload (same `compressImage()` fix
+  already used for Team Events, since phone camera photos routinely run
+  3-8MB and that's what makes an upload over LTE feel like it takes
+  forever).
+- Available from day one (not gated behind onboarding progress, like
+  Badges/Team Events/Notifications).
+
+Deliberately kept simple for a first pass: no view counts, no reactions,
+no video support, no streak/badge tie-in yet. All straightforward
+follow-ups once the core "post + 24h feed" loop is actually being used.
+
 ### Daily period (Pipeline Tracker & Leaderboard)
 
 Both the **Pipeline Tracker** and **Leaderboard** now have a **Daily**

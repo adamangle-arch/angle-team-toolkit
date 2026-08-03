@@ -628,3 +628,15 @@ export type BadgeMetrics = {
   personal_active_pipeline_count: number;
   team_active_pipeline_count: number;
 };
+
+export type StoryPost = {
+  story_id: string;
+  user_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  team: string | null;
+  prompt: string;
+  photo_url: string;
+  caption: string;
+  created_at: string;
+};

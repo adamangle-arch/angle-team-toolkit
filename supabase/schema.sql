@@ -5680,3 +5680,94 @@ alter table sent_notifications add constraint sent_notifications_kind_check chec
     'pipeline_5plus', 'onboarding_unlocked', 'games_unlocked', 'badge_earned'
   )
 );
+
+-- ============================================================
+-- STORIES
+-- A daily, rotating business-building prompt (STORY_PROMPTS in
+-- lib/constants.ts - same "list lives in TS, not a table" convention as
+-- CANDIDATE_STEP_RESOURCES/ONBOARDING_SESSIONS, since it's fixed
+-- editorial content, not user data) that everyone on the team answers
+-- with a photo post. Company-wide visible (same `for select using
+-- (true)` convention as company_events/team_event_albums/event_media)
+-- rather than scoped to a downline - the whole point is a shared daily
+-- prompt everyone sees the same answers to, like Today's Sales.
+-- "Expires" after 24 hours purely by no longer being returned by
+-- get_active_stories() below - nothing ever deletes the row, so there's
+-- no real cleanup job needed, just like get_daily_sales_feed()'s
+-- `created_at::date = current_date` window naturally starting fresh
+-- every midnight.
+-- ============================================================
+create table if not exists story_posts (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  prompt text not null,
+  photo_url text not null,
+  caption text not null default '',
+  created_at timestamptz not null default now()
+);
+
+alter table story_posts enable row level security;
+
+drop policy if exists "story_posts_select_all" on story_posts;
+create policy "story_posts_select_all" on story_posts for select using (true);
+
+drop policy if exists "story_posts_insert_own" on story_posts;
+create policy "story_posts_insert_own" on story_posts for insert with check (user_id = auth.uid());
+
+-- Own post can be taken down early (posted the wrong thing, changed
+-- their mind); admin can remove anything, same as every other
+-- team-wide-visible content table in this file.
+drop policy if exists "story_posts_delete_own_or_admin" on story_posts;
+create policy "story_posts_delete_own_or_admin" on story_posts for delete using (
+  user_id = auth.uid() or public.is_app_admin()
+);
+
+-- Public-read storage bucket for the actual story photo files, same
+-- per-user-folder pattern as avatars - anyone can view, only the
+-- uploader can insert/delete their own folder's files.
+insert into storage.buckets (id, name, public)
+values ('story-photos', 'story-photos', true)
+on conflict (id) do nothing;
+
+drop policy if exists "story_photos_bucket_public_read" on storage.objects;
+create policy "story_photos_bucket_public_read" on storage.objects for select
+using (bucket_id = 'story-photos');
+
+drop policy if exists "story_photos_bucket_insert_own" on storage.objects;
+create policy "story_photos_bucket_insert_own" on storage.objects for insert
+with check (bucket_id = 'story-photos' and (storage.foldername(name))[1] = auth.uid()::text);
+
+drop policy if exists "story_photos_bucket_delete_own" on storage.objects;
+create policy "story_photos_bucket_delete_own" on storage.objects for delete
+using (bucket_id = 'story-photos' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- Every story posted in the last 24 hours, newest first, joined to the
+-- poster's name/team - same shape/intent as get_daily_sales_feed()
+-- (security definer so it's readable team-wide regardless of who's
+-- calling, computed fresh on every load rather than needing a cron to
+-- "expire" anything).
+create or replace function public.get_active_stories()
+returns table (
+  story_id uuid,
+  user_id uuid,
+  first_name text,
+  last_name text,
+  team text,
+  prompt text,
+  photo_url text,
+  caption text,
+  created_at timestamptz
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select sp.id, pr.id, pr.first_name, pr.last_name, pr.team, sp.prompt, sp.photo_url, sp.caption, sp.created_at
+  from story_posts sp
+  join profiles pr on pr.id = sp.user_id
+  where sp.created_at > now() - interval '24 hours'
+  order by sp.created_at desc;
+$$;
+
+grant execute on function public.get_active_stories() to authenticated;
