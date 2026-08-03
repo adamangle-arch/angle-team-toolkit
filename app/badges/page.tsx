@@ -1,12 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
-import { BADGE_DEFINITIONS, BADGE_CATEGORIES, isBadgeEarned, badgeProgress } from "@/lib/badges";
+import { BADGE_DEFINITIONS, BADGE_CATEGORIES, isBadgeEarned, badgeProgress, type BadgeDefinition } from "@/lib/badges";
 import { checkAndAwardBadges } from "@/lib/badgeEngine";
-import { pointsForBadgeKeys, levelProgress, frameTierForLevel, FRAME_TIER_LABELS } from "@/lib/levels";
+import {
+  pointsForBadgeKeys,
+  levelProgress,
+  frameTierForLevel,
+  FRAME_TIER_LABELS,
+  type FrameTier,
+} from "@/lib/levels";
 import LevelAvatar from "@/components/LevelAvatar";
 import { SkeletonList } from "@/components/Skeleton";
 import { ACTIVITY_LOG_KINDS, isBadgeExcluded, type ActivityLogKind } from "@/lib/constants";
@@ -21,8 +27,84 @@ const ACTIVITY_METRIC_KEY: Record<ActivityLogKind, keyof BadgeMetrics> = {
   story_practiced: "has_story_practiced",
 };
 
+const TIER_ICONS: Record<FrameTier, string> = {
+  none: "🔰",
+  bronze: "🥉",
+  silver: "🥈",
+  gold: "🥇",
+  diamond: "💎",
+};
+
+type FilterMode = "all" | "earned" | "locked";
+
+// Alphabetical, not catalog/insertion order - with 51 categories,
+// "findable" beats "grouped by whenever it was added."
+const SORTED_CATEGORIES = [...BADGE_CATEGORIES].sort((a, b) => a.localeCompare(b));
+
 function formatEarnedDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
+// A badge earned in roughly the last 3 days gets a "NEW" tag - long
+// enough to still catch someone who doesn't open the app daily, short
+// enough that the tag doesn't become permanent wallpaper.
+const NEW_BADGE_WINDOW_MS = 3 * 24 * 60 * 60 * 1000;
+function isRecentlyEarned(earnedAt: string | undefined): boolean {
+  return Boolean(earnedAt) && Date.now() - new Date(earnedAt as string).getTime() < NEW_BADGE_WINDOW_MS;
+}
+
+function BadgeRow({
+  badge,
+  earnedAt,
+  earned,
+  progress,
+}: {
+  badge: BadgeDefinition;
+  earnedAt: string | undefined;
+  earned: boolean;
+  progress: number;
+}) {
+  const isCrown = badge.icon === "👑";
+  return (
+    <div
+      className={`relative overflow-hidden rounded-lg px-3 py-2 ${
+        earned
+          ? isCrown
+            ? "bg-gradient-to-r from-amber/25 via-amber/10 to-transparent ring-1 ring-amber/40"
+            : "bg-amber/10"
+          : "bg-navy"
+      }`}
+    >
+      <div className="flex items-center gap-2">
+        <span className={`text-lg leading-none ${earned ? "" : "opacity-30 grayscale"}`}>{badge.icon}</span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <p className={`text-sm font-medium ${earned ? "text-amber-light" : "text-white"}`}>{badge.label}</p>
+            {isRecentlyEarned(earnedAt) && (
+              <span className="pill-amber !px-1.5 !py-0 text-[9px] tracking-wide">NEW</span>
+            )}
+          </div>
+          <p className="text-xs text-slate-500">{badge.description}</p>
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-0.5">
+          <span className="text-lg leading-none">{earned ? "✅" : "🔒"}</span>
+          <span className="text-[10px] font-semibold text-slate-500">+{badge.points}</span>
+        </div>
+      </div>
+      {earned ? (
+        earnedAt && <p className="mt-1 pl-7 text-xs text-slate-500">Earned {formatEarnedDate(earnedAt)}</p>
+      ) : (
+        <div className="mt-1.5 pl-7">
+          <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+            <div
+              className="h-full rounded-full bg-amber transition-all duration-300"
+              style={{ width: `${Math.round(progress * 100)}%` }}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function BadgesPage() {
@@ -35,6 +117,24 @@ export default function BadgesPage() {
   const [logging, setLogging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loggingActivity, setLoggingActivity] = useState<ActivityLogKind | null>(null);
+
+  // Browsing controls - a flat list of 300 badges across 51 categories
+  // is unusable without these. Search/filter force every matching
+  // category open (the whole point of searching or filtering is to see
+  // the matches, not just a count), so manual expand/collapse only
+  // matters in the plain "no search, no filter" browsing mode.
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterMode, setFilterMode] = useState<FilterMode>("all");
+  const [manuallyExpanded, setManuallyExpanded] = useState<Set<string>>(new Set());
+
+  function toggleCategory(category: string) {
+    setManuallyExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(category)) next.delete(category);
+      else next.add(category);
+      return next;
+    });
+  }
 
   async function load() {
     const [{ data: metricsRows }, { data: badgeRows }, { data: profileRow }] = await Promise.all([
@@ -97,30 +197,103 @@ export default function BadgesPage() {
   const myLevel = levelProgress(totalPoints);
   const myTier = frameTierForLevel(myLevel.level);
 
+  // Closest-to-unlocking badges across every category, regardless of
+  // which one they belong to - the "video game achievement screen"
+  // touch that also happens to be the single most useful thing to show
+  // first: exactly what to go do next, instead of making someone hunt
+  // through 51 categories for it.
+  const nearlyThere = useMemo(() => {
+    if (!metrics) return [];
+    return BADGE_DEFINITIONS.filter((b) => !earnedByKey.has(b.key))
+      .map((b) => ({ badge: b, progress: badgeProgress(b, metrics, earnedByKey) }))
+      .filter((x) => x.progress > 0 && x.progress < 1)
+      .sort((a, b) => b.progress - a.progress)
+      .slice(0, 5);
+  }, [metrics, earnedByKey]);
+
+  const trimmedQuery = searchQuery.trim().toLowerCase();
+  const isFiltering = trimmedQuery !== "" || filterMode !== "all";
+
   return (
     <>
       <PageHeader title="Badges" subtitle={`${earnedCount}/${totalCount} earned`} />
       <main className="page-main">
         {!excluded && !loading && (
-          <div className="card flex items-center gap-3">
-            <LevelAvatar photoUrl={photoUrl} level={myLevel.level} size="lg" />
-            <div className="min-w-0 flex-1 space-y-1.5">
-              <div className="flex items-center justify-between gap-2">
-                <p className="section-title">Level {myLevel.level}</p>
-                <span className="pill-amber shrink-0">{FRAME_TIER_LABELS[myTier]}</span>
+          <div className="card relative space-y-3 overflow-hidden">
+            <div
+              className="pointer-events-none absolute -right-10 -top-14 h-40 w-40 rounded-full opacity-20 blur-2xl"
+              style={{ background: "radial-gradient(circle, var(--color-amber), transparent 70%)" }}
+              aria-hidden="true"
+            />
+            <div className="relative flex items-center gap-3">
+              <LevelAvatar photoUrl={photoUrl} level={myLevel.level} size="lg" />
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="section-title">Level {myLevel.level}</p>
+                  <span className="pill-amber shrink-0">
+                    {TIER_ICONS[myTier]} {FRAME_TIER_LABELS[myTier]}
+                  </span>
+                </div>
+                <div className="relative h-2.5 w-full overflow-hidden rounded-full bg-navy">
+                  <div
+                    className="relative h-full overflow-hidden rounded-full bg-gradient-to-r from-amber-light to-amber"
+                    style={{ width: `${Math.round(myLevel.progress * 100)}%` }}
+                  >
+                    <div
+                      className="animate-shimmer absolute inset-y-0 w-1/3 bg-gradient-to-r from-transparent via-white/60 to-transparent"
+                      aria-hidden="true"
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-slate-400">
+                  {totalPoints} pts
+                  {myLevel.nextLevelPoints
+                    ? ` — ${myLevel.nextLevelPoints - totalPoints} to Level ${myLevel.level + 1}`
+                    : " — max level"}
+                </p>
               </div>
-              <div className="h-2 w-full overflow-hidden rounded-full bg-navy">
+            </div>
+            <div className="relative space-y-1">
+              <div className="flex items-center justify-between text-[11px] font-medium text-slate-400">
+                <span>Badge Collection</span>
+                <span>
+                  {earnedCount}/{totalCount}
+                </span>
+              </div>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-navy">
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-amber-light to-amber"
-                  style={{ width: `${Math.round(myLevel.progress * 100)}%` }}
+                  className="h-full rounded-full bg-sky-400/80 transition-all duration-500"
+                  style={{ width: `${totalCount > 0 ? Math.round((earnedCount / totalCount) * 100) : 0}%` }}
                 />
               </div>
-              <p className="text-xs text-slate-400">
-                {totalPoints} pts
-                {myLevel.nextLevelPoints
-                  ? ` — ${myLevel.nextLevelPoints - totalPoints} to Level ${myLevel.level + 1}`
-                  : " — max level"}
-              </p>
+            </div>
+          </div>
+        )}
+
+        {!loading && nearlyThere.length > 0 && (
+          <div className="card relative space-y-2 overflow-hidden">
+            <div
+              className="animate-glow-pulse pointer-events-none absolute -left-8 -top-8 h-32 w-32 rounded-full opacity-30 blur-2xl"
+              style={{ background: "radial-gradient(circle, var(--color-amber), transparent 70%)" }}
+              aria-hidden="true"
+            />
+            <p className="section-title relative">🔥 Almost There</p>
+            <div className="relative space-y-1.5">
+              {nearlyThere.map(({ badge, progress }) => (
+                <div key={badge.key} className="flex items-center gap-2 rounded-lg bg-navy px-3 py-2">
+                  <span className="text-lg leading-none">{badge.icon}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-white">{badge.label}</p>
+                    <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/10">
+                      <div
+                        className="h-full rounded-full bg-amber transition-all duration-300"
+                        style={{ width: `${Math.round(progress * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                  <span className="shrink-0 text-xs font-semibold text-amber-light">{Math.round(progress * 100)}%</span>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -174,68 +347,105 @@ export default function BadgesPage() {
           </div>
         )}
 
+        {!loading && metrics && (
+          <div className="card space-y-2">
+            <input
+              className="input"
+              placeholder="🔍 Search all 300 badges…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            <div className="flex gap-1.5">
+              {(["all", "earned", "locked"] as FilterMode[]).map((mode) => (
+                <button
+                  key={mode}
+                  className={filterMode === mode ? "toggle-pill-active" : "toggle-pill-inactive"}
+                  onClick={() => setFilterMode(mode)}
+                >
+                  {mode === "all" ? "All" : mode === "earned" ? "✅ Earned" : "🔒 Locked"}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {loading || !metrics ? (
           <SkeletonList cards={4} />
         ) : (
-          BADGE_CATEGORIES.map((category) => {
-            // Most valuable first within each category, not catalog-insertion
-            // order - a badge's point value (lib/levels.ts) is a better
-            // "how impressive is this" signal to lead with.
-            const badges = BADGE_DEFINITIONS.filter((b) => b.category === category).sort(
-              (a, b) => b.points - a.points
-            );
-            const earnedInCategory = badges.filter((b) => earnedByKey.has(b.key)).length;
-            return (
-              <div key={category} className="card space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="section-title">{category}</p>
-                  <span className="pill">
-                    {earnedInCategory}/{badges.length}
-                  </span>
-                </div>
-                <div className="space-y-1.5">
-                  {badges.map((badge) => {
-                    const earnedAt = earnedByKey.get(badge.key);
-                    const earned = Boolean(earnedAt) || isBadgeEarned(badge, metrics, earnedByKey);
-                    const progress = badgeProgress(badge, metrics, earnedByKey);
-                    return (
-                      <div
-                        key={badge.key}
-                        className={`rounded-lg px-3 py-2 ${earned ? "bg-amber/10" : "bg-navy"}`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className={`text-lg leading-none ${earned ? "" : "opacity-30 grayscale"}`}>
-                            {badge.icon}
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <p className={`text-sm font-medium ${earned ? "text-amber-light" : "text-white"}`}>
-                              {badge.label}
-                            </p>
-                            <p className="text-xs text-slate-500">{badge.description}</p>
-                          </div>
-                          <span className="shrink-0 text-lg leading-none">{earned ? "✅" : "🔒"}</span>
-                        </div>
-                        {earned ? (
-                          earnedAt && (
-                            <p className="mt-1 pl-7 text-xs text-slate-500">Earned {formatEarnedDate(earnedAt)}</p>
-                          )
-                        ) : (
-                          <div className="mt-1.5 pl-7">
-                            <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
-                              <div
-                                className="h-full rounded-full bg-amber transition-all duration-300"
-                                style={{ width: `${Math.round(progress * 100)}%` }}
-                              />
-                            </div>
-                          </div>
-                        )}
+          (() => {
+            const categorySections = SORTED_CATEGORIES.map((category) => {
+              // Most valuable first within each category, not catalog-
+              // insertion order - a badge's point value (lib/levels.ts)
+              // is a better "how impressive is this" signal to lead with.
+              const categoryBadges = BADGE_DEFINITIONS.filter((b) => b.category === category).sort(
+                (a, b) => b.points - a.points
+              );
+              const earnedInCategory = categoryBadges.filter((b) => earnedByKey.has(b.key)).length;
+              const visibleBadges = categoryBadges.filter((b) => {
+                const earned = earnedByKey.has(b.key);
+                if (filterMode === "earned" && !earned) return false;
+                if (filterMode === "locked" && earned) return false;
+                if (
+                  trimmedQuery &&
+                  !b.label.toLowerCase().includes(trimmedQuery) &&
+                  !b.description.toLowerCase().includes(trimmedQuery)
+                ) {
+                  return false;
+                }
+                return true;
+              });
+              return { category, categoryBadges, earnedInCategory, visibleBadges };
+            }).filter((section) => section.visibleBadges.length > 0);
+
+            if (categorySections.length === 0) {
+              return <p className="empty-state">No badges match that search.</p>;
+            }
+
+            return categorySections.map(({ category, categoryBadges, earnedInCategory, visibleBadges }) => {
+              const isComplete = earnedInCategory === categoryBadges.length;
+              const expanded = isFiltering || manuallyExpanded.has(category);
+              return (
+                <div key={category} className={`card space-y-2 ${isComplete ? "ring-1 ring-amber/40" : ""}`}>
+                  <button
+                    className="flex w-full items-center justify-between gap-2 text-left"
+                    onClick={() => toggleCategory(category)}
+                    aria-expanded={expanded}
+                  >
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <p className="section-title truncate">
+                        {isComplete && "👑 "}
+                        {category}
+                      </p>
+                      <div className="h-1 w-full max-w-32 overflow-hidden rounded-full bg-navy">
+                        <div
+                          className={`h-full rounded-full transition-all duration-300 ${
+                            isComplete ? "bg-amber" : "bg-sky-400/80"
+                          }`}
+                          style={{ width: `${Math.round((earnedInCategory / categoryBadges.length) * 100)}%` }}
+                        />
                       </div>
-                    );
-                  })}
+                    </div>
+                    <span className="pill shrink-0">
+                      {earnedInCategory}/{categoryBadges.length}
+                    </span>
+                    <span className="shrink-0 text-slate-500">{expanded ? "▾" : "▸"}</span>
+                  </button>
+                  {expanded && (
+                    <div className="space-y-1.5">
+                      {visibleBadges.map((badge) => {
+                        const earnedAt = earnedByKey.get(badge.key);
+                        const earned = Boolean(earnedAt) || isBadgeEarned(badge, metrics, earnedByKey);
+                        const progress = badgeProgress(badge, metrics, earnedByKey);
+                        return (
+                          <BadgeRow key={badge.key} badge={badge} earnedAt={earnedAt} earned={earned} progress={progress} />
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-              </div>
-            );
-          })
+              );
+            });
+          })()
         )}
       </main>
     </>

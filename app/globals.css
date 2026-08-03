@@ -219,4 +219,35 @@ body {
   .animate-fade-in {
     animation: fade-in 0.4s ease-in;
   }
+
+  /* Glossy moving highlight inside a filled progress bar (Badges page
+     Level XP bar) - a classic RPG touch, purely decorative so it's fine
+     to run continuously. */
+  @keyframes shimmer {
+    0% {
+      transform: translateX(-150%);
+    }
+    100% {
+      transform: translateX(150%);
+    }
+  }
+  .animate-shimmer {
+    animation: shimmer 2.2s ease-in-out infinite;
+  }
+
+  /* Soft pulsing glow, used behind "almost there" achievement callouts
+     and crown-tier earned badges to make them read as a step above a
+     plain earned badge, not just another list row. */
+  @keyframes glow-pulse {
+    0%,
+    100% {
+      opacity: 0.55;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+  .animate-glow-pulse {
+    animation: glow-pulse 2.4s ease-in-out infinite;
+  }
 }

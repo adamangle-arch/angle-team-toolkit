@@ -4250,6 +4250,56 @@ body rather than inserted in the middle — this function matches columns
 to `select` expressions by position, so appending is the only edit that
 can't accidentally shift every column after it by one.
 
+### Badges page redesign: video-game achievement screen, still browsable at 300 entries
+
+The Badges tab looked and worked the same at 300 badges across 51
+categories as it did at 30 — every category always expanded, no way to
+search or filter, nothing calling out what's close to unlocking. Redesign
+goal was "cool video game" without losing "intuitive": every affordance
+below is discoverable at a glance, none of it requires reading a legend.
+
+- **Level card gets a glow.** The existing avatar/level/tier pill now
+  sits over a soft radial amber glow, and the XP progress bar has a
+  continuously animated diagonal shimmer sweeping across its filled
+  portion (`.animate-shimmer`, `app/globals.css`) — a classic RPG health-
+  bar touch. A second, slimmer bar underneath tracks overall badge
+  collection progress (earned/300) independent of level, since level and
+  raw badge count don't move together (points vary per badge).
+- **"🔥 Almost There" spotlight.** A new card above everything else
+  surfaces the 5 not-yet-earned badges with the highest progress
+  fraction, computed across all 300 badges regardless of category —
+  telling someone exactly what to go do next instead of making them hunt
+  through 51 collapsed categories for the one they're closest on. Sits
+  behind a slow pulsing glow (`.animate-glow-pulse`) so it reads as the
+  page's one "act on this" callout rather than another static list.
+- **Search + 3-way filter (All / Earned / Locked).** Filters by label and
+  description text across every category at once. Either a non-empty
+  search or a non-"all" filter auto-force-expands every category with a
+  match — the whole point of searching is to see the matches, not just an
+  updated count on a collapsed card.
+- **Categories collapse by default, sorted alphabetically** (not catalog/
+  insertion order — with 51 of them, "findable" beats "grouped by
+  whenever it was added"). Each collapsed card shows a mini progress bar
+  and an X/Y earned count so browsing doesn't require opening anything;
+  tapping expands in place. A 100%-complete category gets a gold ring and
+  a "👑 " prefix on its title so full clears stand out in the collapsed
+  list, not just once you open it.
+- **Badge rows are denser and clearer.** Each shows icon, label,
+  description, a `+points` chip, and either a lock/check glyph plus a
+  progress bar (locked) or the earned date (earned). Earned badges get a
+  warm amber tint; crown-tier badges (`icon: "👑"`) get a stronger gold
+  gradient + ring when earned, so the catalog's existing "top of a
+  progression" badges visually read as a cut above a regular earned
+  badge. A badge earned in roughly the last 3 days gets a small "NEW"
+  tag — long enough to catch someone who doesn't open the app daily,
+  short enough not to become permanent wallpaper on every earned badge.
+- Within an expanded category, badges sort by point value (highest
+  first) rather than catalog order, same convention already used
+  elsewhere in the badges UI.
+
+No schema or metric changes — this is a client-side rendering/UX pass
+over data `get_badge_metrics()` and `user_badges` already provided.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)
