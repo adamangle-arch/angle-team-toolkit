@@ -19,7 +19,7 @@ export const MAX_LEVEL = 40;
 // Cumulative points needed to REACH each level - level 1 needs 0 (everyone
 // starts there). The exponent means each level takes progressively more
 // than the last, so even someone who earned every one of the 300 badges
-// (22,532 points total, all at 3x/0.3x multipliers already applied) tops
+// (23,486 points total, all at 3x/0.3x multipliers already applied) tops
 // out a little past level 30 rather than blowing past a linear curve -
 // intentionally aspirational, not something a normal level of activity
 // reaches quickly.

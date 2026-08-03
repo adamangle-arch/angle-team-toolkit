@@ -4214,6 +4214,42 @@ credit the wrong account's milestone rather than theirs. Left as a known
 limitation rather than plumbed through properly, since it's a narrow
 edge case relative to what was actually asked for here.
 
+### Badges: Pipeline (Personal) and Pipeline (Team), swapped in for 8 low-value ones
+
+Added two new 4-badge series, both keyed off how many candidates are
+*currently* active in a pipeline (past the bare "Yes" step, not yet
+Launched or Filtered Out) rather than a lifetime max like most other
+metrics here — this one is meant to reflect right now, so it can go back
+down (a launch or a filter-out shrinks it) without that being treated as
+a regression:
+
+- **Pipeline (Personal)** — 5/10/15/20 candidates active in your own
+  pipeline at once. Replaces the old single "Roadmap Regular" badge
+  (10 active candidates), which this fully supersedes.
+- **Pipeline (Team)** — same idea, but you and your downline's active
+  candidates combined, same self-plus-downline convention already used
+  for the FU1/FU2/QI1-monthly "_team" metrics and total launches.
+
+To keep the catalog at exactly 300, 8 lower-value badges came out to
+make room: the old Roadmap Regular, plus 7 of the weaker `Games`
+entries (`high_scorer`, `trivia_streak`, `trivia_perfectionist`,
+`diamond_chase_pro`, `high_roller`, `diamond_chase_century`,
+`streak_gamer`) — score/streak tiers that either duplicated a harder
+tier already covering the same metric, or were pure minigame grinding
+with no bearing on the actual business. `Games` already carried a 0.3x
+point multiplier for exactly this reason (lowest business relevance of
+any category); this trims it further rather than touching anything
+that reflects real activity. `total_badges_earned`-based badges (Grand
+Slam, Century Club, etc.) read that count live, so they're unaffected
+by the catalog staying at the same size.
+
+`get_badge_metrics()` in `supabase/schema.sql` gained two new columns,
+`personal_active_pipeline_count` and `team_active_pipeline_count`,
+appended at the very end of its (very long) column list and `select`
+body rather than inserted in the middle — this function matches columns
+to `select` expressions by position, so appending is the only edit that
+can't accidentally shift every column after it by one.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

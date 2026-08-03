@@ -204,8 +204,6 @@ export const BADGE_DEFINITIONS: BadgeDefinition[] = [
   { key: "twelve_for_twelve", category: "Longevity", label: "Twelve for Twelve", description: "Hit Core 300 in 12 different calendar months, lifetime.", icon: "📆", metric: "distinct_core300_months", threshold: 12, points: 80 },
 
   // Games
-  { key: "high_scorer", category: "Games", label: "High Scorer", description: "Beat your own Diamond Run high score 5 times.", icon: "🎮", metric: "times_improved", threshold: 5, points: 9 },
-  { key: "trivia_streak", category: "Games", label: "Trivia Streak", description: "7-day Trivia streak.", icon: "🧠", metric: "longest_trivia_streak", threshold: 7, points: 6 },
   { key: "trivia_master", category: "Games", label: "Trivia Master", description: "30-day Trivia streak.", icon: "🧠", metric: "longest_trivia_streak", threshold: 30, points: 24 },
 
   // Wildcard
@@ -340,11 +338,8 @@ export const BADGE_DEFINITIONS: BadgeDefinition[] = [
   { key: "caught_up", category: "Notifications", label: "Caught Up", description: "Read every notification you've ever received.", icon: "🔔", metric: "has_caught_up_notifications", threshold: 1, points: 30 },
 
   // Games
-  { key: "trivia_perfectionist", category: "Games", label: "Trivia Perfectionist", description: "A perfect 5/5 Trivia day, 10 different days.", icon: "🧠", metric: "total_perfect_trivia_days", threshold: 10, points: 6 },
   { key: "trivia_century", category: "Games", label: "Trivia Century", description: "A perfect 5/5 Trivia day, 100 different days lifetime.", icon: "👑", metric: "total_perfect_trivia_days", threshold: 100, points: 24 },
   { key: "diamond_chase_rookie", category: "Games", label: "Diamond Chase Rookie", description: "Play your first Diamond Chase game.", icon: "🐍", metric: "has_played_diamond_chase", threshold: 1, points: 9 },
-  { key: "diamond_chase_pro", category: "Games", label: "Diamond Chase Pro", description: "Beat your own Diamond Chase high score 5 times.", icon: "🐍", metric: "diamond_chase_times_improved", threshold: 5, points: 9 },
-  { key: "high_roller", category: "Games", label: "High Roller", description: "Score 50+ in a single Diamond Run.", icon: "🎮", metric: "max_diamond_run_score", threshold: 50, points: 6 },
   { key: "marathon_runner", category: "Games", label: "Marathon Runner", description: "Score 100+ in a single Diamond Run.", icon: "👑", metric: "max_diamond_run_score", threshold: 100, points: 24 },
 
   // Consistency
@@ -422,7 +417,6 @@ export const BADGE_DEFINITIONS: BadgeDefinition[] = [
 
   // Games
   { key: "triple_player", category: "Games", label: "Triple Player", description: "Play Diamond Run, Diamond Chase, and Trivia at least once each.", icon: "🎮", metric: "has_played_all_games", threshold: 1, points: 9 },
-  { key: "diamond_chase_century", category: "Games", label: "Diamond Chase Century", description: "Score 100+ in a single Diamond Chase run.", icon: "🐍", metric: "max_diamond_chase_score", threshold: 100, points: 6 },
   { key: "diamond_chase_legend", category: "Games", label: "Diamond Chase Legend", description: "Score 200+ in a single Diamond Chase run.", icon: "👑", metric: "max_diamond_chase_score", threshold: 200, points: 18 },
 
   // Speed
@@ -474,7 +468,6 @@ export const BADGE_DEFINITIONS: BadgeDefinition[] = [
 
   // Games
   { key: "diamond_chase_icon", category: "Games", label: "Diamond Chase Icon", description: "Score 300+ in a single Diamond Chase run.", icon: "👑", metric: "max_diamond_chase_score", threshold: 300, points: 24 },
-  { key: "streak_gamer", category: "Games", label: "Streak Gamer", description: "A 14-day Trivia streak while also on an active 14+ day Core Run Streak.", icon: "🧠", metric: "has_streak_gamer", threshold: 1, points: 9 },
   { key: "trivia_grinder", category: "Games", label: "Trivia Grinder", description: "500 lifetime Trivia questions answered correctly.", icon: "🧠", metric: "total_trivia_correct_lifetime", threshold: 500, points: 9 },
 
   // App Habits
@@ -531,9 +524,6 @@ export const BADGE_DEFINITIONS: BadgeDefinition[] = [
   // Leadership & Recognition
   { key: "founders_circle", category: "Leadership & Recognition", label: "Founder's Circle", description: "3 of your direct recruits each build their own team of 5+.", icon: "🌟", metric: "has_founders_circle", threshold: 1, points: 90 },
 
-  // Pipeline Beyond QI1
-  { key: "roadmap_regular", category: "Pipeline Beyond QI1", label: "Roadmap Regular", description: "Have 10 candidates active in your pipeline at once.", icon: "🗺️", metric: "current_active_candidates_count", threshold: 10, points: 90 },
-
   // Assistant
   { key: "screenshot_sharer", category: "Assistant", label: "Screenshot Sharer", description: "Attach a photo to an Assistant conversation.", icon: "📎", metric: "has_screenshot_shared", threshold: 1, points: 30 },
 
@@ -573,6 +563,26 @@ export const BADGE_DEFINITIONS: BadgeDefinition[] = [
 
   // Books
   { key: "library_legend", category: "Books", label: "Library Legend", description: "75 lifetime books finished.", icon: "👑", metric: "total_books_lifetime", threshold: 75, points: 80 },
+
+  // Pipeline (Personal) - replaces the old single "Roadmap Regular"
+  // badge (10 active candidates) with a full 4-rung ladder, same shape
+  // as every other progressive series in this file. A live snapshot
+  // count, not a lifetime max - see personal_active_pipeline_count in
+  // supabase/schema.sql for why that's the right call here.
+  { key: "pipeline_personal_5", category: "Pipeline (Personal)", label: "5 in Your Pipeline", description: "Have 5 candidates active in your pipeline at once.", icon: "🗺️", metric: "personal_active_pipeline_count", threshold: 5, points: 60 },
+  { key: "pipeline_personal_10", category: "Pipeline (Personal)", label: "10 in Your Pipeline", description: "Have 10 candidates active in your pipeline at once.", icon: "🗺️", metric: "personal_active_pipeline_count", threshold: 10, points: 90 },
+  { key: "pipeline_personal_15", category: "Pipeline (Personal)", label: "15 in Your Pipeline", description: "Have 15 candidates active in your pipeline at once.", icon: "🗺️", metric: "personal_active_pipeline_count", threshold: 15, points: 120 },
+  { key: "pipeline_personal_20", category: "Pipeline (Personal)", label: "20 in Your Pipeline", description: "Have 20 candidates active in your pipeline at once.", icon: "👑", metric: "personal_active_pipeline_count", threshold: 20, points: 150 },
+
+  // Pipeline (Team) - same idea, but you and your downline's active
+  // candidates combined - same self-plus-downline "_team" convention
+  // already used for FU1/FU2/QI1 monthly counts and total launches.
+  // Priced higher per rung than the personal series since it takes
+  // real duplication (not just your own activity) to hit these.
+  { key: "pipeline_team_5", category: "Pipeline (Team)", label: "5 in Your Team's Pipeline", description: "5 candidates active in your pipeline, you and your downline combined.", icon: "👥", metric: "team_active_pipeline_count", threshold: 5, points: 90 },
+  { key: "pipeline_team_10", category: "Pipeline (Team)", label: "10 in Your Team's Pipeline", description: "10 candidates active in your pipeline, you and your downline combined.", icon: "👥", metric: "team_active_pipeline_count", threshold: 10, points: 150 },
+  { key: "pipeline_team_15", category: "Pipeline (Team)", label: "15 in Your Team's Pipeline", description: "15 candidates active in your pipeline, you and your downline combined.", icon: "👥", metric: "team_active_pipeline_count", threshold: 15, points: 195 },
+  { key: "pipeline_team_20", category: "Pipeline (Team)", label: "20 in Your Team's Pipeline", description: "20 candidates active in your pipeline, you and your downline combined.", icon: "👑", metric: "team_active_pipeline_count", threshold: 20, points: 240 },
 ];
 
 export const BADGE_CATEGORIES: string[] = Array.from(new Set(BADGE_DEFINITIONS.map((b) => b.category)));

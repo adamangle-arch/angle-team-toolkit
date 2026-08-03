@@ -621,4 +621,6 @@ export type BadgeMetrics = {
   longest_qi1_month_8_streak: number;
   longest_qi1_month_10_streak: number;
   max_legs_launched_year: number;
+  personal_active_pipeline_count: number;
+  team_active_pipeline_count: number;
 };

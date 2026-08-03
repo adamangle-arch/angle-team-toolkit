@@ -4770,7 +4770,9 @@ returns table (
   has_team_spirit boolean,
   longest_qi1_month_8_streak int,
   longest_qi1_month_10_streak int,
-  max_legs_launched_year int
+  max_legs_launched_year int,
+  personal_active_pipeline_count int,
+  team_active_pipeline_count int
 )
 language sql
 stable
@@ -5621,6 +5623,30 @@ as $$
         join profiles p on p.id = roots.leg_root
         group by extract(year from p.created_at)
       ) t
+    ),
+    -- Candidates actively in this person's own pipeline right now
+    -- (not Launched, not Filtered Out, past the bare "Yes" step) - backs
+    -- the Pipeline (Personal) 5/10/15/20 badges. A live count, not a
+    -- lifetime max like most other metrics here, since "how many are in
+    -- my pipeline today" is inherently a snapshot - it can go up or back
+    -- down (a launch or a filter-out reduces it) without that being a
+    -- regression worth losing the badge over, so like every other
+    -- >= threshold check this only ever needs to have been true once.
+    (
+      select count(*)::int from candidates
+      where user_id = p_user_id and launched = false and filtered_out = false and current_step >= 1
+    ),
+    -- Same idea, but this person's candidates AND every downline
+    -- member's candidates combined - backs the Pipeline (Team) 5/10/15/20
+    -- badges. Same self-plus-downline join get_downline_user_ids already
+    -- powers for every other "_team" metric above.
+    (
+      select count(*)::int from candidates
+      where launched = false and filtered_out = false and current_step >= 1
+        and (
+          user_id = p_user_id
+          or user_id in (select user_id from public.get_downline_user_ids(p_user_id))
+        )
     );
 $$;
 
