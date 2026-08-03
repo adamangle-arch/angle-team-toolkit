@@ -4147,6 +4147,41 @@ block still opens *that* event for editing, same as tapping its ✏️
 button in the list below — the block's own tap handler stops the click
 from also reaching the grid underneath it.
 
+### "Book a Meeting" on the Candidate Roadmap card
+
+Scheduling something with a candidate used to mean leaving the Candidate
+Roadmap, opening Calendar, and manually linking them via the candidate
+picker on the Add Event form. A new "📅 Book a Meeting" button right on
+each candidate's card (own candidates, and a downline's candidate while
+filling in for them) opens a focused scheduling sheet - date/time,
+duration, time zone (defaulting from the candidate's own saved zone, then
+this IBO's, then the device's) - and books it in one step: it lands on
+the IBO's own Calendar immediately, and shows up on the candidate's
+`/prospect` "Upcoming" list too, since it's the exact same
+`calendar_events` row the Calendar page itself reads.
+
+The internal title (and any notes) typed into that sheet are only ever
+for the IBO's own calendar - team shorthand like "QI1"/"QI2," another
+IBO's name if an upline is filling in, whatever's useful for their own
+reference. The candidate never sees any of it: `get_candidate_upcoming_events`
+now always renders their side as a generic computed "Meeting with
+[whoever booked it]," regardless of the event's actual title, and no
+longer returns notes at all. This closes the same leak for every
+existing calendar-linked-candidate event, not just ones booked through
+the new button - a manually-titled "QI2 with Aaron for Aiden" event
+already showed that exact text to the candidate before this fix.
+
+Booking on behalf of a downline's candidate needed its own
+`book_candidate_meeting` RPC rather than a plain insert: `calendar_events`'
+own RLS only allows inserting a row under your own (or your household's)
+`user_id` - unlike its select/update/delete policies, there's no upline
+exception on insert, since a raw insert has no way to prove "I'm this
+candidate's upline" the way a join back to `candidates` can. The RPC
+does that check itself (same self/household/upline/admin shape as
+`candidate_specific_resources`' own insert policy) and inserts under the
+candidate's actual owner, so the meeting always lands on the right
+person's Calendar.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

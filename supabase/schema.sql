@@ -3111,16 +3111,26 @@ grant execute on function public.send_event_to_recipients(text, text, timestampt
 
 -- Powers the "Upcoming" section of /prospect - any calendar_events row
 -- tagged with this candidate (the existing "linked candidate" picker on
--- the Add Event form, unchanged) shows up automatically in their
--- code-gated view, same as scheduling it in the app today already shows
--- it on the rep's own calendar. Callable by anon, same reasoning as
--- get_candidate_by_access_code above - nothing here is private to a
--- specific meeting time and a candidate's own first name.
+-- the Add Event form, or the "Book a Meeting" button on their Candidate
+-- Roadmap card) shows up automatically in their code-gated view, same as
+-- scheduling it in the app today already shows it on the rep's own
+-- calendar. Callable by anon, same reasoning as
+-- get_candidate_by_access_code above.
+--
+-- Deliberately does NOT return the event's own title or notes - both
+-- are free text the IBO writes for their OWN calendar/reference (team
+-- jargon like "QI1"/"QI2", internal reminders, another IBO's name if an
+-- upline is filling in), never meant for the candidate to read. The
+-- label shown here is always a generic, computed "Meeting with
+-- {whoever booked it}" instead, regardless of whatever the event is
+-- actually titled internally. Dropped first since the return shape
+-- changed (title is now computed, notes is gone entirely) - `create or
+-- replace` can't change a function's return type.
+drop function if exists public.get_candidate_upcoming_events(text);
 create or replace function public.get_candidate_upcoming_events(p_code text)
 returns table (
   event_id uuid,
   title text,
-  notes text,
   event_at timestamptz
 )
 language sql
@@ -3128,15 +3138,80 @@ stable
 security definer
 set search_path = public
 as $$
-  select e.id, e.title, e.notes, e.event_at
+  select
+    e.id,
+    'Meeting with ' || coalesce(nullif(trim(p.first_name), ''), 'your IBO'),
+    e.event_at
   from calendar_events e
   join candidates c on c.id = e.candidate_id
+  left join profiles p on p.id = e.creator_id
   where upper(c.access_code) = upper(p_code)
     and e.event_at >= now()
   order by e.event_at asc;
 $$;
 
 grant execute on function public.get_candidate_upcoming_events(text) to anon, authenticated;
+
+-- Powers the "Book a Meeting" button on the Candidate Roadmap card
+-- (both an IBO's own candidates, and a downline's candidate while
+-- filling in for them - same "Filling In For" pattern already used for
+-- candidate_questions/candidate_specific_resources). calendar_events'
+-- own RLS only lets someone insert a row under their OWN user_id (or
+-- their household's) - there's no upline exception on it, unlike the
+-- select/update/delete policies - since a direct client insert has no
+-- way to prove "I'm this candidate's upline" the way a join back to
+-- candidates can. This function does that check itself (same
+-- own/household/upline/admin shape as candidate_specific_resources'
+-- insert policy above) and, security definer, inserts the event under
+-- the candidate's actual owner - so it lands on the right person's
+-- Calendar whether it's booked from their own Roadmap or an upline
+-- filling in for them.
+create or replace function public.book_candidate_meeting(
+  p_candidate_id uuid,
+  p_title text,
+  p_notes text,
+  p_event_at timestamptz,
+  p_duration_minutes int default 30,
+  p_event_timezone text default null
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_owner_id uuid;
+  v_event_id uuid;
+begin
+  select user_id into v_owner_id from candidates where id = p_candidate_id;
+  if v_owner_id is null then
+    raise exception 'Candidate not found.';
+  end if;
+
+  if not (
+    v_owner_id = auth.uid()
+    or v_owner_id = (select household_id from profiles where id = auth.uid())
+    or public.is_upline_of(auth.uid(), v_owner_id)
+    or public.is_app_admin()
+  ) then
+    raise exception 'Not authorized to book a meeting for this candidate.';
+  end if;
+
+  insert into calendar_events (
+    user_id, creator_id, title, notes, event_at, candidate_id, scope,
+    event_type, reminder_minutes_before, duration_minutes, event_timezone
+  )
+  values (
+    v_owner_id, auth.uid(), p_title, p_notes, p_event_at, p_candidate_id, 'private',
+    'meeting', 30, p_duration_minutes, p_event_timezone
+  )
+  returning id into v_event_id;
+
+  return v_event_id;
+end;
+$$;
+
+grant execute on function public.book_candidate_meeting(uuid, text, text, timestamptz, int, text) to authenticated;
 
 -- ============================================================
 -- 15. COMPANY EVENTS (standing, recurring team events)

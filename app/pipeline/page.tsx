@@ -16,10 +16,12 @@ import {
   STALE_CANDIDATE_DAYS,
   VIRTUAL_WEBINAR_SLOTS,
   US_TIMEZONES,
+  CALENDAR_DURATION_OPTIONS,
   effectiveResourcesForStep,
   type CandidateResourceOverrideEntry,
   type PipelineStageKey,
 } from "@/lib/constants";
+import { guessTimeZone, zonedInputToUtc } from "@/lib/timezones";
 import {
   getMonthStartOffset,
   isoDaysAgo,
@@ -1315,6 +1317,8 @@ function CandidateCard({
             </select>
           </label>
 
+          <BookMeetingButton candidate={candidate} />
+
           {candidate.current_step >= 3 && (
             <InfoSessionPicker
               label="IS1"
@@ -1522,6 +1526,170 @@ function CandidateQuestions({ candidateId }: { candidateId: string }) {
         </div>
       )}
     </div>
+  );
+}
+
+// datetime-local inputs want "YYYY-MM-DDTHH:mm" in local time - same
+// tiny formatter the Calendar's own Add Event form uses, duplicated here
+// rather than shared since it's a one-line self-contained helper.
+function toLocalInputValue(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+// Books a real calendar_events row linked to this candidate, right from
+// their Roadmap card - same underlying table the Calendar's own Add
+// Event form writes to, so it shows up on the IBO's Calendar immediately
+// with no separate sync step. The title typed here is only ever for the
+// IBO's own calendar - whatever internal shorthand they want (QI1, QI2,
+// "fill-in for Aaron," etc.) - and is never sent to the candidate:
+// get_candidate_upcoming_events (supabase/schema.sql) always renders a
+// candidate's own /prospect "Upcoming" entry as a generic computed
+// "Meeting with {whoever booked it}," regardless of this event's actual
+// title or notes.
+function BookMeetingButton({ candidate }: { candidate: Candidate }) {
+  const { user } = useAuth();
+  const [showModal, setShowModal] = useState(false);
+  const [title, setTitle] = useState(`Meeting with ${candidate.name}`);
+  const [eventAt, setEventAt] = useState("");
+  const [durationMinutes, setDurationMinutes] = useState(30);
+  const [timezone, setTimezone] = useState(candidate.timezone ?? guessTimeZone());
+  const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [myTimezone, setMyTimezone] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function load() {
+      const { data } = await supabase.from("profiles").select("timezone").eq("id", user.id).single();
+      setMyTimezone((data as Pick<Profile, "timezone"> | null)?.timezone ?? null);
+    }
+    load();
+  }, [user.id]);
+
+  function openModal() {
+    setTitle(`Meeting with ${candidate.name}`);
+    const d = new Date();
+    d.setHours(d.getHours() + 1, 0, 0, 0);
+    setEventAt(toLocalInputValue(d));
+    setDurationMinutes(30);
+    // Candidate's own saved zone wins if they have one; otherwise this
+    // IBO's own saved default; otherwise this device's zone - same
+    // fallback chain the Calendar's Add Event form uses.
+    setTimezone(candidate.timezone ?? myTimezone ?? guessTimeZone());
+    setNotes("");
+    setError(null);
+    setShowModal(true);
+  }
+
+  async function save() {
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle || !eventAt) return;
+    setSaving(true);
+    setError(null);
+    // Routed through an RPC rather than a direct insert - calendar_events'
+    // own RLS only allows inserting under your OWN (or household's)
+    // user_id, with no upline exception, so a raw insert here would fail
+    // outright when filling in for a downline's candidate. The RPC does
+    // its own self/household/upline/admin check (same shape as this
+    // candidate's other tables) and inserts under the candidate's actual
+    // owner, so it lands on the right person's Calendar either way.
+    const { error } = await supabase.rpc("book_candidate_meeting", {
+      p_candidate_id: candidate.id,
+      p_title: trimmedTitle,
+      p_notes: notes,
+      p_event_at: zonedInputToUtc(eventAt, timezone).toISOString(),
+      p_duration_minutes: durationMinutes,
+      p_event_timezone: timezone,
+    });
+    setSaving(false);
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    setShowModal(false);
+  }
+
+  return (
+    <>
+      <button className="btn-secondary w-full" onClick={openModal}>
+        📅 Book a Meeting
+      </button>
+
+      {showModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-4 sm:items-center"
+          onClick={() => setShowModal(false)}
+        >
+          <div
+            className="w-full max-w-md space-y-3 rounded-2xl bg-navy-lighter p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <p className="section-title">Book a Meeting with {candidate.name}</p>
+              <button
+                className="btn-icon !h-7 !w-7 text-sm"
+                onClick={() => setShowModal(false)}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-xs text-slate-400">
+              Goes on your Calendar right away. {candidate.name} only ever sees a plain &quot;Meeting
+              with [your name]&quot; on their end — never this title, your notes, or any internal
+              shorthand like QI1/QI2.
+            </p>
+            <input
+              className="input"
+              placeholder="Title (just for your own calendar)"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+            <div className="flex gap-2">
+              <input
+                type="datetime-local"
+                className="input flex-1"
+                value={eventAt}
+                onChange={(e) => setEventAt(e.target.value)}
+              />
+              <select
+                className="select w-28 shrink-0"
+                value={durationMinutes}
+                onChange={(e) => setDurationMinutes(Number(e.target.value))}
+                aria-label="Duration"
+              >
+                {CALENDAR_DURATION_OPTIONS.map((opt) => (
+                  <option key={opt.minutes} value={opt.minutes}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <label className="flex items-center gap-2 text-xs text-slate-400">
+              <span className="shrink-0 font-medium text-slate-300">Time entered above is in:</span>
+              <select className="select flex-1" value={timezone} onChange={(e) => setTimezone(e.target.value)}>
+                {US_TIMEZONES.map((tz) => (
+                  <option key={tz.key} value={tz.key}>
+                    {tz.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <textarea
+              className="textarea"
+              placeholder="Notes (just for you - never shown to the candidate)"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+            <button className="btn-primary w-full" onClick={save} disabled={saving || !title.trim()}>
+              {saving ? "Booking…" : "Book Meeting"}
+            </button>
+            {error && <p className="text-xs text-red-400">{error}</p>}
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -2028,6 +2196,7 @@ function DownlineCandidateRow({ candidate }: { candidate: Candidate }) {
 
       {expanded && (
         <div className="space-y-3 pt-3">
+          <BookMeetingButton candidate={candidate} />
           <CandidateQuestions candidateId={candidate.id} />
           <CandidateResourceProgress candidate={candidate} />
           <CandidateResourceSender candidateId={candidate.id} />

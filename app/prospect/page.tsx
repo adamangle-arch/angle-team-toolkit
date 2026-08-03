@@ -35,7 +35,6 @@ type InfoSessionFlyer = {
 type UpcomingEvent = {
   event_id: string;
   title: string;
-  notes: string;
   event_at: string;
 };
 
@@ -365,7 +364,6 @@ export default function ProspectPage() {
               <div key={e.event_id} className="card space-y-1">
                 <p className="text-sm font-medium text-white">{e.title}</p>
                 <p className="text-xs text-amber-light">{formatEventAt(e.event_at)}</p>
-                {e.notes && <p className="text-xs text-slate-400">{e.notes}</p>}
               </div>
             ))}
           </div>
