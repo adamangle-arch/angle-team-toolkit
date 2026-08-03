@@ -193,6 +193,24 @@ alter table candidates add column if not exists connected_date date not null def
 -- re-launching later stamps it fresh.
 alter table candidates add column if not exists launched_at timestamptz;
 
+-- Additive: the candidate's own US time zone (IANA id, same list as
+-- profiles.timezone above) - set by the IBO on the Candidate Roadmap
+-- card once they know it. Nullable: falls back to the scheduling IBO's
+-- own profiles.timezone (and from there to the device's zone) when
+-- unset, same fallback chain the Add Event form already uses for
+-- everything else. Lets scheduling a QI2 "for" a candidate in a
+-- different zone (see calendar_events.event_timezone) auto-fill the
+-- right zone instead of the scheduler having to remember and convert it
+-- by hand every time.
+alter table candidates add column if not exists timezone text;
+alter table candidates drop constraint if exists candidates_timezone_check;
+alter table candidates add constraint candidates_timezone_check check (
+  timezone is null or timezone in (
+    'America/New_York', 'America/Chicago', 'America/Denver', 'America/Phoenix',
+    'America/Los_Angeles', 'America/Anchorage', 'Pacific/Honolulu'
+  )
+);
+
 -- Superseded below by the access-code approach - a candidate never gets
 -- a real account pre-launch, so there's nothing to link and nothing to
 -- auto-unlock. Drops are safe no-ops if this was never applied.
@@ -778,6 +796,24 @@ alter table profiles add column if not exists muted_notification_kinds text[] no
 -- labels it as and assumes when averaging.
 alter table profiles add column if not exists reading_unit text not null default 'minutes'
   check (reading_unit in ('minutes', 'pages'));
+
+-- Which US time zone this person is in - an IANA zone id (e.g.
+-- 'America/Chicago'), not a fixed UTC offset, so daylight saving is
+-- handled automatically by the same Intl-based conversion the Calendar
+-- uses (see lib/timezones.ts) instead of needing separate summer/winter
+-- entries. Nullable: an unset profile just falls back to whatever the
+-- device adding an event is in, same as before this column existed.
+-- Used as the default zone on the Add Event form, and to auto-fill a
+-- linked candidate's own zone when one hasn't been set for them
+-- explicitly (see candidates.timezone below).
+alter table profiles add column if not exists timezone text;
+alter table profiles drop constraint if exists profiles_timezone_check;
+alter table profiles add constraint profiles_timezone_check check (
+  timezone is null or timezone in (
+    'America/New_York', 'America/Chicago', 'America/Denver', 'America/Phoenix',
+    'America/Los_Angeles', 'America/Anchorage', 'Pacific/Honolulu'
+  )
+);
 
 create or replace function public.generate_account_number()
 returns text
@@ -2775,6 +2811,35 @@ alter table calendar_events add constraint calendar_events_event_type_check chec
 );
 alter table calendar_events add column if not exists reminder_minutes_before int default 30;
 
+-- Additive: how long the event actually runs, in minutes - previously
+-- there was no such field at all, so every event rendered as a single
+-- instant with no visible length and no way to change one after the
+-- fact short of deleting and re-adding it. Defaults (and backfills
+-- existing rows) to 30, matching the fixed block height every event
+-- effectively had before this was configurable. Drives both the "8:00 -
+-- 8:30 PM" range shown on each event and how tall its block is on the
+-- Day view grid.
+alter table calendar_events add column if not exists duration_minutes int not null default 30;
+
+-- Additive: the IANA time zone (same fixed US list as profiles.timezone)
+-- that `event_at`'s wall-clock time was actually entered in. Storing
+-- this - rather than only the resulting UTC instant - is what lets
+-- re-opening an event for editing show its original intended time (e.g.
+-- "8:00 PM" Central) instead of silently re-deriving it in whichever
+-- zone the person doing the editing happens to be in right now, which
+-- would shift the displayed time even though the event itself hasn't
+-- moved. Nullable: an existing event created before this column existed
+-- just has no recorded zone, and editing it falls back to the device's
+-- own zone the same way adding one always used to.
+alter table calendar_events add column if not exists event_timezone text;
+alter table calendar_events drop constraint if exists calendar_events_timezone_check;
+alter table calendar_events add constraint calendar_events_timezone_check check (
+  event_timezone is null or event_timezone in (
+    'America/New_York', 'America/Chicago', 'America/Denver', 'America/Phoenix',
+    'America/Los_Angeles', 'America/Anchorage', 'Pacific/Honolulu'
+  )
+);
+
 -- Unlike the "personal tables" above (streak_days, assistant_messages,
 -- call_ratings — deliberately never shared with a linked spouse),
 -- calendar_events IS household-shareable: a married couple wants one
@@ -2961,6 +3026,7 @@ grant execute on function public.get_downline_with_depth(uuid) to authenticated;
 -- new overload, not a true replacement, which would leave the old
 -- 4-argument version callable and stale.
 drop function if exists public.broadcast_event_to_downline(text, text, timestamptz, uuid);
+drop function if exists public.broadcast_event_to_downline(text, text, timestamptz, uuid, text, int);
 
 create or replace function public.broadcast_event_to_downline(
   p_title text,
@@ -2968,7 +3034,9 @@ create or replace function public.broadcast_event_to_downline(
   p_event_at timestamptz,
   p_candidate_id uuid default null,
   p_event_type text default 'other',
-  p_reminder_minutes_before int default 30
+  p_reminder_minutes_before int default 30,
+  p_duration_minutes int default 30,
+  p_event_timezone text default null
 )
 returns int
 language plpgsql
@@ -2980,18 +3048,18 @@ declare
 begin
   insert into calendar_events (
     user_id, creator_id, title, notes, event_at, candidate_id, scope,
-    event_type, reminder_minutes_before
+    event_type, reminder_minutes_before, duration_minutes, event_timezone
   )
   select
     d.user_id, auth.uid(), p_title, p_notes, p_event_at, p_candidate_id, 'downline',
-    p_event_type, p_reminder_minutes_before
+    p_event_type, p_reminder_minutes_before, p_duration_minutes, p_event_timezone
   from public.get_downline_user_ids(auth.uid()) d;
   get diagnostics v_count = row_count;
   return v_count;
 end;
 $$;
 
-grant execute on function public.broadcast_event_to_downline(text, text, timestamptz, uuid, text, int) to authenticated;
+grant execute on function public.broadcast_event_to_downline(text, text, timestamptz, uuid, text, int, int, text) to authenticated;
 
 -- Same idea as broadcast_event_to_downline, but to a caller-chosen subset
 -- of their downline instead of all of it ("select a specific downline or
@@ -3000,6 +3068,12 @@ grant execute on function public.broadcast_event_to_downline(text, text, timesta
 -- trusting the array outright - a tampered request can only ever narrow
 -- to ids that are already legitimately this caller's downline, never
 -- reach outside it.
+--
+-- Same drop-then-recreate reasoning as broadcast_event_to_downline above:
+-- an added-parameter signature change is a new overload to Postgres, not
+-- a true replace.
+drop function if exists public.send_event_to_recipients(text, text, timestamptz, uuid[], uuid, text, int);
+
 create or replace function public.send_event_to_recipients(
   p_title text,
   p_notes text,
@@ -3007,7 +3081,9 @@ create or replace function public.send_event_to_recipients(
   p_recipient_ids uuid[],
   p_candidate_id uuid default null,
   p_event_type text default 'other',
-  p_reminder_minutes_before int default 30
+  p_reminder_minutes_before int default 30,
+  p_duration_minutes int default 30,
+  p_event_timezone text default null
 )
 returns int
 language plpgsql
@@ -3019,11 +3095,11 @@ declare
 begin
   insert into calendar_events (
     user_id, creator_id, title, notes, event_at, candidate_id, scope,
-    event_type, reminder_minutes_before
+    event_type, reminder_minutes_before, duration_minutes, event_timezone
   )
   select
     d.user_id, auth.uid(), p_title, p_notes, p_event_at, p_candidate_id, 'downline',
-    p_event_type, p_reminder_minutes_before
+    p_event_type, p_reminder_minutes_before, p_duration_minutes, p_event_timezone
   from public.get_downline_user_ids(auth.uid()) d
   where d.user_id = any(p_recipient_ids);
   get diagnostics v_count = row_count;
@@ -3031,7 +3107,7 @@ begin
 end;
 $$;
 
-grant execute on function public.send_event_to_recipients(text, text, timestamptz, uuid[], uuid, text, int) to authenticated;
+grant execute on function public.send_event_to_recipients(text, text, timestamptz, uuid[], uuid, text, int, int, text) to authenticated;
 
 -- Powers the "Upcoming" section of /prospect - any calendar_events row
 -- tagged with this candidate (the existing "linked candidate" picker on

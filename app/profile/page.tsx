@@ -7,7 +7,8 @@ import ProfileForm from "@/components/ProfileForm";
 import { SkeletonList } from "@/components/Skeleton";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
-import { TEAMS } from "@/lib/constants";
+import { TEAMS, US_TIMEZONES } from "@/lib/constants";
+import { guessTimeZone } from "@/lib/timezones";
 import { BADGE_DEFINITIONS } from "@/lib/badges";
 import { pointsForBadgeKeys, levelProgress, frameTierForLevel, FRAME_TIER_LABELS } from "@/lib/levels";
 import BadgePillList from "@/components/BadgePillList";
@@ -48,6 +49,22 @@ export default function MyProfilePage() {
   const [savingTeam, setSavingTeam] = useState(false);
   const [teamError, setTeamError] = useState<string | null>(null);
   const [teamSaved, setTeamSaved] = useState(false);
+
+  // Which US time zone this person is in - used as the default zone on
+  // the Calendar's Add Event form (and to auto-fill for a linked
+  // candidate when theirs isn't set). Same own-local-state-until-Save
+  // pattern as My Team above. Defaults to a best guess from the device's
+  // own zone rather than an arbitrary one, for whoever hasn't set this
+  // explicitly yet.
+  const [timezoneChoice, setTimezoneChoice] = useState<string>(() => guessTimeZone());
+  const [syncedTimezone, setSyncedTimezone] = useState<string | null>(null);
+  if (profile && profile.timezone !== syncedTimezone) {
+    setSyncedTimezone(profile.timezone);
+    setTimezoneChoice(profile.timezone ?? guessTimeZone());
+  }
+  const [savingTimezone, setSavingTimezone] = useState(false);
+  const [timezoneError, setTimezoneError] = useState<string | null>(null);
+  const [timezoneSaved, setTimezoneSaved] = useState(false);
 
   async function reload() {
     const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
@@ -133,6 +150,25 @@ export default function MyProfilePage() {
       return;
     }
     setTeamSaved(true);
+    await reload();
+    refreshProfile();
+  }
+
+  async function handleSaveTimezone() {
+    if (!timezoneChoice || timezoneChoice === profile?.timezone) return;
+    setSavingTimezone(true);
+    setTimezoneError(null);
+    setTimezoneSaved(false);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ timezone: timezoneChoice })
+      .eq("id", user.id);
+    setSavingTimezone(false);
+    if (error) {
+      setTimezoneError(error.message);
+      return;
+    }
+    setTimezoneSaved(true);
     await reload();
     refreshProfile();
   }
@@ -253,6 +289,40 @@ export default function MyProfilePage() {
               </div>
               {teamError && <p className="text-xs text-red-400">{teamError}</p>}
               {teamSaved && <p className="text-xs text-amber-light">Team updated.</p>}
+            </div>
+
+            <div className="card space-y-2">
+              <p className="section-title">🌐 My Time Zone</p>
+              <p className="text-xs text-slate-400">
+                Used as the default zone when you add a Calendar event, and to auto-fill a
+                candidate&apos;s time when scheduling for them if their own zone hasn&apos;t been
+                set on their Candidate Roadmap card.
+              </p>
+              <div className="flex items-center gap-2">
+                <select
+                  className="select flex-1"
+                  value={timezoneChoice}
+                  onChange={(e) => {
+                    setTimezoneChoice(e.target.value);
+                    setTimezoneSaved(false);
+                  }}
+                >
+                  {US_TIMEZONES.map((tz) => (
+                    <option key={tz.key} value={tz.key}>
+                      {tz.label}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  className="btn-primary shrink-0"
+                  onClick={handleSaveTimezone}
+                  disabled={savingTimezone || !timezoneChoice || timezoneChoice === profile.timezone}
+                >
+                  {savingTimezone ? "Saving…" : "Save"}
+                </button>
+              </div>
+              {timezoneError && <p className="text-xs text-red-400">{timezoneError}</p>}
+              {timezoneSaved && <p className="text-xs text-amber-light">Time zone updated.</p>}
             </div>
 
             <div className="card space-y-2">

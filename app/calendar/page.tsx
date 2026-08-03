@@ -9,9 +9,12 @@ import {
   isPrimaryUser,
   CALENDAR_EVENT_TYPES,
   CALENDAR_REMINDER_OPTIONS,
+  CALENDAR_DURATION_OPTIONS,
+  US_TIMEZONES,
   type CalendarEventType,
 } from "@/lib/constants";
 import { getToday, getMonthStartOffset, getDateOffset, formatMonthLabel, formatDateLabel } from "@/lib/dates";
+import { guessTimeZone, zonedInputToUtc, utcToZonedInputValue } from "@/lib/timezones";
 import type { CalendarEvent, CompanyEvent, Candidate, Profile } from "@/lib/types";
 import { fireNotifyEvent } from "@/lib/notifyClient";
 
@@ -29,15 +32,22 @@ function EventDot({ type }: { type: CalendarEventType }) {
   );
 }
 
-function formatEventLabel(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleString(undefined, {
+// Each device renders this in its own local time zone automatically
+// (toLocaleString/toLocaleTimeString with no explicit timeZone option
+// use whatever zone the device itself is set to) - that part was always
+// correct. What wasn't was the underlying instant: see zonedInputToUtc
+// in lib/timezones.ts for how the Add/Edit Event form now computes it.
+function formatEventLabel(iso: string, durationMinutes = 30): string {
+  const start = new Date(iso);
+  const end = new Date(start.getTime() + durationMinutes * 60000);
+  const datePart = start.toLocaleString(undefined, {
     weekday: "short",
     month: "short",
     day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
   });
+  const startTime = start.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  const endTime = end.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  return `${datePart} at ${startTime} – ${endTime}`;
 }
 
 function formatTimeLabel(iso: string): string {
@@ -116,12 +126,14 @@ function EventRow({
   event,
   candidateLabel,
   creatorLabel,
+  onEdit,
   onDelete,
   muted,
 }: {
   event: CalendarEvent;
   candidateLabel: string | null;
   creatorLabel: string | null;
+  onEdit: (event: CalendarEvent) => void;
   onDelete: (id: string) => void;
   muted?: boolean;
 }) {
@@ -133,17 +145,26 @@ function EventRow({
           <div>
             <p className={muted ? "text-sm text-slate-300" : "font-medium text-white"}>{event.title}</p>
             <p className={muted ? "text-xs text-slate-500" : "text-xs text-amber-light"}>
-              {formatEventLabel(event.event_at)}
+              {formatEventLabel(event.event_at, event.duration_minutes)}
             </p>
           </div>
         </div>
-        <button
-          className="btn-icon !h-6 !w-6 text-xs shrink-0"
-          onClick={() => onDelete(event.id)}
-          aria-label={`Remove ${event.title}`}
-        >
-          ✕
-        </button>
+        <div className="flex shrink-0 gap-1">
+          <button
+            className="btn-icon !h-6 !w-6 text-xs"
+            onClick={() => onEdit(event)}
+            aria-label={`Edit ${event.title}`}
+          >
+            ✏️
+          </button>
+          <button
+            className="btn-icon !h-6 !w-6 text-xs"
+            onClick={() => onDelete(event.id)}
+            aria-label={`Remove ${event.title}`}
+          >
+            ✕
+          </button>
+        </div>
       </div>
       {candidateLabel && <p className="text-xs text-slate-400">Candidate: {candidateLabel}</p>}
       {event.notes && <p className="text-xs text-slate-400">{event.notes}</p>}
@@ -177,6 +198,15 @@ export default function CalendarPage() {
   const [candidateId, setCandidateId] = useState("");
   const [eventType, setEventType] = useState<CalendarEventType>("other");
   const [reminderMinutes, setReminderMinutes] = useState<number | null>(30);
+  const [durationMinutes, setDurationMinutes] = useState(30);
+  // Which zone the eventAt wall-clock time above is actually in - lets
+  // "8:00 PM" mean 8 PM Central for a candidate tagged as Central even
+  // though the person scheduling it is sitting in Eastern, instead of
+  // always being interpreted in whatever zone the scheduler's own device
+  // happens to be in. Defaults to the scheduler's own saved zone (see
+  // myTimezone below), same fallback chain as candidates.timezone.
+  const [timezone, setTimezone] = useState<string>(() => guessTimeZone());
+  const [myTimezone, setMyTimezone] = useState<string | null>(null);
   const [broadcast, setBroadcast] = useState(false);
   const [selectedRecipientIds, setSelectedRecipientIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
@@ -188,6 +218,10 @@ export default function CalendarPage() {
   // Calendar, rather than a permanently-inline card pushing the actual
   // calendar views below the fold.
   const [showAddModal, setShowAddModal] = useState(false);
+  // Set while editing an existing event instead of adding a new one - the
+  // same sheet/form doubles as both, so someone can nudge a time or fix a
+  // typo in place rather than deleting the whole event and re-adding it.
+  const [editingEventId, setEditingEventId] = useState<string | null>(null);
 
   const isAdmin = isPrimaryUser(user.email);
   const [companyEvents, setCompanyEvents] = useState<CompanyEvent[]>([]);
@@ -277,6 +311,16 @@ export default function CalendarPage() {
     async function load() {
       const { data } = await supabase.rpc("get_household_partner_id");
       setPartnerId((data as string | null) ?? null);
+    }
+    load();
+  }, [user.id]);
+
+  useEffect(() => {
+    async function load() {
+      const { data } = await supabase.from("profiles").select("timezone").eq("id", user.id).single();
+      const tz = (data as Pick<Profile, "timezone"> | null)?.timezone ?? null;
+      setMyTimezone(tz);
+      if (tz) setTimezone(tz);
     }
     load();
   }, [user.id]);
@@ -376,13 +420,87 @@ export default function CalendarPage() {
     setSelectedRecipientIds((prev) => (checked ? [...prev, id] : prev.filter((r) => r !== id)));
   }
 
-  async function addEvent() {
+  // Resets the form to blank defaults and opens the sheet for a brand
+  // new event - separated out from the "+" button's old inline
+  // setShowAddModal(true) so it can also clear any in-progress edit
+  // (editingEventId) left over from last time the sheet was open.
+  function openAddModal() {
+    setEditingEventId(null);
+    setTitle("");
+    setNotes("");
+    const d = new Date();
+    d.setHours(d.getHours() + 1, 0, 0, 0);
+    setEventAt(toLocalInputValue(d));
+    setCandidateId("");
+    setEventType("other");
+    setReminderMinutes(30);
+    setDurationMinutes(30);
+    setTimezone(myTimezone ?? guessTimeZone());
+    setBroadcast(false);
+    setSelectedRecipientIds([]);
+    setSaveError(null);
+    setShowAddModal(true);
+  }
+
+  // Opens the same sheet pre-filled from an existing event instead of a
+  // blank form - saveEvent() below then updates that row in place rather
+  // than inserting a new one. The wall-clock time is re-derived in the
+  // event's OWN saved zone (falling back to this device's zone for an
+  // event scheduled before event_timezone existed), not whatever zone
+  // the person doing the editing happens to be sitting in - otherwise
+  // reopening an unrelated event could silently shift its displayed time.
+  function openEditModal(event: CalendarEvent) {
+    const zone = event.event_timezone ?? guessTimeZone();
+    setEditingEventId(event.id);
+    setTitle(event.title);
+    setNotes(event.notes);
+    setEventAt(utcToZonedInputValue(event.event_at, zone));
+    setCandidateId(event.candidate_id ?? "");
+    setEventType(event.event_type);
+    setReminderMinutes(event.reminder_minutes_before);
+    setDurationMinutes(event.duration_minutes);
+    setTimezone(zone);
+    setBroadcast(false);
+    setSelectedRecipientIds([]);
+    setSaveError(null);
+    setShowAddModal(true);
+  }
+
+  async function saveEvent() {
     const trimmedTitle = title.trim();
     if (!trimmedTitle || !eventAt) return;
     setSaving(true);
     setSaveError(null);
-    const isoEventAt = new Date(eventAt).toISOString();
+    const isoEventAt = zonedInputToUtc(eventAt, timezone).toISOString();
     const linkedCandidate = candidateId || null;
+
+    if (editingEventId) {
+      // Editing only ever touches this one row - if the event was
+      // originally broadcast/sent to others, each recipient has their
+      // own independent copy already, same as the rest of this table's
+      // design, so there's no separate "re-broadcast the edit" step.
+      const { error } = await supabase
+        .from("calendar_events")
+        .update({
+          title: trimmedTitle,
+          notes,
+          event_at: isoEventAt,
+          candidate_id: linkedCandidate,
+          event_type: eventType,
+          reminder_minutes_before: reminderMinutes,
+          duration_minutes: durationMinutes,
+          event_timezone: timezone,
+        })
+        .eq("id", editingEventId);
+      setSaving(false);
+      if (error) {
+        setSaveError(error.message);
+        return;
+      }
+      setShowAddModal(false);
+      loadEvents();
+      return;
+    }
 
     // Shared calendar for linked spouses: a personal event now files
     // under the household's canonical ownerId (same convention as
@@ -398,6 +516,8 @@ export default function CalendarPage() {
       scope: "private",
       event_type: eventType,
       reminder_minutes_before: reminderMinutes,
+      duration_minutes: durationMinutes,
+      event_timezone: timezone,
     });
 
     if (insertError) {
@@ -416,6 +536,8 @@ export default function CalendarPage() {
         p_candidate_id: linkedCandidate,
         p_event_type: eventType,
         p_reminder_minutes_before: reminderMinutes,
+        p_duration_minutes: durationMinutes,
+        p_event_timezone: timezone,
       });
       if (broadcastError) {
         secondaryError = `Saved, but couldn't send it to your downline: ${broadcastError.message}`;
@@ -436,6 +558,8 @@ export default function CalendarPage() {
         p_candidate_id: linkedCandidate,
         p_event_type: eventType,
         p_reminder_minutes_before: reminderMinutes,
+        p_duration_minutes: durationMinutes,
+        p_event_timezone: timezone,
       });
       if (sendError) {
         secondaryError = `Saved, but couldn't send it to the people you picked: ${sendError.message}`;
@@ -455,6 +579,7 @@ export default function CalendarPage() {
     setCandidateId("");
     setEventType("other");
     setReminderMinutes(30);
+    setDurationMinutes(30);
     setBroadcast(false);
     setSelectedRecipientIds([]);
     setSaving(false);
@@ -514,9 +639,10 @@ export default function CalendarPage() {
     let end = DAY_VIEW_END_HOUR;
     for (const e of eventsByDate[dayCursor] ?? []) {
       const d = new Date(e.event_at);
-      const hourFrac = d.getHours() + d.getMinutes() / 60;
-      start = Math.min(start, Math.floor(hourFrac));
-      end = Math.max(end, Math.ceil(hourFrac));
+      const startHourFrac = d.getHours() + d.getMinutes() / 60;
+      const endHourFrac = startHourFrac + e.duration_minutes / 60;
+      start = Math.min(start, Math.floor(startHourFrac));
+      end = Math.max(end, Math.ceil(endHourFrac));
     }
     return { start, end };
   }, [eventsByDate, dayCursor]);
@@ -580,6 +706,7 @@ export default function CalendarPage() {
                     event={e}
                     candidateLabel={candidateName(e.candidate_id)}
                     creatorLabel={creatorLabel(e)}
+                    onEdit={openEditModal}
                     onDelete={deleteEvent}
                   />
                 ))
@@ -595,6 +722,7 @@ export default function CalendarPage() {
                     event={e}
                     candidateLabel={candidateName(e.candidate_id)}
                     creatorLabel={creatorLabel(e)}
+                    onEdit={openEditModal}
                     onDelete={deleteEvent}
                     muted
                   />
@@ -681,6 +809,7 @@ export default function CalendarPage() {
                     event={e}
                     candidateLabel={candidateName(e.candidate_id)}
                     creatorLabel={creatorLabel(e)}
+                    onEdit={openEditModal}
                     onDelete={deleteEvent}
                   />
                 ))
@@ -729,15 +858,22 @@ export default function CalendarPage() {
                   const d = new Date(e.event_at);
                   const hourFrac = d.getHours() + d.getMinutes() / 60;
                   const top = (hourFrac - dayViewBounds.start) * HOUR_HEIGHT_PX;
+                  // Proportional to how long the event actually runs, so
+                  // a 2-hour meeting reads as visibly longer than a
+                  // 15-minute one instead of every event being the same
+                  // fixed-size chip regardless of length. Floored at a
+                  // minimum so a short event still has room for its text.
+                  const height = Math.max((e.duration_minutes / 60) * HOUR_HEIGHT_PX, 22);
                   return (
-                    <div
+                    <button
                       key={e.id}
-                      className="absolute left-14 right-1 truncate rounded-md px-2 py-1 text-xs text-white shadow"
-                      style={{ top, backgroundColor: eventTypeColor(e.event_type) }}
+                      className="absolute left-14 right-1 overflow-hidden rounded-md px-2 py-1 text-left text-xs text-white shadow"
+                      style={{ top, height, backgroundColor: eventTypeColor(e.event_type) }}
+                      onClick={() => openEditModal(e)}
                     >
                       <span className="font-medium">{e.title}</span>
                       <span className="ml-1 opacity-80">{formatTimeLabel(e.event_at)}</span>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
@@ -756,6 +892,7 @@ export default function CalendarPage() {
                     event={e}
                     candidateLabel={candidateName(e.candidate_id)}
                     creatorLabel={creatorLabel(e)}
+                    onEdit={openEditModal}
                     onDelete={deleteEvent}
                   />
                 ))
@@ -776,7 +913,7 @@ export default function CalendarPage() {
           <button
             className="pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full text-3xl font-bold text-navy shadow-lg transition active:scale-95"
             style={{ background: "linear-gradient(135deg, var(--color-amber-light), var(--color-amber))" }}
-            onClick={() => setShowAddModal(true)}
+            onClick={openAddModal}
             aria-label="Add event"
           >
             +
@@ -795,7 +932,7 @@ export default function CalendarPage() {
           >
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <p className="section-title">Add Event</p>
+                <p className="section-title">{editingEventId ? "Edit Event" : "Add Event"}</p>
                 <button
                   className="btn-icon !h-7 !w-7 text-sm"
                   onClick={() => setShowAddModal(false)}
@@ -810,16 +947,56 @@ export default function CalendarPage() {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
               />
-              <input
-                type="datetime-local"
-                className="input"
-                value={eventAt}
-                onChange={(e) => setEventAt(e.target.value)}
-              />
+              <div className="flex gap-2">
+                <input
+                  type="datetime-local"
+                  className="input flex-1"
+                  value={eventAt}
+                  onChange={(e) => setEventAt(e.target.value)}
+                />
+                <select
+                  className="select w-28 shrink-0"
+                  value={durationMinutes}
+                  onChange={(e) => setDurationMinutes(Number(e.target.value))}
+                  aria-label="Duration"
+                >
+                  {CALENDAR_DURATION_OPTIONS.map((opt) => (
+                    <option key={opt.minutes} value={opt.minutes}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <label className="flex items-center gap-2 text-xs text-slate-400">
+                <span className="shrink-0 font-medium text-slate-300">Time entered above is in:</span>
+                <select
+                  className="select flex-1"
+                  value={timezone}
+                  onChange={(e) => setTimezone(e.target.value)}
+                >
+                  {US_TIMEZONES.map((tz) => (
+                    <option key={tz.key} value={tz.key}>
+                      {tz.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <select
                 className="select"
                 value={candidateId}
-                onChange={(e) => setCandidateId(e.target.value)}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  setCandidateId(id);
+                  // Auto-fill the candidate's own saved zone, if they
+                  // have one - the whole point of tagging a candidate's
+                  // zone is not having to remember/convert it by hand
+                  // every time you schedule something for them. Still
+                  // just a default: the picker above stays fully
+                  // editable if this particular event needs something
+                  // different.
+                  const cand = candidates.find((c) => c.id === id);
+                  if (cand?.timezone) setTimezone(cand.timezone);
+                }}
               >
                 <option value="">No linked candidate</option>
                 {candidates.map((c) => (
@@ -860,7 +1037,7 @@ export default function CalendarPage() {
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
               />
-              {hasDownline && (
+              {!editingEventId && hasDownline && (
                 <div className="space-y-1.5">
                   <label className="flex items-center gap-2 text-sm text-slate-300">
                     <input
@@ -894,15 +1071,15 @@ export default function CalendarPage() {
               )}
               <button
                 className="btn-primary w-full"
-                onClick={addEvent}
+                onClick={saveEvent}
                 disabled={saving || !title.trim()}
               >
-                {saving ? "Saving…" : "Add Event"}
+                {saving ? "Saving…" : editingEventId ? "Save Changes" : "Add Event"}
               </button>
               {saveError && <p className="text-xs text-red-400">{saveError}</p>}
             </div>
 
-            {isAdmin && (
+            {isAdmin && !editingEventId && (
               <div className="space-y-2 border-t border-white/10 pt-3">
                 <p className="section-title">Team Events (recurring)</p>
                 <p className="text-xs text-slate-400">

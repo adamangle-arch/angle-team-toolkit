@@ -15,6 +15,7 @@ import {
   ACTIVE_PIPELINE_MIN_STEP,
   STALE_CANDIDATE_DAYS,
   VIRTUAL_WEBINAR_SLOTS,
+  US_TIMEZONES,
   effectiveResourcesForStep,
   type CandidateResourceOverrideEntry,
   type PipelineStageKey,
@@ -1296,6 +1297,22 @@ function CandidateCard({
               value={candidate.connected_date}
               onChange={(e) => onUpdate(candidate.id, { connected_date: e.target.value })}
             />
+          </label>
+
+          <label className="flex items-center gap-2 text-xs text-slate-400">
+            <span className="shrink-0 font-medium text-slate-300">Time zone:</span>
+            <select
+              className="select"
+              value={candidate.timezone ?? ""}
+              onChange={(e) => onUpdate(candidate.id, { timezone: e.target.value || null })}
+            >
+              <option value="">Same as me</option>
+              {US_TIMEZONES.map((tz) => (
+                <option key={tz.key} value={tz.key}>
+                  {tz.label}
+                </option>
+              ))}
+            </select>
           </label>
 
           {candidate.current_step >= 3 && (

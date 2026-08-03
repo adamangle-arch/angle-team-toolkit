@@ -28,6 +28,7 @@ export type Profile = {
   onboarding_completed_at: string | null;
   muted_notification_kinds: NotificationKind[];
   reading_unit: ReadingUnit;
+  timezone: string | null;
   created_at: string;
 };
 
@@ -235,6 +236,7 @@ export type Candidate = {
   is2_webinar_selected_at: string | null;
   is2_watched: boolean;
   is2_watched_at: string | null;
+  timezone: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -375,6 +377,8 @@ export type CalendarEvent = {
   reminder_sent: boolean;
   event_type: CalendarEventType;
   reminder_minutes_before: number | null;
+  duration_minutes: number;
+  event_timezone: string | null;
 };
 
 export type CompanyEvent = {

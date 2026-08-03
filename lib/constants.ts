@@ -96,6 +96,37 @@ export const CALENDAR_REMINDER_OPTIONS: { minutes: number | null; label: string 
   { minutes: 1440, label: "1 day before" },
 ];
 
+// How long a calendar event runs - drives both the end time shown next
+// to the start time and how tall its block is on the Day view grid.
+// Free-typed durations aren't worth the extra input for how this app is
+// actually used (QI1s/QI2s/meetings all run one of a handful of standard
+// lengths), so this is a picker rather than a number field.
+export const CALENDAR_DURATION_OPTIONS = [
+  { minutes: 15, label: "15 min" },
+  { minutes: 30, label: "30 min" },
+  { minutes: 45, label: "45 min" },
+  { minutes: 60, label: "1 hour" },
+  { minutes: 90, label: "1.5 hours" },
+  { minutes: 120, label: "2 hours" },
+] as const;
+
+// Time zones a calendar event's start time can be entered in - the team
+// is entirely US-based (see TEAMS below), so this is the standard 6 US
+// zones rather than a full IANA city picker. Each key is a real IANA
+// zone id (not a fixed UTC offset) specifically so Intl's timezone-aware
+// formatting/conversion picks up daylight saving automatically instead
+// of needing separate summer/winter entries - see lib/timezones.ts.
+export const US_TIMEZONES = [
+  { key: "America/New_York", label: "Eastern (ET)" },
+  { key: "America/Chicago", label: "Central (CT)" },
+  { key: "America/Denver", label: "Mountain (MT)" },
+  { key: "America/Phoenix", label: "Arizona (no DST)" },
+  { key: "America/Los_Angeles", label: "Pacific (PT)" },
+  { key: "America/Anchorage", label: "Alaska (AKT)" },
+  { key: "Pacific/Honolulu", label: "Hawaii (HT)" },
+] as const;
+export type UsTimeZone = (typeof US_TIMEZONES)[number]["key"];
+
 // The fixed list of teams someone can belong to. Must match the check
 // constraint on profiles.team in supabase/schema.sql.
 export const TEAMS = [

@@ -4077,6 +4077,65 @@ longer a hard clamp: `dayViewBounds` now stretches the grid's start/end
 to cover every event actually on the selected day, so a late QI2 gets its
 own row at its real time instead of stacking on the last visible one.
 
+### Calendar: time zones, editing in place, and event duration
+
+Three related gaps in the Calendar, all fixed together since they touch
+the same Add Event form:
+
+**Time zones.** Every device already renders a stored event time
+correctly in its own local zone (that part of JS/`Intl` never needed
+fixing) — the actual problem was on the *scheduling* side. Typing "8:00
+PM" into the old form always meant "8 PM in whatever zone my own device
+happens to be in," with no way to enter a time in someone else's zone
+without doing the offset math by hand first. Scheduling a QI2 for a
+Central-time candidate from an Eastern-time device could land an hour
+off from what was actually intended.
+
+Fixed with:
+- `profiles.timezone` — your own default zone, set on My Profile (My
+  Time Zone card). Used as the Add Event form's default.
+- `candidates.timezone` — a candidate's own zone, set on their Candidate
+  Roadmap card. Picking that candidate on the Add Event form auto-fills
+  this as the event's zone.
+- A "Time entered above is in:" picker on the Add Event form itself,
+  defaulting from whichever of the above applies but always
+  overridable per event.
+- `lib/timezones.ts` — `zonedInputToUtc()`/`utcToZonedInputValue()`,
+  built on `Intl.DateTimeFormat`'s per-zone formatting (no date library
+  needed) to convert a typed wall-clock time into the correct UTC instant
+  for *that* zone specifically, and back again for editing — handling
+  daylight saving automatically since these are real IANA zone ids
+  (`America/Chicago`), not fixed UTC offsets.
+- `calendar_events.event_timezone` records which zone was actually used,
+  so reopening an event for editing re-derives its original wall-clock
+  time in that same zone rather than silently reinterpreting it in
+  whichever zone the editor's own device happens to be sitting in.
+
+The zone picker is the 7 standard US zones (`US_TIMEZONES` in
+`lib/constants.ts`) rather than a full IANA city list, since the team is
+entirely US-based.
+
+**Editing in place.** Every event card now has an ✏️ edit button next
+to the ✕ delete one (and, on the Day view grid, tapping an event's block
+does the same) — opens the same Add Event sheet pre-filled from that
+event, now titled "Edit Event" with a "Save Changes" button that updates
+the row instead of inserting a new one. No more delete-and-re-add for a
+simple time change or typo. Editing only ever touches your own copy of
+the event — if it was originally sent to a downline or broadcast to the
+whole team, each recipient already has their own independent row (same
+design the rest of this table already used), so there's no separate
+"push the edit to everyone" step.
+
+**Event duration.** There was no such field before — every event was a
+single instant with no visible or adjustable length. Added
+`calendar_events.duration_minutes` (default 30, matching the fixed
+block size every event effectively had before) with a duration picker
+(15 min – 2 hours) next to the date/time field. Each event's card now
+shows a real start–end range ("8:00 – 8:30 PM"), and the Day view grid
+draws its block with a height proportional to how long it actually runs
+instead of every event looking like the same fixed-size chip regardless
+of length.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)
