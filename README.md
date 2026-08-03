@@ -2018,7 +2018,7 @@ Two gaps fixed here:
 A new **Stories** tab (linked from **More**) gives everyone a rotating
 daily business-building prompt — "Post yourself doing a meeting for your
 business," "Post a win from today," etc. (`STORY_PROMPTS` in
-`lib/constants.ts`, 12 of them) — and a photo post that disappears after
+`lib/constants.ts`, 19 of them) — and a photo post that disappears after
 24 hours, the same "shared daily challenge" idea as Instagram/Snapchat
 Stories, but tied to actual business-building activities instead of
 whatever.
@@ -2053,6 +2053,14 @@ whatever.
 Deliberately kept simple for a first pass: no view counts, no reactions,
 no video support, no streak/badge tie-in yet. All straightforward
 follow-ups once the core "post + 24h feed" loop is actually being used.
+
+**Update:** dropped the weakest of the original 12 ("Post yourself
+getting ready for a big day - what's on deck?" - too vague to prompt a
+real post) and added 8 more, up to 19 total: working through a book/
+audio, today's calendar, a recent team training/masterclass, a favorite
+product and why, a before/after "since starting this business" photo, a
+goals/vision board, out prospecting somewhere specific, and a highlight
+from the week.
 
 ### Daily period (Pipeline Tracker & Leaderboard)
 

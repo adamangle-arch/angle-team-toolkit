@@ -730,9 +730,16 @@ export const STORY_PROMPTS = [
   "Post your 'why' - what you're building this business for.",
   "Post yourself reading or listening to something that's growing you today.",
   "Post a win from today - a Yes, a QI1 booked, a sale, anything.",
-  "Post yourself getting ready for a big day - what's on deck?",
   "Post your workspace, or wherever you get your business done.",
   "Post a shoutout to someone on your team who's crushing it.",
+  "Post the book or audio you're currently working through.",
+  "Post your calendar for today - what's on it.",
+  "Post a picture from a recent team training or masterclass.",
+  "Post your favorite product and why you actually use it.",
+  "Post a photo of yourself before you started this business - then and now.",
+  "Post your goals board, vision board, or written goals.",
+  "Post yourself out prospecting - a coffee shop, gym, wherever you're talking to people.",
+  "Post a highlight from this week you're proud of.",
 ] as const;
 
 // A hash of the calendar date string rather than a day-of-year count -
