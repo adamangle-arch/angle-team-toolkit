@@ -5741,6 +5741,37 @@ create table if not exists story_posts (
   created_at timestamptz not null default now()
 );
 
+-- Renamed once video posts became possible - "photo_url" holding a video
+-- link read as a bug waiting to happen. Same conditional-rename pattern
+-- streak_days.read_pages -> read_minutes uses above, so this stays a
+-- no-op on a re-run against a database that's already been migrated.
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_name = 'story_posts' and column_name = 'photo_url'
+  ) and not exists (
+    select 1 from information_schema.columns
+    where table_name = 'story_posts' and column_name = 'media_url'
+  ) then
+    alter table story_posts rename column photo_url to media_url;
+  elsif not exists (
+    select 1 from information_schema.columns
+    where table_name = 'story_posts' and column_name = 'media_url'
+  ) then
+    alter table story_posts add column media_url text not null default '';
+  end if;
+end $$;
+
+-- Additive: which kind of file media_url actually points to, same
+-- convention as event_media.media_type - drives whether a story renders
+-- as an <img> or a <video> client-side.
+alter table story_posts add column if not exists media_type text not null default 'photo';
+alter table story_posts drop constraint if exists story_posts_media_type_check;
+alter table story_posts add constraint story_posts_media_type_check check (
+  media_type in ('photo', 'video')
+);
+
 alter table story_posts enable row level security;
 
 drop policy if exists "story_posts_select_all" on story_posts;
@@ -5757,9 +5788,13 @@ create policy "story_posts_delete_own_or_admin" on story_posts for delete using 
   user_id = auth.uid() or public.is_app_admin()
 );
 
--- Public-read storage bucket for the actual story photo files, same
--- per-user-folder pattern as avatars - anyone can view, only the
--- uploader can insert/delete their own folder's files.
+-- Public-read storage bucket for the actual story photo/video files,
+-- same per-user-folder pattern as avatars - anyone can view, only the
+-- uploader can insert/delete their own folder's files. Name kept as
+-- "story-photos" even now that videos live here too - renaming a
+-- storage bucket means moving every existing object, not just editing
+-- a column, so it wasn't worth it for a name that's otherwise invisible
+-- to anyone but a developer reading this file.
 insert into storage.buckets (id, name, public)
 values ('story-photos', 'story-photos', true)
 on conflict (id) do nothing;
@@ -5781,6 +5816,11 @@ using (bucket_id = 'story-photos' and (storage.foldername(name))[1] = auth.uid()
 -- (security definer so it's readable team-wide regardless of who's
 -- calling, computed fresh on every load rather than needing a cron to
 -- "expire" anything).
+--
+-- Dropped first since the return shape changed (photo_url -> media_url,
+-- plus a new media_type column) - `create or replace` can't change a
+-- function's return type.
+drop function if exists public.get_active_stories();
 create or replace function public.get_active_stories()
 returns table (
   story_id uuid,
@@ -5789,7 +5829,8 @@ returns table (
   last_name text,
   team text,
   prompt text,
-  photo_url text,
+  media_url text,
+  media_type text,
   caption text,
   created_at timestamptz
 )
@@ -5798,7 +5839,7 @@ stable
 security definer
 set search_path = public
 as $$
-  select sp.id, pr.id, pr.first_name, pr.last_name, pr.team, sp.prompt, sp.photo_url, sp.caption, sp.created_at
+  select sp.id, pr.id, pr.first_name, pr.last_name, pr.team, sp.prompt, sp.media_url, sp.media_type, sp.caption, sp.created_at
   from story_posts sp
   join profiles pr on pr.id = sp.user_id
   where sp.created_at > now() - interval '24 hours'

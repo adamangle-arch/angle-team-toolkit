@@ -2051,8 +2051,8 @@ whatever.
   Badges/Team Events/Notifications).
 
 Deliberately kept simple for a first pass: no view counts, no reactions,
-no video support, no streak/badge tie-in yet. All straightforward
-follow-ups once the core "post + 24h feed" loop is actually being used.
+no streak/badge tie-in yet. All straightforward follow-ups once the core
+"post + 24h feed" loop is actually being used.
 
 **Update:** dropped the weakest of the original 12 ("Post yourself
 getting ready for a big day - what's on deck?" - too vague to prompt a
@@ -2067,6 +2067,21 @@ financial freedom would let you do, the last conference/event attended,
 the person who believed in you first, a favorite team-event memory, the
 leader/mentor whose example you follow, "the product you can't live
 without," and a place you're going today to meet people.
+
+**Update:** the original "Post Your Story" button used
+`capture="environment"`, which on mobile jumps straight to the camera
+and skips the OS's normal picker — no way to post an existing photo or
+video from the library. Replaced it with two separate pickers, "📷 Post
+a Photo" (`accept="image/*"`) and "🎥 Post a Video" (`accept="video/*"`),
+neither carrying a `capture` attribute, same two-picker convention Team
+Events already uses (a single combined `accept="image/*,video/*"` input
+was found to make the iOS Photos picker choke on large multi-selections).
+`story_posts.photo_url` is renamed to `media_url` plus a new
+`media_type` column (`"photo" | "video"`, same convention as
+`event_media.media_type`) so the feed knows whether to render an `<img>`
+or a `<video controls>`. Videos skip the client-side `compressImage()`
+resize/re-encode step (image-only, no video compression in this
+codebase) and upload as-is, same as Team Events.
 
 ### Daily period (Pipeline Tracker & Leaderboard)
 

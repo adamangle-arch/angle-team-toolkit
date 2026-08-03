@@ -109,10 +109,11 @@ export default function StoriesPage() {
     setPostError(null);
     setPosting(true);
     try {
-      const compressed = await compressImage(file);
-      const ext = compressed.name.split(".").pop() || "jpg";
+      const isVideo = file.type.startsWith("video/");
+      const toUpload = isVideo ? file : await compressImage(file);
+      const ext = isVideo ? file.name.split(".").pop() || "mp4" : "jpg";
       const path = `${user.id}/${uniqueId()}.${ext}`;
-      const { error: uploadError } = await supabase.storage.from("story-photos").upload(path, compressed);
+      const { error: uploadError } = await supabase.storage.from("story-photos").upload(path, toUpload);
       if (uploadError) {
         setPostError(uploadError.message);
         return;
@@ -121,7 +122,8 @@ export default function StoriesPage() {
       const { error: insertError } = await supabase.from("story_posts").insert({
         user_id: user.id,
         prompt,
-        photo_url: data.publicUrl,
+        media_url: data.publicUrl,
+        media_type: isVideo ? "video" : "photo",
         caption: caption.trim(),
       });
       if (insertError) {
@@ -151,17 +153,33 @@ export default function StoriesPage() {
         <div className="card space-y-3">
           <p className="section-title">📸 Today&apos;s Prompt</p>
           <p className="text-sm text-slate-200">{prompt}</p>
-          <label className="btn-primary w-full cursor-pointer">
-            {posting ? "Posting…" : "Post Your Story"}
-            <input
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-              onChange={handlePost}
-              disabled={posting}
-            />
-          </label>
+          {/* Separate photo/video pickers, neither with a `capture`
+              attribute - that's what forces straight to the camera
+              instead of showing the normal picker (Photo Library/Take
+              Photo/Choose File), which is the whole point here: picking
+              an existing photo or video, not just shooting a new one. */}
+          <div className="flex gap-2">
+            <label className="btn-primary flex-1 cursor-pointer text-center">
+              {posting ? "Posting…" : "📷 Post a Photo"}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handlePost}
+                disabled={posting}
+              />
+            </label>
+            <label className="btn-secondary flex-1 cursor-pointer text-center">
+              {posting ? "Posting…" : "🎥 Post a Video"}
+              <input
+                type="file"
+                accept="video/*"
+                className="hidden"
+                onChange={handlePost}
+                disabled={posting}
+              />
+            </label>
+          </div>
           <input
             className="input"
             placeholder="Add a caption (optional)"
@@ -202,13 +220,22 @@ export default function StoriesPage() {
                 )}
               </div>
               <p className="text-xs text-slate-500">{story.prompt}</p>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={story.photo_url}
-                alt="Story post"
-                className="w-full rounded-xl object-cover"
-                style={{ maxHeight: "70vh" }}
-              />
+              {story.media_type === "video" ? (
+                <video
+                  src={story.media_url}
+                  controls
+                  className="w-full rounded-xl"
+                  style={{ maxHeight: "70vh" }}
+                />
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={story.media_url}
+                  alt="Story post"
+                  className="w-full rounded-xl object-cover"
+                  style={{ maxHeight: "70vh" }}
+                />
+              )}
               {story.caption && <p className="text-sm text-slate-300">{story.caption}</p>}
               <p className="text-xs text-slate-500">{expiresLabel(story.created_at)}</p>
             </div>

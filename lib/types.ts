@@ -637,7 +637,8 @@ export type StoryPost = {
   last_name: string | null;
   team: string | null;
   prompt: string;
-  photo_url: string;
+  media_url: string;
+  media_type: "photo" | "video";
   caption: string;
   created_at: string;
 };
