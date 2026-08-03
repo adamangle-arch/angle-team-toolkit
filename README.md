@@ -4306,9 +4306,20 @@ date/Time zone/Notes, none of the actions already available on an
 upline's own Candidate Roadmap. Fixed by giving `candidates` the same
 "upline fill-in" RLS upgrade `pipeline_periods` already got: UPDATE now
 carries an upline exception (self/household/upline/admin), not just
-SELECT. INSERT and DELETE stay self/household/admin only - adding a
-brand new candidate or permanently deleting one on someone else's behalf
-isn't part of "filling in" for an existing roster.
+SELECT. DELETE stays self/household/admin only - permanently removing a
+downline's candidate on their behalf is a bigger, less reversible action
+than adding or editing one.
+
+**Update:** INSERT now carries the same upline exception too - an
+upline filling in for a downline can add a brand new candidate for
+them, not just edit ones that already exist. `DownlineCandidateResources`
+gained its own "Add Candidate" card (inserting under `actingFor.ownerId`,
+the downline being filled in for, not the caller's own id) - previously
+this was left out on the reasoning that adding a candidate "isn't part
+of filling in for an existing roster," but that drew too narrow a line
+in practice: an upline helping a downline get started needs to be able
+to add their very first candidate too, not just manage ones already
+there.
 
 On the client, the downline view (`DownlineCandidateResources` in
 `app/pipeline/page.tsx`) now reuses the exact same `CandidateCard`

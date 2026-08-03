@@ -2132,7 +2132,32 @@ function DownlineCandidateResources({ actingFor }: { actingFor: DownlineOption }
   const [loading, setLoading] = useState(true);
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [stepFilter, setStepFilter] = useState<"all" | number>("all");
+  const [newName, setNewName] = useState("");
+  const [adding, setAdding] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
   const staleThresholdIso = isoDaysAgo(STALE_CANDIDATE_DAYS);
+
+  // Inserts under actingFor's own ownerId, not the caller's - candidates
+  // RLS carries an upline-insert exception for exactly this (see
+  // "Candidate Roadmap: upline fill-in" in supabase/schema.sql).
+  async function addCandidate() {
+    const name = newName.trim();
+    if (!name) return;
+    setAdding(true);
+    setAddError(null);
+    const { data, error } = await supabase
+      .from("candidates")
+      .insert({ name, user_id: actingFor.ownerId })
+      .select("*")
+      .single();
+    if (error) {
+      setAddError(error.message);
+    } else if (data) {
+      setCandidates((prev) => [data as Candidate, ...prev]);
+      setNewName("");
+    }
+    setAdding(false);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -2204,6 +2229,23 @@ function DownlineCandidateResources({ actingFor }: { actingFor: DownlineOption }
           As their upline, you can send a specific podcast, book, or article straight to one of
           their prospects — it shows up in that person&apos;s resources right away.
         </p>
+      </div>
+
+      <div className="card space-y-2">
+        <p className="section-title">Add Candidate for {actingFor.name}</p>
+        <div className="flex gap-2">
+          <input
+            className="input"
+            placeholder="Candidate name"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && addCandidate()}
+          />
+          <button className="btn-primary" onClick={addCandidate} disabled={adding || !newName.trim()}>
+            Add
+          </button>
+        </div>
+        {addError && <p className="text-xs text-red-400">{addError}</p>}
       </div>
 
       {active.length > 0 && (

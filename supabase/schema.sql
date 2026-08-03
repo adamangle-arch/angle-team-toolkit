@@ -2219,11 +2219,17 @@ create policy "delete_own_or_admin" on pipeline_periods for delete using (
 -- mark them Launched/Filtered Out, or edit their Connected date/Time
 -- zone/Notes - everything an upline CAN already do for their own
 -- candidates. Pulled out of the household-shareable loop above (which
--- only ever gave upline read access) into its own block so UPDATE alone
--- carries the upline exception; INSERT and DELETE stay self/household/
--- admin only - adding a brand new candidate or permanently deleting one
--- on someone else's behalf isn't "filling in," unlike editing an
--- existing one.
+-- only ever gave upline read access) into its own block so UPDATE
+-- carries the upline exception.
+--
+-- INSERT also carries the upline exception now - an upline filling in
+-- for a downline needs to be able to add a brand new candidate for them
+-- too, not just edit ones that already exist (DownlineCandidateResources
+-- in app/pipeline/page.tsx inserts under actingFor.ownerId, not the
+-- caller's own id). DELETE stays self/household/admin only -
+-- permanently removing a downline's candidate on their behalf is a
+-- bigger, less reversible action than adding or editing one, and wasn't
+-- part of what was actually asked for here.
 -- ============================================================
 alter table candidates enable row level security;
 
@@ -2237,9 +2243,12 @@ create policy "select_own_or_upline_or_admin" on candidates for select using (
 );
 
 drop policy if exists "insert_own" on candidates;
-create policy "insert_own" on candidates for insert with check (
+drop policy if exists "insert_own_or_upline_or_admin" on candidates;
+create policy "insert_own_or_upline_or_admin" on candidates for insert with check (
   user_id = auth.uid()
   or user_id = (select household_id from profiles where id = auth.uid())
+  or public.is_upline_of(auth.uid(), user_id)
+  or public.is_app_admin()
 );
 
 drop policy if exists "update_own_or_admin" on candidates;
