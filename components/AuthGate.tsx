@@ -136,6 +136,18 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     load();
   }, [user]);
 
+  // Repaints the whole app in the picked accent colorway (My Profile's
+  // "App Color" card writes profiles.theme_color) - every existing
+  // text-amber/bg-amber/border-amber usage reads the CSS custom
+  // properties app/globals.css overrides per data-theme value, so
+  // setting the attribute here is the entire client-side apply step, no
+  // per-component wiring needed. Falls back to "amber" (the default)
+  // before the profile loads and for signed-out/no-profile states, which
+  // already matches the base @theme values with no attribute set at all.
+  useEffect(() => {
+    document.documentElement.dataset.theme = profile?.theme_color || "amber";
+  }, [profile?.theme_color]);
+
   const nameTeamComplete = Boolean(profile?.first_name && profile?.last_name && profile?.team);
   const fullyAuthed = Boolean(user && !profileLoading && profile && nameTeamComplete && profile.profile_prompted);
 

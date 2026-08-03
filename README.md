@@ -4553,6 +4553,36 @@ downline's candidate actually gets created:
   and `send_event_to_recipients()` too, so a broadcast/sent copy keeps
   the same color as the original.
 
+### App-wide colorways ("App Color" on My Profile)
+
+A new **🎨 App Color** card on My Profile lets each person pick their own
+accent color for the whole app — Amber (the original default), Sky Blue,
+Emerald, Violet, Rose, or Teal. Tapping a swatch applies instantly (no
+Save step - a colorway is instant visual feedback, same as e.g. picking a
+step on the Candidate Roadmap's step filter) and is per-account, not
+shared: everyone else on the team keeps whatever they've picked.
+
+Every card, button, section title, pill, and focus ring across the whole
+app is built on the same handful of `text-amber`/`bg-amber`/`border-amber`
+Tailwind utility classes, which in turn just read three CSS custom
+properties (`--color-amber`, `--color-amber-dark`, `--color-amber-light`,
+defined in `app/globals.css`'s `@theme` block). A colorway is nothing
+more than overriding those same three properties (plus a `--amber-rgb`
+triplet used by a handful of hard-coded `rgb(var(--amber-rgb) / alpha)`
+glows/shadows that can't be Tailwind utility classes) inside a
+`:root[data-theme="..."]` block for each of the 5 alternate colors - no
+component anywhere needed to change, since they were all already reading
+the same tokens. `AuthGate` sets `data-theme` on `<html>` from
+`profiles.theme_color` (new column, default `'amber'`, self-service via
+the existing `update_own` policy) as soon as the profile loads; no
+attribute at all (a signed-out screen, or before the profile resolves)
+renders as the original amber, matching the column's own default, so
+there's no flash-of-wrong-color to worry about.
+
+Deliberately just an accent swap, not a full light/dark mode - the dark
+navy background, calendar event-type colors, and badge tier colors are
+untouched by this, same as before.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

@@ -1,4 +1,4 @@
-import type { PipelineStageKey, GoalMetric, GoalPeriod, CallRatingType, CalendarEventType, ActivityLogKind, NotificationKind, ReadingUnit } from "./constants";
+import type { PipelineStageKey, GoalMetric, GoalPeriod, CallRatingType, CalendarEventType, ActivityLogKind, NotificationKind, ReadingUnit, ThemeColor } from "./constants";
 
 export type Profile = {
   id: string;
@@ -29,6 +29,7 @@ export type Profile = {
   muted_notification_kinds: NotificationKind[];
   reading_unit: ReadingUnit;
   timezone: string | null;
+  theme_color: ThemeColor;
   created_at: string;
 };
 

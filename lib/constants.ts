@@ -61,6 +61,23 @@ export const READING_UNITS = [
 ] as const;
 export type ReadingUnit = (typeof READING_UNITS)[number]["key"];
 
+// App-wide accent colorways, picked on My Profile. `swatch` is just for
+// the picker UI - the actual repaint happens via CSS custom-property
+// overrides keyed by this same `key` as `data-theme` on <html> (see the
+// ":root[data-theme=...]" blocks in app/globals.css), so every existing
+// text-amber/bg-amber/border-amber usage across the app repaints without
+// any component needing to know a colorway exists. Must match the check
+// constraint on profiles.theme_color in supabase/schema.sql.
+export const THEME_COLORS = [
+  { key: "amber", label: "Amber", swatch: "#f59e0b" },
+  { key: "blue", label: "Sky Blue", swatch: "#0ea5e9" },
+  { key: "green", label: "Emerald", swatch: "#10b981" },
+  { key: "purple", label: "Violet", swatch: "#8b5cf6" },
+  { key: "rose", label: "Rose", swatch: "#f43f5e" },
+  { key: "teal", label: "Teal", swatch: "#14b8a6" },
+] as const;
+export type ThemeColor = (typeof THEME_COLORS)[number]["key"];
+
 // One-off/repeatable self-report actions with no other way to auto-detect
 // them (same gap book_completions solved for reading) — must match the
 // activity_logs.kind check constraint in supabase/schema.sql. Logged from

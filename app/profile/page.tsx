@@ -7,13 +7,22 @@ import ProfileForm from "@/components/ProfileForm";
 import { SkeletonList } from "@/components/Skeleton";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
-import { TEAMS, US_TIMEZONES } from "@/lib/constants";
+import { TEAMS, US_TIMEZONES, THEME_COLORS, type ThemeColor } from "@/lib/constants";
 import { guessTimeZone } from "@/lib/timezones";
 import { BADGE_DEFINITIONS } from "@/lib/badges";
 import { pointsForBadgeKeys, levelProgress, frameTierForLevel, FRAME_TIER_LABELS } from "@/lib/levels";
 import BadgePillList from "@/components/BadgePillList";
 import LevelAvatar from "@/components/LevelAvatar";
 import type { Profile, PublicProfile, UserBadge } from "@/lib/types";
+
+// Kept as a standalone module-scope function (not inlined in the click
+// handler below) so it's the same "mutate document from a plain
+// function, not a hook" shape AuthGate's own theme-applying effect uses -
+// the two together are the entire client-side apply step for a colorway
+// change, no other component needs to know about data-theme at all.
+function applyThemeColor(key: string) {
+  document.documentElement.dataset.theme = key;
+}
 
 export default function MyProfilePage() {
   const { user, ownerId, refreshProfile } = useAuth();
@@ -65,6 +74,17 @@ export default function MyProfilePage() {
   const [savingTimezone, setSavingTimezone] = useState(false);
   const [timezoneError, setTimezoneError] = useState<string | null>(null);
   const [timezoneSaved, setTimezoneSaved] = useState(false);
+
+  // Applies immediately on tap (no separate Save step, unlike Team/Time
+  // Zone above) - a colorway is instant visual feedback, not something
+  // that benefits from a confirm-before-apply step. document.documentElement's
+  // data-theme is what actually repaints the app (every text-amber/
+  // bg-amber/border-amber usage reads the CSS custom properties app/
+  // globals.css overrides per data-theme value) - set optimistically here
+  // and rolled back if the save fails, same pattern as everywhere else in
+  // this file.
+  const [savingThemeColor, setSavingThemeColor] = useState<ThemeColor | null>(null);
+  const [themeColorError, setThemeColorError] = useState<string | null>(null);
 
   async function reload() {
     const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
@@ -173,6 +193,24 @@ export default function MyProfilePage() {
     refreshProfile();
   }
 
+  async function handleSetThemeColor(key: ThemeColor) {
+    if (!profile || profile.theme_color === key || savingThemeColor) return;
+    const previous = profile.theme_color;
+    setThemeColorError(null);
+    setSavingThemeColor(key);
+    setProfile({ ...profile, theme_color: key });
+    applyThemeColor(key);
+    const { error } = await supabase.from("profiles").update({ theme_color: key }).eq("id", user.id);
+    setSavingThemeColor(null);
+    if (error) {
+      setProfile((prev) => (prev ? { ...prev, theme_color: previous } : prev));
+      applyThemeColor(previous);
+      setThemeColorError(error.message);
+      return;
+    }
+    refreshProfile();
+  }
+
   async function handleLinkUpline() {
     const number = uplineNumber.trim();
     if (!number) return;
@@ -232,6 +270,43 @@ export default function MyProfilePage() {
                     : " — max level"}
                 </p>
               </div>
+            </div>
+
+            <div className="card space-y-2">
+              <p className="section-title">🎨 App Color</p>
+              <p className="text-xs text-slate-400">
+                Pick an accent color for the whole app — it&apos;s just yours, everyone else keeps
+                whatever they&apos;ve chosen.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                {THEME_COLORS.map((theme) => {
+                  const isActive = profile.theme_color === theme.key;
+                  return (
+                    <button
+                      key={theme.key}
+                      type="button"
+                      className="flex flex-col items-center gap-1"
+                      onClick={() => handleSetThemeColor(theme.key)}
+                      disabled={savingThemeColor !== null}
+                      aria-label={theme.label}
+                    >
+                      <span
+                        className="flex h-9 w-9 items-center justify-center rounded-full text-sm"
+                        style={{
+                          backgroundColor: theme.swatch,
+                          boxShadow: isActive
+                            ? `0 0 0 2px var(--color-navy-lighter), 0 0 0 4px ${theme.swatch}`
+                            : "none",
+                        }}
+                      >
+                        {isActive && <span className="text-navy">✓</span>}
+                      </span>
+                      <span className="text-[11px] text-slate-400">{theme.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              {themeColorError && <p className="text-xs text-red-400">{themeColorError}</p>}
             </div>
 
             <div className="card space-y-2">

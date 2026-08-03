@@ -822,6 +822,17 @@ alter table profiles add constraint profiles_timezone_check check (
   )
 );
 
+-- Which accent colorway to repaint the whole app in - picked on My
+-- Profile, applied by setting data-theme on <html> to this same value
+-- (see the ":root[data-theme=...]" overrides in app/globals.css).
+-- Self-service via the existing "update_own" policy below, no new RLS
+-- needed. Keep this list in sync with THEME_COLORS in lib/constants.ts.
+alter table profiles add column if not exists theme_color text not null default 'amber';
+alter table profiles drop constraint if exists profiles_theme_color_check;
+alter table profiles add constraint profiles_theme_color_check check (
+  theme_color in ('amber', 'blue', 'green', 'purple', 'rose', 'teal')
+);
+
 create or replace function public.generate_account_number()
 returns text
 language plpgsql
