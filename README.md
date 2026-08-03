@@ -4062,6 +4062,21 @@ render's snapshot. That way the second of two quick saves always builds
 on top of the first one's change, and a server response can never land
 out of order and undo a save that came after it.
 
+### Fixed: Calendar Day view cutting off events after 9 PM
+
+The Day view's hourly grid (`app/calendar/page.tsx`) drew a fixed
+business-hours window, 6 AM to 9 PM, and clamped anything outside it to
+the nearest edge of the grid. Since QI2s and meet-and-greets regularly
+run into the evening, a 9:30 PM or 10 PM event just got pinned on top of
+whatever was already sitting at the 9 PM row — showing only one of them,
+or neither clearly, even though the "N events" list below the grid still
+had all of them.
+
+6 AM–9 PM is still the *default* range for a normal day, but it's no
+longer a hard clamp: `dayViewBounds` now stretches the grid's start/end
+to cover every event actually on the selected day, so a late QI2 gets its
+own row at its real time instead of stacking on the last visible one.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

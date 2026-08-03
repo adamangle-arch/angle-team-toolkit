@@ -93,11 +93,13 @@ function buildMonthGrid(monthStart: string): MonthCell[] {
 
 const WEEKDAY_LABELS = ["S", "M", "T", "W", "T", "F", "S"];
 
-// Business-hours window for the Day view's hourly grid - covers the
-// realistic range for QI1s, team calls, and meetings without needing a
-// full scrollable 24-hour column on a small screen. An event outside
-// this window still shows, clamped to the nearest edge, rather than
-// disappearing.
+// Default business-hours window for the Day view's hourly grid - covers
+// the realistic range for QI1s, team calls, and meetings without needing
+// a full scrollable 24-hour column on a small screen for a typical day.
+// Late QI2s and night meet-and-greets are common enough that this can't
+// be a hard clamp, though - the actual per-day range (see dayViewBounds
+// below) stretches to cover every event that day, so nothing after 9 PM
+// (or before 6 AM) gets pinned on top of the last visible row.
 const DAY_VIEW_START_HOUR = 6;
 const DAY_VIEW_END_HOUR = 21;
 const HOUR_HEIGHT_PX = 52;
@@ -503,6 +505,22 @@ export default function CalendarPage() {
   const selectedGridEvents = eventsByDate[selectedGridDate] ?? [];
   const dayEvents = eventsByDate[dayCursor] ?? [];
 
+  // Widened past the default business-hours window whenever the day
+  // actually has something earlier/later than that - so a 10 PM QI2 gets
+  // its own row instead of being clamped on top of whatever's already at
+  // 9 PM.
+  const dayViewBounds = useMemo(() => {
+    let start = DAY_VIEW_START_HOUR;
+    let end = DAY_VIEW_END_HOUR;
+    for (const e of eventsByDate[dayCursor] ?? []) {
+      const d = new Date(e.event_at);
+      const hourFrac = d.getHours() + d.getMinutes() / 60;
+      start = Math.min(start, Math.floor(hourFrac));
+      end = Math.max(end, Math.ceil(hourFrac));
+    }
+    return { start, end };
+  }, [eventsByDate, dayCursor]);
+
   function candidateName(id: string | null): string | null {
     if (!id) return null;
     return candidates.find((c) => c.id === id)?.name ?? null;
@@ -694,24 +712,23 @@ export default function CalendarPage() {
               </div>
               <div
                 className="relative overflow-hidden rounded-lg"
-                style={{ height: (DAY_VIEW_END_HOUR - DAY_VIEW_START_HOUR + 1) * HOUR_HEIGHT_PX }}
+                style={{ height: (dayViewBounds.end - dayViewBounds.start + 1) * HOUR_HEIGHT_PX }}
               >
-                {Array.from({ length: DAY_VIEW_END_HOUR - DAY_VIEW_START_HOUR + 1 }).map((_, i) => (
+                {Array.from({ length: dayViewBounds.end - dayViewBounds.start + 1 }).map((_, i) => (
                   <div
                     key={i}
                     className="absolute left-0 right-0 border-t border-white/5"
                     style={{ top: i * HOUR_HEIGHT_PX }}
                   >
                     <span className="absolute -top-2 left-1 bg-navy-lighter px-1 text-[10px] text-slate-500">
-                      {hourLabel(DAY_VIEW_START_HOUR + i)}
+                      {hourLabel(dayViewBounds.start + i)}
                     </span>
                   </div>
                 ))}
                 {dayEvents.map((e) => {
                   const d = new Date(e.event_at);
                   const hourFrac = d.getHours() + d.getMinutes() / 60;
-                  const clamped = Math.min(Math.max(hourFrac, DAY_VIEW_START_HOUR), DAY_VIEW_END_HOUR);
-                  const top = (clamped - DAY_VIEW_START_HOUR) * HOUR_HEIGHT_PX;
+                  const top = (hourFrac - dayViewBounds.start) * HOUR_HEIGHT_PX;
                   return (
                     <div
                       key={e.id}
