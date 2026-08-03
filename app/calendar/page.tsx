@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import PageHeader from "@/components/PageHeader";
 import { SkeletonList } from "@/components/Skeleton";
 import { useAuth } from "@/components/AuthGate";
@@ -424,12 +424,19 @@ export default function CalendarPage() {
   // new event - separated out from the "+" button's old inline
   // setShowAddModal(true) so it can also clear any in-progress edit
   // (editingEventId) left over from last time the sheet was open.
-  function openAddModal() {
+  // Optional `at` is the Day view grid tap handler below, prefilling the
+  // tapped time instead of "now + 1 hour" - same Google Calendar-style
+  // "tap a slot to start booking there" shortcut, on top of the FAB
+  // (which still calls this with no argument).
+  function openAddModal(at?: Date) {
     setEditingEventId(null);
     setTitle("");
     setNotes("");
-    const d = new Date();
-    d.setHours(d.getHours() + 1, 0, 0, 0);
+    let d = at;
+    if (!d) {
+      d = new Date();
+      d.setHours(d.getHours() + 1, 0, 0, 0);
+    }
     setEventAt(toLocalInputValue(d));
     setCandidateId("");
     setEventType("other");
@@ -647,6 +654,27 @@ export default function CalendarPage() {
     return { start, end };
   }, [eventsByDate, dayCursor]);
 
+  // Google Calendar-style "tap a time slot to start booking there" -
+  // reads the tap's vertical position on the grid back into an hour,
+  // snapped to the nearest 15 minutes since a raw pixel offset almost
+  // never lands on an exact quarter-hour. Ignored when the tap actually
+  // landed on an existing event block (that block's own onClick stops
+  // propagation before this ever fires), so tapping an event still opens
+  // it for editing rather than also queuing a new one underneath it.
+  function handleGridClick(e: MouseEvent<HTMLDivElement>) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    const rawHour = dayViewBounds.start + y / HOUR_HEIGHT_PX;
+    const totalMinutes = Math.min(
+      Math.max(Math.round((rawHour * 60) / 15) * 15, dayViewBounds.start * 60),
+      dayViewBounds.end * 60
+    );
+    const [year, month, day] = dayCursor.split("-").map(Number);
+    const target = new Date(year, month - 1, day, 0, 0, 0, 0);
+    target.setMinutes(totalMinutes);
+    openAddModal(target);
+  }
+
   function candidateName(id: string | null): string | null {
     if (!id) return null;
     return candidates.find((c) => c.id === id)?.name ?? null;
@@ -839,9 +867,13 @@ export default function CalendarPage() {
                   ›
                 </button>
               </div>
+              <p className="text-center text-[11px] text-slate-500">
+                Tap a time slot below to add an event there
+              </p>
               <div
                 className="relative overflow-hidden rounded-lg"
                 style={{ height: (dayViewBounds.end - dayViewBounds.start + 1) * HOUR_HEIGHT_PX }}
+                onClick={handleGridClick}
               >
                 {Array.from({ length: dayViewBounds.end - dayViewBounds.start + 1 }).map((_, i) => (
                   <div
@@ -869,7 +901,10 @@ export default function CalendarPage() {
                       key={e.id}
                       className="absolute left-14 right-1 overflow-hidden rounded-md px-2 py-1 text-left text-xs text-white shadow"
                       style={{ top, height, backgroundColor: eventTypeColor(e.event_type) }}
-                      onClick={() => openEditModal(e)}
+                      onClick={(evt) => {
+                        evt.stopPropagation();
+                        openEditModal(e);
+                      }}
                     >
                       <span className="font-medium">{e.title}</span>
                       <span className="ml-1 opacity-80">{formatTimeLabel(e.event_at)}</span>
@@ -913,7 +948,7 @@ export default function CalendarPage() {
           <button
             className="pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full text-3xl font-bold text-navy shadow-lg transition active:scale-95"
             style={{ background: "linear-gradient(135deg, var(--color-amber-light), var(--color-amber))" }}
-            onClick={openAddModal}
+            onClick={() => openAddModal()}
             aria-label="Add event"
           >
             +

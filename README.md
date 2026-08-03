@@ -4136,6 +4136,17 @@ draws its block with a height proportional to how long it actually runs
 instead of every event looking like the same fixed-size chip regardless
 of length.
 
+### Calendar: tap a time slot on the Day view to book there
+
+Google Calendar-style shortcut on top of the existing "+" button: tapping
+an empty spot on the Day view's hourly grid now opens the Add Event
+sheet pre-filled to that exact time (snapped to the nearest 15 minutes),
+instead of only being able to open a blank form defaulted to "an hour
+from now" and type the date/time by hand. Tapping an existing event's
+block still opens *that* event for editing, same as tapping its ✏️
+button in the list below — the block's own tap handler stops the click
+from also reaching the grid underneath it.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)
