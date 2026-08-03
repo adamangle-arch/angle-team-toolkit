@@ -229,6 +229,7 @@ export type Candidate = {
   launched: boolean;
   launched_at: string | null;
   filtered_out: boolean;
+  filtered_out_reason: string | null;
   access_code: string | null;
   is1_session_mode: "in_person" | "virtual" | null;
   is1_webinar_slot: string | null;

@@ -1066,13 +1066,14 @@ export default function PipelinePage() {
             ) : (
               <div className="card space-y-2">
                 <div className="no-scrollbar overflow-x-auto">
-                  <table className="w-full min-w-[560px] text-left text-xs">
+                  <table className="w-full min-w-[700px] text-left text-xs">
                     <thead>
                       <tr className="text-slate-500">
                         <th className="pb-1 pr-2 font-medium">Connected</th>
                         <th className="pb-1 pr-2 font-medium">Name</th>
                         <th className="pb-1 pr-2 font-medium">Status</th>
                         <th className="pb-1 pr-2 font-medium">Notes</th>
+                        <th className="pb-1 pr-2 font-medium">Filtered Out Reason</th>
                         <th className="pb-1 font-medium"></th>
                       </tr>
                     </thead>
@@ -1095,13 +1096,21 @@ export default function PipelinePage() {
                             <td className="max-w-[160px] truncate py-1.5 pr-2 text-slate-400">
                               {c.notes || "—"}
                             </td>
+                            <td className="max-w-[160px] truncate py-1.5 pr-2 text-slate-400">
+                              {c.filtered_out ? c.filtered_out_reason || "—" : "—"}
+                            </td>
                             <td className="py-1.5">
                               <div className="flex justify-end gap-1">
                                 {(c.launched || c.filtered_out) && (
                                   <button
                                     className="pill"
                                     onClick={() =>
-                                      updateCandidate(c.id, { launched: false, filtered_out: false })
+                                      updateCandidate(c.id, {
+                                        launched: false,
+                                        launched_at: null,
+                                        filtered_out: false,
+                                        filtered_out_reason: null,
+                                      })
                                     }
                                   >
                                     Restore
@@ -1211,9 +1220,30 @@ function CandidateCard({
   const [expanded, setExpanded] = useState(false);
   const [notes, setNotes] = useState(candidate.notes);
   const [codeCopied, setCodeCopied] = useState(false);
+  const [showFilterReason, setShowFilterReason] = useState(false);
+  const [filterReason, setFilterReason] = useState(candidate.filtered_out_reason ?? "");
   const step = CANDIDATE_STEPS[candidate.current_step];
   const isSettled = candidate.launched || candidate.filtered_out;
   const statusLabel = candidate.launched ? "Launched 🎉" : candidate.filtered_out ? "Filtered Out" : step.label;
+
+  function confirmFilteredOut() {
+    onUpdate(candidate.id, {
+      filtered_out: true,
+      launched: false,
+      filtered_out_reason: filterReason.trim(),
+    });
+    setShowFilterReason(false);
+  }
+
+  function restore() {
+    onUpdate(candidate.id, {
+      launched: false,
+      launched_at: null,
+      filtered_out: false,
+      filtered_out_reason: null,
+    });
+    setFilterReason("");
+  }
 
   async function copyAccessCode() {
     const message = `Check out these resources: ${window.location.origin}/prospect — your code is ${candidate.access_code}`;
@@ -1369,33 +1399,68 @@ function CandidateCard({
           )}
 
           {!isSettled ? (
-            <div className="flex items-center gap-2">
-              <button
-                className="btn-primary flex-1"
-                onClick={() =>
-                  onUpdate(candidate.id, {
-                    launched: true,
-                    launched_at: new Date().toISOString(),
-                    filtered_out: false,
-                  })
-                }
-              >
-                Mark Launched
-              </button>
-              <button
-                className="btn-danger flex-1"
-                onClick={() => onUpdate(candidate.id, { filtered_out: true, launched: false })}
-              >
-                Filtered Out
+            showFilterReason ? (
+              <div className="space-y-2 rounded-lg border border-slate-700 p-3">
+                <p className="text-xs text-slate-400">
+                  Why is {candidate.name} being filtered out? (optional)
+                </p>
+                <textarea
+                  className="textarea"
+                  placeholder="Went cold, not a fit right now, etc."
+                  value={filterReason}
+                  onChange={(e) => setFilterReason(e.target.value)}
+                  autoFocus
+                />
+                <div className="flex items-center gap-2">
+                  <button className="btn-danger flex-1" onClick={confirmFilteredOut}>
+                    Confirm Filtered Out
+                  </button>
+                  <button className="btn-secondary flex-1" onClick={() => setShowFilterReason(false)}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <button
+                  className="btn-primary flex-1"
+                  onClick={() =>
+                    onUpdate(candidate.id, {
+                      launched: true,
+                      launched_at: new Date().toISOString(),
+                      filtered_out: false,
+                    })
+                  }
+                >
+                  Mark Launched
+                </button>
+                <button className="btn-danger flex-1" onClick={() => setShowFilterReason(true)}>
+                  Filtered Out
+                </button>
+              </div>
+            )
+          ) : (
+            <div className="space-y-2">
+              {candidate.filtered_out && (
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-slate-300">Why they were filtered out:</p>
+                  <textarea
+                    className="textarea"
+                    placeholder="No reason given"
+                    value={filterReason}
+                    onChange={(e) => setFilterReason(e.target.value)}
+                    onBlur={() => {
+                      if (filterReason !== (candidate.filtered_out_reason ?? "")) {
+                        onUpdate(candidate.id, { filtered_out_reason: filterReason });
+                      }
+                    }}
+                  />
+                </div>
+              )}
+              <button className="btn-secondary w-full" onClick={restore}>
+                Restore
               </button>
             </div>
-          ) : (
-            <button
-              className="btn-secondary w-full"
-              onClick={() => onUpdate(candidate.id, { launched: false, launched_at: null, filtered_out: false })}
-            >
-              Restore
-            </button>
           )}
 
           <textarea

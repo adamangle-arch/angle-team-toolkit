@@ -408,6 +408,15 @@ launched, or filtered out, and exactly which step they filtered out at)
 lives on its own **Candidate History** tab, with a Restore option for
 anything settled by mistake.
 
+Tapping "Filtered Out" doesn't commit right away — it opens an inline,
+optional reason box first ("Went cold, not a fit right now, etc.") with
+Confirm/Cancel buttons, so why someone didn't pan out isn't lost the
+moment they're filtered out. The reason (`candidates.filtered_out_reason`)
+stays editable afterward on the candidate's own card, and shows up as its
+own column on the Candidate History table too. Restoring a filtered-out
+candidate clears the reason back to blank, same as it already clears
+`launched_at`.
+
 Candidate History is divided by month (by `connected_date`), one month at
 a time, with ← → arrows to page back up to 12 months — same bounded
 pattern as the Leaderboard's monthly view (`getMonthStartOffset`), so

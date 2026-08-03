@@ -193,6 +193,13 @@ alter table candidates add column if not exists connected_date date not null def
 -- re-launching later stamps it fresh.
 alter table candidates add column if not exists launched_at timestamptz;
 
+-- Additive: a free-text note on why a candidate was filtered out (went
+-- cold, not a fit right now, etc.) - filtered_out alone doesn't capture
+-- the reason, and that's useful to look back on later. Optional, set
+-- alongside filtered_out by the app, cleared back to null on "Restore"
+-- the same way launched_at is.
+alter table candidates add column if not exists filtered_out_reason text;
+
 -- Additive: the candidate's own US time zone (IANA id, same list as
 -- profiles.timezone above) - set by the IBO on the Candidate Roadmap
 -- card once they know it. Nullable: falls back to the scheduling IBO's
