@@ -11,6 +11,7 @@ import {
   CALENDAR_REMINDER_OPTIONS,
   CALENDAR_DURATION_OPTIONS,
   US_TIMEZONES,
+  DOWNLINE_CANDIDATE_MEETING_COLOR,
   type CalendarEventType,
 } from "@/lib/constants";
 import { getToday, getMonthStartOffset, getDateOffset, formatMonthLabel, formatDateLabel } from "@/lib/dates";
@@ -18,15 +19,22 @@ import { guessTimeZone, zonedInputToUtc, utcToZonedInputValue } from "@/lib/time
 import type { CalendarEvent, CompanyEvent, Candidate, Profile } from "@/lib/types";
 import { fireNotifyEvent } from "@/lib/notifyClient";
 
-function eventTypeColor(type: CalendarEventType): string {
-  return CALENDAR_EVENT_TYPES.find((t) => t.key === type)?.color ?? "#94a3b8";
+// A "Candidate Meeting" splits into two colors depending on whose
+// candidate it actually is - every other event type only ever has the
+// one color, since is_downline_candidate is meaningless for a team
+// event/reminder/other.
+function eventColor(event: { event_type: CalendarEventType; is_downline_candidate: boolean }): string {
+  if (event.event_type === "meeting" && event.is_downline_candidate) {
+    return DOWNLINE_CANDIDATE_MEETING_COLOR;
+  }
+  return CALENDAR_EVENT_TYPES.find((t) => t.key === event.event_type)?.color ?? "#94a3b8";
 }
 
-function EventDot({ type }: { type: CalendarEventType }) {
+function EventDot({ event }: { event: { event_type: CalendarEventType; is_downline_candidate: boolean } }) {
   return (
     <span
       className="mt-1 inline-block h-2 w-2 shrink-0 rounded-full"
-      style={{ backgroundColor: eventTypeColor(type) }}
+      style={{ backgroundColor: eventColor(event) }}
       aria-hidden="true"
     />
   );
@@ -122,6 +130,17 @@ function hourLabel(hour: number): string {
 
 type ViewMode = "agenda" | "day" | "month";
 
+// Small always-visible key for the event dot colors - "Candidate
+// Meeting" alone would no longer explain itself now that it splits into
+// two colors depending on whose candidate it is.
+const LEGEND_ITEMS: { label: string; color: string }[] = [
+  { label: "My Candidate", color: CALENDAR_EVENT_TYPES[0].color },
+  { label: "Downline's Candidate", color: DOWNLINE_CANDIDATE_MEETING_COLOR },
+  { label: "Team Event", color: CALENDAR_EVENT_TYPES[1].color },
+  { label: "Reminder", color: CALENDAR_EVENT_TYPES[2].color },
+  { label: "Other", color: CALENDAR_EVENT_TYPES[3].color },
+];
+
 function EventRow({
   event,
   candidateLabel,
@@ -141,7 +160,7 @@ function EventRow({
     <div className="rounded-lg bg-navy p-2 space-y-1">
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-start gap-1.5">
-          <EventDot type={event.event_type} />
+          <EventDot event={event} />
           <div>
             <p className={muted ? "text-sm text-slate-300" : "font-medium text-white"}>{event.title}</p>
             <p className={muted ? "text-xs text-slate-500" : "text-xs text-amber-light"}>
@@ -197,6 +216,13 @@ export default function CalendarPage() {
   });
   const [candidateId, setCandidateId] = useState("");
   const [eventType, setEventType] = useState<CalendarEventType>("other");
+  // Only meaningful when eventType is "meeting" - the candidate picker
+  // right above this only ever lists the viewer's own candidates, so
+  // there's no automatic way to tell "my candidate" from "a downline's"
+  // for an event added through this form the way book_candidate_meeting()
+  // can (it already knows who actually owns the candidate). This is the
+  // manual equivalent for the plain Add/Edit Event path.
+  const [isDownlineCandidate, setIsDownlineCandidate] = useState(false);
   const [reminderMinutes, setReminderMinutes] = useState<number | null>(30);
   const [durationMinutes, setDurationMinutes] = useState(30);
   // Which zone the eventAt wall-clock time above is actually in - lets
@@ -440,6 +466,7 @@ export default function CalendarPage() {
     setEventAt(toLocalInputValue(d));
     setCandidateId("");
     setEventType("other");
+    setIsDownlineCandidate(false);
     setReminderMinutes(30);
     setDurationMinutes(30);
     setTimezone(myTimezone ?? guessTimeZone());
@@ -464,6 +491,7 @@ export default function CalendarPage() {
     setEventAt(utcToZonedInputValue(event.event_at, zone));
     setCandidateId(event.candidate_id ?? "");
     setEventType(event.event_type);
+    setIsDownlineCandidate(event.is_downline_candidate);
     setReminderMinutes(event.reminder_minutes_before);
     setDurationMinutes(event.duration_minutes);
     setTimezone(zone);
@@ -494,6 +522,7 @@ export default function CalendarPage() {
           event_at: isoEventAt,
           candidate_id: linkedCandidate,
           event_type: eventType,
+          is_downline_candidate: eventType === "meeting" && isDownlineCandidate,
           reminder_minutes_before: reminderMinutes,
           duration_minutes: durationMinutes,
           event_timezone: timezone,
@@ -522,6 +551,7 @@ export default function CalendarPage() {
       candidate_id: linkedCandidate,
       scope: "private",
       event_type: eventType,
+      is_downline_candidate: eventType === "meeting" && isDownlineCandidate,
       reminder_minutes_before: reminderMinutes,
       duration_minutes: durationMinutes,
       event_timezone: timezone,
@@ -545,6 +575,7 @@ export default function CalendarPage() {
         p_reminder_minutes_before: reminderMinutes,
         p_duration_minutes: durationMinutes,
         p_event_timezone: timezone,
+        p_is_downline_candidate: eventType === "meeting" && isDownlineCandidate,
       });
       if (broadcastError) {
         secondaryError = `Saved, but couldn't send it to your downline: ${broadcastError.message}`;
@@ -567,6 +598,7 @@ export default function CalendarPage() {
         p_reminder_minutes_before: reminderMinutes,
         p_duration_minutes: durationMinutes,
         p_event_timezone: timezone,
+        p_is_downline_candidate: eventType === "meeting" && isDownlineCandidate,
       });
       if (sendError) {
         secondaryError = `Saved, but couldn't send it to the people you picked: ${sendError.message}`;
@@ -719,6 +751,19 @@ export default function CalendarPage() {
           </button>
         </div>
 
+        <div className="flex flex-wrap gap-x-3 gap-y-1 px-1 text-[11px] text-slate-400">
+          {LEGEND_ITEMS.map((item) => (
+            <span key={item.label} className="flex items-center gap-1">
+              <span
+                className="h-2 w-2 shrink-0 rounded-full"
+                style={{ backgroundColor: item.color }}
+                aria-hidden="true"
+              />
+              {item.label}
+            </span>
+          ))}
+        </div>
+
         {loading ? (
           <SkeletonList cards={3} />
         ) : viewMode === "agenda" ? (
@@ -812,7 +857,7 @@ export default function CalendarPage() {
                             key={i}
                             className="h-1 w-1 rounded-full"
                             style={{
-                              backgroundColor: isSelected ? "#0f172a" : eventTypeColor(e.event_type),
+                              backgroundColor: isSelected ? "#0f172a" : eventColor(e),
                             }}
                           />
                         ))}
@@ -900,7 +945,7 @@ export default function CalendarPage() {
                     <button
                       key={e.id}
                       className="absolute left-14 right-1 overflow-hidden rounded-md px-2 py-1 text-left text-xs text-white shadow"
-                      style={{ top, height, backgroundColor: eventTypeColor(e.event_type) }}
+                      style={{ top, height, backgroundColor: eventColor(e) }}
                       onClick={(evt) => {
                         evt.stopPropagation();
                         openEditModal(e);
@@ -1066,6 +1111,16 @@ export default function CalendarPage() {
                   ))}
                 </select>
               </div>
+              {eventType === "meeting" && (
+                <label className="flex items-center gap-2 text-sm text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={isDownlineCandidate}
+                    onChange={(e) => setIsDownlineCandidate(e.target.checked)}
+                  />
+                  This is for a downline&apos;s candidate, not your own
+                </label>
+              )}
               <textarea
                 className="textarea"
                 placeholder="Notes (e.g. 17, graduates this year — follow up after)"

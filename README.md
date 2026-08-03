@@ -4440,6 +4440,40 @@ suffix, then converted with `.toISOString()`), so the two bounds could
 disagree by however many hours the viewer's timezone sits off UTC. Both
 bounds now go through the same local-time `Date` construction.
 
+### Calendar: a second color for "Candidate Meeting" when it's a downline's candidate
+
+A "Candidate Meeting" event used to always render in the same amber
+regardless of whose candidate it was actually for - an upline filling in
+for a downline (booking a meeting on their Candidate Roadmap card, or
+just typing "QI2 with Aaron for Aiden" on their own calendar to remember
+whose business it's for) looked identical to their own personal
+meetings at a glance. `calendar_events` gained an `is_downline_candidate`
+boolean; when true and `event_type = 'meeting'`, every event dot/block
+(agenda rows, Month grid dots, Day view blocks) renders in
+`DOWNLINE_CANDIDATE_MEETING_COLOR` (`lib/constants.ts`) instead of the
+normal amber. A small always-visible legend (5 colored dots + labels)
+now sits above the Agenda/Day/Month toggle, since "Candidate Meeting"
+splitting into two colors needed somewhere to explain itself.
+
+Two different ways this gets set, matching the two ways a meeting for a
+downline's candidate actually gets created:
+
+- **`book_candidate_meeting()`** (the "Book a Meeting" button on a
+  Candidate Roadmap card) already has to work out whether the candidate
+  belongs to the caller themselves/their household or a downline, to
+  decide whether the call is even authorized - `is_downline_candidate`
+  is just that same check, reused, so it's set automatically with
+  nothing new for the person booking it to think about.
+- **The plain Add/Edit Event form** has no equivalent signal - its
+  candidate picker only ever lists the viewer's own candidates (a
+  downline's candidate was never selectable there in the first place),
+  so there's no candidate-ownership check to reuse. A checkbox ("This is
+  for a downline's candidate, not your own") appears under the event
+  type picker whenever "Candidate Meeting" is selected, and that's what
+  gets saved instead. Threaded through `broadcast_event_to_downline()`
+  and `send_event_to_recipients()` too, so a broadcast/sent copy keeps
+  the same color as the original.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

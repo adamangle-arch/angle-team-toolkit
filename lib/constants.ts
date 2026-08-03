@@ -87,6 +87,14 @@ export const CALENDAR_EVENT_TYPES = [
 ] as const;
 export type CalendarEventType = (typeof CALENDAR_EVENT_TYPES)[number]["key"];
 
+// A "Candidate Meeting" event splits into two shades depending on
+// calendar_events.is_downline_candidate: the normal amber above for your
+// own candidate, this one when it's actually for a downline's candidate
+// (e.g. filling in for them, or booked via "Book a Meeting" on their
+// Roadmap card) - same color palette register as the other event-type
+// colors, just a distinct hue so the two read apart from across a room.
+export const DOWNLINE_CANDIDATE_MEETING_COLOR = "#34d399";
+
 // Options for the per-event reminder picker - null means "no reminder"
 // for this event. send-calendar-reminders/route.ts matches against
 // whatever value is actually stored per event, not this list directly.

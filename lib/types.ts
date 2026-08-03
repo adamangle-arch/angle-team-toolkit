@@ -383,6 +383,7 @@ export type CalendarEvent = {
   reminder_minutes_before: number | null;
   duration_minutes: number;
   event_timezone: string | null;
+  is_downline_candidate: boolean;
 };
 
 export type CompanyEvent = {

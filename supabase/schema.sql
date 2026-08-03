@@ -2912,6 +2912,16 @@ alter table calendar_events add constraint calendar_events_timezone_check check 
   )
 );
 
+-- Additive: lets a "Candidate Meeting" event render in a second color
+-- (DOWNLINE_CANDIDATE_MEETING_COLOR in lib/constants.ts) when it's
+-- actually for a downline's candidate rather than the calendar owner's
+-- own - book_candidate_meeting() below sets this automatically (it
+-- already knows whether the candidate belongs to the caller or a
+-- downline); the plain Add/Edit Event form sets it from a manual
+-- checkbox instead, since that form's candidate picker only ever offers
+-- the owner's own candidates and has no other way to know.
+alter table calendar_events add column if not exists is_downline_candidate boolean not null default false;
+
 -- Unlike the "personal tables" above (streak_days, assistant_messages,
 -- call_ratings — deliberately never shared with a linked spouse),
 -- calendar_events IS household-shareable: a married couple wants one
@@ -3100,6 +3110,11 @@ grant execute on function public.get_downline_with_depth(uuid) to authenticated;
 drop function if exists public.broadcast_event_to_downline(text, text, timestamptz, uuid);
 drop function if exists public.broadcast_event_to_downline(text, text, timestamptz, uuid, text, int);
 
+-- Signature grew a trailing parameter (is_downline_candidate) - same
+-- "new overload, not a true replace" reasoning as send_event_to_recipients
+-- below, so the old 8-arg signature has to be dropped first.
+drop function if exists public.broadcast_event_to_downline(text, text, timestamptz, uuid, text, int, int, text);
+
 create or replace function public.broadcast_event_to_downline(
   p_title text,
   p_notes text,
@@ -3108,7 +3123,8 @@ create or replace function public.broadcast_event_to_downline(
   p_event_type text default 'other',
   p_reminder_minutes_before int default 30,
   p_duration_minutes int default 30,
-  p_event_timezone text default null
+  p_event_timezone text default null,
+  p_is_downline_candidate boolean default false
 )
 returns int
 language plpgsql
@@ -3120,18 +3136,18 @@ declare
 begin
   insert into calendar_events (
     user_id, creator_id, title, notes, event_at, candidate_id, scope,
-    event_type, reminder_minutes_before, duration_minutes, event_timezone
+    event_type, reminder_minutes_before, duration_minutes, event_timezone, is_downline_candidate
   )
   select
     d.user_id, auth.uid(), p_title, p_notes, p_event_at, p_candidate_id, 'downline',
-    p_event_type, p_reminder_minutes_before, p_duration_minutes, p_event_timezone
+    p_event_type, p_reminder_minutes_before, p_duration_minutes, p_event_timezone, p_is_downline_candidate
   from public.get_downline_user_ids(auth.uid()) d;
   get diagnostics v_count = row_count;
   return v_count;
 end;
 $$;
 
-grant execute on function public.broadcast_event_to_downline(text, text, timestamptz, uuid, text, int, int, text) to authenticated;
+grant execute on function public.broadcast_event_to_downline(text, text, timestamptz, uuid, text, int, int, text, boolean) to authenticated;
 
 -- Same idea as broadcast_event_to_downline, but to a caller-chosen subset
 -- of their downline instead of all of it ("select a specific downline or
@@ -3145,6 +3161,7 @@ grant execute on function public.broadcast_event_to_downline(text, text, timesta
 -- an added-parameter signature change is a new overload to Postgres, not
 -- a true replace.
 drop function if exists public.send_event_to_recipients(text, text, timestamptz, uuid[], uuid, text, int);
+drop function if exists public.send_event_to_recipients(text, text, timestamptz, uuid[], uuid, text, int, int, text);
 
 create or replace function public.send_event_to_recipients(
   p_title text,
@@ -3155,7 +3172,8 @@ create or replace function public.send_event_to_recipients(
   p_event_type text default 'other',
   p_reminder_minutes_before int default 30,
   p_duration_minutes int default 30,
-  p_event_timezone text default null
+  p_event_timezone text default null,
+  p_is_downline_candidate boolean default false
 )
 returns int
 language plpgsql
@@ -3167,11 +3185,11 @@ declare
 begin
   insert into calendar_events (
     user_id, creator_id, title, notes, event_at, candidate_id, scope,
-    event_type, reminder_minutes_before, duration_minutes, event_timezone
+    event_type, reminder_minutes_before, duration_minutes, event_timezone, is_downline_candidate
   )
   select
     d.user_id, auth.uid(), p_title, p_notes, p_event_at, p_candidate_id, 'downline',
-    p_event_type, p_reminder_minutes_before, p_duration_minutes, p_event_timezone
+    p_event_type, p_reminder_minutes_before, p_duration_minutes, p_event_timezone, p_is_downline_candidate
   from public.get_downline_user_ids(auth.uid()) d
   where d.user_id = any(p_recipient_ids);
   get diagnostics v_count = row_count;
@@ -3179,7 +3197,7 @@ begin
 end;
 $$;
 
-grant execute on function public.send_event_to_recipients(text, text, timestamptz, uuid[], uuid, text, int, int, text) to authenticated;
+grant execute on function public.send_event_to_recipients(text, text, timestamptz, uuid[], uuid, text, int, int, text, boolean) to authenticated;
 
 -- Powers the "Upcoming" section of /prospect - any calendar_events row
 -- tagged with this candidate (the existing "linked candidate" picker on
@@ -3271,11 +3289,19 @@ begin
 
   insert into calendar_events (
     user_id, creator_id, title, notes, event_at, candidate_id, scope,
-    event_type, reminder_minutes_before, duration_minutes, event_timezone
+    event_type, reminder_minutes_before, duration_minutes, event_timezone, is_downline_candidate
   )
   values (
     v_owner_id, auth.uid(), p_title, p_notes, p_event_at, p_candidate_id, 'private',
-    'meeting', 30, p_duration_minutes, p_event_timezone
+    'meeting', 30, p_duration_minutes, p_event_timezone,
+    -- Already worked out above whether this is the caller's own/household
+    -- candidate or a downline's while filling in - reused here instead of
+    -- asking the caller to say so separately (they may not even know this
+    -- app tracks the distinction).
+    not (
+      v_owner_id = auth.uid()
+      or v_owner_id = (select household_id from profiles where id = auth.uid())
+    )
   )
   returning id into v_event_id;
 
