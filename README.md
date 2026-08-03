@@ -2229,6 +2229,58 @@ right after a successful send — `recipient_count` records how many
 devices a broadcast actually reached. There's no insert policy for
 regular users; only the service-role cron routes write to it.
 
+### Diagnosing "notifications are on but nothing arrives"
+
+There's no single database "notifications on" flag — what someone sees
+as one on/off switch (`NotificationOptIn`, on the Notifications page) is
+actually two things that can silently drift apart: the OS/browser's own
+notification permission, and a `push_subscriptions` row on the server
+that a push actually gets sent to. Two gaps found and fixed here:
+
+- **A dead server-side subscription looked identical to a working one.**
+  If a send ever gets a 404/410 back from the push service (device
+  uninstalled the PWA, browser data cleared, endpoint rotated),
+  `notifyUsers()` deletes that `push_subscriptions` row — correctly, so
+  it stops wasting sends on a dead endpoint. But `NotificationOptIn` only
+  ever checked `pushManager.getSubscription()` on the *browser* side, and
+  a browser-side subscription object can keep existing locally long
+  after its server-side row is gone, with nothing to invalidate it. That
+  produced exactly this bug: "Notifications are on" shown forever, sent
+  by a server with nothing to send to. Fixed by re-`upsert`-ing the
+  subscription's row on every app open when a browser-side subscription
+  is found, instead of trusting its mere existence — cheap, idempotent,
+  and heals the drift automatically the next time the app is opened.
+- **A failed subscription save was silently swallowed.** The initial
+  `push_subscriptions` upsert in `subscribe()` never checked for an
+  error — if it failed (a transient network blip, a bad row), the
+  browser would still show "Notifications are on" from a granted OS
+  permission alone, with no server-side row ever created. Now checked
+  and thrown, which the caller already surfaces as an error message.
+- **"Send Test Notification" button**, shown once notifications are on
+  (Notifications page). Calls a new `/api/notify/test` route that pushes
+  a real notification straight to your own device(s) right now,
+  bypassing muted-kind preferences (this isn't a real notification kind,
+  it's a mechanics check) and skipping the `sent_notifications` log. It
+  reports back exactly which stage failed instead of a generic
+  success/failure: no subscription row found on the server ("try Turn
+  Off, then Turn On again"), the server's VAPID keys aren't configured
+  at all (a hosting-config problem, not a device one), or a genuine
+  delivery error. This is the fastest way to tell "my device just isn't
+  getting anything" apart from "the whole app's push pipeline is down
+  for everyone."
+
+Two things worth knowing that aren't bugs, just platform/deploy facts:
+- **iOS requires "Add to Home Screen."** Notifications only work from
+  the installed PWA, not a regular Safari tab — `NotificationOptIn`
+  already detects this and shows install instructions instead of a
+  toggle, but it's an easy thing to misread as "I turned it on in
+  Settings" when that's a different, unrelated toggle.
+- **Missing `VAPID_PRIVATE_KEY`/`NEXT_PUBLIC_VAPID_PUBLIC_KEY`/
+  `CRON_SECRET` in the actual Vercel deployment** (as opposed to just
+  `.env.local.example`) silently fails every push for every user at
+  once — the Send Test Notification button now surfaces this case
+  directly instead of it looking identical to a per-device problem.
+
 ### Games
 
 A single **Games** tab holds three mini-games behind a pill-tab

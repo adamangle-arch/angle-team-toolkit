@@ -98,6 +98,9 @@ export default function NotificationOptIn() {
   const [needsTap, setNeedsTap] = useState(false);
   const [busy, setBusy] = useState(false);
   const [turnOnError, setTurnOnError] = useState<string | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
 
   async function subscribe(): Promise<boolean> {
     if (!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY?.trim()) {
@@ -114,8 +117,19 @@ export default function NotificationOptIn() {
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY),
     });
+    await upsertSubscriptionRow(sub);
+    return true;
+  }
+
+  // Shared by subscribe() (brand-new browser permission grant) and the
+  // mount-time self-heal below (permission already granted, re-syncing the
+  // row in case it was deleted server-side - see ensureSubscribed). Throws
+  // on failure in both cases rather than swallowing it: a silent failure
+  // here is exactly how "device says on, server has nothing to send to"
+  // happens, since the client never had another way to notice.
+  async function upsertSubscriptionRow(sub: PushSubscription) {
     const json = sub.toJSON();
-    await supabase.from("push_subscriptions").upsert(
+    const { error } = await supabase.from("push_subscriptions").upsert(
       {
         user_id: user.id,
         endpoint: json.endpoint!,
@@ -124,7 +138,7 @@ export default function NotificationOptIn() {
       },
       { onConflict: "endpoint" }
     );
-    return true;
+    if (error) throw new Error(error.message);
   }
 
   useEffect(() => {
@@ -136,6 +150,15 @@ export default function NotificationOptIn() {
       if (existing) {
         setSubscribed(true);
         setChecked(true);
+        // The client-side subscription surviving doesn't mean the server
+        // still has a matching row - a prior send can 404/410 and delete
+        // it (see notifyUsers()), and there's no client-side signal for
+        // that. Re-upserting here on every app open heals that drift
+        // silently in the common case; if it keeps failing, surface it
+        // rather than let "Notifications are on" keep lying indefinitely.
+        upsertSubscriptionRow(existing).catch((error) => {
+          setSyncError(error instanceof Error ? error.message : "Couldn't verify your subscription with the server.");
+        });
         return;
       }
       if (window.localStorage.getItem(OPTED_OUT_KEY) === "true") {
@@ -214,6 +237,33 @@ export default function NotificationOptIn() {
     }
   }
 
+  // Self-service answer to "I turned this on but never get anything" -
+  // sends a real push right now and reports back exactly which stage
+  // failed (no server subscription row, no VAPID keys configured, or a
+  // genuine delivery error), instead of leaving someone to guess.
+  async function sendTest() {
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      if (!accessToken) {
+        setTestResult({ ok: false, message: "You need to be signed in to send a test." });
+        return;
+      }
+      const res = await fetch("/api/notify/test", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const json = await res.json();
+      setTestResult({ ok: Boolean(json.ok), message: json.message ?? "Something went wrong." });
+    } catch {
+      setTestResult({ ok: false, message: "Couldn't reach the server. Check your connection and try again." });
+    } finally {
+      setTesting(false);
+    }
+  }
+
   if (isIOS && !isStandalone) {
     return (
       <div className="card space-y-1.5">
@@ -277,16 +327,33 @@ export default function NotificationOptIn() {
   }
 
   return (
-    <div className="card flex items-center justify-between gap-2">
-      <div>
-        <p className="section-title">🔔 Notifications are on</p>
-        <p className="text-xs text-slate-400">
-          You&apos;ll get a Core Run reminder plus daily, weekly, and monthly stat-leader updates.
-        </p>
+    <div className="card space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          <p className="section-title">🔔 Notifications are on</p>
+          <p className="text-xs text-slate-400">
+            You&apos;ll get a Core Run reminder plus daily, weekly, and monthly stat-leader updates.
+          </p>
+        </div>
+        <button className="btn-secondary shrink-0" onClick={turnOff} disabled={busy}>
+          Turn Off
+        </button>
       </div>
-      <button className="btn-secondary shrink-0" onClick={turnOff} disabled={busy}>
-        Turn Off
-      </button>
+      {syncError && (
+        <p className="text-xs text-red-400">
+          Couldn&apos;t confirm your subscription with the server ({syncError}). Try Turn Off, then
+          Turn On again.
+        </p>
+      )}
+      <div className="flex items-center justify-between gap-2 border-t border-white/10 pt-2">
+        <p className="text-xs text-slate-500">Not sure it&apos;s working?</p>
+        <button className="chip-btn shrink-0" onClick={sendTest} disabled={testing}>
+          {testing ? "Sending…" : "Send Test Notification"}
+        </button>
+      </div>
+      {testResult && (
+        <p className={`text-xs ${testResult.ok ? "text-amber-light" : "text-red-400"}`}>{testResult.message}</p>
+      )}
     </div>
   );
 }
