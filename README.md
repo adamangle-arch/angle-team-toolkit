@@ -1382,6 +1382,21 @@ partner is the household owner (`profiles.household_id`), so downline
 members are deduped to that owner before summing, same resolution the
 Team tab already uses, to avoid double-counting a linked pair.
 
+**Update:** every section now gets a real divider (blank line, a row of
+dashes, blank line) between it and the next, instead of just a single
+blank line - with this many sections stacked, a lone blank line read as
+jumbled rather than as an intentional break. The summary also gained a
+**📅 Tomorrow's Calendar** section, listing whatever's on the calendar
+the day after whichever day the summary is for (time + title, e.g.
+"8:00 PM — QI2 with DJ for Chris") — reusing the exact same
+self/household/linked-partner id resolution the Calendar page and Today
+dashboard already use for finding a household's calendar_events rows, so
+an event filed under a linked spouse's canonical owner id still shows up
+here. Sits right after "My Active Pipeline," before the Downline
+section, so someone can see who and what they're meeting tomorrow in the
+same summary they're already copying out nightly, instead of needing to
+separately check the Calendar tab.
+
 ### New to the Team spotlight
 
 The Leaderboard's **Daily** tab has a **🎉 New to the Team** card listing

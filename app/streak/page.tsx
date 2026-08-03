@@ -19,7 +19,7 @@ import {
 } from "@/lib/constants";
 import { fireNotifyEvent } from "@/lib/notifyClient";
 import { checkAndAwardBadges } from "@/lib/badgeEngine";
-import type { StreakDay, PipelinePeriod, MonthlyPv, Candidate, Profile } from "@/lib/types";
+import type { StreakDay, PipelinePeriod, MonthlyPv, Candidate, Profile, CalendarEvent } from "@/lib/types";
 
 // LTD Messaging's App Store listing. There's no public custom URL scheme
 // or universal link documented for this app (it's a private team app,
@@ -406,6 +406,57 @@ export default function StreakPage() {
     };
   }, [user.id, ownerId]);
 
+  // Resolves a linked spouse's id in either direction (household_id is
+  // only ever stored on one side) - same reason the Calendar page and
+  // Today dashboard need this on top of ownerId: a calendar event is
+  // filed under whichever spouse's ownerId was canonical at insert time.
+  const [partnerId, setPartnerId] = useState<string | null>(null);
+  useEffect(() => {
+    async function load() {
+      const { data } = await supabase.rpc("get_household_partner_id");
+      setPartnerId((data as string | null) ?? null);
+    }
+    load();
+  }, [user.id]);
+
+  // What's on the calendar the day after whichever day this Daily Update
+  // is for - lets someone prep for tomorrow (who they're meeting, what
+  // time) right from the same summary they copy/paste out, instead of
+  // needing to separately flip over to the Calendar tab.
+  const [nextDayEvents, setNextDayEvents] = useState<CalendarEvent[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const nextDay = addDays(selectedDay, 1);
+      const dayStart = new Date(`${nextDay}T00:00:00`);
+      const dayEnd = new Date(dayStart);
+      dayEnd.setDate(dayEnd.getDate() + 1);
+      const calendarIds = Array.from(
+        new Set([user.id, ownerId, partnerId].filter((id): id is string => Boolean(id)))
+      );
+      const { data } = await supabase
+        .from("calendar_events")
+        .select("*")
+        .in("user_id", calendarIds)
+        .gte("event_at", dayStart.toISOString())
+        .lt("event_at", dayEnd.toISOString())
+        .order("event_at", { ascending: true });
+      if (cancelled) return;
+      const seen = new Set<string>();
+      const deduped = ((data as CalendarEvent[]) ?? []).filter((e) => {
+        const key = `${e.title}|${e.event_at}|${e.notes}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      setNextDayEvents(deduped);
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [user.id, ownerId, partnerId, selectedDay]);
+
   const selectedRow: StreakDay = history[selectedDay] ?? emptyDay(user.id, selectedDay);
 
   // Adjust local input state during render (React's recommended pattern)
@@ -750,75 +801,91 @@ export default function StreakPage() {
   ].filter(Boolean).length;
 
   const summaryText = useMemo(() => {
+    // A plain single blank line between sections read as jumbled once
+    // there were this many of them stacked - a real divider between each
+    // one (blank line, dashes, blank line) gives each section a clear
+    // boundary instead of just a run of similar-looking lines.
+    const DIVIDER = "───────────────";
     const lines: string[] = [];
+    function section(...sectionLines: string[]) {
+      lines.push("");
+      lines.push(DIVIDER);
+      lines.push("");
+      lines.push(...sectionLines);
+    }
+
     lines.push(`📋 Daily Update — ${formatDateLabel(selectedDay)}`);
-    lines.push("");
-    lines.push("Today:");
-    lines.push(
-      `📖 Read: ${selectedRow.read_what || "—"}${selectedRow.read_amount ? ` — ${selectedRow.read_amount}` : ""}`
-    );
-    lines.push(
-      `🎧 Listened: ${selectedRow.listen_what || "—"}${selectedRow.listen_count ? ` — ${selectedRow.listen_count} audio(s)` : ""}`
-    );
-    lines.push("");
-    lines.push(
+
+    section(
+      "Today:",
+      `📖 Read: ${selectedRow.read_what || "—"}${selectedRow.read_amount ? ` — ${selectedRow.read_amount}` : ""}`,
+      `🎧 Listened: ${selectedRow.listen_what || "—"}${selectedRow.listen_count ? ` — ${selectedRow.listen_count} audio(s)` : ""}`,
+      "",
       `💬 Story Shares: ${selectedRow.story_shares} | Questions: ${selectedRow.questions} | Yeses: ${selectedRow.yeses}`
     );
-    lines.push("");
-    lines.push(`🤝 Meetings Today (${selectedRow.meeting_items.length}):`);
-    lines.push(
+
+    section(
+      `🤝 Meetings Today (${selectedRow.meeting_items.length}):`,
       selectedRow.meeting_items.length > 0 ? selectedRow.meeting_items.join("\n") : "None today."
     );
-    lines.push("");
-    lines.push(`👋 New Contacts Today (${newCandidatesForDay.length}):`);
-    lines.push(
+
+    section(
+      `👋 New Contacts Today (${newCandidatesForDay.length}):`,
       newCandidatesForDay.length > 0
-        ? newCandidatesForDay
-            .map((c) => `${c.name}${c.notes ? ` — ${c.notes}` : ""}`)
-            .join("\n")
+        ? newCandidatesForDay.map((c) => `${c.name}${c.notes ? ` — ${c.notes}` : ""}`).join("\n")
         : "None today."
     );
-    lines.push("");
-    lines.push(`🔥 Current Streak: ${streakAsOfSelectedDay} day(s)`);
-    lines.push("");
-    lines.push("My Pipeline — This Week:");
-    lines.push(
+
+    section(`🔥 Current Streak: ${streakAsOfSelectedDay} day(s)`);
+
+    section(
+      "My Pipeline — This Week:",
       weekly
         ? PIPELINE_STAGES.map((s) => `${s.label}: ${weekly[s.key]}`).join(" | ")
-        : "No pipeline activity logged yet."
-    );
-    lines.push("");
-    lines.push("My Pipeline — This Month:");
-    lines.push(
+        : "No pipeline activity logged yet.",
+      "",
+      "My Pipeline — This Month:",
       monthly
         ? PIPELINE_STAGES.map((s) => `${s.label}: ${monthly[s.key]}`).join(" | ")
         : "No pipeline activity logged yet."
     );
-    lines.push("");
-    lines.push(`💰 Current PV: ${pv?.pv ?? 0}`);
-    lines.push("");
-    lines.push(`My Active Pipeline (${activeCandidates.length}):`);
-    lines.push(
+
+    section(`💰 Current PV: ${pv?.pv ?? 0}`);
+
+    section(
+      `My Active Pipeline (${activeCandidates.length}):`,
       activeCandidates.length > 0
         ? activeCandidates
             .map((c) => `${c.name} — ${CANDIDATE_STEP_SHORT_LABELS[c.current_step] ?? "QI1"}`)
             .join("\n")
         : "No active candidates right now."
     );
-    lines.push("");
-    lines.push(`— Downline (${downlineMemberCount} member(s)) —`);
+
+    section(
+      `📅 Tomorrow's Calendar (${nextDayEvents.length}):`,
+      nextDayEvents.length > 0
+        ? nextDayEvents
+            .map(
+              (e) =>
+                `${new Date(e.event_at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })} — ${e.title}`
+            )
+            .join("\n")
+        : "Nothing on the calendar yet."
+    );
+
     if (downlineMemberCount === 0) {
-      lines.push("No downline yet.");
+      section(`— Downline (0 member(s)) —`, "No downline yet.");
     } else {
-      lines.push("");
-      lines.push("Downline — This Week:");
-      lines.push(PIPELINE_STAGES.map((s) => `${s.label}: ${downlineWeekly[s.key]}`).join(" | "));
-      lines.push("");
-      lines.push("Downline — This Month:");
-      lines.push(PIPELINE_STAGES.map((s) => `${s.label}: ${downlineMonthly[s.key]}`).join(" | "));
-      lines.push("");
-      lines.push(`Downline Active in Pipeline (${downlineActive.length}):`);
-      lines.push(
+      section(
+        `— Downline (${downlineMemberCount} member(s)) —`,
+        "",
+        "Downline — This Week:",
+        PIPELINE_STAGES.map((s) => `${s.label}: ${downlineWeekly[s.key]}`).join(" | "),
+        "",
+        "Downline — This Month:",
+        PIPELINE_STAGES.map((s) => `${s.label}: ${downlineMonthly[s.key]}`).join(" | "),
+        "",
+        `Downline Active in Pipeline (${downlineActive.length}):`,
         downlineActive.length > 0
           ? downlineActive
               .map(
@@ -829,6 +896,7 @@ export default function StreakPage() {
           : "No active downline candidates right now."
       );
     }
+
     return lines.join("\n");
   }, [
     selectedDay,
@@ -839,6 +907,7 @@ export default function StreakPage() {
     pv,
     activeCandidates,
     newCandidatesForDay,
+    nextDayEvents,
     downlineMemberCount,
     downlineWeekly,
     downlineMonthly,
