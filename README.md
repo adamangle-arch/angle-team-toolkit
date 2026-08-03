@@ -2018,7 +2018,7 @@ Two gaps fixed here:
 A new **Stories** tab (linked from **More**) gives everyone a rotating
 daily business-building prompt — "Post yourself doing a meeting for your
 business," "Post a win from today," etc. (`STORY_PROMPTS` in
-`lib/constants.ts`, 19 of them) — and a photo post that disappears after
+`lib/constants.ts`, 32 of them) — and a photo post that disappears after
 24 hours, the same "shared daily challenge" idea as Instagram/Snapchat
 Stories, but tied to actual business-building activities instead of
 whatever.
@@ -2056,11 +2056,17 @@ follow-ups once the core "post + 24h feed" loop is actually being used.
 
 **Update:** dropped the weakest of the original 12 ("Post yourself
 getting ready for a big day - what's on deck?" - too vague to prompt a
-real post) and added 8 more, up to 19 total: working through a book/
-audio, today's calendar, a recent team training/masterclass, a favorite
-product and why, a before/after "since starting this business" photo, a
-goals/vision board, out prospecting somewhere specific, and a highlight
-from the week.
+real post) and added 21 more across a few rounds, up to 32 total:
+working through a book/audio, today's calendar, a recent team training,
+a favorite product and why, a before/after "since starting this
+business" photo, a goals/vision board, out prospecting somewhere
+specific, a highlight from the week, a "day in the life," an app stat
+(streak/level/badge), a family photo, an Info Session/webinar attended,
+the moment you decided to start, a photo with your upline/mentor, what
+financial freedom would let you do, the last conference/event attended,
+the person who believed in you first, a favorite team-event memory, the
+leader/mentor whose example you follow, "the product you can't live
+without," and a place you're going today to meet people.
 
 ### Daily period (Pipeline Tracker & Leaderboard)
 
