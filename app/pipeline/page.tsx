@@ -1286,9 +1286,15 @@ function CandidateCard({
       {expanded && (
         <div className="space-y-3 pt-3">
           {candidate.access_code && (
-            <button className="pill" onClick={copyAccessCode}>
-              {codeCopied ? "✓ Copied!" : `🔑 Code: ${candidate.access_code}`}
-            </button>
+            <div className="space-y-1">
+              <button className="pill" onClick={copyAccessCode}>
+                {codeCopied ? "✓ Copied!" : `🔑 Code: ${candidate.access_code}`}
+              </button>
+              <p className="text-xs text-slate-500">
+                Tap to copy a ready-to-send text — a link to their resources page plus this
+                code, so they can look in without an account.
+              </p>
+            </div>
           )}
 
           <label className="flex items-center gap-2 text-xs text-slate-400">
