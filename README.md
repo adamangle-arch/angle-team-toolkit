@@ -4414,6 +4414,32 @@ below is discoverable at a glance, none of it requires reading a legend.
 No schema or metric changes — this is a client-side rendering/UX pass
 over data `get_badge_metrics()` and `user_badges` already provided.
 
+### Fixed: Today's "Today's Calendar" card missing events that Calendar itself showed
+
+The Calendar page and the Today (dashboard) page's "Today's Calendar" card
+read the same `calendar_events` table but used different queries — Today's
+looked only at rows literally filed under `user_id = user.id`, while
+Calendar (correctly) reads every row under `user.id`, `ownerId` (the
+household's canonical owner - what a new event actually gets inserted
+under), *and* a linked spouse's own raw id via `get_household_partner_id()`
+(covering rows filed before Calendar became household-shareable). For
+anyone whose events are filed under their household's shared `ownerId`
+rather than their own individual `user.id` - the normal case for a linked
+couple - Today's card said "Nothing on your calendar today" for a day that
+visibly had events on the Calendar tab itself. Today's dashboard now
+resolves the same three ids and dedupes the same way (a broadcast/company
+event inserts one row per recipient, so merging ids can otherwise
+double-count a shared standing event).
+
+Also fixed in the same query while in there: the lower bound of "today"
+was passed as a bare `"YYYY-MM-DDTHH:mm:ss"` string straight to the
+database, which Postgres interprets in its own session timezone (UTC) -
+not the viewer's. The upper bound was already being built correctly (via
+a JS `Date`, parsed as local time since the string has no timezone
+suffix, then converted with `.toISOString()`), so the two bounds could
+disagree by however many hours the viewer's timezone sits off UTC. Both
+bounds now go through the same local-time `Date` construction.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

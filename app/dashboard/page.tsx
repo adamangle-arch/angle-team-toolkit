@@ -113,6 +113,24 @@ export default function DashboardPage() {
   const [myActiveCandidates, setMyActiveCandidates] = useState<ActiveCandidateRow[]>([]);
   const [downlineActiveCandidates, setDownlineActiveCandidates] = useState<DownlineActiveCandidateRow[]>([]);
 
+  // Resolves a linked spouse's id in either direction (household_id is
+  // only ever stored on one side) - same reason the Calendar page needs
+  // this on top of `ownerId`: a calendar event is filed under whichever
+  // spouse actually added it (ownerId at insert time), which isn't
+  // necessarily this account's own user.id. Without this, "Today's
+  // Calendar" here only ever found events filed under user.id and missed
+  // every one filed under the household's shared ownerId or a spouse's
+  // own id - i.e. most real events, since Calendar itself writes new
+  // ones under ownerId, not user.id.
+  const [partnerId, setPartnerId] = useState<string | null>(null);
+  useEffect(() => {
+    async function load() {
+      const { data } = await supabase.rpc("get_household_partner_id");
+      setPartnerId((data as string | null) ?? null);
+    }
+    load();
+  }, [user.id]);
+
   async function openMyActiveModal() {
     setActiveModal("mine");
     setModalLoading(true);
@@ -134,8 +152,22 @@ export default function DashboardPage() {
 
     async function load() {
       setLoading(true);
+      // Built via JS Date (local-time parsed, since the string has no
+      // timezone suffix) rather than passed as a bare "YYYY-MM-DDTHH:mm:ss"
+      // string straight to the query - a bare string like that gets
+      // interpreted by Postgres in ITS OWN session timezone (UTC), not the
+      // browser's, which would silently widen or narrow "today" depending
+      // on which side of UTC the viewer's timezone falls on.
+      const todayStart = new Date(`${today}T00:00:00`);
       const tomorrow = new Date(`${today}T00:00:00`);
       tomorrow.setDate(tomorrow.getDate() + 1);
+
+      // Same reason the Calendar page queries all three: a calendar event
+      // is filed under whichever spouse's ownerId was canonical at insert
+      // time, not necessarily this account's own user.id.
+      const calendarIds = Array.from(
+        new Set([user.id, ownerId, partnerId].filter((id): id is string => Boolean(id)))
+      );
 
       const staleThresholdIso = isoDaysAgo(STALE_CANDIDATE_DAYS);
 
@@ -156,8 +188,8 @@ export default function DashboardPage() {
         supabase
           .from("calendar_events")
           .select("*")
-          .eq("user_id", user.id)
-          .gte("event_at", `${today}T00:00:00`)
+          .in("user_id", calendarIds)
+          .gte("event_at", todayStart.toISOString())
           .lt("event_at", tomorrow.toISOString())
           .order("event_at", { ascending: true }),
         supabase
@@ -194,7 +226,18 @@ export default function DashboardPage() {
         setStreakToday((streakRow as StreakDay) ?? null);
         setCurrentStreak((streakCount as number) ?? 0);
         setDailyGoals((goals as Goal[]) ?? []);
-        setTodayEvents((events as CalendarEvent[]) ?? []);
+        // A broadcast/company event inserts one row per recipient profile -
+        // once a household's ids are merged above, both spouses' own copies
+        // of the same standing event would otherwise double-count here.
+        // Same dedupe key the Calendar page uses.
+        const seenEventKeys = new Set<string>();
+        const dedupedEvents = ((events as CalendarEvent[]) ?? []).filter((e) => {
+          const key = `${e.title}|${e.event_at}|${e.notes}`;
+          if (seenEventKeys.has(key)) return false;
+          seenEventKeys.add(key);
+          return true;
+        });
+        setTodayEvents(dedupedEvents);
         setTodayPipeline((pipeline as PipelinePeriod) ?? null);
         setDownlineTodayTotals((downlineTotals as DownlinePipelineTotals) ?? null);
         const summary = activeSummary as { my_active_count: number; downline_active_count: number } | null;
@@ -224,7 +267,7 @@ export default function DashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, [user.id, ownerId, today]);
+  }, [user.id, ownerId, partnerId, today]);
 
   // Opportunistic badge check - Today is the one screen almost everyone
   // opens regularly, so this is the main place new badges actually get
