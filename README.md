@@ -3078,6 +3078,19 @@ more capable model, change the `model` value in
 `assistant_messages` table with the same private-by-default RLS as
 everything else.
 
+**Update:** the route had no cap on how often it could be called — a
+scripted loop (or one very chatty user) could run up real Anthropic spend
+with nothing to stop it. It now logs every call to a new
+`assistant_api_calls` table (server-only, no RLS policies — written via
+the service-role client in `lib/supabaseAdmin.ts` before the Anthropic
+call, so the count can't be dodged by hitting the endpoint directly
+instead of through the chat UI) and checks two rolling windows before
+calling Anthropic: max 8 calls/minute per user (stops a tight retry loop)
+and max 150 calls/24h per user (caps sustained abuse). Both are generous
+enough that no real conversation should ever hit them; going over either
+returns a friendly "try again in a bit" message instead of calling the
+model.
+
 Users can also paste or attach a screenshot of a real text/DM thread
 (📎 button or paste directly into the message box) instead of typing —
 Claude reads the image directly and either critiques the finished

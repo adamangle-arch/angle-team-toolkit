@@ -1526,6 +1526,27 @@ alter table call_ratings add constraint call_ratings_call_type_check
   check (call_type in ('QI1', 'QI2', 'FU1', 'FU2', 'Questionnaire'));
 
 -- ============================================================
+-- 6c. ASSISTANT RATE LIMITING
+-- One row per /api/assistant call, written by the route itself via the
+-- service-role client (lib/supabaseAdmin.ts) before it ever calls the
+-- Anthropic API - so the count can't be dodged by hitting the endpoint
+-- directly instead of going through the chat UI (which separately, and
+-- only afterward, writes the actual message into assistant_messages).
+-- Deliberately no RLS policies: nobody but the server should be able to
+-- see or reset their own call count.
+-- ============================================================
+create table if not exists assistant_api_calls (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists assistant_api_calls_user_created_idx
+  on assistant_api_calls(user_id, created_at desc);
+
+alter table assistant_api_calls enable row level security;
+
+-- ============================================================
 -- 7. TEAM PIPELINE TOTALS & LEADERBOARD
 -- Every member's individual pipeline_periods row stays private via RLS
 -- (below). These two functions are the only way to see across members:
