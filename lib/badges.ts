@@ -347,12 +347,12 @@ export const BADGE_DEFINITIONS: BadgeDefinition[] = [
   { key: "slow_and_steady", category: "Consistency", label: "Slow and Steady", description: "Log at least some PV, 12 consecutive months.", icon: "🐢", metric: "longest_any_pv_streak", threshold: 12, points: 30 },
 
   // Business Structure
-  { key: "team_of_5", category: "Business Structure", label: "Team of Five", description: "5 people total in your downline, any depth.", icon: "👥", metric: "total_downline_people", threshold: 5, points: 60 },
-  { key: "team_of_10", category: "Business Structure", label: "Team of Ten", description: "10 people total in your downline, any depth.", icon: "👥", metric: "total_downline_people", threshold: 10, points: 96 },
-  { key: "team_of_20", category: "Business Structure", label: "Team of Twenty", description: "20 people total in your downline, any depth.", icon: "👥", metric: "total_downline_people", threshold: 20, points: 132 },
-  { key: "team_of_50", category: "Business Structure", label: "Team of Fifty", description: "50 people total in your downline, any depth.", icon: "👥", metric: "total_downline_people", threshold: 50, points: 168 },
-  { key: "team_of_100", category: "Business Structure", label: "Team of a Hundred", description: "100 people total in your downline, any depth.", icon: "👑", metric: "total_downline_people", threshold: 100, points: 204 },
-  { key: "team10_qi1_8", category: "Business Structure", label: "Team of 10, 8 QI1s", description: "10 people total in your downline, plus 8 QI1s combined in a month.", icon: "🏢", metric: "has_team10_qi1_8", threshold: 1, points: 90 },
+  { key: "team_of_5", category: "Business Structure", label: "Team of Five", description: "5 people total on your team - you (2 if you're linked to a spouse) plus your downline, any depth.", icon: "👥", metric: "total_downline_people", threshold: 5, points: 60 },
+  { key: "team_of_10", category: "Business Structure", label: "Team of Ten", description: "10 people total on your team - you (2 if you're linked to a spouse) plus your downline, any depth.", icon: "👥", metric: "total_downline_people", threshold: 10, points: 96 },
+  { key: "team_of_20", category: "Business Structure", label: "Team of Twenty", description: "20 people total on your team - you (2 if you're linked to a spouse) plus your downline, any depth.", icon: "👥", metric: "total_downline_people", threshold: 20, points: 132 },
+  { key: "team_of_50", category: "Business Structure", label: "Team of Fifty", description: "50 people total on your team - you (2 if you're linked to a spouse) plus your downline, any depth.", icon: "👥", metric: "total_downline_people", threshold: 50, points: 168 },
+  { key: "team_of_100", category: "Business Structure", label: "Team of a Hundred", description: "100 people total on your team - you (2 if you're linked to a spouse) plus your downline, any depth.", icon: "👑", metric: "total_downline_people", threshold: 100, points: 204 },
+  { key: "team10_qi1_8", category: "Business Structure", label: "Team of 10, 8 QI1s", description: "10 people total on your team (you plus your downline), plus 8 QI1s combined in a month.", icon: "🏢", metric: "has_team10_qi1_8", threshold: 1, points: 90 },
 
   // Goals
   { key: "own_your_story", category: "Goals", label: "Own Your Story", description: "Fill in all three of your Dreams fields.", icon: "📖", metric: "has_dreams_filled", threshold: 1, points: 30 },
@@ -490,7 +490,7 @@ export const BADGE_DEFINITIONS: BadgeDefinition[] = [
   { key: "full_circle", category: "Contacts", label: "Full Circle", description: "Convert a Contact into a Candidate.", icon: "🔄", metric: "has_full_circle", threshold: 1, points: 90 },
 
   // Business Structure
-  { key: "team_of_200", category: "Business Structure", label: "Team of Two Hundred", description: "200 people total in your downline, any depth.", icon: "👑", metric: "total_downline_people", threshold: 200, points: 240 },
+  { key: "team_of_200", category: "Business Structure", label: "Team of Two Hundred", description: "200 people total on your team - you (2 if you're linked to a spouse) plus your downline, any depth.", icon: "👑", metric: "total_downline_people", threshold: 200, points: 240 },
   { key: "steady_growth", category: "Business Structure", label: "Steady Growth", description: "Add at least 1 new leg every quarter for a full year.", icon: "🌱", metric: "has_steady_growth", threshold: 1, points: 90 },
 
   // Consistency

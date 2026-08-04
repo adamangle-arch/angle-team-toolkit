@@ -5136,6 +5136,19 @@ set search_path = public
 as $$
   with legs as (
     select * from public.get_leg_members(p_user_id)
+  ),
+  -- "Team of N"/org-combo "total people" badges count the badge-earner
+  -- too, not just their downline - 1 person, or 2 if they're linked to a
+  -- spouse (same "spouses count as two people" rule get_leg_members
+  -- already applies to everyone else). Legs themselves are unaffected -
+  -- you're not a leg of your own team.
+  self_count as (
+    select case
+      when exists (select 1 from profiles where id = p_user_id and household_id is not null)
+        or exists (select 1 from profiles where household_id = p_user_id)
+      then 2
+      else 1
+    end as n
   )
   select
     public.get_longest_streak(p_user_id),
@@ -5324,26 +5337,26 @@ as $$
       )
     ),
     (select count(distinct leg_root)::int from legs),
-    (select count(distinct member_id)::int from legs),
+    (select count(distinct member_id)::int from legs) + (select n from self_count),
     (
       (select count(distinct leg_root) from legs) >= 3
-      and (select count(distinct member_id) from legs) >= 10
+      and (select count(distinct member_id) from legs) + (select n from self_count) >= 10
     ),
     (
       (select count(distinct leg_root) from legs) >= 6
-      and (select count(distinct member_id) from legs) >= 25
+      and (select count(distinct member_id) from legs) + (select n from self_count) >= 25
     ),
     (
       (select count(distinct leg_root) from legs) >= 6
-      and (select count(distinct member_id) from legs) >= 50
+      and (select count(distinct member_id) from legs) + (select n from self_count) >= 50
     ),
     (
       (select count(distinct leg_root) from legs) >= 9
-      and (select count(distinct member_id) from legs) >= 75
+      and (select count(distinct member_id) from legs) + (select n from self_count) >= 75
     ),
     (
       (select count(distinct leg_root) from legs) >= 12
-      and (select count(distinct member_id) from legs) >= 100
+      and (select count(distinct member_id) from legs) + (select n from self_count) >= 100
     ),
     (
       select count(distinct lm.leg_root)::int from legs lm
@@ -5602,7 +5615,7 @@ as $$
       ) t
     ),
     (
-      (select count(distinct member_id) from legs) >= 10
+      (select count(distinct member_id) from legs) + (select n from self_count) >= 10
       and (
         select coalesce(max(total), 0) from (
           select sum(qi1) as total from pipeline_periods
