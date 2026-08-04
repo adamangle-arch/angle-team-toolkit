@@ -6,9 +6,10 @@ import TrendChart from "@/components/TrendChart";
 import { SkeletonList, SkeletonRows } from "@/components/Skeleton";
 import { useAuth } from "@/components/AuthGate";
 import FeatureGate from "@/components/FeatureGate";
+import AverageLeaders from "@/components/AverageLeaders";
 import { supabase } from "@/lib/supabaseClient";
 import { getMonthStart, getMonthStartOffset, formatMonthLabel, formatShortMonthLabel } from "@/lib/dates";
-import type { MonthlyPv, CustomerSale, SaleCategory } from "@/lib/types";
+import type { MonthlyPv, CustomerSale, SaleCategory, AverageLeaderEntry } from "@/lib/types";
 
 const CORE_300_TARGET = 300;
 const DITTO_TARGET = 100;
@@ -53,6 +54,9 @@ export default function VolumePage() {
   // Recent Months/the trend charts, and can therefore be one short of a
   // full window once the current month's own row is excluded from it).
   const [avgMonthlyRows, setAvgMonthlyRows] = useState<MonthlyPv[]>([]);
+  // Company-wide top 3 for PV/Ditto per month (get_volume_average_leaders
+  // in supabase/schema.sql) - not scoped to ownerId, fetched once on mount.
+  const [volumeLeaders, setVolumeLeaders] = useState<AverageLeaderEntry[]>([]);
 
   const [sales, setSales] = useState<CustomerSale[]>([]);
   const [loadingSales, setLoadingSales] = useState(true);
@@ -115,6 +119,18 @@ export default function VolumePage() {
       cancelled = true;
     };
   }, [ownerId, periodStart]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const { data } = await supabase.rpc("get_volume_average_leaders");
+      if (!cancelled) setVolumeLeaders((data as AverageLeaderEntry[]) ?? []);
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -362,17 +378,29 @@ export default function VolumePage() {
             Your Averages (Last {monthlyAverages.windowCount}{" "}
             Month{monthlyAverages.windowCount === 1 ? "" : "s"})
           </p>
-          <div className="flex items-center justify-between rounded-lg bg-navy px-3 py-2">
-            <span className="text-sm text-slate-200">🚀 PV per month</span>
-            <span className="text-lg font-bold text-amber">
-              {monthlyAverages.pvPerMonth.toFixed(1)}
-            </span>
+          <div className="space-y-1 rounded-lg bg-navy px-3 py-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-slate-200">🚀 PV per month</span>
+              <span className="text-lg font-bold text-amber">
+                {monthlyAverages.pvPerMonth.toFixed(1)}
+              </span>
+            </div>
+            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
+              🏆 Team Leaders
+            </p>
+            <AverageLeaders leaders={volumeLeaders} metric="pv" />
           </div>
-          <div className="flex items-center justify-between rounded-lg bg-navy px-3 py-2">
-            <span className="text-sm text-slate-200">💧 Ditto per month</span>
-            <span className="text-lg font-bold text-amber">
-              {monthlyAverages.dittoPerMonth.toFixed(1)}
-            </span>
+          <div className="space-y-1 rounded-lg bg-navy px-3 py-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-slate-200">💧 Ditto per month</span>
+              <span className="text-lg font-bold text-amber">
+                {monthlyAverages.dittoPerMonth.toFixed(1)}
+              </span>
+            </div>
+            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
+              🏆 Team Leaders
+            </p>
+            <AverageLeaders leaders={volumeLeaders} metric="ditto" />
           </div>
           <p className="text-xs text-slate-400">
             Averaged across completed months since you started logging Volume (up to the last 6)

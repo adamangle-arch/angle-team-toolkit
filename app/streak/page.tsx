@@ -7,6 +7,7 @@ import FirstVisitTip from "@/components/FirstVisitTip";
 import { SkeletonList } from "@/components/Skeleton";
 import { useAuth } from "@/components/AuthGate";
 import FeatureGate from "@/components/FeatureGate";
+import AverageLeaders from "@/components/AverageLeaders";
 import { supabase } from "@/lib/supabaseClient";
 import { getToday, getWeekStart, getMonthStart, formatDateLabel } from "@/lib/dates";
 import {
@@ -19,7 +20,15 @@ import {
 } from "@/lib/constants";
 import { fireNotifyEvent } from "@/lib/notifyClient";
 import { checkAndAwardBadges } from "@/lib/badgeEngine";
-import type { StreakDay, PipelinePeriod, MonthlyPv, Candidate, Profile, CalendarEvent } from "@/lib/types";
+import type {
+  StreakDay,
+  PipelinePeriod,
+  MonthlyPv,
+  Candidate,
+  Profile,
+  CalendarEvent,
+  AverageLeaderEntry,
+} from "@/lib/types";
 
 // LTD Messaging's App Store listing. There's no public custom URL scheme
 // or universal link documented for this app (it's a private team app,
@@ -217,6 +226,22 @@ export default function StreakPage() {
   const { user, ownerId } = useAuth();
   const [history, setHistory] = useState<Record<string, StreakDay>>({});
   const [loading, setLoading] = useState(true);
+  // Company-wide top 3 for audios/reading per day
+  // (get_streak_average_leaders in supabase/schema.sql) - fetched once
+  // on mount, same as the other pages' team-leaders lists.
+  const [streakLeaders, setStreakLeaders] = useState<AverageLeaderEntry[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const { data } = await supabase.rpc("get_streak_average_leaders");
+      if (!cancelled) setStreakLeaders((data as AverageLeaderEntry[]) ?? []);
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Mirrors `history`, but updated synchronously (not on the next render)
   // so back-to-back saveToday() calls each build their patch on top of the
@@ -1032,17 +1057,29 @@ export default function StreakPage() {
             Your Averages (Last {last30Averages.windowDays}{" "}
             Day{last30Averages.windowDays === 1 ? "" : "s"})
           </p>
-          <div className="flex items-center justify-between rounded-lg bg-navy px-3 py-2">
-            <span className="text-sm text-slate-200">🎧 Audios per day</span>
-            <span className="text-lg font-bold text-amber">
-              {last30Averages.audiosPerDay.toFixed(1)}
-            </span>
+          <div className="space-y-1 rounded-lg bg-navy px-3 py-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-slate-200">🎧 Audios per day</span>
+              <span className="text-lg font-bold text-amber">
+                {last30Averages.audiosPerDay.toFixed(1)}
+              </span>
+            </div>
+            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
+              🏆 Team Leaders
+            </p>
+            <AverageLeaders leaders={streakLeaders} metric="audios" />
           </div>
-          <div className="flex items-center justify-between rounded-lg bg-navy px-3 py-2">
-            <span className="text-sm text-slate-200">📖 {readingUnitLabel} per day</span>
-            <span className="text-lg font-bold text-amber">
-              {last30Averages.readAmountPerDay.toFixed(1)}
-            </span>
+          <div className="space-y-1 rounded-lg bg-navy px-3 py-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-slate-200">📖 {readingUnitLabel} per day</span>
+              <span className="text-lg font-bold text-amber">
+                {last30Averages.readAmountPerDay.toFixed(1)}
+              </span>
+            </div>
+            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
+              🏆 Team Leaders
+            </p>
+            <AverageLeaders leaders={streakLeaders} metric="read_amount" />
           </div>
           <p className="text-xs text-slate-400">
             Audios counts each one you&apos;ve added. {readingUnitLabel} pulls the number straight

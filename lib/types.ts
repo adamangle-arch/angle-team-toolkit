@@ -111,6 +111,19 @@ export type IndividualLeaderEntry = {
   user_id: string;
 } & WithPartner;
 
+// Top 3 (ties included) for a "Your Averages" metric - get_pipeline_average_leaders
+// and get_volume_average_leaders include partner_*; get_streak_average_leaders
+// never does (streak_days is personal, not household-shared), so those
+// rows just come back with partner fields absent from the RPC response.
+export type AverageLeaderEntry = {
+  metric: string;
+  first_name: string | null;
+  last_name: string | null;
+  team: string | null;
+  value: number;
+  user_id: string;
+} & Partial<WithPartner>;
+
 export type StreakLeaderboardEntry = {
   first_name: string | null;
   last_name: string | null;

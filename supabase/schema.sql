@@ -2423,6 +2423,268 @@ $$;
 
 grant execute on function public.mirror_pipeline_stage_to_streak(date, text, int) to authenticated;
 
+-- Company-wide top 3 (ties included, same "don't pick an arbitrary
+-- winner" rule get_individual_leaders above already follows) for each of
+-- the 3 "Your Averages" metrics on the Pipeline Tracker, computed with
+-- the exact same fairness rules as averagesForPeriods() in
+-- lib/periodAverages.ts: a day/week/month with no row still counts as a
+-- 0, but the window is clamped per-member to start no earlier than their
+-- own first-ever logged period, and the current (still in-progress)
+-- period is never counted. p_period_type picks which of the three
+-- windows (30 days / 12 weeks / 6 months) to rank on - called three
+-- times, once per period type, same as the client already fetches
+-- dailyAvgPeriods/weeklyAvgPeriods/monthlyAvgPeriods separately.
+-- Household-merged the same way get_individual_leaders is: pipeline_periods
+-- already lives under the shared owner's user_id (see profiles.household_id
+-- notes above), so partner_* here is purely a display nicety ("John & Jane"
+-- instead of just whoever happens to be the stored owner).
+create or replace function public.get_pipeline_average_leaders(p_period_type text)
+returns table (
+  metric text,
+  first_name text,
+  last_name text,
+  team text,
+  value numeric,
+  user_id uuid,
+  partner_user_id uuid,
+  partner_first_name text,
+  partner_last_name text
+)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  v_window int;
+  v_current_start date;
+begin
+  if p_period_type = 'daily' then
+    v_window := 30;
+    v_current_start := current_date;
+  elsif p_period_type = 'weekly' then
+    v_window := 12;
+    v_current_start := date_trunc('week', current_date)::date;
+  elsif p_period_type = 'monthly' then
+    v_window := 6;
+    v_current_start := date_trunc('month', current_date)::date;
+  else
+    raise exception 'invalid period_type: %', p_period_type;
+  end if;
+
+  return query
+  with theoretical as (
+    select case p_period_type
+      when 'daily' then v_current_start - gs
+      when 'weekly' then v_current_start - (gs * 7)
+      else (v_current_start - (gs || ' months')::interval)::date
+    end as period_start
+    from generate_series(1, v_window) as gs
+  ),
+  member_first as (
+    select pp.user_id, min(pp.period_start) as first_start
+    from pipeline_periods pp
+    where pp.period_type = p_period_type
+    group by pp.user_id
+  ),
+  applicable as (
+    select mf.user_id, t.period_start
+    from member_first mf
+    join theoretical t on t.period_start >= mf.first_start
+  ),
+  totals as (
+    select a.user_id,
+      count(*) as n,
+      sum(coalesce(pp.questions, 0)) as questions,
+      sum(coalesce(pp.yeses, 0)) as yeses,
+      sum(coalesce(pp.qi1, 0)) as qi1
+    from applicable a
+    left join pipeline_periods pp
+      on pp.user_id = a.user_id and pp.period_type = p_period_type and pp.period_start = a.period_start
+    group by a.user_id
+  ),
+  averages as (
+    select t.user_id, pr.first_name, pr.last_name, pr.team,
+      partner.id as partner_user_id,
+      partner.first_name as partner_first_name,
+      partner.last_name as partner_last_name,
+      (t.questions::numeric / nullif(t.n, 0)) as questions_avg,
+      (t.yeses::numeric / nullif(t.n, 0)) as yeses_avg,
+      (t.qi1::numeric / nullif(t.n, 0)) as qi1_avg
+    from totals t
+    join profiles pr on pr.id = t.user_id
+    left join profiles partner on partner.household_id = pr.id
+  ),
+  ranked as (
+    select 'questions' as metric, first_name, last_name, team, questions_avg as value,
+      user_id, partner_user_id, partner_first_name, partner_last_name,
+      rank() over (order by questions_avg desc nulls last) as rn
+    from averages
+    union all
+    select 'yeses', first_name, last_name, team, yeses_avg,
+      user_id, partner_user_id, partner_first_name, partner_last_name,
+      rank() over (order by yeses_avg desc nulls last)
+    from averages
+    union all
+    select 'qi1', first_name, last_name, team, qi1_avg,
+      user_id, partner_user_id, partner_first_name, partner_last_name,
+      rank() over (order by qi1_avg desc nulls last)
+    from averages
+  )
+  select metric, first_name, last_name, team, value, user_id,
+    partner_user_id, partner_first_name, partner_last_name
+  from ranked
+  where rn <= 3 and value > 0
+  order by metric, rn;
+end;
+$$;
+
+grant execute on function public.get_pipeline_average_leaders(text) to authenticated;
+
+-- Same idea as get_pipeline_average_leaders above, but for the Volume
+-- page's PV/Ditto monthly averages - single fixed 6-month window (no
+-- period_type parameter needed), same per-member first-month clamp and
+-- current-month exclusion as monthlyAverages in app/volume/page.tsx.
+create or replace function public.get_volume_average_leaders()
+returns table (
+  metric text,
+  first_name text,
+  last_name text,
+  team text,
+  value numeric,
+  user_id uuid,
+  partner_user_id uuid,
+  partner_first_name text,
+  partner_last_name text
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  with theoretical as (
+    select (date_trunc('month', current_date) - (gs || ' months')::interval)::date as period_start
+    from generate_series(1, 6) as gs
+  ),
+  member_first as (
+    select mp.user_id, min(mp.period_start) as first_start
+    from monthly_pv mp
+    group by mp.user_id
+  ),
+  applicable as (
+    select mf.user_id, t.period_start
+    from member_first mf
+    join theoretical t on t.period_start >= mf.first_start
+  ),
+  totals as (
+    select a.user_id,
+      count(*) as n,
+      sum(coalesce(mp.pv, 0)) as pv,
+      sum(coalesce(mp.day1_ditto_pv, 0)) as ditto
+    from applicable a
+    left join monthly_pv mp on mp.user_id = a.user_id and mp.period_start = a.period_start
+    group by a.user_id
+  ),
+  averages as (
+    select t.user_id, pr.first_name, pr.last_name, pr.team,
+      partner.id as partner_user_id,
+      partner.first_name as partner_first_name,
+      partner.last_name as partner_last_name,
+      (t.pv::numeric / nullif(t.n, 0)) as pv_avg,
+      (t.ditto::numeric / nullif(t.n, 0)) as ditto_avg
+    from totals t
+    join profiles pr on pr.id = t.user_id
+    left join profiles partner on partner.household_id = pr.id
+  ),
+  ranked as (
+    select 'pv' as metric, first_name, last_name, team, pv_avg as value,
+      user_id, partner_user_id, partner_first_name, partner_last_name,
+      rank() over (order by pv_avg desc nulls last) as rn
+    from averages
+    union all
+    select 'ditto', first_name, last_name, team, ditto_avg,
+      user_id, partner_user_id, partner_first_name, partner_last_name,
+      rank() over (order by ditto_avg desc nulls last)
+    from averages
+  )
+  select metric, first_name, last_name, team, value, user_id,
+    partner_user_id, partner_first_name, partner_last_name
+  from ranked
+  where rn <= 3 and value > 0
+  order by metric, rn;
+$$;
+
+grant execute on function public.get_volume_average_leaders() to authenticated;
+
+-- Same idea again, for Core Run's audios/reading-amount daily averages
+-- (last30Averages in app/streak/page.tsx) - no household merge here,
+-- unlike the two above, since streak_days is explicitly personal, never
+-- shared between linked spouses (see profiles.household_id notes above:
+-- "everything except Core Run Streak and the profile itself"). The
+-- leading-number extraction on read_amount mirrors leadingNumber() in
+-- app/streak/page.tsx exactly - free text like "20 pages" or "15" reads
+-- as 20/15, anything with no leading number reads as 0.
+create or replace function public.get_streak_average_leaders()
+returns table (
+  metric text,
+  first_name text,
+  last_name text,
+  team text,
+  value numeric,
+  user_id uuid
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  with theoretical as (
+    select (current_date - gs) as day
+    from generate_series(1, 30) as gs
+  ),
+  member_first as (
+    select sd.user_id, min(sd.day) as first_day
+    from streak_days sd
+    group by sd.user_id
+  ),
+  applicable as (
+    select mf.user_id, t.day
+    from member_first mf
+    join theoretical t on t.day >= mf.first_day
+  ),
+  totals as (
+    select a.user_id,
+      count(*) as n,
+      sum(coalesce(sd.listen_count, 0)) as audios,
+      sum(coalesce((substring(trim(sd.read_amount) from '^(\d+(\.\d+)?)'))::numeric, 0)) as read_amount
+    from applicable a
+    left join streak_days sd on sd.user_id = a.user_id and sd.day = a.day
+    group by a.user_id
+  ),
+  averages as (
+    select t.user_id, pr.first_name, pr.last_name, pr.team,
+      (t.audios::numeric / nullif(t.n, 0)) as audios_avg,
+      (t.read_amount::numeric / nullif(t.n, 0)) as read_amount_avg
+    from totals t
+    join profiles pr on pr.id = t.user_id
+  ),
+  ranked as (
+    select 'audios' as metric, first_name, last_name, team, audios_avg as value, user_id,
+      rank() over (order by audios_avg desc nulls last) as rn
+    from averages
+    union all
+    select 'read_amount', first_name, last_name, team, read_amount_avg, user_id,
+      rank() over (order by read_amount_avg desc nulls last)
+    from averages
+  )
+  select metric, first_name, last_name, team, value, user_id
+  from ranked
+  where rn <= 3 and value > 0
+  order by metric, rn;
+$$;
+
+grant execute on function public.get_streak_average_leaders() to authenticated;
+
 -- ============================================================
 -- 8. LEADERBOARD LIKES
 -- Anyone can "like" a specific leaderboard ranking so the team can cheer

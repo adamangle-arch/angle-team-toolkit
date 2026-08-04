@@ -5,6 +5,7 @@ import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
 import FeatureGate from "@/components/FeatureGate";
 import { SkeletonList } from "@/components/Skeleton";
+import AverageLeaders from "@/components/AverageLeaders";
 import { supabase } from "@/lib/supabaseClient";
 import { getWeekStart, getMonthStart, getDateOffset, getMonthStartOffset } from "@/lib/dates";
 import {
@@ -16,7 +17,7 @@ import {
   type ReadingUnit,
 } from "@/lib/constants";
 import { periodStartFor, averagesForPeriods, AVERAGES_WINDOW, AVERAGE_METRICS } from "@/lib/periodAverages";
-import type { Goal, PipelinePeriod, Profile, StreakDay, MonthlyPv } from "@/lib/types";
+import type { Goal, PipelinePeriod, Profile, StreakDay, MonthlyPv, AverageLeaderEntry } from "@/lib/types";
 
 // Same leading-number parse as app/streak/page.tsx's read_amount average -
 // duplicated rather than imported since it's a tiny, self-contained piece
@@ -111,6 +112,37 @@ export default function GoalsPage() {
     dream_10_year: "",
     dream_lifetime: "",
   });
+
+  // Company-wide top 3 for each average shown below - same RPCs as
+  // Pipeline Tracker/Volume/Core Run, fetched independently here since
+  // this page has its own combined summary rather than reusing theirs.
+  // Pipeline only fetches the monthly window - unlike Pipeline Tracker,
+  // this page has no Daily/Weekly/Monthly tab to key a picker off of, and
+  // Monthly is the most meaningful single cadence to show without adding
+  // one just for this.
+  const [pipelineLeaders, setPipelineLeaders] = useState<AverageLeaderEntry[]>([]);
+  const [volumeLeaders, setVolumeLeaders] = useState<AverageLeaderEntry[]>([]);
+  const [streakLeaders, setStreakLeaders] = useState<AverageLeaderEntry[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const [{ data: pipeline }, { data: volume }, { data: streak }] = await Promise.all([
+        supabase.rpc("get_pipeline_average_leaders", { p_period_type: "monthly" }),
+        supabase.rpc("get_volume_average_leaders"),
+        supabase.rpc("get_streak_average_leaders"),
+      ]);
+      if (!cancelled) {
+        setPipelineLeaders((pipeline as AverageLeaderEntry[]) ?? []);
+        setVolumeLeaders((volume as AverageLeaderEntry[]) ?? []);
+        setStreakLeaders((streak as AverageLeaderEntry[]) ?? []);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     async function load() {
@@ -419,17 +451,29 @@ export default function GoalsPage() {
             completed ones, since a period that isn&apos;t over yet isn&apos;t a fair comparison to
             a finished one.
           </p>
-          <div className="flex items-center justify-between rounded-lg bg-navy px-3 py-2">
-            <span className="text-sm text-slate-200">🎧 Audios per day</span>
-            <span className="text-lg font-bold text-amber">
-              {coreRunAverages.audiosPerDay.toFixed(1)}
-            </span>
+          <div className="space-y-1 rounded-lg bg-navy px-3 py-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-slate-200">🎧 Audios per day</span>
+              <span className="text-lg font-bold text-amber">
+                {coreRunAverages.audiosPerDay.toFixed(1)}
+              </span>
+            </div>
+            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
+              🏆 Team Leaders
+            </p>
+            <AverageLeaders leaders={streakLeaders} metric="audios" />
           </div>
-          <div className="flex items-center justify-between rounded-lg bg-navy px-3 py-2">
-            <span className="text-sm text-slate-200">📖 {readingUnitLabel} per day</span>
-            <span className="text-lg font-bold text-amber">
-              {coreRunAverages.readAmountPerDay.toFixed(1)}
-            </span>
+          <div className="space-y-1 rounded-lg bg-navy px-3 py-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-slate-200">📖 {readingUnitLabel} per day</span>
+              <span className="text-lg font-bold text-amber">
+                {coreRunAverages.readAmountPerDay.toFixed(1)}
+              </span>
+            </div>
+            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
+              🏆 Team Leaders
+            </p>
+            <AverageLeaders leaders={streakLeaders} metric="read_amount" />
           </div>
 
           <div className="no-scrollbar overflow-x-auto pt-1">
@@ -467,17 +511,41 @@ export default function GoalsPage() {
             </table>
           </div>
 
-          <div className="flex items-center justify-between rounded-lg bg-navy px-3 py-2">
-            <span className="text-sm text-slate-200">🚀 PV per month</span>
-            <span className="text-lg font-bold text-amber">
-              {volumeAverages.pvPerMonth.toFixed(1)}
-            </span>
+          <div className="space-y-2 rounded-lg bg-navy px-3 py-2">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
+              🏆 Team Leaders (Monthly)
+            </p>
+            {AVERAGE_METRICS.map((metric) => (
+              <div key={metric.key}>
+                <p className="text-xs font-medium text-slate-300">{metric.label}</p>
+                <AverageLeaders leaders={pipelineLeaders} metric={metric.key} />
+              </div>
+            ))}
           </div>
-          <div className="flex items-center justify-between rounded-lg bg-navy px-3 py-2">
-            <span className="text-sm text-slate-200">💧 Ditto per month</span>
-            <span className="text-lg font-bold text-amber">
-              {volumeAverages.dittoPerMonth.toFixed(1)}
-            </span>
+
+          <div className="space-y-1 rounded-lg bg-navy px-3 py-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-slate-200">🚀 PV per month</span>
+              <span className="text-lg font-bold text-amber">
+                {volumeAverages.pvPerMonth.toFixed(1)}
+              </span>
+            </div>
+            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
+              🏆 Team Leaders
+            </p>
+            <AverageLeaders leaders={volumeLeaders} metric="pv" />
+          </div>
+          <div className="space-y-1 rounded-lg bg-navy px-3 py-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-slate-200">💧 Ditto per month</span>
+              <span className="text-lg font-bold text-amber">
+                {volumeAverages.dittoPerMonth.toFixed(1)}
+              </span>
+            </div>
+            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
+              🏆 Team Leaders
+            </p>
+            <AverageLeaders leaders={volumeLeaders} metric="ditto" />
           </div>
         </div>
 

@@ -4119,6 +4119,41 @@ Card copy on all four pages now says "completed" days/weeks/months and
 notes that the current one isn't counted yet, so it's never ambiguous
 why today's or this week's activity doesn't show up in its own average.
 
+### Team Leaders on every "Your Averages" card
+
+Every "Your Averages" stat, on all four pages (Pipeline Tracker, Volume,
+Core Run, Goals), now has a **🏆 Team Leaders** list right next to it —
+the top 3 (ties included, nobody gets bumped for an arbitrary tiebreak)
+across the whole company for that exact same average, always visible,
+not tucked behind a tap. Names link to `/profile/[id]`, same as everyone
+else on the Leaderboard.
+
+Three new `security definer` RPCs compute it, one per data source,
+mirroring the exact same fairness rules `averagesForPeriods()` (Pipeline)
+and each page's own averaging code already use client-side for a single
+person — clamped per-member to start no earlier than their own
+first-ever logged period, current in-progress period never counted:
+
+- **`get_pipeline_average_leaders(p_period_type)`** — Questions/Yeses/QI1s,
+  called once per window (daily/weekly/12/6) same as the client already
+  fetches those three separately. Household-merged like
+  `get_individual_leaders` (partner name shown alongside, since
+  `pipeline_periods` already lives under the shared owner's `user_id`).
+- **`get_volume_average_leaders()`** — PV/Ditto, single fixed 6-month
+  window. Household-merged for the same reason as above.
+- **`get_streak_average_leaders()`** — Audios/reading amount, single fixed
+  30-day window. *Not* household-merged — `streak_days` is explicitly
+  personal, never shared between linked spouses.
+
+Pipeline Tracker's leaders list follows whichever Daily/Weekly/Monthly
+tab is already selected at the top of the Tally tab (no separate picker
+needed — the state already exists). Goals, which has no such tab of its
+own, shows the Monthly window for Pipeline specifically, since that's
+this app's usual "leaderboard" cadence; Volume and Core Run only have one
+window each, so there's nothing to pick there either way. Renders nothing
+for a metric nobody has a nonzero average in yet, rather than a "Top 3"
+label sitting over an empty list.
+
 ### Reading: minutes or pages, your choice
 
 Reading was always tracked as free text ("How much today?") with no

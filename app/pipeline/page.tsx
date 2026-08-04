@@ -8,6 +8,7 @@ import FeatureGate from "@/components/FeatureGate";
 import LibraryResourcePicker from "@/components/LibraryResourcePicker";
 import FirstVisitTip from "@/components/FirstVisitTip";
 import { SkeletonList, SkeletonRows } from "@/components/Skeleton";
+import AverageLeaders from "@/components/AverageLeaders";
 import { supabase } from "@/lib/supabaseClient";
 import {
   PIPELINE_STAGES,
@@ -49,6 +50,7 @@ import type {
   MemberResource,
   OptionalResource,
   Profile,
+  AverageLeaderEntry,
 } from "@/lib/types";
 
 type DownlineOption = { id: string; ownerId: string; name: string; accountNumber: string | null };
@@ -184,6 +186,16 @@ export default function PipelinePage() {
   const [dailyAvgPeriods, setDailyAvgPeriods] = useState<PipelinePeriod[]>([]);
   const [weeklyAvgPeriods, setWeeklyAvgPeriods] = useState<PipelinePeriod[]>([]);
   const [monthlyAvgPeriods, setMonthlyAvgPeriods] = useState<PipelinePeriod[]>([]);
+
+  // Company-wide top 3 for each of the same three averages, one window at
+  // a time (get_pipeline_average_leaders in supabase/schema.sql already
+  // does the ranking - this just holds whichever window's result). Not
+  // scoped to effectiveOwnerId/downline-fill-in like everything else on
+  // this page - it's a company-wide ranking, the same regardless of who
+  // you're filling in for.
+  const [dailyLeaders, setDailyLeaders] = useState<AverageLeaderEntry[]>([]);
+  const [weeklyLeaders, setWeeklyLeaders] = useState<AverageLeaderEntry[]>([]);
+  const [monthlyLeaders, setMonthlyLeaders] = useState<AverageLeaderEntry[]>([]);
 
   // History tab - reuses the same `candidates` already loaded for the
   // Candidate Roadmap tab (every candidate for this owner, not just
@@ -402,6 +414,30 @@ export default function PipelinePage() {
       cancelled = true;
     };
   }, [effectiveOwnerId]);
+
+  // Company-wide, not scoped to effectiveOwnerId - fetched once on mount
+  // rather than re-fetched on every downline switch like the averages
+  // above, since who's currently being filled in for has no bearing on a
+  // company-wide ranking.
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const [{ data: daily }, { data: weekly }, { data: monthly }] = await Promise.all([
+        supabase.rpc("get_pipeline_average_leaders", { p_period_type: "daily" }),
+        supabase.rpc("get_pipeline_average_leaders", { p_period_type: "weekly" }),
+        supabase.rpc("get_pipeline_average_leaders", { p_period_type: "monthly" }),
+      ]);
+      if (!cancelled) {
+        setDailyLeaders((daily as AverageLeaderEntry[]) ?? []);
+        setWeeklyLeaders((weekly as AverageLeaderEntry[]) ?? []);
+        setMonthlyLeaders((monthly as AverageLeaderEntry[]) ?? []);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const dailyAverages = useMemo(
     () => averagesForPeriods("daily", dailyAvgPeriods, AVERAGES_WINDOW.daily),
@@ -892,6 +928,32 @@ export default function PipelinePage() {
                 is never included — it hasn&apos;t finished yet, so it isn&apos;t a fair comparison
                 to a completed one.
               </p>
+            </div>
+
+            <div className="card space-y-2">
+              <p className="section-title">
+                🏆 Team Leaders (
+                {periodType === "daily" ? "Daily" : periodType === "weekly" ? "Weekly" : "Monthly"})
+              </p>
+              <p className="text-xs text-slate-400">
+                Who&apos;s averaging the most across the whole team right now — same{" "}
+                {periodType} window as the tab above.
+              </p>
+              {AVERAGE_METRICS.map((metric) => (
+                <div key={metric.key} className="rounded-lg bg-navy px-3 py-2">
+                  <p className="text-xs font-medium text-slate-300">{metric.label}</p>
+                  <AverageLeaders
+                    leaders={
+                      periodType === "daily"
+                        ? dailyLeaders
+                        : periodType === "weekly"
+                          ? weeklyLeaders
+                          : monthlyLeaders
+                    }
+                    metric={metric.key}
+                  />
+                </div>
+              ))}
             </div>
 
             {period && (
