@@ -2438,6 +2438,19 @@ grant execute on function public.mirror_pipeline_stage_to_streak(date, text, int
 -- already lives under the shared owner's user_id (see profiles.household_id
 -- notes above), so partner_* here is purely a display nicety ("John & Jane"
 -- instead of just whoever happens to be the stored owner).
+-- language sql, not plpgsql: a plpgsql function's `returns table(...)`
+-- column names become variables in scope through the whole function
+-- body, so an unqualified column of the same name anywhere in the body's
+-- SQL (first_name, value, user_id, ...) is ambiguous between "the
+-- variable" and "the column" - exactly the "column reference ... is
+-- ambiguous" error this function threw in production the first time it
+-- ran, since almost every returned column shares its name with a real
+-- column here. Plain SQL functions have no such variable scope, so the
+-- window-size/date-boundary branching that would've needed plpgsql's
+-- if/elsif is done with a `case` expression instead - same fix already
+-- unnecessary on get_volume_average_leaders/get_streak_average_leaders
+-- below, since neither of those ever needed branching logic to begin
+-- with.
 create or replace function public.get_pipeline_average_leaders(p_period_type text)
 returns table (
   metric text,
@@ -2450,36 +2463,26 @@ returns table (
   partner_first_name text,
   partner_last_name text
 )
-language plpgsql
+language sql
 stable
 security definer
 set search_path = public
 as $$
-declare
-  v_window int;
-  v_current_start date;
-begin
-  if p_period_type = 'daily' then
-    v_window := 30;
-    v_current_start := current_date;
-  elsif p_period_type = 'weekly' then
-    v_window := 12;
-    v_current_start := date_trunc('week', current_date)::date;
-  elsif p_period_type = 'monthly' then
-    v_window := 6;
-    v_current_start := date_trunc('month', current_date)::date;
-  else
-    raise exception 'invalid period_type: %', p_period_type;
-  end if;
-
-  return query
-  with theoretical as (
+  with window_size as (
     select case p_period_type
-      when 'daily' then v_current_start - gs
-      when 'weekly' then v_current_start - (gs * 7)
-      else (v_current_start - (gs || ' months')::interval)::date
+      when 'daily' then 30
+      when 'weekly' then 12
+      when 'monthly' then 6
+      else 30
+    end as w
+  ),
+  theoretical as (
+    select case p_period_type
+      when 'daily' then current_date - gs
+      when 'weekly' then date_trunc('week', current_date)::date - (gs * 7)
+      else (date_trunc('month', current_date) - (gs || ' months')::interval)::date
     end as period_start
-    from generate_series(1, v_window) as gs
+    from window_size, generate_series(1, window_size.w) as gs
   ),
   member_first as (
     select pp.user_id, min(pp.period_start) as first_start
@@ -2536,7 +2539,6 @@ begin
   from ranked
   where rn <= 3 and value > 0
   order by metric, rn;
-end;
 $$;
 
 grant execute on function public.get_pipeline_average_leaders(text) to authenticated;
