@@ -756,18 +756,23 @@ shown alongside and a count of direct reports. No new tables or RPCs for
 any of this — the upline-chain piece is one RLS policy addition, the rest
 is a new way to look at data the app already had.
 
-A linked couple still shows up as **two separate nodes** in the tree —
-household linking (`link_spouse`, shares business data) and sponsorship
-(`upline_id`, who signed up under whom) are two independent concepts, so
-a married couple each having their own account under the same sponsor is
-correct, not a bug, the same as it's always been. What *was* missing:
-the tree didn't surface the "· shared w/ spouse" tag the Members list
-already shows next to a linked account's name — `TreeNode` now checks
-`profile.household_id` the same way, so both views agree. Only the
-partner who ran `link_spouse` (the one "deferring" to the other) gets the
-tag, since `household_id` is only ever set on that one side — seeing it
-on just one of the two names in a couple is expected, not a sign the link
-half-failed.
+**Update:** a linked couple used to show up as two separate nodes in
+the tree — household linking (`link_spouse`, shares business data) and
+sponsorship (`upline_id`, who signed up under whom) are two independent
+concepts, so that wasn't wrong exactly, but it read as two unrelated
+people rather than one business, especially when they ended up as
+siblings several levels deep instead of next to each other. `buildSponsorshipChildren()`
+now folds a linked couple into a single node: whichever partner ran
+`link_spouse` (the one whose `profile.household_id` points at the
+other — only ever set on that one side) never gets its own node at all;
+it's merged into the other partner's, the node is placed using the
+non-deferring partner's `upline_id`, and its children are the union of
+*both* partners' own downline (whoever entered either one's account
+number as their sponsor), deduped and re-sorted together. `SponsorshipNode`
+gained a `partner: Profile | null` field for this; `TreeNode` renders it
+as "First Last & First Last," each half linking to that person's own
+`/profile/[id]`, replacing the old "· shared w/ spouse" tag entirely —
+the merged name already says as much, more clearly.
 
 ### Pipeline Tracker: upline fill-in
 

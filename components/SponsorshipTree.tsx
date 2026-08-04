@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import type { Profile } from "@/lib/types";
 import type { SponsorshipNode } from "@/lib/sponsorship-tree";
 
-function displayName(node: SponsorshipNode): string {
-  const { profile } = node;
+function personName(profile: Profile): string {
   return profile.first_name && profile.last_name
     ? `${profile.first_name} ${profile.last_name}`
     : profile.email;
@@ -29,17 +29,27 @@ function TreeNode({ node }: { node: SponsorshipNode }) {
         ) : (
           <span className="w-5 shrink-0 text-center text-xs text-slate-600">•</span>
         )}
-        <Link
-          href={`/profile/${node.profile.id}`}
-          className="truncate text-sm text-slate-200 underline decoration-dotted underline-offset-2"
-        >
-          {displayName(node)}
-        </Link>
+        <span className="truncate text-sm text-slate-200">
+          <Link
+            href={`/profile/${node.profile.id}`}
+            className="underline decoration-dotted underline-offset-2"
+          >
+            {personName(node.profile)}
+          </Link>
+          {node.partner && (
+            <>
+              {" & "}
+              <Link
+                href={`/profile/${node.partner.id}`}
+                className="underline decoration-dotted underline-offset-2"
+              >
+                {personName(node.partner)}
+              </Link>
+            </>
+          )}
+        </span>
         {node.profile.team && (
           <span className="shrink-0 truncate text-xs text-slate-500">· {node.profile.team}</span>
-        )}
-        {node.profile.household_id && (
-          <span className="shrink-0 truncate text-xs text-slate-500">· shared w/ spouse</span>
         )}
         {hasChildren && (
           <span className="ml-auto shrink-0 text-xs text-slate-600">{node.children.length}</span>
