@@ -123,19 +123,30 @@ export default function GoalsPage() {
   const [pipelineLeaders, setPipelineLeaders] = useState<AverageLeaderEntry[]>([]);
   const [volumeLeaders, setVolumeLeaders] = useState<AverageLeaderEntry[]>([]);
   const [streakLeaders, setStreakLeaders] = useState<AverageLeaderEntry[]>([]);
+  const [leadersError, setLeadersError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      const [{ data: pipeline }, { data: volume }, { data: streak }] = await Promise.all([
+      const [
+        { data: pipeline, error: pipelineError },
+        { data: volume, error: volumeError },
+        { data: streak, error: streakError },
+      ] = await Promise.all([
         supabase.rpc("get_pipeline_average_leaders", { p_period_type: "monthly" }),
         supabase.rpc("get_volume_average_leaders"),
         supabase.rpc("get_streak_average_leaders"),
       ]);
       if (!cancelled) {
-        setPipelineLeaders((pipeline as AverageLeaderEntry[]) ?? []);
-        setVolumeLeaders((volume as AverageLeaderEntry[]) ?? []);
-        setStreakLeaders((streak as AverageLeaderEntry[]) ?? []);
+        const error = pipelineError || volumeError || streakError;
+        if (error) {
+          setLeadersError(error.message);
+        } else {
+          setLeadersError(null);
+          setPipelineLeaders((pipeline as AverageLeaderEntry[]) ?? []);
+          setVolumeLeaders((volume as AverageLeaderEntry[]) ?? []);
+          setStreakLeaders((streak as AverageLeaderEntry[]) ?? []);
+        }
       }
     }
     load();
@@ -451,6 +462,7 @@ export default function GoalsPage() {
             completed ones, since a period that isn&apos;t over yet isn&apos;t a fair comparison to
             a finished one.
           </p>
+          {leadersError && <p className="text-xs text-red-400">{leadersError}</p>}
           <div className="space-y-1 rounded-lg bg-navy px-3 py-2">
             <div className="flex items-center justify-between">
               <span className="text-sm text-slate-200">🎧 Audios per day</span>

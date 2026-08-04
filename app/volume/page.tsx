@@ -57,6 +57,7 @@ export default function VolumePage() {
   // Company-wide top 3 for PV/Ditto per month (get_volume_average_leaders
   // in supabase/schema.sql) - not scoped to ownerId, fetched once on mount.
   const [volumeLeaders, setVolumeLeaders] = useState<AverageLeaderEntry[]>([]);
+  const [volumeLeadersError, setVolumeLeadersError] = useState<string | null>(null);
 
   const [sales, setSales] = useState<CustomerSale[]>([]);
   const [loadingSales, setLoadingSales] = useState(true);
@@ -123,8 +124,15 @@ export default function VolumePage() {
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      const { data } = await supabase.rpc("get_volume_average_leaders");
-      if (!cancelled) setVolumeLeaders((data as AverageLeaderEntry[]) ?? []);
+      const { data, error } = await supabase.rpc("get_volume_average_leaders");
+      if (!cancelled) {
+        if (error) {
+          setVolumeLeadersError(error.message);
+        } else {
+          setVolumeLeadersError(null);
+          setVolumeLeaders((data as AverageLeaderEntry[]) ?? []);
+        }
+      }
     }
     load();
     return () => {
@@ -378,6 +386,7 @@ export default function VolumePage() {
             Your Averages (Last {monthlyAverages.windowCount}{" "}
             Month{monthlyAverages.windowCount === 1 ? "" : "s"})
           </p>
+          {volumeLeadersError && <p className="text-xs text-red-400">{volumeLeadersError}</p>}
           <div className="space-y-1 rounded-lg bg-navy px-3 py-2">
             <div className="flex items-center justify-between">
               <span className="text-sm text-slate-200">🚀 PV per month</span>

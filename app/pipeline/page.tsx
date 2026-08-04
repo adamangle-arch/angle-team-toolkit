@@ -196,6 +196,7 @@ export default function PipelinePage() {
   const [dailyLeaders, setDailyLeaders] = useState<AverageLeaderEntry[]>([]);
   const [weeklyLeaders, setWeeklyLeaders] = useState<AverageLeaderEntry[]>([]);
   const [monthlyLeaders, setMonthlyLeaders] = useState<AverageLeaderEntry[]>([]);
+  const [leadersError, setLeadersError] = useState<string | null>(null);
 
   // History tab - reuses the same `candidates` already loaded for the
   // Candidate Roadmap tab (every candidate for this owner, not just
@@ -422,15 +423,25 @@ export default function PipelinePage() {
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      const [{ data: daily }, { data: weekly }, { data: monthly }] = await Promise.all([
+      const [
+        { data: daily, error: dailyError },
+        { data: weekly, error: weeklyError },
+        { data: monthly, error: monthlyError },
+      ] = await Promise.all([
         supabase.rpc("get_pipeline_average_leaders", { p_period_type: "daily" }),
         supabase.rpc("get_pipeline_average_leaders", { p_period_type: "weekly" }),
         supabase.rpc("get_pipeline_average_leaders", { p_period_type: "monthly" }),
       ]);
       if (!cancelled) {
-        setDailyLeaders((daily as AverageLeaderEntry[]) ?? []);
-        setWeeklyLeaders((weekly as AverageLeaderEntry[]) ?? []);
-        setMonthlyLeaders((monthly as AverageLeaderEntry[]) ?? []);
+        const error = dailyError || weeklyError || monthlyError;
+        if (error) {
+          setLeadersError(error.message);
+        } else {
+          setLeadersError(null);
+          setDailyLeaders((daily as AverageLeaderEntry[]) ?? []);
+          setWeeklyLeaders((weekly as AverageLeaderEntry[]) ?? []);
+          setMonthlyLeaders((monthly as AverageLeaderEntry[]) ?? []);
+        }
       }
     }
     load();
@@ -939,6 +950,7 @@ export default function PipelinePage() {
                 Who&apos;s averaging the most across the whole team right now — same{" "}
                 {periodType} window as the tab above.
               </p>
+              {leadersError && <p className="text-xs text-red-400">{leadersError}</p>}
               {AVERAGE_METRICS.map((metric) => (
                 <div key={metric.key} className="rounded-lg bg-navy px-3 py-2">
                   <p className="text-xs font-medium text-slate-300">{metric.label}</p>

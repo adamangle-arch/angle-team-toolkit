@@ -230,12 +230,20 @@ export default function StreakPage() {
   // (get_streak_average_leaders in supabase/schema.sql) - fetched once
   // on mount, same as the other pages' team-leaders lists.
   const [streakLeaders, setStreakLeaders] = useState<AverageLeaderEntry[]>([]);
+  const [streakLeadersError, setStreakLeadersError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      const { data } = await supabase.rpc("get_streak_average_leaders");
-      if (!cancelled) setStreakLeaders((data as AverageLeaderEntry[]) ?? []);
+      const { data, error } = await supabase.rpc("get_streak_average_leaders");
+      if (!cancelled) {
+        if (error) {
+          setStreakLeadersError(error.message);
+        } else {
+          setStreakLeadersError(null);
+          setStreakLeaders((data as AverageLeaderEntry[]) ?? []);
+        }
+      }
     }
     load();
     return () => {
@@ -1057,6 +1065,7 @@ export default function StreakPage() {
             Your Averages (Last {last30Averages.windowDays}{" "}
             Day{last30Averages.windowDays === 1 ? "" : "s"})
           </p>
+          {streakLeadersError && <p className="text-xs text-red-400">{streakLeadersError}</p>}
           <div className="space-y-1 rounded-lg bg-navy px-3 py-2">
             <div className="flex items-center justify-between">
               <span className="text-sm text-slate-200">🎧 Audios per day</span>
