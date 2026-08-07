@@ -1150,11 +1150,14 @@ candidate notes elsewhere) rather than a separate Save button.
 
 Two places surface it beyond the Goals tab itself:
 - **Dashboard** ("Today"): a "🌟 Remember Your Why" card leads the page
-  (above even the Core Run Streak card) showing whichever horizon is
-  filled in, furthest-out first (lifetime → 10 year → 5 year), truncated
-  to two lines (`line-clamp-2`) and linking to `/goals`. Only shows once
-  at least one dream is filled in, so a brand-new profile with nothing
-  written yet doesn't show empty dead space.
+  (above even the Core Run Streak card). Collapsed, it shows whichever
+  horizon is filled in, furthest-out first (lifetime → 10 year → 5 year),
+  truncated to two lines. Tapping the card expands it in place to show
+  all three horizons labeled separately (5 Year / 10 Year / Lifetime,
+  each only rendered if filled in), plus a "View & edit on Goals →" link
+  since expanding replaced the old tap-to-navigate behavior. Only shows
+  once at least one dream is filled in, so a brand-new profile with
+  nothing written yet doesn't show empty dead space.
 - **Team tab**: a per-member "Goals & Dreams" card (in the same expanded
   member view as Call Ratings, Pipeline, etc.) shows that person's actual
   goal targets by period alongside their three dream fields in full, so

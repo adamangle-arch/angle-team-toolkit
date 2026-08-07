@@ -103,7 +103,10 @@ export default function DashboardPage() {
   const [todayEvents, setTodayEvents] = useState<CalendarEvent[]>([]);
   const [todayPipeline, setTodayPipeline] = useState<PipelinePeriod | null>(null);
   const [downlineTodayTotals, setDownlineTodayTotals] = useState<DownlinePipelineTotals | null>(null);
-  const [dream, setDream] = useState("");
+  const [dream5, setDream5] = useState("");
+  const [dream10, setDream10] = useState("");
+  const [dreamLifetime, setDreamLifetime] = useState("");
+  const [dreamExpanded, setDreamExpanded] = useState(false);
   const [staleCandidate, setStaleCandidate] = useState<StaleCandidateRow | null>(null);
   const [myActiveCount, setMyActiveCount] = useState(0);
   const [downlineActiveCount, setDownlineActiveCount] = useState(0);
@@ -244,10 +247,9 @@ export default function DashboardPage() {
         setMyActiveCount(summary?.my_active_count ?? 0);
         setDownlineActiveCount(summary?.downline_active_count ?? 0);
         const dreams = profileDreams as Pick<Profile, "dream_5_year" | "dream_10_year" | "dream_lifetime"> | null;
-        // Lead with whichever horizon is filled in, furthest-out first -
-        // the lifetime dream is the one worth being reminded of most, but
-        // most people won't have filled in all three right away.
-        setDream(dreams?.dream_lifetime || dreams?.dream_10_year || dreams?.dream_5_year || "");
+        setDream5(dreams?.dream_5_year || "");
+        setDream10(dreams?.dream_10_year || "");
+        setDreamLifetime(dreams?.dream_lifetime || "");
         const staleRow = staleCandidateRow as Omit<StaleCandidateRow, "daysStale"> | null;
         setStaleCandidate(
           staleRow
@@ -408,11 +410,47 @@ export default function DashboardPage() {
               )}
             </div>
 
-            {showGoals && dream && (
-              <Link href="/goals" className="card block space-y-1">
-                <p className="section-title">🌟 Remember Your Why</p>
-                <p className="line-clamp-2 text-sm text-slate-300">{dream}</p>
-              </Link>
+            {showGoals && (dream5 || dream10 || dreamLifetime) && (
+              <div className="card space-y-2">
+                <button
+                  type="button"
+                  onClick={() => setDreamExpanded((prev) => !prev)}
+                  className="flex w-full items-center justify-between gap-2 text-left"
+                >
+                  <p className="section-title">🌟 Remember Your Why</p>
+                  <span className="text-xs text-slate-400">{dreamExpanded ? "▾" : "▸"}</span>
+                </button>
+                {!dreamExpanded && (
+                  <p className="line-clamp-2 text-sm text-slate-300">
+                    {dreamLifetime || dream10 || dream5}
+                  </p>
+                )}
+                {dreamExpanded && (
+                  <div className="space-y-3">
+                    {dream5 && (
+                      <div>
+                        <p className="text-xs font-semibold text-amber">5 Year</p>
+                        <p className="text-sm text-slate-300">{dream5}</p>
+                      </div>
+                    )}
+                    {dream10 && (
+                      <div>
+                        <p className="text-xs font-semibold text-amber">10 Year</p>
+                        <p className="text-sm text-slate-300">{dream10}</p>
+                      </div>
+                    )}
+                    {dreamLifetime && (
+                      <div>
+                        <p className="text-xs font-semibold text-amber">Lifetime</p>
+                        <p className="text-sm text-slate-300">{dreamLifetime}</p>
+                      </div>
+                    )}
+                    <Link href="/goals" className="inline-block text-xs text-amber underline">
+                      View &amp; edit on Goals →
+                    </Link>
+                  </div>
+                )}
+              </div>
             )}
 
             {showStreak && (
