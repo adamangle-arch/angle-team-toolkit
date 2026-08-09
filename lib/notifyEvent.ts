@@ -84,11 +84,11 @@ export async function notifyUsers(params: {
         );
         deliveredToAny = true;
       } catch (error: unknown) {
-                if (isPermanentPushFailure(error)) {
+        if (isPermanentPushFailure(error)) {
           await supabase.from("push_subscriptions").delete().eq("id", sub.id);
           removed++;
         } else {
-          errors.push(describePushError(error));
+          errors.push(`${userId}: ${describePushError(error)}`);
         }
       }
     }

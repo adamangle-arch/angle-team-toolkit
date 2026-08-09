@@ -54,18 +54,23 @@ export async function GET(request: Request) {
   // My Profile) is dropped before sending, same as notifyUsers() does
   // for event-triggered notifications - this cron route has its own
   // separate send loop rather than sharing that helper, so the same
-  // check needs to be repeated here.
+  // check needs to be repeated here. Also pulls name/email so a failed
+  // send's error line can say who it belongs to instead of just a count -
+  // "3 errors" told nobody which 3 people to have re-enable notifications.
   const { data: muteRows } = await supabase
     .from("profiles")
-    .select("id,muted_notification_kinds")
+    .select("id,muted_notification_kinds,first_name,last_name,email")
     .in(
       "id",
       subscriptions.map((s) => s.user_id)
     );
+  const profileRows =
+    (muteRows as { id: string; muted_notification_kinds: string[] | null; first_name: string | null; last_name: string | null; email: string }[]) ?? [];
   const mutedIds = new Set(
-    ((muteRows as { id: string; muted_notification_kinds: string[] | null }[]) ?? [])
-      .filter((p) => (p.muted_notification_kinds ?? []).includes("core_run_reminder"))
-      .map((p) => p.id)
+    profileRows.filter((p) => (p.muted_notification_kinds ?? []).includes("core_run_reminder")).map((p) => p.id)
+  );
+  const labelByUserId = new Map(
+    profileRows.map((p) => [p.id, [p.first_name, p.last_name].filter(Boolean).join(" ") || p.email])
   );
 
   let sent = 0;
@@ -99,11 +104,11 @@ export async function GET(request: Request) {
         recipient_count: 1,
       });
     } catch (error: unknown) {
-            if (isPermanentPushFailure(error)) {
+      if (isPermanentPushFailure(error)) {
         await supabase.from("push_subscriptions").delete().eq("id", sub.id);
         removed++;
       } else {
-        errors.push(describePushError(error));
+        errors.push(`${labelByUserId.get(sub.user_id) ?? sub.user_id}: ${describePushError(error)}`);
       }
     }
   }

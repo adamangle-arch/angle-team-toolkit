@@ -58,7 +58,7 @@ export async function GET(request: Request) {
 
   const [{ data: muteRows }, { data: openedTodayRows }, { data: pvRows }, { data: goalRows }] =
     await Promise.all([
-      supabase.from("profiles").select("id,muted_notification_kinds").in("id", userIds),
+      supabase.from("profiles").select("id,muted_notification_kinds,first_name,last_name,email").in("id", userIds),
       supabase.from("app_opens").select("user_id").eq("day", today).in("user_id", userIds),
       runVolumeCheck
         ? supabase.from("monthly_pv").select("user_id,pv").eq("period_start", monthStart).in("user_id", userIds)
@@ -68,11 +68,15 @@ export async function GET(request: Request) {
         : Promise.resolve({ data: [] as { user_id: string }[] }),
     ]);
 
+  const profileRows =
+    (muteRows as { id: string; muted_notification_kinds: string[] | null; first_name: string | null; last_name: string | null; email: string }[]) ?? [];
   const mutedKindsByUser = new Map(
-    ((muteRows as { id: string; muted_notification_kinds: string[] | null }[]) ?? []).map((p) => [
-      p.id,
-      new Set(p.muted_notification_kinds ?? []),
-    ])
+    profileRows.map((p) => [p.id, new Set(p.muted_notification_kinds ?? [])])
+  );
+  // See send-reminders/route.ts's comment - names the recipient in a
+  // failed send's error line instead of leaving it an anonymous count.
+  const labelByUserId = new Map(
+    profileRows.map((p) => [p.id, [p.first_name, p.last_name].filter(Boolean).join(" ") || p.email])
   );
   const openedTodaySet = new Set(((openedTodayRows as { user_id: string }[]) ?? []).map((r) => r.user_id));
   const pvByUser = new Map(((pvRows as { user_id: string; pv: number }[]) ?? []).map((r) => [r.user_id, r.pv]));
@@ -139,11 +143,11 @@ export async function GET(request: Request) {
           );
           deliveredToAny = true;
         } catch (error: unknown) {
-                    if (isPermanentPushFailure(error)) {
+          if (isPermanentPushFailure(error)) {
             await supabase.from("push_subscriptions").delete().eq("id", sub.id);
             removed++;
           } else {
-            errors.push(describePushError(error));
+            errors.push(`${labelByUserId.get(userId) ?? userId}: ${describePushError(error)}`);
           }
         }
       }

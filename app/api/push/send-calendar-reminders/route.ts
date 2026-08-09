@@ -77,7 +77,7 @@ export async function GET(request: Request) {
       ? supabase.from("candidates").select("id,name").in("id", candidateIds)
       : Promise.resolve({ data: [] as Pick<Candidate, "id" | "name">[] }),
     supabase.from("push_subscriptions").select("id,user_id,endpoint,p256dh,auth").in("user_id", userIds),
-    supabase.from("profiles").select("id,muted_notification_kinds").in("id", userIds),
+    supabase.from("profiles").select("id,muted_notification_kinds,first_name,last_name,email").in("id", userIds),
   ]);
 
   const candidateNameById = new Map(
@@ -91,10 +91,15 @@ export async function GET(request: Request) {
   }
   // Same mute check notifyUsers() does for event-triggered notifications -
   // this cron route has its own separate send loop, so it needs its own copy.
+  const profileRows =
+    (muteRows as { id: string; muted_notification_kinds: string[] | null; first_name: string | null; last_name: string | null; email: string }[]) ?? [];
   const mutedIds = new Set(
-    ((muteRows as { id: string; muted_notification_kinds: string[] | null }[]) ?? [])
-      .filter((p) => (p.muted_notification_kinds ?? []).includes("calendar_reminder"))
-      .map((p) => p.id)
+    profileRows.filter((p) => (p.muted_notification_kinds ?? []).includes("calendar_reminder")).map((p) => p.id)
+  );
+  // See send-reminders/route.ts's comment - names the recipient in a
+  // failed send's error line instead of leaving it an anonymous count.
+  const labelByUserId = new Map(
+    profileRows.map((p) => [p.id, [p.first_name, p.last_name].filter(Boolean).join(" ") || p.email])
   );
 
   let sent = 0;
@@ -140,11 +145,11 @@ export async function GET(request: Request) {
         );
         deliveredToAny = true;
       } catch (error: unknown) {
-                if (isPermanentPushFailure(error)) {
+        if (isPermanentPushFailure(error)) {
           await supabase.from("push_subscriptions").delete().eq("id", sub.id);
           removed++;
         } else {
-          errors.push(describePushError(error));
+          errors.push(`${labelByUserId.get(event.user_id) ?? event.user_id}: ${describePushError(error)}`);
         }
       }
     }

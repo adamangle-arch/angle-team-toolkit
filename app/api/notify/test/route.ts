@@ -74,7 +74,7 @@ export async function POST(request: Request) {
       );
       delivered++;
     } catch (error: unknown) {
-            if (isPermanentPushFailure(error)) {
+      if (isPermanentPushFailure(error)) {
         await admin.from("push_subscriptions").delete().eq("id", sub.id);
         removed++;
       } else {

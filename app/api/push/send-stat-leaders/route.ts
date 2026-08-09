@@ -155,16 +155,20 @@ export async function GET(request: Request) {
   // below since daily/weekly/monthly leaders can each be muted separately.
   const { data: muteRows } = await supabase
     .from("profiles")
-    .select("id,muted_notification_kinds")
+    .select("id,muted_notification_kinds,first_name,last_name,email")
     .in(
       "id",
       Array.from(new Set(subscriptions.map((s) => s.user_id)))
     );
+  const profileRows =
+    (muteRows as { id: string; muted_notification_kinds: string[] | null; first_name: string | null; last_name: string | null; email: string }[]) ?? [];
   const mutedKindsByUser = new Map(
-    ((muteRows as { id: string; muted_notification_kinds: string[] | null }[]) ?? []).map((p) => [
-      p.id,
-      new Set(p.muted_notification_kinds ?? []),
-    ])
+    profileRows.map((p) => [p.id, new Set(p.muted_notification_kinds ?? [])])
+  );
+  // See send-reminders/route.ts's comment - names the recipient in a
+  // failed send's error line instead of leaving it an anonymous count.
+  const labelByUserId = new Map(
+    profileRows.map((p) => [p.id, [p.first_name, p.last_name].filter(Boolean).join(" ") || p.email])
   );
 
   const errors: string[] = [];
@@ -184,10 +188,10 @@ export async function GET(request: Request) {
         );
         recipientCount++;
       } catch (error: unknown) {
-                if (isPermanentPushFailure(error)) {
+        if (isPermanentPushFailure(error)) {
           await supabase.from("push_subscriptions").delete().eq("id", sub.id);
         } else {
-          errors.push(describePushError(error));
+          errors.push(`${labelByUserId.get(sub.user_id) ?? sub.user_id}: ${describePushError(error)}`);
         }
       }
     }
