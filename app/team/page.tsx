@@ -22,6 +22,7 @@ import { fireNotifyEvent } from "@/lib/notifyClient";
 import SponsorshipTree from "@/components/SponsorshipTree";
 import { SkeletonList, SkeletonRows } from "@/components/Skeleton";
 import {
+  getMonthStart,
   getMonthStartOffset,
   getWeekStartOffset,
   getDateOffset,
@@ -40,6 +41,7 @@ import type {
   CalendarEvent,
   CallRating,
   Goal,
+  MonthlyPv,
 } from "@/lib/types";
 
 type ViewMode = "members" | "teams" | "my-tree" | "whole-tree";
@@ -84,6 +86,7 @@ type MemberData = {
   calendarEvents: CalendarEvent[];
   callRatings: CallRating[];
   goals: Goal[];
+  monthlyPv: MonthlyPv | null;
 };
 
 export default function TeamPage() {
@@ -283,6 +286,7 @@ export default function TeamPage() {
         { data: calendarEvents },
         { data: callRatings },
         { data: goals },
+        { data: monthlyPv },
       ] = await Promise.all([
         supabase
           .from("pipeline_periods")
@@ -324,6 +328,16 @@ export default function TeamPage() {
           .eq("user_id", selectedId)
           .order("created_at", { ascending: false }),
         supabase.from("goals").select("*").eq("user_id", selectedId),
+        // PV/Ditto is always tracked by calendar month regardless of
+        // which period-type tab (daily/weekly/monthly) is selected above
+        // - same as the Volume page itself, which has no period-type
+        // switcher at all.
+        supabase
+          .from("monthly_pv")
+          .select("*")
+          .eq("user_id", ownerId)
+          .eq("period_start", getMonthStart())
+          .maybeSingle(),
       ]);
 
       if (!cancelled) {
@@ -336,6 +350,7 @@ export default function TeamPage() {
           calendarEvents: (calendarEvents as CalendarEvent[]) ?? [],
           callRatings: (callRatings as CallRating[]) ?? [],
           goals: (goals as Goal[]) ?? [],
+          monthlyPv: (monthlyPv as MonthlyPv) ?? null,
         });
         setLoadingMember(false);
       }
@@ -771,6 +786,25 @@ export default function TeamPage() {
                   </div>
                   {!memberData.pipeline && (
                     <p className="text-xs text-slate-500">Nothing logged for this period.</p>
+                  )}
+                </div>
+
+                <div className="card space-y-1.5">
+                  <p className="section-title">Volume — {formatMonthLabel(getMonthStart())}</p>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <div className="flex items-center justify-between rounded-lg bg-navy px-2 py-1.5 text-xs">
+                      <span className="text-slate-400">🚀 PV</span>
+                      <span className="font-semibold text-white">{memberData.monthlyPv?.pv ?? 0}</span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-lg bg-navy px-2 py-1.5 text-xs">
+                      <span className="text-slate-400">💧 Day 1 Ditto</span>
+                      <span className="font-semibold text-white">
+                        {memberData.monthlyPv?.day1_ditto_pv ?? 0}
+                      </span>
+                    </div>
+                  </div>
+                  {!memberData.monthlyPv && (
+                    <p className="text-xs text-slate-500">Nothing logged this month.</p>
                   )}
                 </div>
 

@@ -4626,6 +4626,20 @@ Deliberately just an accent swap, not a full light/dark mode - the dark
 navy background, calendar event-type colors, and badge tier colors are
 untouched by this, same as before.
 
+### Volume (PV) on the Team tab's per-member detail view
+
+`monthly_pv` RLS already let an upline (any level) or admin read a
+downline's PV/Ditto rows — the same "select_own_or_admin" household +
+upline policy every other business table in this app uses — but the
+Team tab's per-member detail view never actually queried it, so that
+data was reachable yet nowhere shown. It now sits right after the
+Pipeline card, showing the selected person's current-month PV and Day 1
+Ditto (`monthly_pv` scoped to `getMonthStart()`, same as the Volume page
+itself). Always the calendar month regardless of which
+Daily/Weekly/Monthly period-type tab is selected above it, since PV is
+tracked monthly only — the Volume page has no period-type switcher for
+the same reason. Pure client-side addition; no schema change needed.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)
