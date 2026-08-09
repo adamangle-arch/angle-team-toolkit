@@ -22,8 +22,11 @@ export default function PageHeader({
         <Link
           href="/search"
           aria-label="Search"
-          className="flex items-center justify-center rounded-lg border px-2.5 py-1.5 text-base leading-none transition duration-150 active:scale-95"
-          style={{ background: "rgba(245,158,11,0.16)", borderColor: "rgba(245,158,11,0.4)" }}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xl leading-none transition duration-150 active:scale-95"
+          style={{
+            background: "linear-gradient(135deg, var(--color-amber-light), var(--color-amber))",
+            boxShadow: "0 6px 18px -6px rgb(var(--amber-rgb) / 0.65)",
+          }}
         >
           🔍
         </Link>

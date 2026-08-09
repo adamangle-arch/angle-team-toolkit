@@ -4696,6 +4696,15 @@ storage (`story_photos_bucket_delete_own` policy already allows the
 uploader to do this) so nothing orphaned lingers in the bucket for a
 caption that's never used.
 
+### Search button made more prominent
+
+Reported hard to notice in the header - it was a small square icon with
+just a 16%-opacity amber tint, easy to miss next to the solid "My
+Profile"/"Sign Out" chips. Now a solid amber circle with the same
+gradient + glow `.btn-primary` uses elsewhere (e.g. "Post a Photo" on
+Stories), so it reads as a clear tappable action instead of blending
+into the header.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)
