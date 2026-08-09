@@ -1,5 +1,5 @@
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
-import { ensureWebPushConfigured, webpush, describePushError } from "@/lib/webpush";
+import { ensureWebPushConfigured, webpush, describePushError, isPermanentPushFailure } from "@/lib/webpush";
 import type { SentNotification } from "@/lib/types";
 
 type Subscription = {
@@ -84,8 +84,7 @@ export async function notifyUsers(params: {
         );
         deliveredToAny = true;
       } catch (error: unknown) {
-        const statusCode = (error as { statusCode?: number })?.statusCode;
-        if (statusCode === 404 || statusCode === 410) {
+                if (isPermanentPushFailure(error)) {
           await supabase.from("push_subscriptions").delete().eq("id", sub.id);
           removed++;
         } else {

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
-import { ensureWebPushConfigured, webpush, describePushError } from "@/lib/webpush";
+import { ensureWebPushConfigured, webpush, describePushError, isPermanentPushFailure } from "@/lib/webpush";
 import { getToday, getMonthStart, formatMonthLabel } from "@/lib/dates";
 
 export const dynamic = "force-dynamic";
@@ -139,8 +139,7 @@ export async function GET(request: Request) {
           );
           deliveredToAny = true;
         } catch (error: unknown) {
-          const statusCode = (error as { statusCode?: number })?.statusCode;
-          if (statusCode === 404 || statusCode === 410) {
+                    if (isPermanentPushFailure(error)) {
             await supabase.from("push_subscriptions").delete().eq("id", sub.id);
             removed++;
           } else {

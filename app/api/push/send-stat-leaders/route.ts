@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
-import { ensureWebPushConfigured, webpush, describePushError } from "@/lib/webpush";
+import { ensureWebPushConfigured, webpush, describePushError, isPermanentPushFailure } from "@/lib/webpush";
 import { getDateOffset, getMonthStart, getMonthStartOffset, getToday, getWeekStart, getWeekStartOffset } from "@/lib/dates";
 import { PIPELINE_STAGES } from "@/lib/constants";
 import type { Core300Entry, DittoEntry, IndividualLeaderEntry } from "@/lib/types";
@@ -184,8 +184,7 @@ export async function GET(request: Request) {
         );
         recipientCount++;
       } catch (error: unknown) {
-        const statusCode = (error as { statusCode?: number })?.statusCode;
-        if (statusCode === 404 || statusCode === 410) {
+                if (isPermanentPushFailure(error)) {
           await supabase.from("push_subscriptions").delete().eq("id", sub.id);
         } else {
           errors.push(describePushError(error));

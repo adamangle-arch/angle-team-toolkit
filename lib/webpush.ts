@@ -53,3 +53,26 @@ export function describePushError(error: unknown): string {
   }
   return err?.message ?? String(error);
 }
+
+// A subscription row is permanently dead - never going to succeed again,
+// no matter how many times a cron retries it - in two cases: the push
+// service says so outright (404/410), or the push service rejects it with
+// a VAPID key mismatch (Mozilla autopush's "VapidPkHashMismatch" reason,
+// surfaced as a 400 or 403 depending on the push service). The second
+// case means the browser's subscription was created under a VAPID public
+// key that no longer matches what's configured on the server now
+// (typically because the keys got regenerated at some point) - that's
+// cryptographically permanent, not transient, and the only real fix is
+// the device re-subscribing (Notifications page -> Turn Off, then Turn
+// On), which creates a fresh row under the current key anyway. Every
+// push-sending route deletes the row on this instead of just 404/410, so
+// a permanently-mismatched device stops eating a failed send (and a
+// Diagnostics error line) on every single cron tick forever.
+export function isPermanentPushFailure(error: unknown): boolean {
+  const err = error as { statusCode?: number; body?: string };
+  if (err?.statusCode === 404 || err?.statusCode === 410) return true;
+  if ((err?.statusCode === 400 || err?.statusCode === 403) && /vapid/i.test(err?.body ?? "")) {
+    return true;
+  }
+  return false;
+}

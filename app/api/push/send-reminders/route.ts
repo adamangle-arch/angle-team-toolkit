@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
-import { ensureWebPushConfigured, webpush, describePushError } from "@/lib/webpush";
+import { ensureWebPushConfigured, webpush, describePushError, isPermanentPushFailure } from "@/lib/webpush";
 import type { StreakDay } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -99,8 +99,7 @@ export async function GET(request: Request) {
         recipient_count: 1,
       });
     } catch (error: unknown) {
-      const statusCode = (error as { statusCode?: number })?.statusCode;
-      if (statusCode === 404 || statusCode === 410) {
+            if (isPermanentPushFailure(error)) {
         await supabase.from("push_subscriptions").delete().eq("id", sub.id);
         removed++;
       } else {

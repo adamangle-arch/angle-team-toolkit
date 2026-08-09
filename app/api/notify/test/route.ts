@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
-import { ensureWebPushConfigured, webpush, describePushError } from "@/lib/webpush";
+import { ensureWebPushConfigured, webpush, describePushError, isPermanentPushFailure } from "@/lib/webpush";
 
 export const dynamic = "force-dynamic";
 
@@ -74,8 +74,7 @@ export async function POST(request: Request) {
       );
       delivered++;
     } catch (error: unknown) {
-      const statusCode = (error as { statusCode?: number })?.statusCode;
-      if (statusCode === 404 || statusCode === 410) {
+            if (isPermanentPushFailure(error)) {
         await admin.from("push_subscriptions").delete().eq("id", sub.id);
         removed++;
       } else {
