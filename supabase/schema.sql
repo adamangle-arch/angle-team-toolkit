@@ -2866,22 +2866,26 @@ grant execute on function public.get_unread_notification_count() to authenticate
 -- who it targeted - the ordinary select policy only shows a row to its
 -- own recipient (or everyone, if it's a broadcast), which makes personal
 -- kinds like core_run_reminder invisible to an admin trying to confirm
--- delivery ever happened at all. Raises rather than silently returning
--- nothing for a non-admin caller, same as the other admin RPCs below.
+-- delivery ever happened at all.
+--
+-- No is_app_admin() check in here (unlike most admin RPCs) - this is only
+-- ever called from /api/admin/diagnostics using the service-role key,
+-- *after* that route has already verified the caller's own bearer token
+-- against isPrimaryUser(). is_app_admin() reads auth.jwt() ->> 'email',
+-- which is empty/absent for the service-role client (it isn't "logged in"
+-- as anyone), so a check here would just always fail - which is exactly
+-- what happened: this used to raise 'not authorized' on every single
+-- call from Diagnostics, silently swallowed by the caller into an empty
+-- result, making "Recent sends" look permanently empty even seconds
+-- after a real send had just succeeded.
 create or replace function public.get_recent_sent_notifications_admin(p_limit int default 50)
 returns setof sent_notifications
-language plpgsql
+language sql
 stable
 security definer
 set search_path = public
 as $$
-begin
-  if not is_app_admin() then
-    raise exception 'not authorized';
-  end if;
-  return query
-    select * from sent_notifications order by created_at desc limit p_limit;
-end;
+  select * from sent_notifications order by created_at desc limit p_limit;
 $$;
 
 grant execute on function public.get_recent_sent_notifications_admin(int) to authenticated;
@@ -2894,6 +2898,11 @@ grant execute on function public.get_recent_sent_notifications_admin(int) to aut
 -- opening the SQL editor and querying cron.job by hand. Returns an empty
 -- set rather than erroring when the pg_cron extension isn't installed at
 -- all, so the Diagnostics tab can just show "no jobs found" either way.
+--
+-- Same reasoning as get_recent_sent_notifications_admin() above for why
+-- there's no is_app_admin() check here - the caller (the diagnostics
+-- route) already verified admin-ness before ever reaching for the
+-- service-role client this runs under.
 create or replace function public.get_pg_cron_jobs()
 returns table(jobname text, schedule text, active boolean)
 language plpgsql
@@ -2902,9 +2911,6 @@ security definer
 set search_path = public
 as $$
 begin
-  if not is_app_admin() then
-    raise exception 'not authorized';
-  end if;
   if not exists (select 1 from pg_extension where extname = 'pg_cron') then
     return;
   end if;

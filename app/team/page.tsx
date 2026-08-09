@@ -53,6 +53,7 @@ type DiagnosticsData = {
   subscriptionCount: number;
   recentNotifications: { id: string; kind: string; title: string; created_at: string; recipient_count: number; user_id: string | null }[];
   pgCronJobs: { jobname: string; schedule: string; active: boolean }[];
+  errors: string[];
 };
 
 const CRON_ROUTES = [
@@ -793,6 +794,18 @@ export default function TeamPage() {
                       ))
                     )}
                   </div>
+                  {diagnostics.errors.length > 0 && (
+                    <div className="rounded-lg bg-red-500/10 px-3 py-2">
+                      <p className="mb-1 text-xs font-semibold text-red-300">
+                        Diagnostics itself hit an error fetching some of this:
+                      </p>
+                      {diagnostics.errors.map((e, i) => (
+                        <p key={i} className="text-xs text-red-300">
+                          {e}
+                        </p>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ) : null}
             </div>

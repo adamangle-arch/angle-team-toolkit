@@ -37,12 +37,25 @@ export async function GET(request: Request) {
   const cronSecretConfigured = Boolean(process.env.CRON_SECRET);
 
   const admin = getSupabaseAdmin();
-  const [{ count: subscriptionCount }, { data: recentNotifications }, { data: pgCronJobs }] =
-    await Promise.all([
-      admin.from("push_subscriptions").select("id", { count: "exact", head: true }),
-      admin.rpc("get_recent_sent_notifications_admin", { p_limit: 25 }),
-      admin.rpc("get_pg_cron_jobs"),
-    ]);
+  const [
+    { count: subscriptionCount },
+    { data: recentNotifications, error: notificationsError },
+    { data: pgCronJobs, error: pgCronError },
+  ] = await Promise.all([
+    admin.from("push_subscriptions").select("id", { count: "exact", head: true }),
+    admin.rpc("get_recent_sent_notifications_admin", { p_limit: 25 }),
+    admin.rpc("get_pg_cron_jobs"),
+  ]);
+
+  // Previously these two RPC errors were silently swallowed into an empty
+  // array by `?? []` below, which is exactly how a real bug (both
+  // functions rejecting every call from this route with "not authorized")
+  // went unnoticed - it looked identical to "genuinely nothing to show."
+  // Surfacing them means a future regression here is visible immediately
+  // instead of looking like an empty-but-healthy state.
+  const errors = [notificationsError?.message, pgCronError?.message].filter(
+    (m): m is string => Boolean(m)
+  );
 
   return NextResponse.json({
     vapidConfigured,
@@ -50,5 +63,6 @@ export async function GET(request: Request) {
     subscriptionCount: subscriptionCount ?? 0,
     recentNotifications: recentNotifications ?? [],
     pgCronJobs: pgCronJobs ?? [],
+    errors,
   });
 }
