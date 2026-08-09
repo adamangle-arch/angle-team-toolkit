@@ -19,7 +19,7 @@ function formatSentAt(iso: string): string {
 }
 
 export default function NotificationsPage() {
-  const { user } = useAuth();
+  const { user, refreshUnreadCount } = useAuth();
   const [notifications, setNotifications] = useState<SentNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [mutedKinds, setMutedKinds] = useState<string[]>([]);
@@ -42,13 +42,18 @@ export default function NotificationsPage() {
       );
       setLoading(false);
       // For the Caught Up badge - a "you've viewed the list since X"
-      // watermark, since there's no per-notification read state.
+      // watermark, since there's no per-notification read state. Also
+      // what the bottom nav's unread badge counts against - refreshing
+      // it here clears the badge immediately instead of waiting for the
+      // next app open to notice.
       await supabase
         .from("profiles")
         .update({ notifications_last_viewed_at: new Date().toISOString() })
         .eq("id", user.id);
+      refreshUnreadCount();
     }
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user.id]);
 
   async function toggleKind(kind: string) {

@@ -33,7 +33,7 @@ const MORE_ROUTES = [
 
 export default function BottomNav() {
   const pathname = usePathname();
-  const { unlockedThrough } = useAuth();
+  const { unlockedThrough, unreadNotificationCount } = useAuth();
   const moreActive = MORE_ROUTES.some((r) => pathname?.startsWith(r)) || pathname?.startsWith("/more");
   const visibleItems = NAV_ITEMS.filter((item) => unlockedThrough >= minSessionFor(item.href));
 
@@ -83,7 +83,17 @@ export default function BottomNav() {
               : undefined
           }
         >
-          <span className="text-lg leading-none">⋯</span>
+          <span className="relative text-lg leading-none">
+            ⋯
+            {unreadNotificationCount > 0 && (
+              <span
+                className="absolute -right-2.5 -top-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold leading-none text-white"
+                aria-label={`${unreadNotificationCount} unread notification${unreadNotificationCount === 1 ? "" : "s"}`}
+              >
+                {unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}
+              </span>
+            )}
+          </span>
           <span>More</span>
         </Link>
       </div>

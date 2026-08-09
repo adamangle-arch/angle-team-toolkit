@@ -27,6 +27,14 @@ type AuthContextValue = {
   // (BottomNav, the More tab, and each gated page all read this).
   unlockedThrough: number;
   onboardingComplete: boolean;
+  // Badge shown on the More tab (where Notifications lives) - count of
+  // sent_notifications newer than profiles.notifications_last_viewed_at,
+  // the same watermark the "Caught Up" badge already tracks. Fetched
+  // once per app open; the Notifications page calls refreshUnreadCount
+  // after marking the watermark current so the badge clears immediately
+  // instead of waiting for the next app open.
+  unreadNotificationCount: number;
+  refreshUnreadCount: () => void;
   refreshProfile: () => void;
   signOut: () => void;
 };
@@ -72,6 +80,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
   useEffect(() => {
     withTimeout(supabase.auth.getSession(), "Timed out checking your session — check your connection.")
@@ -204,6 +213,21 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
       .then(() => {});
   }, [fullyAuthed, user]);
 
+  function refreshUnreadCount() {
+    supabase.rpc("get_unread_notification_count").then(({ data, error }) => {
+      if (!error) setUnreadNotificationCount((data as number) ?? 0);
+    });
+  }
+
+  // Refetched once per app open (not on every render/navigation) - the
+  // Notifications page calls refreshUnreadCount directly after marking
+  // things viewed, so the badge clears right away without waiting for
+  // this to run again.
+  useEffect(() => {
+    if (!fullyAuthed) return;
+    refreshUnreadCount();
+  }, [fullyAuthed]);
+
   // /prospect is a public, unauthenticated view (a candidate enters their
   // access code, no account involved) - it renders standalone rather than
   // behind the normal sign-in wall. /reset-password is similar: arriving
@@ -291,6 +315,8 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
         ownerId,
         unlockedThrough,
         onboardingComplete,
+        unreadNotificationCount,
+        refreshUnreadCount,
         refreshProfile: () => loadProfile(user.id),
         signOut: () => supabase.auth.signOut(),
       }}

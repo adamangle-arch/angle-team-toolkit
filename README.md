@@ -4838,6 +4838,24 @@ this ever needs a new kind added, edit that one list in place - never
 add a second `drop constraint` / `add constraint` block for the same
 name, since a repeat of this exact bug is what got fixed here.
 
+### Unread notification badge on the More tab
+
+Notifications had real content (calendar reminders, badges earned,
+pipeline milestones, etc.) but nothing surfaced it passively - checking
+meant remembering to open More → Notifications. A new
+`get_unread_notification_count()` RPC needed no new table: it reuses
+`profiles.notifications_last_viewed_at`, the same watermark column the
+"Caught Up" badge (`has_caught_up_notifications`) already compared
+against, just counting `sent_notifications` newer than it (own +
+broadcast) instead of reducing that to a boolean. `AuthGate` fetches it
+once per app open into a new `unreadNotificationCount` context value;
+`BottomNav` renders a small red count pill (capped at "9+") on the More
+tab's `⋯` icon when it's non-zero, in the same top-right badge position
+every other app uses for this. The Notifications page calls the new
+`refreshUnreadCount()` context function right after it stamps the
+watermark, so the badge clears the instant you open the page instead of
+waiting for the next app open to notice.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

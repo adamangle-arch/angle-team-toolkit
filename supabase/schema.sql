@@ -2838,6 +2838,30 @@ drop policy if exists "sent_notifications_select_own_or_broadcast" on sent_notif
 create policy "sent_notifications_select_own_or_broadcast" on sent_notifications
 for select using (user_id is null or user_id = auth.uid());
 
+-- Unread count for the bottom nav's badge on More (where Notifications
+-- lives) - same "visible" set (own + broadcast) and the same
+-- notifications_last_viewed_at watermark the has_caught_up_notifications
+-- badge metric already uses, just counted instead of reduced to a
+-- boolean. No new table needed - the watermark column already existed
+-- for that badge.
+create or replace function public.get_unread_notification_count()
+returns int
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select count(*)::int
+  from sent_notifications
+  where (user_id = auth.uid() or user_id is null)
+    and created_at > coalesce(
+      (select notifications_last_viewed_at from profiles where id = auth.uid()),
+      '-infinity'::timestamptz
+    );
+$$;
+
+grant execute on function public.get_unread_notification_count() to authenticated;
+
 -- ============================================================
 -- 10. DIAMOND RUN (mini-game)
 -- One row per user tracking their best score. The game itself is
