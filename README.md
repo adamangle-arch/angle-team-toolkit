@@ -4751,14 +4751,27 @@ back to being just new signups + milestone alerts.
 `get_daily_sales_feed()` (hardcoded to `created_at::date = current_date`)
 became `get_sales_feed(p_period_start date)` (`created_at::date >=
 p_period_start`), fetched with whatever `periodStart` the period toggle
-already computes - the same sales-feed card now serves "🛍️ Today's
-Sales"/"This Week's Sales"/"This Month's Sales" depending on
-periodType, refetching on every period change instead of once on mount.
-Core 300/Day 1 Ditto still only render for Monthly (they're genuinely
-calendar-month concepts with no daily/weekly equivalent), but they now
-sit alongside the sales feed rather than replacing it. `visibleTabs`
-dropped its filter entirely - all four category tabs are always shown,
-no more bouncing back to Leaders when Volume had nothing to show.
+already computes. `visibleTabs` dropped its filter entirely - all four
+category tabs are always shown, no more bouncing back to Leaders when
+Volume had nothing to show.
+
+**Update 2:** Core 300/Day 1 Ditto now render on every period tab too,
+not just Monthly - they're real calendar-month numbers regardless of
+which period toggle is selected, so hiding them outside Monthly meant
+losing them entirely rather than just seeing the same month's numbers
+from a different tab. A new `volumeMonthStart` value feeds their fetch:
+on Monthly it's whatever month is being paged to (`periodStart`,
+respecting `monthsBack`); on Daily/Weekly (which have no month picker of
+their own) it's always the current calendar month
+(`getMonthStart()`). The sales-feed card, by contrast, stays
+Daily/Weekly-only - Monthly already has Core 300/Ditto as its volume
+picture, so a redundant "this month's sales" feed doesn't render there.
+Order in the tab is Core 300 → Day 1 Ditto → sales feed (when shown).
+`core300EntryKey`/`dittoEntryKey` now key off `volumeMonthStart` instead
+of `periodStart` too - they used to regenerate a different like-button
+key for the same person's Core 300 entry every time you switched
+Daily/Weekly/Monthly, since `periodStart` changed but the underlying
+month didn't.
 
 ### Daily Update Summary: reading amount now includes its unit
 
@@ -4793,6 +4806,18 @@ checkbox, so it wasn't obvious you could tap it at all. Rewritten as a
 to the title, with the status pill kept alongside it - the checkbox
 itself is the obvious "tap to check this off" affordance, and the label
 wrapping keeps the whole row tappable the same way it was before.
+
+### Category tab bars wrap instead of scrolling sideways
+
+Resources' ten category pills (Process, Candidate Resources, Audios,
+etc.) and Games' three lived in a horizontally-scrolling row
+(`overflow-x-auto`) - several were always off-screen with nothing but a
+half-cut-off pill hinting more existed, and swiping sideways to reach
+them wasn't an obvious interaction (same complaint the Leaderboard's
+category tabs got, fixed earlier the same way). Both switched from
+`flex overflow-x-auto` to `flex flex-wrap` - every tab is visible at
+once, wrapping onto as many lines as needed instead of requiring a
+scroll gesture in either direction.
 
 ## Tech stack
 

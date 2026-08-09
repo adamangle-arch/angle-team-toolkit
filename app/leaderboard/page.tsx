@@ -11,6 +11,7 @@ import { pointsForBadgeKeys, levelForPoints } from "@/lib/levels";
 import LevelAvatar from "@/components/LevelAvatar";
 import {
   getWeekStart,
+  getMonthStart,
   getMonthStartOffset,
   formatDateLabel,
   formatMonthLabel,
@@ -237,6 +238,14 @@ export default function LeaderboardPage() {
         ? getWeekStart()
         : getMonthStartOffset(monthsBack);
 
+  // Core 300/Day 1 Ditto are real calendar-month numbers, shown on the
+  // Volume tab regardless of which period toggle is active - on Monthly
+  // itself they track whatever month is being paged to (periodStart,
+  // respecting monthsBack), but Daily/Weekly have no month picker of
+  // their own, so they always show the current month's numbers instead
+  // of whatever day/week happens to be selected.
+  const volumeMonthStart = periodType === "monthly" ? periodStart : getMonthStart();
+
   const [teamTotals, setTeamTotals] = useState<TeamTotals[]>([]);
   const [individualLeaders, setIndividualLeaders] = useState<IndividualLeaderEntry[]>([]);
   const [streakLeaders, setStreakLeaders] = useState<StreakLeaderboardEntry[]>([]);
@@ -402,13 +411,12 @@ export default function LeaderboardPage() {
   }, [user.id]);
 
   useEffect(() => {
-    if (periodType !== "monthly") return;
     let cancelled = false;
 
     async function load() {
       const [{ data: core }, { data: dittoData }] = await Promise.all([
-        supabase.rpc("get_core300_leaderboard", { p_period_start: periodStart }),
-        supabase.rpc("get_ditto_leaderboard", { p_period_start: periodStart }),
+        supabase.rpc("get_core300_leaderboard", { p_period_start: volumeMonthStart }),
+        supabase.rpc("get_ditto_leaderboard", { p_period_start: volumeMonthStart }),
       ]);
       if (!cancelled) {
         setCore300((core as Core300Entry[]) ?? []);
@@ -420,7 +428,7 @@ export default function LeaderboardPage() {
     return () => {
       cancelled = true;
     };
-  }, [periodType, periodStart]);
+  }, [volumeMonthStart]);
 
   const individualsByCategory = useMemo(() => {
     const map = new Map<PipelineStageKey, IndividualLeaderEntry[]>();
@@ -457,7 +465,11 @@ export default function LeaderboardPage() {
         CATEGORIES.filter((c) => (individualsByCategory.get(c.key) ?? []).length > 0).length +
         qi1Rhythm.length,
       consistency: streakLeaders.length + activeCandidates.length,
-      volume: (periodType === "monthly" ? core300.length + ditto.length : 0) + salesFeed.length,
+      // Core 300/Ditto always count (shown on every period); the sales
+      // feed only counts toward Volume on Daily/Weekly - Monthly already
+      // has Core 300/Ditto as its volume picture, so the sales feed card
+      // itself is Daily/Weekly-only (see the JSX below).
+      volume: core300.length + ditto.length + (periodType === "monthly" ? 0 : salesFeed.length),
     }),
     [
       periodType,
@@ -487,8 +499,8 @@ export default function LeaderboardPage() {
     for (const e of qi1Rhythm) keys.add(qi1RhythmEntryKey(periodType, periodStart, e.user_id));
     for (const s of streakLeaders) keys.add(streakEntryKey(s.user_id));
     for (const e of activeCandidates) keys.add(activeCandidatesEntryKey(e.user_id));
-    for (const e of core300) keys.add(core300EntryKey(periodStart, e.user_id));
-    for (const e of ditto) keys.add(dittoEntryKey(periodStart, e.user_id));
+    for (const e of core300) keys.add(core300EntryKey(volumeMonthStart, e.user_id));
+    for (const e of ditto) keys.add(dittoEntryKey(volumeMonthStart, e.user_id));
     for (const m of milestones) keys.add(milestoneEntryKey(m.user_id, m.milestone_days));
     for (const e of salesFeed) keys.add(dailySaleEntryKey(e.sale_id));
     return Array.from(keys);
@@ -504,6 +516,7 @@ export default function LeaderboardPage() {
     salesFeed,
     periodType,
     periodStart,
+    volumeMonthStart,
   ]);
 
   useEffect(() => {
@@ -887,71 +900,13 @@ export default function LeaderboardPage() {
             )}
 
             {displayTab === "volume" && (
-              <Card
-                title={
-                  periodType === "daily"
-                    ? "🛍️ Today's Sales"
-                    : periodType === "weekly"
-                      ? "🛍️ This Week's Sales"
-                      : "🛍️ This Month's Sales"
-                }
-              >
-                {salesFeed.length === 0 ? (
-                  <p className="text-sm text-slate-400">
-                    No customer sales logged{" "}
-                    {periodType === "daily" ? "yet today" : periodType === "weekly" ? "yet this week" : "yet this month"}.
-                  </p>
-                ) : (
-                  salesFeed.map((entry) => {
-                    const key = dailySaleEntryKey(entry.sale_id);
-                    const time = new Date(entry.created_at).toLocaleTimeString(undefined, {
-                      hour: "numeric",
-                      minute: "2-digit",
-                    });
-                    return (
-                      <div
-                        key={entry.sale_id}
-                        className="space-y-1 border-b border-white/5 pb-2 text-sm last:border-0 last:pb-0"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-slate-200">
-                            <CoupleLink entry={entry} />{" "}
-                            <span className="text-xs text-slate-500">
-                              ({entry.team}) — {time}
-                            </span>
-                          </span>
-                          <div className="flex shrink-0 items-center gap-2">
-                            <span className="pill pill-amber">{entry.amount} PV</span>
-                            <LikeButton
-                              entryKey={key}
-                              likes={likesMap.get(key) ?? NO_LIKES}
-                              onToggle={toggleLike}
-                            />
-                          </div>
-                        </div>
-                        <div className="flex flex-wrap gap-1.5">
-                          {entry.categories.map((cat) => (
-                            <span key={cat} className="pill">
-                              {cat}
-                            </span>
-                          ))}
-                        </div>
-                        {entry.notes && <p className="text-xs text-slate-400">{entry.notes}</p>}
-                      </div>
-                    );
-                  })
-                )}
-              </Card>
-            )}
-
-            {displayTab === "volume" && periodType === "monthly" && (
               <>
                 <Card title="Core 300">
                   {core300.length === 0 ? (
                     <p className="text-sm text-slate-400">No one&apos;s hit Core 300 yet this month.</p>
                   ) : (
                     core300.map((entry, i) => {
-                      const key = core300EntryKey(periodStart, entry.user_id);
+                      const key = core300EntryKey(volumeMonthStart, entry.user_id);
                       return (
                         <div
                           key={`${entry.user_id}-${i}`}
@@ -980,7 +935,7 @@ export default function LeaderboardPage() {
                     <p className="text-sm text-slate-400">No one&apos;s over 100 PV on a day 1 Ditto yet.</p>
                   ) : (
                     ditto.map((entry, i) => {
-                      const key = dittoEntryKey(periodStart, entry.user_id);
+                      const key = dittoEntryKey(volumeMonthStart, entry.user_id);
                       return (
                         <div
                           key={`${entry.user_id}-${i}`}
@@ -1003,9 +958,57 @@ export default function LeaderboardPage() {
                     })
                   )}
                 </Card>
+
+                {periodType !== "monthly" && (
+                  <Card title={periodType === "daily" ? "🛍️ Today's Sales" : "🛍️ This Week's Sales"}>
+                    {salesFeed.length === 0 ? (
+                      <p className="text-sm text-slate-400">
+                        No customer sales logged {periodType === "daily" ? "yet today" : "yet this week"}.
+                      </p>
+                    ) : (
+                      salesFeed.map((entry) => {
+                        const key = dailySaleEntryKey(entry.sale_id);
+                        const time = new Date(entry.created_at).toLocaleTimeString(undefined, {
+                          hour: "numeric",
+                          minute: "2-digit",
+                        });
+                        return (
+                          <div
+                            key={entry.sale_id}
+                            className="space-y-1 border-b border-white/5 pb-2 text-sm last:border-0 last:pb-0"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-slate-200">
+                                <CoupleLink entry={entry} />{" "}
+                                <span className="text-xs text-slate-500">
+                                  ({entry.team}) — {time}
+                                </span>
+                              </span>
+                              <div className="flex shrink-0 items-center gap-2">
+                                <span className="pill pill-amber">{entry.amount} PV</span>
+                                <LikeButton
+                                  entryKey={key}
+                                  likes={likesMap.get(key) ?? NO_LIKES}
+                                  onToggle={toggleLike}
+                                />
+                              </div>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {entry.categories.map((cat) => (
+                                <span key={cat} className="pill">
+                                  {cat}
+                                </span>
+                              ))}
+                            </div>
+                            {entry.notes && <p className="text-xs text-slate-400">{entry.notes}</p>}
+                          </div>
+                        );
+                      })
+                    )}
+                  </Card>
+                )}
               </>
             )}
-
           </>
         )}
       </main>

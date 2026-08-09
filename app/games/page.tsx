@@ -28,12 +28,12 @@ function GamesTabs() {
 
   return (
     <>
-      <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+      <div className="flex flex-wrap gap-2">
         {GAMES.map((g) => (
           <button
             key={g.key}
             onClick={() => setGame(g.key)}
-            className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+            className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
               game === g.key ? "bg-amber text-navy" : "bg-white/10 text-slate-300"
             }`}
           >

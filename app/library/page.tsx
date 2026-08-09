@@ -74,7 +74,13 @@ function LibraryTabs() {
 
   return (
     <>
-      <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+      {/* Wraps onto multiple lines instead of scrolling sideways - ten
+          categories in one horizontally-scrolling row meant several were
+          always off-screen with no obvious way to reach them (same fix
+          as the Leaderboard's category tabs). Every tab is visible at
+          once here; there's just no need to size columns evenly since
+          label lengths vary a lot more than the Leaderboard's four. */}
+      <div className="flex flex-wrap gap-2">
         {SECTIONS.map((s) => (
           <button
             key={s.key}
@@ -82,7 +88,7 @@ function LibraryTabs() {
               setSection(s.key);
               setQuery("");
             }}
-            className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+            className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
               section === s.key ? "bg-amber text-navy" : "bg-white/10 text-slate-300"
             }`}
           >
