@@ -434,6 +434,12 @@ export default function LeaderboardPage() {
   // so there's nothing to keep in sync).
   const displayTab: CategoryTab = activeTab === "volume" && periodType !== "monthly" ? "leaders" : activeTab;
 
+  // Volume tab only shows for the monthly period - the grid below sizes
+  // its columns off this list's length so the tabs always fill the row
+  // evenly (3 columns most of the time, 4 once Volume appears) instead of
+  // needing horizontal scrolling to reach an off-screen tab.
+  const visibleTabs = CATEGORY_TABS.filter((t) => t.key !== "volume" || periodType === "monthly");
+
   // Small counts shown on each tab button, so switching categories is an
   // informed choice ("Consistency has 6 things in it") rather than a blind
   // tap - the numbers below match exactly what the tab body actually
@@ -608,28 +614,33 @@ export default function LeaderboardPage() {
           </div>
         )}
 
-        <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
-          {CATEGORY_TABS.filter((t) => t.key !== "volume" || periodType === "monthly").map((t) => (
+        <div
+          className="grid gap-1.5"
+          style={{ gridTemplateColumns: `repeat(${visibleTabs.length}, minmax(0, 1fr))` }}
+        >
+          {visibleTabs.map((t) => (
             <button
               key={t.key}
               onClick={() => setActiveTab(t.key)}
-              className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-medium transition ${
+              className={`flex flex-col items-center gap-0.5 rounded-xl py-2 text-[11px] font-semibold leading-tight transition ${
                 displayTab === t.key
                   ? "bg-amber text-navy"
                   : "bg-white/5 text-slate-300 active:bg-white/10"
               }`}
             >
-              <span>{t.icon}</span>
-              <span>{t.label}</span>
-              {tabCounts[t.key] > 0 && (
-                <span
-                  className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none ${
-                    displayTab === t.key ? "bg-navy/20 text-navy" : "bg-white/10 text-slate-300"
-                  }`}
-                >
-                  {tabCounts[t.key]}
-                </span>
-              )}
+              <span className="text-base leading-none">{t.icon}</span>
+              <span className="flex items-center gap-1">
+                {t.label}
+                {tabCounts[t.key] > 0 && (
+                  <span
+                    className={`rounded-full px-1 text-[9px] font-bold leading-none ${
+                      displayTab === t.key ? "bg-navy/20 text-navy" : "bg-white/10 text-slate-300"
+                    }`}
+                  >
+                    {tabCounts[t.key]}
+                  </span>
+                )}
+              </span>
             </button>
           ))}
         </div>

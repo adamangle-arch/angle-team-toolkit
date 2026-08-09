@@ -4683,6 +4683,15 @@ reorganization - every RPC call, entry key, and like-button behavior is
 unchanged; only the collapse/expand mechanism and grouping structure
 changed.
 
+**Update:** the tab row first shipped as a horizontally-scrolling strip
+(`overflow-x-auto`), which read as an unnatural sideways swipe rather
+than a normal tab bar - two of the four tabs sat off-screen at first
+glance. Rebuilt as a `grid` sized to however many tabs are actually
+visible (`gridTemplateColumns: repeat(visibleTabs.length, 1fr)` - 3
+columns most of the time, 4 once Volume appears for the Monthly period),
+with icon stacked above a small label instead of side-by-side, so all of
+them always fit on screen at once with no scrolling in either direction.
+
 ### Stories: caption comes after picking the photo/video, not before
 
 The caption box used to sit above the "Post a Photo"/"Post a Video"
