@@ -3739,6 +3739,96 @@ $$;
 grant execute on function public.book_candidate_meeting(uuid, text, text, timestamptz, int, text) to authenticated;
 
 -- ============================================================
+-- 14b. GOOGLE CALENDAR SYNC
+-- Two-way sync between a user's own calendar_events rows and their
+-- Google Calendar. Scoped to each user's own events only (a recipient's
+-- copy of a broadcast event already has their own user_id from
+-- broadcast_event_to_downline, so it syncs to their own Google Calendar
+-- correctly without any special-casing). Recurring Google events are
+-- deliberately excluded - calendar_events itself has no recurrence
+-- concept, so there's no clean place to map a recurring series into it.
+-- ============================================================
+create table if not exists google_calendar_connections (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  google_email text,
+  access_token text not null,
+  refresh_token text not null,
+  token_expires_at timestamptz not null,
+  -- Google's incremental-sync cursor (see events.list's syncToken) - null
+  -- until the first successful pull, at which point every later sync only
+  -- asks Google for what changed since this, instead of re-listing
+  -- everything. Google can invalidate it (410 Gone) after ~weeks of no
+  -- sync or on some server-side resets, at which point the sync route
+  -- clears it and falls back to one bounded full resync.
+  sync_token text,
+  last_synced_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+alter table google_calendar_connections enable row level security;
+
+-- Select-only for the owning user (status/email/last-synced display on
+-- the Calendar page) - insert/update/delete deliberately have no policy
+-- at all. Tokens are sensitive and only the OAuth callback and sync
+-- routes (both service-role) ever need to write this table; disconnecting
+-- goes through /api/google-calendar/disconnect rather than a client-side
+-- delete, so it can also best-effort revoke the token with Google first.
+drop policy if exists "google_calendar_connections_select_own" on google_calendar_connections;
+create policy "google_calendar_connections_select_own" on google_calendar_connections
+for select using (user_id = auth.uid());
+
+-- Short-lived, single-use rows bridging the OAuth redirect round-trip:
+-- /api/google-calendar/connect (bearer-token authed) creates one and
+-- hands the state value to the browser to carry through Google's
+-- consent screen and back; /api/google-calendar/callback (which Google
+-- hits directly with no Authorization header of its own - it's a plain
+-- browser redirect, not a fetch this app controls) looks the state back
+-- up to recover which user initiated it, then deletes it. RLS enabled
+-- with zero policies - nothing here is ever meant to be reachable from
+-- the anon/authenticated roles, only the service-role clients in those
+-- two routes, which bypass RLS entirely regardless.
+create table if not exists google_oauth_states (
+  state text primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+
+alter table google_oauth_states enable row level security;
+
+-- Additive columns on the existing calendar_events table (see section 14
+-- above) for the sync link + conflict bookkeeping.
+alter table calendar_events add column if not exists google_event_id text;
+create index if not exists calendar_events_google_event_id_idx
+  on calendar_events(google_event_id) where google_event_id is not null;
+
+-- The moment we last confirmed this row matched Google, in either
+-- direction - deliberately NOT the same thing as "when Google says the
+-- event was last updated." Outbound: push local -> Google whenever
+-- updated_at (below) is newer than this. Inbound: after pulling Google's
+-- version in, this gets set to the same instant the trigger just set
+-- updated_at to, so the two are equal immediately after a pull and the
+-- next cycle doesn't mistake "we just wrote this from Google" for "the
+-- user edited this locally" and bounce it right back out.
+alter table calendar_events add column if not exists google_synced_at timestamptz;
+
+alter table calendar_events add column if not exists updated_at timestamptz not null default now();
+
+create or replace function public.set_calendar_events_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+drop trigger if exists calendar_events_set_updated_at on calendar_events;
+create trigger calendar_events_set_updated_at
+before update on calendar_events
+for each row execute function public.set_calendar_events_updated_at();
+
+-- ============================================================
 -- 15. COMPANY EVENTS (standing, recurring team events)
 --
 -- Unlike broadcast_event_to_downline (a one-time push to whoever is

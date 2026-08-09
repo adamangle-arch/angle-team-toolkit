@@ -5,6 +5,7 @@ import PageHeader from "@/components/PageHeader";
 import { SkeletonList } from "@/components/Skeleton";
 import { useAuth } from "@/components/AuthGate";
 import AvatarCluster from "@/components/AvatarCluster";
+import GoogleCalendarConnect from "@/components/GoogleCalendarConnect";
 import { supabase } from "@/lib/supabaseClient";
 import {
   isPrimaryUser,
@@ -728,6 +729,8 @@ export default function CalendarPage() {
         subtitle="Meetings, sessions, and reminders — yours, your spouse's, and your downline's"
       />
       <main className="page-main">
+        <GoogleCalendarConnect />
+
         {deleteError && (
           <div className="card">
             <p className="text-xs text-red-400">Couldn&apos;t delete that: {deleteError}</p>

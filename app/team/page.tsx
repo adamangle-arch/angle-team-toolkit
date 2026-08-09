@@ -60,6 +60,7 @@ const CRON_ROUTES = [
   { path: "/api/push/send-stat-leaders", label: "Stat leaders digest" },
   { path: "/api/push/send-calendar-reminders", label: "Calendar reminders" },
   { path: "/api/push/send-daily-nudges", label: "Mission/volume/goals nudges" },
+  { path: "/api/google-calendar/sync", label: "Google Calendar sync (all connections)" },
 ] as const;
 
 function pct(numerator: number, denominator: number): string {

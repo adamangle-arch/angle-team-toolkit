@@ -4984,6 +4984,94 @@ actions on list rows) weren't asked for and weren't built - swipe actions
 in particular would cut against the explicit-checkbox-affordance
 direction the Daily Update toggle just took.
 
+### Google Calendar two-way sync
+
+`GoogleCalendarConnect` (top of the Calendar page) lets someone connect
+their own Google account; from then on, events they add here show up in
+Google Calendar and events they add in Google Calendar show up here.
+Scoped to each person's own `calendar_events` rows only - a recipient's
+copy of a broadcast event already carries their own `user_id` (from
+`broadcast_event_to_downline()`), so it syncs to *their* Google Calendar
+correctly with no special-casing needed.
+
+**Setup (one-time, per deployment):**
+
+1. Create a project at
+   [console.cloud.google.com](https://console.cloud.google.com), enable
+   the **Google Calendar API** for it (APIs & Services → Library).
+2. APIs & Services → OAuth consent screen: External, publish in
+   **Testing** mode (up to 100 users, no Google verification needed - see
+   the note above about when verification would actually be required).
+   Add your team's Google accounts as test users.
+3. APIs & Services → Credentials → Create Credentials → OAuth client ID
+   → Web application. Add
+   `https://YOUR-VERCEL-DOMAIN/api/google-calendar/callback` as an
+   Authorized redirect URI.
+4. Add `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` (from that
+   credential) to the actual Vercel deployment's environment variables -
+   see `.env.local.example`. Server-only, never `NEXT_PUBLIC_`.
+5. Run once in the Supabase SQL editor (same pattern as the calendar
+   reminder and daily nudges jobs - Postgres can't read Vercel's env
+   vars, so the domain and secret have to be literal values):
+
+```sql
+select cron.schedule(
+  'google-calendar-sync',
+  '*/5 * * * *',
+  $$
+  select net.http_post(
+    url := 'https://YOUR-VERCEL-DOMAIN/api/google-calendar/sync',
+    headers := jsonb_build_object('Authorization', 'Bearer YOUR-CRON-SECRET-VALUE'),
+    body := '{}'::jsonb
+  );
+  $$
+);
+```
+
+**How the sync actually works:**
+
+- **OAuth**: `/api/google-calendar/connect` (bearer-token authed, like
+  every other user-triggered route) stashes a short-lived, single-use row
+  in `google_oauth_states` and hands back Google's consent URL. Google's
+  redirect lands on `/api/google-calendar/callback` directly - no
+  Authorization header this app controls on that request, which is
+  exactly why the state row exists: it's how the callback recovers which
+  user started the flow. `access_type=offline&prompt=consent` on the auth
+  URL guarantees a `refresh_token` comes back even on a reconnect.
+- **Token refresh**: `getValidAccessToken()` in `lib/googleCalendarSync.ts`
+  checks `token_expires_at` before every sync and refreshes+persists a new
+  access token if it's within a minute of expiring.
+- **Inbound** (Google → app): `events.list` with Google's `syncToken` for
+  incremental pulls (only what changed since last time), falling back to
+  one bounded full resync (`timeMin` = 7 days back) if Google reports the
+  token invalid (410, typically after weeks of inactivity) or on first
+  connect. Recurring events and recurring-series instances are skipped
+  entirely - `calendar_events` has no recurrence concept to map them onto.
+- **Outbound** (app → Google): any local event created after the account
+  connected (not the entire pre-existing history) gets pushed once;
+  further edits get pushed again the next sync after they're made.
+- **Conflict rule**: last-write-wins. `calendar_events` gained an
+  `updated_at` column (auto-bumped by a new `calendar_events_set_updated_at`
+  trigger on every update) and a `google_synced_at` watermark - inbound
+  only overwrites local if Google's `updated` timestamp is newer than
+  local `updated_at`; outbound only pushes if local `updated_at` is newer
+  than `google_synced_at`. The two are set to the same instant right after
+  an inbound pull, which is what stops that pull from being mistaken for
+  a fresh local edit and immediately bounced back out to Google.
+- **Known v1 limitations** (both intentional scope decisions, not bugs):
+  recurring events don't sync at all, in either direction; and a local
+  **delete** doesn't currently propagate to Google (Google-side deletes
+  *do* propagate here, via the `cancelled` status Google reports for
+  them) - `calendar_events` hard-deletes rows today, which leaves nothing
+  for the sync route to notice happened after the fact. Adding delete
+  parity would mean switching to a soft-delete column across every
+  existing delete call site on the Calendar page, a bigger change than
+  this pass covers.
+
+The **Diagnostics** tab on Team (see above) includes
+`/api/google-calendar/sync` in its "Run a cron now" list, same as every
+other scheduled route.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)
