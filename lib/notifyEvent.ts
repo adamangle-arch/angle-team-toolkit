@@ -1,5 +1,5 @@
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
-import { ensureWebPushConfigured, webpush } from "@/lib/webpush";
+import { ensureWebPushConfigured, webpush, describePushError } from "@/lib/webpush";
 import type { SentNotification } from "@/lib/types";
 
 type Subscription = {
@@ -89,7 +89,7 @@ export async function notifyUsers(params: {
           await supabase.from("push_subscriptions").delete().eq("id", sub.id);
           removed++;
         } else {
-          errors.push(String(error));
+          errors.push(describePushError(error));
         }
       }
     }

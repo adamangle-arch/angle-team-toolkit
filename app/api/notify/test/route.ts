@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
-import { ensureWebPushConfigured, webpush } from "@/lib/webpush";
+import { ensureWebPushConfigured, webpush, describePushError } from "@/lib/webpush";
 
 export const dynamic = "force-dynamic";
 
@@ -79,7 +79,7 @@ export async function POST(request: Request) {
         await admin.from("push_subscriptions").delete().eq("id", sub.id);
         removed++;
       } else {
-        errors.push(String(error));
+        errors.push(describePushError(error));
       }
     }
   }

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
-import { ensureWebPushConfigured, webpush } from "@/lib/webpush";
+import { ensureWebPushConfigured, webpush, describePushError } from "@/lib/webpush";
 import type { CalendarEvent, Candidate } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -145,7 +145,7 @@ export async function GET(request: Request) {
           await supabase.from("push_subscriptions").delete().eq("id", sub.id);
           removed++;
         } else {
-          errors.push(String(error));
+          errors.push(describePushError(error));
         }
       }
     }

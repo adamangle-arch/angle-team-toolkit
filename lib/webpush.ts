@@ -36,3 +36,20 @@ export function ensureWebPushConfigured() {
 }
 
 export { webpush };
+
+// web-push's own WebPushError.toString()/String(error) just says
+// "WebPushError: Received unexpected response code" - it drops the two
+// things that actually matter for diagnosing which push service rejected
+// it and why (statusCode, and the response body, which push services
+// often use to explain the rejection). Used everywhere a route logs a
+// send failure instead of the bare String(error) that made every non-
+// 404/410 failure look identical and undiagnosable from the Diagnostics
+// tab's "Run now" output.
+export function describePushError(error: unknown): string {
+  const err = error as { statusCode?: number; body?: string; message?: string };
+  if (err?.statusCode) {
+    const body = err.body ? ` — ${err.body.slice(0, 200)}` : "";
+    return `HTTP ${err.statusCode}${body}`;
+  }
+  return err?.message ?? String(error);
+}
