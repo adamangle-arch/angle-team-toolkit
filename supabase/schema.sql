@@ -3745,181 +3745,25 @@ $$;
 grant execute on function public.book_candidate_meeting(uuid, text, text, timestamptz, int, text) to authenticated;
 
 -- ============================================================
--- 14b. GOOGLE CALENDAR SYNC
--- Two-way sync between the calendar_events this account can see and
--- their Google Calendar. Household-aware: a linked spouse's connection
--- syncs against the shared household owner's events (see 14c below for
--- how one shared event maps to two different spouses' separate Google
--- accounts), not just their own literal user_id - a recipient's copy of
--- a broadcast event already has their own user_id from
--- broadcast_event_to_downline, so it syncs to their own Google Calendar
--- correctly without any special-casing there either. Recurring Google
--- events are deliberately excluded - calendar_events itself has no
--- recurrence concept, so there's no clean place to map a recurring
--- series into it.
+-- 14b. GOOGLE CALENDAR SYNC — removed
+-- Built, then scrapped before real rollout: Google's OAuth verification
+-- caps an unverified app at 100 test users for its entire lifetime, and
+-- this team already exceeds that, so every member would eventually have
+-- needed the app formally verified by Google (a custom domain, a hosted
+-- privacy policy, and a multi-week review) just to keep connecting
+-- Calendar accounts. Not worth it for one feature. These drops clean up
+-- an already-deployed copy of the tables/trigger this used to create;
+-- harmless to re-run if they're already gone.
 -- ============================================================
-create table if not exists google_calendar_connections (
-  user_id uuid primary key references auth.users(id) on delete cascade,
-  google_email text,
-  access_token text not null,
-  refresh_token text not null,
-  token_expires_at timestamptz not null,
-  -- Google's incremental-sync cursor (see events.list's syncToken) - null
-  -- until the first successful pull, at which point every later sync only
-  -- asks Google for what changed since this, instead of re-listing
-  -- everything. Google can invalidate it (410 Gone) after ~weeks of no
-  -- sync or on some server-side resets, at which point the sync route
-  -- clears it and falls back to one bounded full resync.
-  sync_token text,
-  last_synced_at timestamptz,
-  created_at timestamptz not null default now()
-);
-
-alter table google_calendar_connections enable row level security;
-
--- Select-only for the owning user (status/email/last-synced display on
--- the Calendar page) - insert/update/delete deliberately have no policy
--- at all. Tokens are sensitive and only the OAuth callback and sync
--- routes (both service-role) ever need to write this table; disconnecting
--- goes through /api/google-calendar/disconnect rather than a client-side
--- delete, so it can also best-effort revoke the token with Google first.
-drop policy if exists "google_calendar_connections_select_own" on google_calendar_connections;
-create policy "google_calendar_connections_select_own" on google_calendar_connections
-for select using (user_id = auth.uid());
-
--- Short-lived, single-use rows bridging the OAuth redirect round-trip:
--- /api/google-calendar/connect (bearer-token authed) creates one and
--- hands the state value to the browser to carry through Google's
--- consent screen and back; /api/google-calendar/callback (which Google
--- hits directly with no Authorization header of its own - it's a plain
--- browser redirect, not a fetch this app controls) looks the state back
--- up to recover which user initiated it, then deletes it. RLS enabled
--- with zero policies - nothing here is ever meant to be reachable from
--- the anon/authenticated roles, only the service-role clients in those
--- two routes, which bypass RLS entirely regardless.
-create table if not exists google_oauth_states (
-  state text primary key,
-  user_id uuid not null references auth.users(id) on delete cascade,
-  created_at timestamptz not null default now()
-);
-
-alter table google_oauth_states enable row level security;
-
--- Additive columns on the existing calendar_events table (see section 14
--- above) for the sync link + conflict bookkeeping.
-alter table calendar_events add column if not exists google_event_id text;
-create index if not exists calendar_events_google_event_id_idx
-  on calendar_events(google_event_id) where google_event_id is not null;
-
--- The moment we last confirmed this row matched Google, in either
--- direction - deliberately NOT the same thing as "when Google says the
--- event was last updated." Outbound: push local -> Google whenever
--- updated_at (below) is newer than this. Inbound: after pulling Google's
--- version in, this gets set to the same instant the trigger just set
--- updated_at to, so the two are equal immediately after a pull and the
--- next cycle doesn't mistake "we just wrote this from Google" for "the
--- user edited this locally" and bounce it right back out.
-alter table calendar_events add column if not exists google_synced_at timestamptz;
-
-alter table calendar_events add column if not exists updated_at timestamptz not null default now();
-
-create or replace function public.set_calendar_events_updated_at()
-returns trigger
-language plpgsql
-as $$
-begin
-  new.updated_at = now();
-  return new;
-end;
-$$;
-
-drop trigger if exists calendar_events_set_updated_at on calendar_events;
-create trigger calendar_events_set_updated_at
-before update on calendar_events
-for each row execute function public.set_calendar_events_updated_at();
-
--- ============================================================
--- 14c. GOOGLE CALENDAR SYNC — per-connection links + delete propagation
---
--- Replaces the original single google_event_id/google_synced_at columns
--- on calendar_events. Those assumed one calendar_events row maps to at
--- most one Google account, which breaks for a household-shared event: a
--- married couple share one calendar_events row (owned by whichever
--- spouse is the canonical household owner - see profiles.household_id
--- notes above) but each has their OWN separate Google account. A single
--- column can't hold two different Google event ids for the same row, so
--- whichever spouse's connection synced second would either clobber the
--- link or fail outright trying to update an event id that belongs to
--- the other spouse's Google Calendar. This table makes the mapping
--- per (event, connecting Google account) instead of per event.
--- ============================================================
-create table if not exists calendar_event_google_links (
-  event_id uuid not null references calendar_events(id) on delete cascade,
-  connection_user_id uuid not null references auth.users(id) on delete cascade,
-  google_event_id text not null,
-  google_synced_at timestamptz not null default now(),
-  primary key (event_id, connection_user_id)
-);
-
-create index if not exists calendar_event_google_links_connection_idx
-  on calendar_event_google_links(connection_user_id, google_event_id);
-
--- RLS enabled with zero policies - same reasoning as google_oauth_states
--- above: this is sync-engine bookkeeping, never meant to be read or
--- written by the anon/authenticated roles directly, only the
--- service-role sync routes (which bypass RLS regardless).
-alter table calendar_event_google_links enable row level security;
-
--- A local delete needs to tell each connected Google account that had
--- its own copy of the event to delete that copy too - but by the time
--- the sync route runs, the calendar_events row (and its links, via the
--- ON DELETE CASCADE above) are already gone. This trigger copies each
--- link into a pending-deletes queue right before the row disappears, so
--- the sync route has something to act on afterward. security definer
--- so it can write here even when the delete itself came from a plain
--- authenticated user's own RLS-governed delete on calendar_events.
-create table if not exists calendar_google_pending_deletes (
-  id uuid primary key default gen_random_uuid(),
-  connection_user_id uuid not null references auth.users(id) on delete cascade,
-  google_event_id text not null,
-  created_at timestamptz not null default now()
-);
-
-alter table calendar_google_pending_deletes enable row level security;
-
-create or replace function public.queue_google_deletes_for_event()
-returns trigger
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  insert into calendar_google_pending_deletes (connection_user_id, google_event_id)
-  select connection_user_id, google_event_id
-  from calendar_event_google_links
-  where event_id = old.id;
-  return old;
-end;
-$$;
-
 drop trigger if exists calendar_events_queue_google_deletes on calendar_events;
-create trigger calendar_events_queue_google_deletes
-before delete on calendar_events
-for each row execute function public.queue_google_deletes_for_event();
-
--- One-time migration off the old single-column mapping: carry forward
--- any already-linked event (recorded under the syncing user's own id,
--- back when only self-connections existed) into the new per-connection
--- table, then drop the old columns.
-insert into calendar_event_google_links (event_id, connection_user_id, google_event_id, google_synced_at)
-select id, user_id, google_event_id, coalesce(google_synced_at, now())
-from calendar_events
-where google_event_id is not null
-on conflict (event_id, connection_user_id) do nothing;
-
-drop index if exists calendar_events_google_event_id_idx;
-alter table calendar_events drop column if exists google_event_id;
-alter table calendar_events drop column if exists google_synced_at;
+drop function if exists public.queue_google_deletes_for_event();
+drop table if exists calendar_google_pending_deletes;
+drop table if exists calendar_event_google_links;
+drop table if exists google_oauth_states;
+drop table if exists google_calendar_connections;
+drop trigger if exists calendar_events_set_updated_at on calendar_events;
+drop function if exists public.set_calendar_events_updated_at();
+alter table calendar_events drop column if exists updated_at;
 
 -- ============================================================
 -- 15. COMPANY EVENTS (standing, recurring team events)
