@@ -7,6 +7,7 @@ import { SkeletonList, SkeletonRows } from "@/components/Skeleton";
 import { useAuth } from "@/components/AuthGate";
 import FeatureGate from "@/components/FeatureGate";
 import AverageLeaders from "@/components/AverageLeaders";
+import Fab from "@/components/Fab";
 import { supabase } from "@/lib/supabaseClient";
 import { getMonthStart, getMonthStartOffset, formatMonthLabel, formatShortMonthLabel } from "@/lib/dates";
 import type { MonthlyPv, CustomerSale, SaleCategory, AverageLeaderEntry } from "@/lib/types";
@@ -484,7 +485,7 @@ export default function VolumePage() {
           <TrendChart data={dittoChartData} valueSuffix=" PV" />
         </div>
 
-        <div className="card space-y-2">
+        <div id="log-sale" className="card space-y-2">
           <p className="section-title">🛍️ Customer Sales</p>
           <div className="rounded-lg bg-navy p-2 text-center">
             <p className="text-lg font-bold text-amber-light">{highestPv} PV</p>
@@ -559,6 +560,7 @@ export default function VolumePage() {
           </div>
         )}
       </main>
+      <Fab targetId="log-sale" label="Log a sale" />
     </FeatureGate>
   );
 }

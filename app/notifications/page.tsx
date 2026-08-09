@@ -56,11 +56,17 @@ export default function NotificationsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user.id]);
 
-  async function toggleKind(kind: string) {
+  // A per-kind mute list on its own screen read as "which of these 12
+  // things do I want" - too fiddly a decision for most people, who just
+  // want push on or off. All-or-nothing here, on the same
+  // muted_notification_kinds column: "on" clears it, "off" fills it with
+  // every known kind - every send route already checks that column per
+  // kind, so nothing downstream needs to change to honor this.
+  const allNotificationsOn = mutedKinds.length === 0;
+
+  async function toggleAll() {
     const previous = mutedKinds;
-    const next = mutedKinds.includes(kind)
-      ? mutedKinds.filter((k) => k !== kind)
-      : [...mutedKinds, kind];
+    const next = allNotificationsOn ? NOTIFICATION_KINDS.map((k) => k.kind) : [];
     setMutedKinds(next);
     const { error } = await supabase
       .from("profiles")
@@ -85,27 +91,18 @@ export default function NotificationsPage() {
           <div className="card space-y-2">
             <p className="section-title">🔔 Notification Preferences</p>
             <p className="text-xs text-slate-400">
-              Turn off anything you don&apos;t want pushed to your device — muted ones also won&apos;t
-              show up in the history below.
+              {allNotificationsOn
+                ? "You'll get pushed every notification we send — Core Run reminders, leaderboard updates, calendar reminders, and more."
+                : "Every push notification is off — nothing will be sent to your device, and muted ones won't show up in the history below either."}
             </p>
-            <div className="space-y-1.5">
-              {NOTIFICATION_KINDS.map(({ kind, label }) => {
-                const muted = mutedKinds.includes(kind);
-                return (
-                  <div
-                    key={kind}
-                    className="flex items-center justify-between rounded-lg bg-navy px-3 py-2"
-                  >
-                    <span className="text-sm text-slate-200">{label}</span>
-                    <button
-                      className={muted ? "toggle-pill-inactive" : "toggle-pill-active"}
-                      onClick={() => toggleKind(kind)}
-                    >
-                      {muted ? "Off" : "On"}
-                    </button>
-                  </div>
-                );
-              })}
+            <div className="flex items-center justify-between rounded-lg bg-navy px-3 py-2">
+              <span className="text-sm text-slate-200">Push Notifications</span>
+              <button
+                className={allNotificationsOn ? "toggle-pill-active" : "toggle-pill-inactive"}
+                onClick={toggleAll}
+              >
+                {allNotificationsOn ? "On" : "Off"}
+              </button>
             </div>
             {muteError && <p className="text-xs text-red-400">{muteError}</p>}
           </div>

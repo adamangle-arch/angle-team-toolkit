@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
 import TrendChart from "@/components/TrendChart";
 import { useAuth } from "@/components/AuthGate";
@@ -9,6 +10,7 @@ import LibraryResourcePicker from "@/components/LibraryResourcePicker";
 import FirstVisitTip from "@/components/FirstVisitTip";
 import { SkeletonList, SkeletonRows } from "@/components/Skeleton";
 import AverageLeaders from "@/components/AverageLeaders";
+import Fab from "@/components/Fab";
 import { supabase } from "@/lib/supabaseClient";
 import {
   PIPELINE_STAGES,
@@ -148,9 +150,15 @@ function StageCount({
 
 type Tab = "tally" | "roadmap" | "history";
 
-export default function PipelinePage() {
+function isTab(value: string | null): value is Tab {
+  return value === "tally" || value === "roadmap" || value === "history";
+}
+
+function PipelinePageInner() {
+  const searchParams = useSearchParams();
+  const initialTab = searchParams.get("tab");
   const { user, ownerId } = useAuth();
-  const [tab, setTab] = useState<Tab>("tally");
+  const [tab, setTab] = useState<Tab>(isTab(initialTab) ? initialTab : "tally");
   const [periodType, setPeriodType] = useState<PeriodType>("weekly");
   // 0 = current day/week/month, 1 = one back, etc. - the three period
   // types' offsets aren't comparable, so switching type resets this.
@@ -1011,7 +1019,7 @@ export default function PipelinePage() {
                 card itself for notes, resources, and more.
               </FirstVisitTip>
 
-              <div className="card space-y-2">
+              <div id="add-candidate" className="card space-y-2">
                 <p className="section-title">Add Candidate</p>
                 <div className="flex gap-2">
                   <input
@@ -1209,7 +1217,19 @@ export default function PipelinePage() {
           </>
         )}
       </main>
+      {tab === "roadmap" && <Fab targetId="add-candidate" label="Add candidate" />}
     </FeatureGate>
+  );
+}
+
+// useSearchParams() (reading Search's ?tab= quick-action link) requires a
+// Suspense boundary around whatever calls it, same pattern already used
+// by Games' ?tab= deep link.
+export default function PipelinePage() {
+  return (
+    <Suspense fallback={<div className="page-main" />}>
+      <PipelinePageInner />
+    </Suspense>
   );
 }
 

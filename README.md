@@ -4856,6 +4856,134 @@ every other app uses for this. The Notifications page calls the new
 watermark, so the badge clears the instant you open the page instead of
 waiting for the next app open to notice.
 
+### Admin Diagnostics tab: self-serve "why aren't notifications sending"
+
+Every scheduled push (Core Run reminder, stat leaders, calendar
+reminders) depends on config this app has no way to inspect from inside
+itself - `CRON_SECRET`/VAPID keys only set in `.env.local` and never
+copied into the actual Vercel deployment, or the calendar-reminder
+pg_cron job never having been run in Supabase's SQL editor, both look
+identical to "it's just broken" with the previous only debugging tool
+(Send Test Notification, which only proves your own device's push
+mechanics work, not that any cron is actually wired up). A new
+**Diagnostics** tab on **Team** (admin-only) closes that gap:
+
+- `GET /api/admin/diagnostics` reports whether VAPID keys and
+  `CRON_SECRET` are configured on the server, how many devices are
+  subscribed, the last 25 rows across every kind of sent_notifications
+  (a new `get_recent_sent_notifications_admin()` RPC - the ordinary select
+  policy only shows a row to its own recipient or everyone for a
+  broadcast, which hid personal kinds like `core_run_reminder` from an
+  admin trying to confirm delivery ever happened), and the Supabase
+  pg_cron jobs currently scheduled (`get_pg_cron_jobs()`, a
+  `security definer` wrapper since `cron.job` isn't in a schema
+  PostgREST exposes - returns empty rather than erroring if the pg_cron
+  extension isn't installed at all).
+- `POST /api/admin/run-cron` fires any of the four cron routes on demand
+  with the server's real `CRON_SECRET` (it already has that env var),
+  bypassing whatever is or isn't actually triggering it. This isolates
+  "does the route's own logic work" from "is the automatic trigger wired
+  up" - the second half still has to be checked in the Vercel/Supabase
+  dashboards directly, but now the first half doesn't.
+
+Both routes are gated the same way `/api/notify`'s admin-only cases are -
+the caller's own access token, checked against `isPrimaryUser()`.
+
+### New scheduled nudges: mission, volume, goals
+
+`/api/push/send-daily-nudges` (fired the same way calendar reminders are -
+a Supabase pg_cron job hitting it once daily, not a `vercel.json` entry,
+since both of Vercel Hobby's cron slots are already spent) adds three new
+kinds, each independent:
+
+- **`mission_reminder`** - every day, to anyone who hasn't opened the app
+  yet that day (`app_opens`, the same table the Daily Visitor badge
+  already uses) - points at Today's Mission on the dashboard.
+- **`volume_reminder`** - only on the 10th/20th/27th of the month, to
+  anyone with no PV logged yet for the current month (`monthly_pv`).
+- **`goals_reminder`** - only on Mondays, to anyone who has never set a
+  single goal, ever, in any period - once they set one this stops
+  forever for them; it's not a recurring "update your goals" nag.
+
+Run once in the Supabase SQL editor (same pattern as the calendar
+reminder job - Postgres can't read Vercel's env vars, so the domain and
+secret have to be literal values, not references):
+
+```sql
+select cron.schedule(
+  'send-daily-nudges',
+  '0 15 * * *',
+  $$
+  select net.http_post(
+    url := 'https://YOUR-VERCEL-DOMAIN/api/push/send-daily-nudges',
+    headers := jsonb_build_object('Authorization', 'Bearer YOUR-CRON-SECRET-VALUE'),
+    body := '{}'::jsonb
+  );
+  $$
+);
+```
+
+`sent_notifications_kind_check` gains these three kinds - edited in
+place at its one definition, per the standing rule not to redefine it
+twice.
+
+### Notification Preferences: one switch, not twelve
+
+The per-kind mute list (12 individual On/Off toggles on the Notifications
+page) read as a fiddly decision most people didn't want to make - "either
+allow all notifications or none" was the explicit ask. The underlying
+`profiles.muted_notification_kinds` column and every send route's
+per-kind check against it are unchanged (nothing downstream needed to
+change); the page's toggle just now writes either every known kind
+(`NOTIFICATION_KINDS.map(k => k.kind)`) to mute everything, or `[]` to
+unmute everything, instead of one row at a time.
+
+### Leaderboard: category tabs drop their count badges
+
+The small number badges next to Activity/Leaders/Consistency/Volume on
+each tab (e.g. "Leaders 10") were visual noise the user didn't want -
+`tabCounts` still drives the "nothing here yet" empty states per tab, it
+just no longer renders inline on the tab buttons themselves.
+
+### Floating action buttons, quick-action search chips, avatar clusters
+
+Three of the five "what could we borrow from Instagram/Gmail/iMessage/
+Google/App Store" ideas from earlier, the ones the user asked for
+directly:
+
+- **`components/Fab.tsx`** - a Gmail-Compose-style "+" pinned bottom-right
+  on pages with one dominant action that was otherwise buried below a
+  scroll. Scrolls its target card into view and focuses the first input
+  in it rather than navigating anywhere, since the form is already on the
+  page. Wired into Volume (`#log-sale`) and Pipeline's Candidate Roadmap
+  tab (`#add-candidate`, only rendered while that tab is active). Fixed
+  positioning against the real viewport edge would drift away from the
+  app's own centered `max-w-md` column on anything wider than a phone -
+  same fix `BottomNav` already uses, an outer fixed+centered wrapper with
+  the button positioned absolutely inside it. (Calendar already had its
+  own version of this exact pattern for Add Event, predating this one -
+  left as-is rather than migrated, since it already works.)
+- **Quick-action chips under Search** (`app/search/page.tsx`) - a
+  Google-app-style one-tap row (Add Candidate, Log Today's PV, Log a
+  Meeting) shown only while the search box is empty, turning Search into
+  a jumping-off point for common actions instead of type-to-find only.
+  "Add Candidate" deep-links `/pipeline?tab=roadmap`, which needed
+  `PipelinePage` split into an outer `Suspense`-wrapped shell and an inner
+  component so `useSearchParams()` has the boundary Next.js requires (same
+  pattern Games' `?tab=` deep link already uses).
+- **`components/AvatarCluster.tsx`** - iMessage-style overlapping circles
+  (photo or initials-fallback, capped with a "+N" overflow badge) for "who's
+  in this" at a glance, generalizing the side-by-side couple avatars
+  Leaderboard already had. Wired into Calendar's Add Event "specific
+  people" recipient picker, showing the current selection as a cluster
+  instead of only the checked names below it (`downlineMembers` now also
+  fetches `photo_url`).
+
+The other two ideas (a persistent floating search chip row, and swipe
+actions on list rows) weren't asked for and weren't built - swipe actions
+in particular would cut against the explicit-checkbox-affordance
+direction the Daily Update toggle just took.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

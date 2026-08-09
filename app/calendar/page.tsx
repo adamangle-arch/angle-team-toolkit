@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import PageHeader from "@/components/PageHeader";
 import { SkeletonList } from "@/components/Skeleton";
 import { useAuth } from "@/components/AuthGate";
+import AvatarCluster from "@/components/AvatarCluster";
 import { supabase } from "@/lib/supabaseClient";
 import {
   isPrimaryUser,
@@ -198,7 +199,9 @@ export default function CalendarPage() {
   const [loading, setLoading] = useState(true);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [creatorNames, setCreatorNames] = useState<Record<string, string>>({});
-  const [downlineMembers, setDownlineMembers] = useState<{ id: string; name: string }[]>([]);
+  const [downlineMembers, setDownlineMembers] = useState<
+    { id: string; name: string; photoUrl: string | null }[]
+  >([]);
   const hasDownline = downlineMembers.length > 0;
   // Resolves a linked spouse's id in either direction (household_id is
   // only ever stored on one side) - needed on top of `ownerId` because a
@@ -389,12 +392,13 @@ export default function CalendarPage() {
       }
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("id,first_name,last_name")
+        .select("id,first_name,last_name,photo_url")
         .in("id", downlineIds);
-      const list = ((profiles as Pick<Profile, "id" | "first_name" | "last_name">[]) ?? [])
+      const list = ((profiles as Pick<Profile, "id" | "first_name" | "last_name" | "photo_url">[]) ?? [])
         .map((p) => ({
           id: p.id,
           name: [p.first_name, p.last_name].filter(Boolean).join(" ") || "Unnamed",
+          photoUrl: p.photo_url,
         }))
         .sort((a, b) => a.name.localeCompare(b.name));
       setDownlineMembers(list);
@@ -1142,7 +1146,15 @@ export default function CalendarPage() {
                   </label>
                   {!broadcast && (
                     <div className="rounded-lg bg-navy p-2 space-y-1">
-                      <p className="text-xs text-slate-400">Or add for specific people:</p>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs text-slate-400">Or add for specific people:</p>
+                        {selectedRecipientIds.length > 0 && (
+                          <AvatarCluster
+                            size="xs"
+                            people={downlineMembers.filter((m) => selectedRecipientIds.includes(m.id))}
+                          />
+                        )}
+                      </div>
                       <div className="max-h-40 space-y-1 overflow-y-auto">
                         {downlineMembers.map((m) => (
                           <label key={m.id} className="flex items-center gap-2 text-sm text-slate-300">

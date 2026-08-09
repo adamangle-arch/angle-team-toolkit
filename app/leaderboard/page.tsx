@@ -645,18 +645,7 @@ export default function LeaderboardPage() {
               }`}
             >
               <span className="text-base leading-none">{t.icon}</span>
-              <span className="flex items-center gap-1">
-                {t.label}
-                {tabCounts[t.key] > 0 && (
-                  <span
-                    className={`rounded-full px-1 text-[9px] font-bold leading-none ${
-                      displayTab === t.key ? "bg-navy/20 text-navy" : "bg-white/10 text-slate-300"
-                    }`}
-                  >
-                    {tabCounts[t.key]}
-                  </span>
-                )}
-              </span>
+              <span>{t.label}</span>
             </button>
           ))}
         </div>

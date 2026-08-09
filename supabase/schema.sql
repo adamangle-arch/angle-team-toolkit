@@ -2862,6 +2862,58 @@ $$;
 
 grant execute on function public.get_unread_notification_count() to authenticated;
 
+-- Admin-only visibility into every sent_notifications row regardless of
+-- who it targeted - the ordinary select policy only shows a row to its
+-- own recipient (or everyone, if it's a broadcast), which makes personal
+-- kinds like core_run_reminder invisible to an admin trying to confirm
+-- delivery ever happened at all. Raises rather than silently returning
+-- nothing for a non-admin caller, same as the other admin RPCs below.
+create or replace function public.get_recent_sent_notifications_admin(p_limit int default 50)
+returns setof sent_notifications
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+begin
+  if not is_app_admin() then
+    raise exception 'not authorized';
+  end if;
+  return query
+    select * from sent_notifications order by created_at desc limit p_limit;
+end;
+$$;
+
+grant execute on function public.get_recent_sent_notifications_admin(int) to authenticated;
+
+-- Lets the Diagnostics tab on Team show whether the Supabase-side pg_cron
+-- job for calendar reminders (see README's "Calendar event reminders"
+-- section - it's a manual one-time SQL step, not something schema.sql can
+-- set up itself since it needs your literal Vercel domain + CRON_SECRET
+-- baked in) actually exists, instead of that being invisible without
+-- opening the SQL editor and querying cron.job by hand. Returns an empty
+-- set rather than erroring when the pg_cron extension isn't installed at
+-- all, so the Diagnostics tab can just show "no jobs found" either way.
+create or replace function public.get_pg_cron_jobs()
+returns table(jobname text, schedule text, active boolean)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+begin
+  if not is_app_admin() then
+    raise exception 'not authorized';
+  end if;
+  if not exists (select 1 from pg_extension where extname = 'pg_cron') then
+    return;
+  end if;
+  return query execute 'select jobname, schedule, active from cron.job order by jobname';
+end;
+$$;
+
+grant execute on function public.get_pg_cron_jobs() to authenticated;
+
 -- ============================================================
 -- 10. DIAMOND RUN (mini-game)
 -- One row per user tracking their best score. The game itself is
@@ -6095,7 +6147,8 @@ alter table sent_notifications add constraint sent_notifications_kind_check chec
   kind in (
     'daily_stat_leaders', 'weekly_stat_leaders', 'monthly_stat_leaders', 'core_run_reminder',
     'calendar_reminder', 'calendar_event_added', 'call_rating_submitted', 'core_run_completed',
-    'pipeline_5plus', 'onboarding_unlocked', 'games_unlocked', 'badge_earned'
+    'pipeline_5plus', 'onboarding_unlocked', 'games_unlocked', 'badge_earned',
+    'mission_reminder', 'volume_reminder', 'goals_reminder'
   )
 );
 

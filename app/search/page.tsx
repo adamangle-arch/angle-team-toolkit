@@ -9,6 +9,18 @@ import { CANDIDATE_STEPS } from "@/lib/constants";
 import { searchStatic, type SearchResult } from "@/lib/search-data";
 import type { Candidate, Contact } from "@/lib/types";
 
+// One-tap shortcuts under the search bar, Google-app AI Mode/Talk/Create
+// row style - Search was otherwise type-to-find only, with no jumping-off
+// point for the handful of actions people actually open the app to do.
+// Pipeline already reads ?tab= to land straight on the Add Candidate
+// form; Calendar already has its own "+" FAB that opens the moment the
+// page mounts, so a plain link there is enough.
+const QUICK_ACTIONS = [
+  { label: "➕ Add Candidate", href: "/pipeline?tab=roadmap" },
+  { label: "💰 Log Today's PV", href: "/volume" },
+  { label: "📅 Log a Meeting", href: "/calendar" },
+] as const;
+
 function candidateSnippet(c: Candidate): string {
   if (c.launched) return "Launched";
   if (c.filtered_out) return "Filtered out";
@@ -113,10 +125,23 @@ export default function SearchPage() {
         />
 
         {!query.trim() && (
-          <div className="empty-state">
-            Start typing to search your candidates, contacts, pages, scripts, products, leaders,
-            and more.
-          </div>
+          <>
+            <div className="flex flex-wrap gap-2">
+              {QUICK_ACTIONS.map((action) => (
+                <button
+                  key={action.href}
+                  onClick={() => router.push(action.href)}
+                  className="toggle-pill-inactive flex-none bg-white/5"
+                >
+                  {action.label}
+                </button>
+              ))}
+            </div>
+            <div className="empty-state">
+              Start typing to search your candidates, contacts, pages, scripts, products, leaders,
+              and more.
+            </div>
+          </>
         )}
 
         {query.trim() && results.length === 0 && (

@@ -45,6 +45,9 @@ export const NOTIFICATION_KINDS = [
   { kind: "daily_stat_leaders", label: "Daily leaders" },
   { kind: "weekly_stat_leaders", label: "Weekly leaders" },
   { kind: "monthly_stat_leaders", label: "Monthly leaders" },
+  { kind: "mission_reminder", label: "Today's Mission reminder" },
+  { kind: "volume_reminder", label: "Monthly volume reminder" },
+  { kind: "goals_reminder", label: "Goals reminder" },
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number]["kind"];
 export const NOTIFICATION_KIND_LABELS = Object.fromEntries(

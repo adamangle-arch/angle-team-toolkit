@@ -44,8 +44,23 @@ import type {
   MonthlyPv,
 } from "@/lib/types";
 
-type ViewMode = "members" | "teams" | "my-tree" | "whole-tree";
+type ViewMode = "members" | "teams" | "my-tree" | "whole-tree" | "diagnostics";
 type PeriodType = "daily" | "weekly" | "monthly";
+
+type DiagnosticsData = {
+  vapidConfigured: boolean;
+  cronSecretConfigured: boolean;
+  subscriptionCount: number;
+  recentNotifications: { id: string; kind: string; title: string; created_at: string; recipient_count: number; user_id: string | null }[];
+  pgCronJobs: { jobname: string; schedule: string; active: boolean }[];
+};
+
+const CRON_ROUTES = [
+  { path: "/api/push/send-reminders", label: "Core Run reminder" },
+  { path: "/api/push/send-stat-leaders", label: "Stat leaders digest" },
+  { path: "/api/push/send-calendar-reminders", label: "Calendar reminders" },
+  { path: "/api/push/send-daily-nudges", label: "Mission/volume/goals nudges" },
+] as const;
 
 function pct(numerator: number, denominator: number): string {
   if (!denominator) return "—";
@@ -149,6 +164,65 @@ export default function TeamPage() {
   const [grantError, setGrantError] = useState("");
 
   const [expandedRatingId, setExpandedRatingId] = useState<string | null>(null);
+
+  const [diagnostics, setDiagnostics] = useState<DiagnosticsData | null>(null);
+  const [loadingDiagnostics, setLoadingDiagnostics] = useState(false);
+  const [diagnosticsError, setDiagnosticsError] = useState("");
+  const [runningCronPath, setRunningCronPath] = useState<string | null>(null);
+  const [cronResults, setCronResults] = useState<Record<string, string>>({});
+
+  async function authedFetch(input: string, init?: RequestInit) {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const accessToken = sessionData.session?.access_token;
+    if (!accessToken) throw new Error("Not signed in");
+    return fetch(input, {
+      ...init,
+      headers: { ...init?.headers, Authorization: `Bearer ${accessToken}` },
+    });
+  }
+
+  async function loadDiagnostics() {
+    setLoadingDiagnostics(true);
+    setDiagnosticsError("");
+    try {
+      const res = await authedFetch("/api/admin/diagnostics");
+      if (!res.ok) throw new Error((await res.json().catch(() => null))?.error || "Failed to load");
+      setDiagnostics(await res.json());
+    } catch (err) {
+      setDiagnosticsError(err instanceof Error ? err.message : "Failed to load diagnostics.");
+    } finally {
+      setLoadingDiagnostics(false);
+    }
+  }
+
+  useEffect(() => {
+    if (viewMode === "diagnostics" && isAdmin && !diagnostics) {
+      loadDiagnostics();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewMode, isAdmin]);
+
+  async function runCron(path: string) {
+    setRunningCronPath(path);
+    setCronResults((prev) => ({ ...prev, [path]: "" }));
+    try {
+      const res = await authedFetch("/api/admin/run-cron", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path }),
+      });
+      const data = await res.json();
+      setCronResults((prev) => ({ ...prev, [path]: JSON.stringify(data, null, 2) }));
+      loadDiagnostics();
+    } catch (err) {
+      setCronResults((prev) => ({
+        ...prev,
+        [path]: err instanceof Error ? err.message : "Failed to run.",
+      }));
+    } finally {
+      setRunningCronPath(null);
+    }
+  }
 
   // "My Downline" - everyone's own personal sponsorship tree, rooted at
   // themselves. For a non-admin, `profiles` already only contains self +
@@ -522,6 +596,14 @@ export default function TeamPage() {
               Whole Team
             </button>
           )}
+          {isAdmin && (
+            <button
+              className={viewMode === "diagnostics" ? "toggle-pill-active" : "toggle-pill-inactive"}
+              onClick={() => setViewMode("diagnostics")}
+            >
+              Diagnostics
+            </button>
+          )}
         </div>
 
         {viewMode === "teams" && isAdmin && (
@@ -660,6 +742,114 @@ export default function TeamPage() {
                 nodes={wholeTreeRoots}
                 emptyLabel="No one has signed up yet."
               />
+            </div>
+          </div>
+        )}
+
+        {viewMode === "diagnostics" && isAdmin && (
+          <div className="space-y-3">
+            <div className="card space-y-2">
+              <p className="section-title">🔧 Delivery Config</p>
+              <p className="text-xs text-slate-400">
+                Every scheduled push depends on env vars that live only in the actual Vercel
+                deployment (never read from .env.local) and, for calendar reminders, a one-time
+                pg_cron job run once in the Supabase SQL editor — see the README for exact steps.
+              </p>
+              {loadingDiagnostics ? (
+                <SkeletonRows rows={3} />
+              ) : diagnosticsError ? (
+                <p className="text-sm text-red-400">{diagnosticsError}</p>
+              ) : diagnostics ? (
+                <div className="space-y-1.5 text-sm">
+                  <div className="flex items-center justify-between rounded-lg bg-navy px-3 py-2">
+                    <span className="text-slate-200">VAPID keys configured</span>
+                    <span className={diagnostics.vapidConfigured ? "text-emerald-400" : "text-red-400"}>
+                      {diagnostics.vapidConfigured ? "✅ Yes" : "❌ No — pushes fail for everyone"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg bg-navy px-3 py-2">
+                    <span className="text-slate-200">CRON_SECRET configured</span>
+                    <span className={diagnostics.cronSecretConfigured ? "text-emerald-400" : "text-red-400"}>
+                      {diagnostics.cronSecretConfigured ? "✅ Yes" : "❌ No — every cron 401s"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg bg-navy px-3 py-2">
+                    <span className="text-slate-200">Devices subscribed to push</span>
+                    <span className="text-slate-300">{diagnostics.subscriptionCount}</span>
+                  </div>
+                  <div className="rounded-lg bg-navy px-3 py-2">
+                    <p className="mb-1 text-slate-200">Supabase pg_cron jobs</p>
+                    {diagnostics.pgCronJobs.length === 0 ? (
+                      <p className="text-xs text-red-400">
+                        None found — if you&apos;re expecting calendar reminders, the one-time
+                        cron.schedule(...) SQL from the README hasn&apos;t been run yet.
+                      </p>
+                    ) : (
+                      diagnostics.pgCronJobs.map((job) => (
+                        <p key={job.jobname} className="text-xs text-slate-400">
+                          {job.active ? "🟢" : "⚪"} {job.jobname} — {job.schedule}
+                        </p>
+                      ))
+                    )}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="card space-y-2">
+              <p className="section-title">▶️ Run a cron now</p>
+              <p className="text-xs text-slate-400">
+                Fires the route directly with the server&apos;s real CRON_SECRET, bypassing whatever
+                is (or isn&apos;t) supposed to trigger it automatically — isolates &quot;does the route
+                itself work&quot; from &quot;is the automatic trigger wired up.&quot;
+              </p>
+              {CRON_ROUTES.map((route) => (
+                <div key={route.path} className="space-y-1 rounded-lg bg-navy px-3 py-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm text-slate-200">{route.label}</span>
+                    <button
+                      className="btn-secondary shrink-0 !px-3 !py-1 text-xs"
+                      disabled={runningCronPath === route.path}
+                      onClick={() => runCron(route.path)}
+                    >
+                      {runningCronPath === route.path ? "Running…" : "Run now"}
+                    </button>
+                  </div>
+                  {cronResults[route.path] && (
+                    <pre className="overflow-x-auto rounded bg-black/30 p-2 text-[11px] text-slate-300">
+                      {cronResults[route.path]}
+                    </pre>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="card space-y-1.5">
+              <p className="section-title">📜 Recent sends (all users)</p>
+              {loadingDiagnostics ? (
+                <SkeletonRows rows={3} />
+              ) : diagnostics && diagnostics.recentNotifications.length === 0 ? (
+                <p className="text-sm text-slate-400">
+                  Nothing has ever been logged to sent_notifications — nothing has successfully
+                  sent yet.
+                </p>
+              ) : (
+                diagnostics?.recentNotifications.map((n) => (
+                  <div key={n.id} className="flex items-center justify-between gap-2 rounded-lg bg-navy px-3 py-2 text-xs">
+                    <span className="truncate text-slate-200">{n.title}</span>
+                    <span className="shrink-0 text-slate-500">
+                      {new Date(n.created_at).toLocaleString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })}
+                      {" · "}
+                      {n.recipient_count} sent
+                    </span>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         )}
