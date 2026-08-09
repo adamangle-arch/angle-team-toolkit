@@ -3355,6 +3355,27 @@ alter table calendar_events add constraint calendar_events_timezone_check check 
 -- the owner's own candidates and has no other way to know.
 alter table calendar_events add column if not exists is_downline_candidate boolean not null default false;
 
+-- Additive: recurring events. Deliberately just a repeat rule on the one
+-- stored row rather than a materialized row per future occurrence -
+-- app/calendar/page.tsx expands recurrence_freq/recurrence_until into
+-- virtual occurrences client-side within a bounded window (see
+-- expandRecurrence there) for display, and editing/deleting always acts
+-- on this one row (the whole series), not a single occurrence - there's
+-- no per-instance override/exception concept here, unlike Google
+-- Calendar's "this event / this and following / all events" model.
+-- Known gap: /api/push/send-calendar-reminders only ever matches this
+-- row's own event_at, so a reminder fires for the first occurrence only,
+-- never later ones - reminders for recurring events would need their own
+-- per-occurrence tracking, out of scope for this pass.
+alter table calendar_events add column if not exists recurrence_freq text not null default 'none';
+alter table calendar_events drop constraint if exists calendar_events_recurrence_freq_check;
+alter table calendar_events add constraint calendar_events_recurrence_freq_check check (
+  recurrence_freq in ('none', 'weekly', 'biweekly', 'monthly')
+);
+-- Null = repeats indefinitely (bounded only by the client's display
+-- window, not stored as a real end).
+alter table calendar_events add column if not exists recurrence_until timestamptz;
+
 -- Unlike the "personal tables" above (streak_days, assistant_messages,
 -- call_ratings — deliberately never shared with a linked spouse),
 -- calendar_events IS household-shareable: a married couple wants one
@@ -3548,6 +3569,12 @@ drop function if exists public.broadcast_event_to_downline(text, text, timestamp
 -- below, so the old 8-arg signature has to be dropped first.
 drop function if exists public.broadcast_event_to_downline(text, text, timestamptz, uuid, text, int, int, text);
 
+-- Added-parameter signature change is a new overload to Postgres, not a
+-- true replace (same reasoning as send_event_to_recipients below) - drop
+-- the old 9-arg signature explicitly so it doesn't linger alongside the
+-- 11-arg one.
+drop function if exists public.broadcast_event_to_downline(text, text, timestamptz, uuid, text, int, int, text, boolean);
+
 create or replace function public.broadcast_event_to_downline(
   p_title text,
   p_notes text,
@@ -3557,7 +3584,9 @@ create or replace function public.broadcast_event_to_downline(
   p_reminder_minutes_before int default 30,
   p_duration_minutes int default 30,
   p_event_timezone text default null,
-  p_is_downline_candidate boolean default false
+  p_is_downline_candidate boolean default false,
+  p_recurrence_freq text default 'none',
+  p_recurrence_until timestamptz default null
 )
 returns int
 language plpgsql
@@ -3569,18 +3598,20 @@ declare
 begin
   insert into calendar_events (
     user_id, creator_id, title, notes, event_at, candidate_id, scope,
-    event_type, reminder_minutes_before, duration_minutes, event_timezone, is_downline_candidate
+    event_type, reminder_minutes_before, duration_minutes, event_timezone, is_downline_candidate,
+    recurrence_freq, recurrence_until
   )
   select
     d.user_id, auth.uid(), p_title, p_notes, p_event_at, p_candidate_id, 'downline',
-    p_event_type, p_reminder_minutes_before, p_duration_minutes, p_event_timezone, p_is_downline_candidate
+    p_event_type, p_reminder_minutes_before, p_duration_minutes, p_event_timezone, p_is_downline_candidate,
+    p_recurrence_freq, p_recurrence_until
   from public.get_downline_user_ids(auth.uid()) d;
   get diagnostics v_count = row_count;
   return v_count;
 end;
 $$;
 
-grant execute on function public.broadcast_event_to_downline(text, text, timestamptz, uuid, text, int, int, text, boolean) to authenticated;
+grant execute on function public.broadcast_event_to_downline(text, text, timestamptz, uuid, text, int, int, text, boolean, text, timestamptz) to authenticated;
 
 -- Same idea as broadcast_event_to_downline, but to a caller-chosen subset
 -- of their downline instead of all of it ("select a specific downline or
@@ -3595,6 +3626,7 @@ grant execute on function public.broadcast_event_to_downline(text, text, timesta
 -- a true replace.
 drop function if exists public.send_event_to_recipients(text, text, timestamptz, uuid[], uuid, text, int);
 drop function if exists public.send_event_to_recipients(text, text, timestamptz, uuid[], uuid, text, int, int, text);
+drop function if exists public.send_event_to_recipients(text, text, timestamptz, uuid[], uuid, text, int, int, text, boolean);
 
 create or replace function public.send_event_to_recipients(
   p_title text,
@@ -3606,7 +3638,9 @@ create or replace function public.send_event_to_recipients(
   p_reminder_minutes_before int default 30,
   p_duration_minutes int default 30,
   p_event_timezone text default null,
-  p_is_downline_candidate boolean default false
+  p_is_downline_candidate boolean default false,
+  p_recurrence_freq text default 'none',
+  p_recurrence_until timestamptz default null
 )
 returns int
 language plpgsql
@@ -3618,11 +3652,13 @@ declare
 begin
   insert into calendar_events (
     user_id, creator_id, title, notes, event_at, candidate_id, scope,
-    event_type, reminder_minutes_before, duration_minutes, event_timezone, is_downline_candidate
+    event_type, reminder_minutes_before, duration_minutes, event_timezone, is_downline_candidate,
+    recurrence_freq, recurrence_until
   )
   select
     d.user_id, auth.uid(), p_title, p_notes, p_event_at, p_candidate_id, 'downline',
-    p_event_type, p_reminder_minutes_before, p_duration_minutes, p_event_timezone, p_is_downline_candidate
+    p_event_type, p_reminder_minutes_before, p_duration_minutes, p_event_timezone, p_is_downline_candidate,
+    p_recurrence_freq, p_recurrence_until
   from public.get_downline_user_ids(auth.uid()) d
   where d.user_id = any(p_recipient_ids);
   get diagnostics v_count = row_count;
@@ -3630,7 +3666,7 @@ begin
 end;
 $$;
 
-grant execute on function public.send_event_to_recipients(text, text, timestamptz, uuid[], uuid, text, int, int, text, boolean) to authenticated;
+grant execute on function public.send_event_to_recipients(text, text, timestamptz, uuid[], uuid, text, int, int, text, boolean, text, timestamptz) to authenticated;
 
 -- Powers the "Upcoming" section of /prospect - any calendar_events row
 -- tagged with this candidate (the existing "linked candidate" picker on

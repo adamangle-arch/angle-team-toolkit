@@ -140,6 +140,18 @@ export const CALENDAR_DURATION_OPTIONS = [
   { minutes: 120, label: "2 hours" },
 ] as const;
 
+// How often an event repeats - "none" is the common case (a normal
+// one-time event). Editing or deleting a recurring event always acts on
+// the whole series (there's no per-occurrence override), so this stays a
+// simple enum rather than a full RRULE - must match the check constraint
+// on calendar_events.recurrence_freq in supabase/schema.sql.
+export const CALENDAR_RECURRENCE_OPTIONS: { freq: "none" | "weekly" | "biweekly" | "monthly"; label: string }[] = [
+  { freq: "none", label: "Doesn't repeat" },
+  { freq: "weekly", label: "Weekly" },
+  { freq: "biweekly", label: "Every 2 weeks" },
+  { freq: "monthly", label: "Monthly" },
+];
+
 // Time zones a calendar event's start time can be entered in - the team
 // is entirely US-based (see TEAMS below), so this is the standard 6 US
 // zones rather than a full IANA city picker. Each key is a real IANA

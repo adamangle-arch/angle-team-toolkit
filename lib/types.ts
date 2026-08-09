@@ -399,6 +399,8 @@ export type CalendarEvent = {
   duration_minutes: number;
   event_timezone: string | null;
   is_downline_candidate: boolean;
+  recurrence_freq: "none" | "weekly" | "biweekly" | "monthly";
+  recurrence_until: string | null;
 };
 
 export type CompanyEvent = {

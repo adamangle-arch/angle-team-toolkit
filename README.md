@@ -4984,6 +4984,45 @@ actions on list rows) weren't asked for and weren't built - swipe actions
 in particular would cut against the explicit-checkbox-affordance
 direction the Daily Update toggle just took.
 
+### Calendar: Week view, recurring events, month chips, now-line, swipe nav
+
+Closing the gap left by dropping Google Calendar sync (see above) - a
+set of Google Calendar-style upgrades to the built-in Calendar page:
+
+- **Week view** - a new tab alongside Agenda/Day/Month: a 7-day strip
+  (prev/next week, event dots, tap to pick a day) sitting above the same
+  hourly grid Day view uses, scoped to whichever day in that week is
+  selected. `app/calendar/page.tsx`'s day-grid rendering (bounds,
+  tap-to-add, event blocks) is shared between Day and Week via
+  `computeDayViewBounds()` and a generalized `handleGridClick(dateStr,
+  bounds, event)` that both views call with their own date/bounds instead
+  of assuming `dayCursor`.
+- **Recurring events** - any event can now repeat weekly, every 2 weeks,
+  or monthly, with an optional end date. `calendar_events` gained
+  `recurrence_freq`/`recurrence_until`; nothing is materialized per
+  occurrence - `expandRecurrence()` expands a recurring row into virtual
+  occurrences client-side within a bounded window (180 days back, 365
+  forward) for display everywhere (agenda, month grid, day/week grids).
+  Editing or deleting acts on the one real row (the whole series), never
+  a single occurrence - there's no per-instance override/exception
+  concept, unlike Google Calendar's "this event / this and following /
+  all events" model. **Known gap**: `/api/push/send-calendar-reminders`
+  only ever matches a row's own `event_at`, so a reminder fires for the
+  first occurrence only, never later ones - real per-occurrence reminder
+  tracking is a bigger change, out of scope here.
+  `broadcast_event_to_downline` and `send_event_to_recipients` both
+  accept the same recurrence params now, so a broadcast team event (e.g.
+  a weekly team call) recurs correctly for every recipient too.
+- **Month view shows event titles**, not just colored dots - up to 2
+  truncated title chips per day cell (colored by event type, same as
+  the dots were), plus a "+N more" line when a day has more than that.
+- **Current-time line** on the Day/Week hourly grid - a thin red line at
+  "now", only drawn when the viewed day actually is today.
+- **Swipe left/right** to move between months/weeks/days, alongside the
+  existing ‹ › arrow buttons rather than replacing them - a plain
+  horizontal-distance threshold (`useSwipeNav`, 50px) so a normal
+  vertical scroll inside the same element is never mistaken for a swipe.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

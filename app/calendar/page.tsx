@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type MouseEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent, type TouchEvent } from "react";
 import PageHeader from "@/components/PageHeader";
 import { SkeletonList } from "@/components/Skeleton";
 import { useAuth } from "@/components/AuthGate";
@@ -11,11 +11,20 @@ import {
   CALENDAR_EVENT_TYPES,
   CALENDAR_REMINDER_OPTIONS,
   CALENDAR_DURATION_OPTIONS,
+  CALENDAR_RECURRENCE_OPTIONS,
   US_TIMEZONES,
   DOWNLINE_CANDIDATE_MEETING_COLOR,
   type CalendarEventType,
 } from "@/lib/constants";
-import { getToday, getMonthStartOffset, getDateOffset, formatMonthLabel, formatDateLabel } from "@/lib/dates";
+import {
+  getToday,
+  getMonthStartOffset,
+  getDateOffset,
+  formatMonthLabel,
+  formatDateLabel,
+  getWeekStartOffset,
+  formatWeekRangeLabel,
+} from "@/lib/dates";
 import { guessTimeZone, zonedInputToUtc, utcToZonedInputValue } from "@/lib/timezones";
 import type { CalendarEvent, CompanyEvent, Candidate, Profile } from "@/lib/types";
 import { fireNotifyEvent } from "@/lib/notifyClient";
@@ -82,6 +91,88 @@ function eventDateKey(iso: string): string {
   return toDateOnlyLocal(new Date(iso));
 }
 
+// A concrete calendar entry as actually rendered - either a real
+// one-time calendar_events row, or one virtual occurrence of a
+// recurring one (see expandRecurrence below). _masterId is only set on
+// a virtual occurrence and points back at the real DB row every edit/
+// delete on it actually has to act on, since only the series template
+// (not each occurrence) is ever stored.
+type DisplayEvent = CalendarEvent & { _masterId?: string };
+
+// Same "clamp to the last real day of the target month" behavior every
+// other calendar app uses for monthly recurrence - native Date month
+// arithmetic instead rolls overflow into the following month (Jan 31 + 1
+// month becomes Mar 3, not Feb 28), which would silently drift a
+// "monthly on the 31st" event forward every time it crosses a shorter
+// month.
+function addMonthsClamped(base: Date, n: number): Date {
+  const targetMonthIndex = base.getMonth() + n;
+  const targetYear = base.getFullYear() + Math.floor(targetMonthIndex / 12);
+  const targetMonth = ((targetMonthIndex % 12) + 12) % 12;
+  const daysInTargetMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
+  const result = new Date(base);
+  result.setFullYear(targetYear, targetMonth, Math.min(base.getDate(), daysInTargetMonth));
+  return result;
+}
+
+// How far past/future of "now" recurring events actually get expanded
+// into virtual occurrences for display - not a real limit on the
+// recurrence itself (recurrence_until, if set, is the real end), just a
+// bound so an indefinitely-repeating event can't generate occurrences
+// forever. Wide enough to cover any realistic amount of calendar
+// browsing back/forward from today.
+const RECURRENCE_WINDOW_PAST_DAYS = 180;
+const RECURRENCE_WINDOW_FUTURE_DAYS = 365;
+const MAX_OCCURRENCES_PER_EVENT = 500;
+
+// Every occurrence of `event` (its own event_at counts as occurrence 0)
+// that falls within [windowStart, windowEnd], as ISO instants. Editing
+// or deleting a recurring event always acts on the stored row - there's
+// no per-occurrence override/exception concept here - so this is purely
+// for what gets drawn on screen.
+function expandRecurrence(event: CalendarEvent, windowStart: Date, windowEnd: Date): string[] {
+  if (event.recurrence_freq === "none") return [event.event_at];
+  const base = new Date(event.event_at);
+  const until = event.recurrence_until ? new Date(event.recurrence_until) : null;
+  const effectiveEnd = until && until < windowEnd ? until : windowEnd;
+  const occurrences: string[] = [];
+  for (let n = 0; n < MAX_OCCURRENCES_PER_EVENT; n++) {
+    const occDate =
+      event.recurrence_freq === "weekly"
+        ? new Date(base.getTime() + n * 7 * 86_400_000)
+        : event.recurrence_freq === "biweekly"
+          ? new Date(base.getTime() + n * 14 * 86_400_000)
+          : addMonthsClamped(base, n);
+    if (occDate > effectiveEnd) break;
+    if (occDate >= windowStart) occurrences.push(occDate.toISOString());
+  }
+  return occurrences;
+}
+
+// Swipe-left/right on a touch device, Google Calendar-style, alongside
+// the existing ‹ › arrow buttons rather than replacing them - a fixed
+// horizontal distance threshold (not velocity-based) so a normal
+// vertical scroll gesture inside the same element never gets mistaken
+// for a swipe.
+const SWIPE_THRESHOLD_PX = 50;
+function useSwipeNav(onSwipeLeft: () => void, onSwipeRight: () => void) {
+  const startX = useRef(0);
+  const startY = useRef(0);
+  return {
+    onTouchStart: (e: TouchEvent) => {
+      startX.current = e.touches[0].clientX;
+      startY.current = e.touches[0].clientY;
+    },
+    onTouchEnd: (e: TouchEvent) => {
+      const dx = e.changedTouches[0].clientX - startX.current;
+      const dy = e.changedTouches[0].clientY - startY.current;
+      if (Math.abs(dx) < SWIPE_THRESHOLD_PX || Math.abs(dx) < Math.abs(dy)) return;
+      if (dx < 0) onSwipeLeft();
+      else onSwipeRight();
+    },
+  };
+}
+
 type MonthCell = { date: string; inMonth: boolean };
 
 // 6 rows x 7 columns (or however many full weeks the month actually
@@ -129,7 +220,7 @@ function hourLabel(hour: number): string {
   return `${h12} ${period}`;
 }
 
-type ViewMode = "agenda" | "day" | "month";
+type ViewMode = "agenda" | "day" | "week" | "month";
 
 // Small always-visible key for the event dot colors - "Candidate
 // Meeting" alone would no longer explain itself now that it splits into
@@ -150,11 +241,11 @@ function EventRow({
   onDelete,
   muted,
 }: {
-  event: CalendarEvent;
+  event: DisplayEvent;
   candidateLabel: string | null;
   creatorLabel: string | null;
-  onEdit: (event: CalendarEvent) => void;
-  onDelete: (id: string) => void;
+  onEdit: (event: DisplayEvent) => void;
+  onDelete: (event: DisplayEvent) => void;
   muted?: boolean;
 }) {
   return (
@@ -163,7 +254,14 @@ function EventRow({
         <div className="flex items-start gap-1.5">
           <EventDot event={event} />
           <div>
-            <p className={muted ? "text-sm text-slate-300" : "font-medium text-white"}>{event.title}</p>
+            <p className={muted ? "text-sm text-slate-300" : "font-medium text-white"}>
+              {event.title}
+              {event.recurrence_freq !== "none" && (
+                <span className="ml-1 text-xs text-slate-400" title="Repeats" aria-label="Repeats">
+                  🔁
+                </span>
+              )}
+            </p>
             <p className={muted ? "text-xs text-slate-500" : "text-xs text-amber-light"}>
               {formatEventLabel(event.event_at, event.duration_minutes)}
             </p>
@@ -179,7 +277,7 @@ function EventRow({
           </button>
           <button
             className="btn-icon !h-6 !w-6 text-xs"
-            onClick={() => onDelete(event.id)}
+            onClick={() => onDelete(event)}
             aria-label={`Remove ${event.title}`}
           >
             ✕
@@ -228,6 +326,11 @@ export default function CalendarPage() {
   const [isDownlineCandidate, setIsDownlineCandidate] = useState(false);
   const [reminderMinutes, setReminderMinutes] = useState<number | null>(30);
   const [durationMinutes, setDurationMinutes] = useState(30);
+  const [recurrenceFreq, setRecurrenceFreq] = useState<CalendarEvent["recurrence_freq"]>("none");
+  // Date-only input (no time) - the recurring occurrences themselves keep
+  // the original start time, this just caps how far out they go. Empty
+  // string means "repeats indefinitely" (recurrence_until stays null).
+  const [recurrenceUntil, setRecurrenceUntil] = useState("");
   // Which zone the eventAt wall-clock time above is actually in - lets
   // "8:00 PM" mean 8 PM Central for a candidate tagged as Central even
   // though the person scheduling it is sitting in Eastern, instead of
@@ -271,16 +374,33 @@ export default function CalendarPage() {
   const [selectedGridDate, setSelectedGridDate] = useState(today);
   const [dayOffset, setDayOffset] = useState(0);
   const dayCursor = getDateOffset(dayOffset);
+  const [weekOffset, setWeekOffset] = useState(0);
+  const weekStart = getWeekStartOffset(weekOffset);
+  const weekDates = useMemo(() => {
+    const start = new Date(`${weekStart}T00:00:00`);
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(start);
+      d.setDate(d.getDate() + i);
+      return toDateOnlyLocal(d);
+    });
+  }, [weekStart]);
+  const [selectedWeekDate, setSelectedWeekDate] = useState(today);
 
-  // Jumping to a different month should land on a sensible selected day -
-  // today if that month is the current one, otherwise the 1st - rather
-  // than keeping whatever day number was selected in a totally different
-  // month. Adjusted during render (React's own pattern for this) instead
-  // of an effect, which would cause an extra cascading render.
+  // Jumping to a different month/week should land on a sensible selected
+  // day - today if that period is the current one, otherwise its first
+  // day - rather than keeping whatever day number was selected in a
+  // totally different month/week. Adjusted during render (React's own
+  // pattern for this) instead of an effect, which would cause an extra
+  // cascading render.
   const [syncedMonthOffset, setSyncedMonthOffset] = useState(monthOffset);
   if (monthOffset !== syncedMonthOffset) {
     setSyncedMonthOffset(monthOffset);
     setSelectedGridDate(monthOffset === 0 ? today : monthStart);
+  }
+  const [syncedWeekOffset, setSyncedWeekOffset] = useState(weekOffset);
+  if (weekOffset !== syncedWeekOffset) {
+    setSyncedWeekOffset(weekOffset);
+    setSelectedWeekDate(weekOffset === 0 ? today : weekStart);
   }
 
   async function loadCompanyEvents() {
@@ -473,6 +593,8 @@ export default function CalendarPage() {
     setIsDownlineCandidate(false);
     setReminderMinutes(30);
     setDurationMinutes(30);
+    setRecurrenceFreq("none");
+    setRecurrenceUntil("");
     setTimezone(myTimezone ?? guessTimeZone());
     setBroadcast(false);
     setSelectedRecipientIds([]);
@@ -487,6 +609,9 @@ export default function CalendarPage() {
   // event scheduled before event_timezone existed), not whatever zone
   // the person doing the editing happens to be sitting in - otherwise
   // reopening an unrelated event could silently shift its displayed time.
+  // Always takes the real master row, never a virtual recurring
+  // occurrence - see resolveMaster below, which every call site actually
+  // routes through.
   function openEditModal(event: CalendarEvent) {
     const zone = event.event_timezone ?? guessTimeZone();
     setEditingEventId(event.id);
@@ -498,11 +623,27 @@ export default function CalendarPage() {
     setIsDownlineCandidate(event.is_downline_candidate);
     setReminderMinutes(event.reminder_minutes_before);
     setDurationMinutes(event.duration_minutes);
+    setRecurrenceFreq(event.recurrence_freq);
+    setRecurrenceUntil(event.recurrence_until ? toDateOnlyLocal(new Date(event.recurrence_until)) : "");
     setTimezone(zone);
     setBroadcast(false);
     setSelectedRecipientIds([]);
     setSaveError(null);
     setShowAddModal(true);
+  }
+
+  // Every EventRow onEdit/onDelete actually receives a DisplayEvent,
+  // which for a recurring occurrence is a synthetic clone (see
+  // expandRecurrence/allInstances below) - _masterId, when present,
+  // points back at the one real row every edit/delete has to act on
+  // instead of the occurrence itself.
+  function resolveMaster(event: DisplayEvent): CalendarEvent {
+    if (!event._masterId) return event;
+    return events.find((e) => e.id === event._masterId) ?? event;
+  }
+
+  function handleEditRow(event: DisplayEvent) {
+    openEditModal(resolveMaster(event));
   }
 
   async function saveEvent() {
@@ -512,12 +653,18 @@ export default function CalendarPage() {
     setSaveError(null);
     const isoEventAt = zonedInputToUtc(eventAt, timezone).toISOString();
     const linkedCandidate = candidateId || null;
+    const isoRecurrenceUntil = recurrenceUntil
+      ? zonedInputToUtc(`${recurrenceUntil}T23:59`, timezone).toISOString()
+      : null;
 
     if (editingEventId) {
       // Editing only ever touches this one row - if the event was
       // originally broadcast/sent to others, each recipient has their
       // own independent copy already, same as the rest of this table's
-      // design, so there's no separate "re-broadcast the edit" step.
+      // design, so there's no separate "re-broadcast the edit" step. For
+      // a recurring event this also means every virtual occurrence shown
+      // on screen shifts together, since they're all derived from this
+      // same row - there's no per-occurrence edit.
       const { error } = await supabase
         .from("calendar_events")
         .update({
@@ -530,6 +677,8 @@ export default function CalendarPage() {
           reminder_minutes_before: reminderMinutes,
           duration_minutes: durationMinutes,
           event_timezone: timezone,
+          recurrence_freq: recurrenceFreq,
+          recurrence_until: isoRecurrenceUntil,
         })
         .eq("id", editingEventId);
       setSaving(false);
@@ -559,6 +708,8 @@ export default function CalendarPage() {
       reminder_minutes_before: reminderMinutes,
       duration_minutes: durationMinutes,
       event_timezone: timezone,
+      recurrence_freq: recurrenceFreq,
+      recurrence_until: isoRecurrenceUntil,
     });
 
     if (insertError) {
@@ -580,6 +731,8 @@ export default function CalendarPage() {
         p_duration_minutes: durationMinutes,
         p_event_timezone: timezone,
         p_is_downline_candidate: eventType === "meeting" && isDownlineCandidate,
+        p_recurrence_freq: recurrenceFreq,
+        p_recurrence_until: isoRecurrenceUntil,
       });
       if (broadcastError) {
         secondaryError = `Saved, but couldn't send it to your downline: ${broadcastError.message}`;
@@ -603,6 +756,8 @@ export default function CalendarPage() {
         p_duration_minutes: durationMinutes,
         p_event_timezone: timezone,
         p_is_downline_candidate: eventType === "meeting" && isDownlineCandidate,
+        p_recurrence_freq: recurrenceFreq,
+        p_recurrence_until: isoRecurrenceUntil,
       });
       if (sendError) {
         secondaryError = `Saved, but couldn't send it to the people you picked: ${sendError.message}`;
@@ -623,6 +778,8 @@ export default function CalendarPage() {
     setEventType("other");
     setReminderMinutes(30);
     setDurationMinutes(30);
+    setRecurrenceFreq("none");
+    setRecurrenceUntil("");
     setBroadcast(false);
     setSelectedRecipientIds([]);
     setSaving(false);
@@ -638,12 +795,20 @@ export default function CalendarPage() {
     }
   }
 
-  async function deleteEvent(id: string) {
-    const event = events.find((e) => e.id === id);
-    if (event && !window.confirm(`Delete "${event.title}"? This can't be undone.`)) return;
+  // Deleting a recurring occurrence deletes the whole series (the one
+  // real row it's derived from) - there's no per-occurrence delete, same
+  // as edits. The confirmation text says so explicitly rather than
+  // silently wiping every future occurrence with no warning.
+  async function deleteEvent(display: DisplayEvent) {
+    const master = resolveMaster(display);
+    const warning =
+      master.recurrence_freq !== "none"
+        ? `Delete "${master.title}"? This removes the entire repeating series, not just this occurrence. Can't be undone.`
+        : `Delete "${master.title}"? This can't be undone.`;
+    if (!window.confirm(warning)) return;
     const previous = events;
-    setEvents((prev) => prev.filter((e) => e.id !== id));
-    const { error } = await supabase.from("calendar_events").delete().eq("id", id);
+    setEvents((prev) => prev.filter((e) => e.id !== master.id));
+    const { error } = await supabase.from("calendar_events").delete().eq("id", master.id);
     if (error) {
       // Revert - otherwise a failed delete still looks like it worked.
       setEvents(previous);
@@ -653,34 +818,65 @@ export default function CalendarPage() {
     }
   }
 
-  const now = new Date().toISOString();
-  const upcoming = events.filter((e) => e.event_at >= now);
-  const past = events.filter((e) => e.event_at < now).slice(-10).reverse();
+  // Every one-time event as-is, plus every recurring master expanded into
+  // its own virtual occurrences within a bounded window (see
+  // expandRecurrence's own comment for why this is a display bound, not
+  // the real end of the recurrence) - everything downstream (agenda,
+  // month grid, day/week grids) reads from this instead of `events`
+  // directly, so no other view-specific expansion logic is needed
+  // anywhere else. Deliberately not wrapped in useMemo, same as
+  // upcoming/past below - it reads the current instant (for the
+  // expansion window), which a memo is supposed to be a pure function of
+  // its dependency array and isn't; event counts here are small enough
+  // that recomputing this every render costs nothing worth guarding.
+  const windowNow = new Date();
+  const windowStart = new Date(windowNow.getTime() - RECURRENCE_WINDOW_PAST_DAYS * 86_400_000);
+  const windowEnd = new Date(windowNow.getTime() + RECURRENCE_WINDOW_FUTURE_DAYS * 86_400_000);
+  const allInstances: DisplayEvent[] = [];
+  for (const e of events) {
+    if (e.recurrence_freq === "none") {
+      allInstances.push(e);
+      continue;
+    }
+    for (const occAt of expandRecurrence(e, windowStart, windowEnd)) {
+      allInstances.push({ ...e, id: `${e.id}::${occAt}`, event_at: occAt, _masterId: e.id });
+    }
+  }
 
-  const eventsByDate = useMemo(() => {
-    const map: Record<string, CalendarEvent[]> = {};
-    for (const e of events) {
-      const key = eventDateKey(e.event_at);
-      (map[key] ??= []).push(e);
-    }
-    for (const key of Object.keys(map)) {
-      map[key].sort((a, b) => a.event_at.localeCompare(b.event_at));
-    }
-    return map;
-  }, [events]);
+  const now = new Date().toISOString();
+  const upcoming = allInstances.filter((e) => e.event_at >= now).sort((a, b) => a.event_at.localeCompare(b.event_at));
+  // Recurring occurrences are deliberately excluded here - a weekly
+  // event's past would otherwise flood this list with dozens of old
+  // instances nobody's looking for; only genuinely one-time past events
+  // are useful to glance back at.
+  const past = events
+    .filter((e) => e.recurrence_freq === "none" && e.event_at < now)
+    .slice(-10)
+    .reverse();
+
+  const eventsByDate: Record<string, DisplayEvent[]> = {};
+  for (const e of allInstances) {
+    const key = eventDateKey(e.event_at);
+    (eventsByDate[key] ??= []).push(e);
+  }
+  for (const key of Object.keys(eventsByDate)) {
+    eventsByDate[key].sort((a, b) => a.event_at.localeCompare(b.event_at));
+  }
 
   const monthGrid = useMemo(() => buildMonthGrid(monthStart), [monthStart]);
   const selectedGridEvents = eventsByDate[selectedGridDate] ?? [];
   const dayEvents = eventsByDate[dayCursor] ?? [];
+  const weekSelectedEvents = eventsByDate[selectedWeekDate] ?? [];
 
   // Widened past the default business-hours window whenever the day
   // actually has something earlier/later than that - so a 10 PM QI2 gets
   // its own row instead of being clamped on top of whatever's already at
-  // 9 PM.
-  const dayViewBounds = useMemo(() => {
+  // 9 PM. Shared by both the Day view's grid and the Week view's
+  // (per-selected-day) grid.
+  function computeDayViewBounds(dayEvts: DisplayEvent[]): { start: number; end: number } {
     let start = DAY_VIEW_START_HOUR;
     let end = DAY_VIEW_END_HOUR;
-    for (const e of eventsByDate[dayCursor] ?? []) {
+    for (const e of dayEvts) {
       const d = new Date(e.event_at);
       const startHourFrac = d.getHours() + d.getMinutes() / 60;
       const endHourFrac = startHourFrac + e.duration_minutes / 60;
@@ -688,7 +884,9 @@ export default function CalendarPage() {
       end = Math.max(end, Math.ceil(endHourFrac));
     }
     return { start, end };
-  }, [eventsByDate, dayCursor]);
+  }
+  const dayViewBounds = computeDayViewBounds(dayEvents);
+  const weekViewBounds = computeDayViewBounds(weekSelectedEvents);
 
   // Google Calendar-style "tap a time slot to start booking there" -
   // reads the tap's vertical position on the grid back into an hour,
@@ -697,15 +895,17 @@ export default function CalendarPage() {
   // landed on an existing event block (that block's own onClick stops
   // propagation before this ever fires), so tapping an event still opens
   // it for editing rather than also queuing a new one underneath it.
-  function handleGridClick(e: MouseEvent<HTMLDivElement>) {
+  // Shared by Day and Week view's grids - each passes its own date and
+  // bounds rather than assuming dayCursor/dayViewBounds.
+  function handleGridClick(dateStr: string, bounds: { start: number; end: number }, e: MouseEvent<HTMLDivElement>) {
     const rect = e.currentTarget.getBoundingClientRect();
     const y = e.clientY - rect.top;
-    const rawHour = dayViewBounds.start + y / HOUR_HEIGHT_PX;
+    const rawHour = bounds.start + y / HOUR_HEIGHT_PX;
     const totalMinutes = Math.min(
-      Math.max(Math.round((rawHour * 60) / 15) * 15, dayViewBounds.start * 60),
-      dayViewBounds.end * 60
+      Math.max(Math.round((rawHour * 60) / 15) * 15, bounds.start * 60),
+      bounds.end * 60
     );
-    const [year, month, day] = dayCursor.split("-").map(Number);
+    const [year, month, day] = dateStr.split("-").map(Number);
     const target = new Date(year, month - 1, day, 0, 0, 0, 0);
     target.setMinutes(totalMinutes);
     openAddModal(target);
@@ -719,6 +919,33 @@ export default function CalendarPage() {
   function creatorLabel(e: CalendarEvent): string | null {
     if (e.creator_id === user.id) return null;
     return creatorNames[e.creator_id] ?? "a teammate";
+  }
+
+  // Swipe left moves forward in time (next month/week/day), right moves
+  // back - same direction convention as flipping to the next page.
+  // Offsets count backward from "now", so forward = decrement.
+  const monthSwipe = useSwipeNav(
+    () => setMonthOffset((o) => o - 1),
+    () => setMonthOffset((o) => o + 1)
+  );
+  const weekSwipe = useSwipeNav(
+    () => setWeekOffset((o) => o - 1),
+    () => setWeekOffset((o) => o + 1)
+  );
+  const daySwipe = useSwipeNav(
+    () => setDayOffset((o) => o - 1),
+    () => setDayOffset((o) => o + 1)
+  );
+
+  // Top offset (px) for the current-time indicator line on an hourly
+  // grid using these bounds - null when "now" falls outside the visible
+  // range, so the line simply isn't drawn rather than clamped to an edge
+  // where it wouldn't actually mean anything.
+  function nowLineTop(bounds: { start: number; end: number }): number | null {
+    const n = new Date();
+    const frac = n.getHours() + n.getMinutes() / 60;
+    if (frac < bounds.start || frac > bounds.end) return null;
+    return (frac - bounds.start) * HOUR_HEIGHT_PX;
   }
 
   return (
@@ -746,6 +973,12 @@ export default function CalendarPage() {
             onClick={() => setViewMode("day")}
           >
             Day
+          </button>
+          <button
+            className={viewMode === "week" ? "toggle-pill-active" : "toggle-pill-inactive"}
+            onClick={() => setViewMode("week")}
+          >
+            Week
           </button>
           <button
             className={viewMode === "month" ? "toggle-pill-active" : "toggle-pill-inactive"}
@@ -783,7 +1016,7 @@ export default function CalendarPage() {
                     event={e}
                     candidateLabel={candidateName(e.candidate_id)}
                     creatorLabel={creatorLabel(e)}
-                    onEdit={openEditModal}
+                    onEdit={handleEditRow}
                     onDelete={deleteEvent}
                   />
                 ))
@@ -799,7 +1032,7 @@ export default function CalendarPage() {
                     event={e}
                     candidateLabel={candidateName(e.candidate_id)}
                     creatorLabel={creatorLabel(e)}
-                    onEdit={openEditModal}
+                    onEdit={handleEditRow}
                     onDelete={deleteEvent}
                     muted
                   />
@@ -835,16 +1068,17 @@ export default function CalendarPage() {
                   <div key={i}>{w}</div>
                 ))}
               </div>
-              <div className="grid grid-cols-7 gap-1">
+              <div className="grid grid-cols-7 gap-1" {...monthSwipe}>
                 {monthGrid.map((cell) => {
                   const dayEventsForCell = eventsByDate[cell.date] ?? [];
                   const isToday = cell.date === today;
                   const isSelected = cell.date === selectedGridDate;
+                  const overflowCount = dayEventsForCell.length - 2;
                   return (
                     <button
                       key={cell.date}
                       onClick={() => setSelectedGridDate(cell.date)}
-                      className={`flex flex-col items-center gap-0.5 rounded-lg py-1.5 text-xs transition ${
+                      className={`flex min-h-[3.25rem] flex-col items-center gap-0.5 rounded-lg px-0.5 py-1 text-xs transition ${
                         isSelected
                           ? "bg-amber font-semibold text-navy"
                           : isToday
@@ -855,16 +1089,25 @@ export default function CalendarPage() {
                       }`}
                     >
                       <span>{Number(cell.date.slice(-2))}</span>
-                      <span className="flex h-1.5 items-center gap-0.5">
-                        {dayEventsForCell.slice(0, 3).map((e, i) => (
+                      <span className="flex w-full flex-col items-stretch gap-0.5">
+                        {dayEventsForCell.slice(0, 2).map((e, i) => (
                           <span
                             key={i}
-                            className="h-1 w-1 rounded-full"
-                            style={{
-                              backgroundColor: isSelected ? "#0f172a" : eventColor(e),
-                            }}
-                          />
+                            className="w-full truncate rounded-sm px-0.5 text-[8px] font-normal leading-tight text-white"
+                            style={{ backgroundColor: isSelected ? "#0f172a" : eventColor(e) }}
+                          >
+                            {e.title}
+                          </span>
                         ))}
+                        {overflowCount > 0 && (
+                          <span
+                            className={`text-[8px] font-normal leading-tight ${
+                              isSelected ? "text-navy/70" : "text-slate-500"
+                            }`}
+                          >
+                            +{overflowCount} more
+                          </span>
+                        )}
                       </span>
                     </button>
                   );
@@ -886,14 +1129,14 @@ export default function CalendarPage() {
                     event={e}
                     candidateLabel={candidateName(e.candidate_id)}
                     creatorLabel={creatorLabel(e)}
-                    onEdit={openEditModal}
+                    onEdit={handleEditRow}
                     onDelete={deleteEvent}
                   />
                 ))
               )}
             </div>
           </>
-        ) : (
+        ) : viewMode === "day" ? (
           <>
             <div className="card space-y-2">
               <div className="flex items-center justify-between">
@@ -922,7 +1165,8 @@ export default function CalendarPage() {
               <div
                 className="relative overflow-hidden rounded-lg"
                 style={{ height: (dayViewBounds.end - dayViewBounds.start + 1) * HOUR_HEIGHT_PX }}
-                onClick={handleGridClick}
+                onClick={(e) => handleGridClick(dayCursor, dayViewBounds, e)}
+                {...daySwipe}
               >
                 {Array.from({ length: dayViewBounds.end - dayViewBounds.start + 1 }).map((_, i) => (
                   <div
@@ -935,6 +1179,15 @@ export default function CalendarPage() {
                     </span>
                   </div>
                 ))}
+                {dayOffset === 0 &&
+                  nowLineTop(dayViewBounds) !== null && (
+                    <div
+                      className="pointer-events-none absolute left-0 right-0 z-10 border-t-2 border-red-400"
+                      style={{ top: nowLineTop(dayViewBounds)! }}
+                    >
+                      <span className="absolute -left-0.5 -top-1 h-2 w-2 rounded-full bg-red-400" />
+                    </div>
+                  )}
                 {dayEvents.map((e) => {
                   const d = new Date(e.event_at);
                   const hourFrac = d.getHours() + d.getMinutes() / 60;
@@ -952,10 +1205,13 @@ export default function CalendarPage() {
                       style={{ top, height, backgroundColor: eventColor(e) }}
                       onClick={(evt) => {
                         evt.stopPropagation();
-                        openEditModal(e);
+                        handleEditRow(e);
                       }}
                     >
-                      <span className="font-medium">{e.title}</span>
+                      <span className="font-medium">
+                        {e.title}
+                        {e.recurrence_freq !== "none" && <span className="ml-0.5 opacity-80">🔁</span>}
+                      </span>
                       <span className="ml-1 opacity-80">{formatTimeLabel(e.event_at)}</span>
                     </button>
                   );
@@ -976,11 +1232,127 @@ export default function CalendarPage() {
                     event={e}
                     candidateLabel={candidateName(e.candidate_id)}
                     creatorLabel={creatorLabel(e)}
-                    onEdit={openEditModal}
+                    onEdit={handleEditRow}
                     onDelete={deleteEvent}
                   />
                 ))
               )}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="card space-y-2">
+              <div className="flex items-center justify-between">
+                <button
+                  className="btn-icon"
+                  onClick={() => setWeekOffset((o) => o + 1)}
+                  aria-label="Previous week"
+                >
+                  ‹
+                </button>
+                <span className="text-sm font-medium text-white">
+                  {formatWeekRangeLabel(weekStart)}
+                  {weekOffset === 0 && <span className="ml-1 text-xs text-slate-500">(this week)</span>}
+                </span>
+                <button
+                  className="btn-icon"
+                  onClick={() => setWeekOffset((o) => o - 1)}
+                  aria-label="Next week"
+                >
+                  ›
+                </button>
+              </div>
+              <div className="grid grid-cols-7 gap-1" {...weekSwipe}>
+                {weekDates.map((date, i) => {
+                  const dayEventsForCell = eventsByDate[date] ?? [];
+                  const isToday = date === today;
+                  const isSelected = date === selectedWeekDate;
+                  return (
+                    <button
+                      key={date}
+                      onClick={() => setSelectedWeekDate(date)}
+                      className={`flex flex-col items-center gap-0.5 rounded-lg py-1.5 text-xs transition ${
+                        isSelected
+                          ? "bg-amber font-semibold text-navy"
+                          : isToday
+                            ? "bg-navy text-white ring-1 ring-amber"
+                            : "text-slate-200"
+                      }`}
+                    >
+                      <span className="text-[10px] font-medium opacity-80">{WEEKDAY_LABELS[i]}</span>
+                      <span>{Number(date.slice(-2))}</span>
+                      <span className="flex h-1.5 items-center gap-0.5">
+                        {dayEventsForCell.slice(0, 3).map((e, j) => (
+                          <span
+                            key={j}
+                            className="h-1 w-1 rounded-full"
+                            style={{ backgroundColor: isSelected ? "#0f172a" : eventColor(e) }}
+                          />
+                        ))}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="card space-y-2">
+              <p className="section-title">
+                {formatDateLabel(selectedWeekDate)}
+                {selectedWeekDate === today && <span className="ml-1 text-xs text-slate-500">(today)</span>}
+              </p>
+              <p className="text-center text-[11px] text-slate-500">
+                Tap a time slot below to add an event there
+              </p>
+              <div
+                className="relative overflow-hidden rounded-lg"
+                style={{ height: (weekViewBounds.end - weekViewBounds.start + 1) * HOUR_HEIGHT_PX }}
+                onClick={(e) => handleGridClick(selectedWeekDate, weekViewBounds, e)}
+              >
+                {Array.from({ length: weekViewBounds.end - weekViewBounds.start + 1 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="absolute left-0 right-0 border-t border-white/5"
+                    style={{ top: i * HOUR_HEIGHT_PX }}
+                  >
+                    <span className="absolute -top-2 left-1 bg-navy-lighter px-1 text-[10px] text-slate-500">
+                      {hourLabel(weekViewBounds.start + i)}
+                    </span>
+                  </div>
+                ))}
+                {selectedWeekDate === today &&
+                  nowLineTop(weekViewBounds) !== null && (
+                    <div
+                      className="pointer-events-none absolute left-0 right-0 z-10 border-t-2 border-red-400"
+                      style={{ top: nowLineTop(weekViewBounds)! }}
+                    >
+                      <span className="absolute -left-0.5 -top-1 h-2 w-2 rounded-full bg-red-400" />
+                    </div>
+                  )}
+                {weekSelectedEvents.map((e) => {
+                  const d = new Date(e.event_at);
+                  const hourFrac = d.getHours() + d.getMinutes() / 60;
+                  const top = (hourFrac - weekViewBounds.start) * HOUR_HEIGHT_PX;
+                  const height = Math.max((e.duration_minutes / 60) * HOUR_HEIGHT_PX, 22);
+                  return (
+                    <button
+                      key={e.id}
+                      className="absolute left-14 right-1 overflow-hidden rounded-md px-2 py-1 text-left text-xs text-white shadow"
+                      style={{ top, height, backgroundColor: eventColor(e) }}
+                      onClick={(evt) => {
+                        evt.stopPropagation();
+                        handleEditRow(e);
+                      }}
+                    >
+                      <span className="font-medium">
+                        {e.title}
+                        {e.recurrence_freq !== "none" && <span className="ml-0.5 opacity-80">🔁</span>}
+                      </span>
+                      <span className="ml-1 opacity-80">{formatTimeLabel(e.event_at)}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </>
         )}
@@ -1124,6 +1496,37 @@ export default function CalendarPage() {
                   />
                   This is for a downline&apos;s candidate, not your own
                 </label>
+              )}
+              <div className="flex gap-2">
+                <select
+                  className="select flex-1"
+                  value={recurrenceFreq}
+                  onChange={(e) => setRecurrenceFreq(e.target.value as CalendarEvent["recurrence_freq"])}
+                  aria-label="Repeat"
+                >
+                  {CALENDAR_RECURRENCE_OPTIONS.map((opt) => (
+                    <option key={opt.freq} value={opt.freq}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+                {recurrenceFreq !== "none" && (
+                  <input
+                    type="date"
+                    className="input flex-1"
+                    placeholder="Ends (optional)"
+                    value={recurrenceUntil}
+                    onChange={(e) => setRecurrenceUntil(e.target.value)}
+                    aria-label="Repeat ends on"
+                  />
+                )}
+              </div>
+              {recurrenceFreq !== "none" && (
+                <p className="text-xs text-slate-500">
+                  {recurrenceUntil ? "Repeats until the date above. " : "Repeats with no end date. "}
+                  Editing or deleting this event later applies to the whole series, not just one
+                  occurrence. Reminder notifications only go out for the first occurrence.
+                </p>
               )}
               <textarea
                 className="textarea"
