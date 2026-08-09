@@ -84,6 +84,17 @@ export default function StoriesPage() {
   const [posting, setPosting] = useState(false);
   const [postError, setPostError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  // The photo/video uploads as soon as it's picked (so the preview below
+  // has something real to show), but doesn't actually post to the feed
+  // until the caption step is confirmed - previously the caption box only
+  // existed before picking a file, so writing one meant guessing at it
+  // sight-unseen instead of reacting to the actual photo/video.
+  const [uploading, setUploading] = useState(false);
+  const [pendingMedia, setPendingMedia] = useState<{
+    url: string;
+    path: string;
+    type: "photo" | "video";
+  } | null>(null);
 
   async function load() {
     const { data } = await supabase.rpc("get_active_stories");
@@ -102,12 +113,12 @@ export default function StoriesPage() {
     };
   }, []);
 
-  async function handlePost(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleSelectFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
     setPostError(null);
-    setPosting(true);
+    setUploading(true);
     try {
       const isVideo = file.type.startsWith("video/");
       const toUpload = isVideo ? file : await compressImage(file);
@@ -119,11 +130,22 @@ export default function StoriesPage() {
         return;
       }
       const { data } = supabase.storage.from("story-photos").getPublicUrl(path);
+      setPendingMedia({ url: data.publicUrl, path, type: isVideo ? "video" : "photo" });
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function confirmPost() {
+    if (!pendingMedia) return;
+    setPostError(null);
+    setPosting(true);
+    try {
       const { error: insertError } = await supabase.from("story_posts").insert({
         user_id: user.id,
         prompt,
-        media_url: data.publicUrl,
-        media_type: isVideo ? "video" : "photo",
+        media_url: pendingMedia.url,
+        media_type: pendingMedia.type,
         caption: caption.trim(),
       });
       if (insertError) {
@@ -131,10 +153,20 @@ export default function StoriesPage() {
         return;
       }
       setCaption("");
+      setPendingMedia(null);
       await load();
     } finally {
       setPosting(false);
     }
+  }
+
+  async function discardPending() {
+    if (pendingMedia) {
+      await supabase.storage.from("story-photos").remove([pendingMedia.path]);
+    }
+    setPendingMedia(null);
+    setCaption("");
+    setPostError(null);
   }
 
   async function handleDelete(storyId: string) {
@@ -153,40 +185,77 @@ export default function StoriesPage() {
         <div className="card space-y-3">
           <p className="section-title">📸 Today&apos;s Prompt</p>
           <p className="text-sm text-slate-200">{prompt}</p>
-          {/* Separate photo/video pickers, neither with a `capture`
-              attribute - that's what forces straight to the camera
-              instead of showing the normal picker (Photo Library/Take
-              Photo/Choose File), which is the whole point here: picking
-              an existing photo or video, not just shooting a new one. */}
-          <div className="flex gap-2">
-            <label className="btn-primary flex-1 cursor-pointer text-center">
-              {posting ? "Posting…" : "📷 Post a Photo"}
+
+          {pendingMedia ? (
+            <>
+              {pendingMedia.type === "video" ? (
+                <video
+                  src={pendingMedia.url}
+                  controls
+                  className="w-full rounded-xl"
+                  style={{ maxHeight: "50vh" }}
+                />
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={pendingMedia.url}
+                  alt="Selected story preview"
+                  className="w-full rounded-xl object-cover"
+                  style={{ maxHeight: "50vh" }}
+                />
+              )}
               <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handlePost}
+                autoFocus
+                className="input"
+                placeholder="Add a caption (optional)"
+                value={caption}
+                onChange={(e) => setCaption(e.target.value)}
                 disabled={posting}
               />
-            </label>
-            <label className="btn-secondary flex-1 cursor-pointer text-center">
-              {posting ? "Posting…" : "🎥 Post a Video"}
-              <input
-                type="file"
-                accept="video/*"
-                className="hidden"
-                onChange={handlePost}
-                disabled={posting}
-              />
-            </label>
-          </div>
-          <input
-            className="input"
-            placeholder="Add a caption (optional)"
-            value={caption}
-            onChange={(e) => setCaption(e.target.value)}
-            disabled={posting}
-          />
+              <div className="flex gap-2">
+                <button
+                  className="btn-secondary flex-1"
+                  onClick={discardPending}
+                  disabled={posting}
+                >
+                  Discard
+                </button>
+                <button className="btn-primary flex-1" onClick={confirmPost} disabled={posting}>
+                  {posting ? "Posting…" : "Post"}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Separate photo/video pickers, neither with a `capture`
+                  attribute - that's what forces straight to the camera
+                  instead of showing the normal picker (Photo Library/Take
+                  Photo/Choose File), which is the whole point here: picking
+                  an existing photo or video, not just shooting a new one. */}
+              <div className="flex gap-2">
+                <label className="btn-primary flex-1 cursor-pointer text-center">
+                  {uploading ? "Uploading…" : "📷 Post a Photo"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleSelectFile}
+                    disabled={uploading}
+                  />
+                </label>
+                <label className="btn-secondary flex-1 cursor-pointer text-center">
+                  {uploading ? "Uploading…" : "🎥 Post a Video"}
+                  <input
+                    type="file"
+                    accept="video/*"
+                    className="hidden"
+                    onChange={handleSelectFile}
+                    disabled={uploading}
+                  />
+                </label>
+              </div>
+            </>
+          )}
           {postError && <p className="text-xs text-red-400">{postError}</p>}
         </div>
 

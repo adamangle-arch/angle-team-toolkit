@@ -37,6 +37,20 @@ const NO_LIKES: LikeInfo = { count: 0, likedByMe: false, names: [] };
 
 const CATEGORIES = PIPELINE_STAGES.filter((s) => s.key !== "questions");
 
+// The old layout was ten-plus individually-collapsed accordions in one
+// long scroll - picking a category tab up front instead means whatever's
+// visible is always fully expanded, and the page reads as four focused
+// screens instead of one undifferentiated stack. Volume only ever applies
+// to the monthly period (Core 300/Ditto are calendar-month numbers), so
+// it's the one tab that can disappear depending on periodType.
+type CategoryTab = "activity" | "leaders" | "consistency" | "volume";
+const CATEGORY_TABS: { key: CategoryTab; label: string; icon: string }[] = [
+  { key: "activity", label: "Activity", icon: "📣" },
+  { key: "leaders", label: "Leaders", icon: "🏆" },
+  { key: "consistency", label: "Consistency", icon: "🔥" },
+  { key: "volume", label: "Volume", icon: "💰" },
+];
+
 function personName(entry: { first_name: string | null; last_name: string | null }): string {
   const name = [entry.first_name, entry.last_name].filter(Boolean).join(" ");
   return name || "Unnamed";
@@ -161,44 +175,18 @@ function LikeButton({
   );
 }
 
-// Collapsible card - this page has ten-plus sections in one scroll, so
-// most default closed (just the title + a chevron) and only the couple
-// most core ones default open, instead of every section always being
-// fully expanded regardless of whether anyone's actually looking at it.
-function Section({
-  title,
-  defaultOpen = false,
-  children,
-}: {
-  title: React.ReactNode;
-  defaultOpen?: boolean;
-  children: React.ReactNode;
-}) {
-  const [open, setOpen] = useState(defaultOpen);
+// A titled card, always fully expanded - previously every section on this
+// page was a dropdown defaulting closed, so seeing anything meant tapping
+// through ten-plus individual accordions one at a time. Now the page is
+// split into a handful of category tabs (see CATEGORY_TABS below) instead,
+// so whatever's on screen inside the active tab is always all the way
+// open - no second tap needed once you've already picked a category.
+function Card({ title, children }: { title: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="card space-y-1.5">
-      <button
-        type="button"
-        className="flex w-full items-center justify-between gap-2 text-left"
-        onClick={() => setOpen((o) => !o)}
-      >
-        <span className="section-title">{title}</span>
-        <span className="shrink-0 text-xs text-slate-500">{open ? "▾" : "▸"}</span>
-      </button>
-      {open && <div className="space-y-1.5">{children}</div>}
+      <p className="section-title">{title}</p>
+      <div className="space-y-1.5">{children}</div>
     </div>
-  );
-}
-
-// Plain label grouping a cluster of Section cards - deliberately not a
-// card itself and not collapsible, just a scan-friendly divider so the
-// page reads as a handful of labeled groups instead of one undifferentiated
-// stack of ten-plus cards.
-function GroupHeading({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="px-1 pt-3 text-xs font-bold uppercase tracking-wider text-slate-500">
-      {children}
-    </p>
   );
 }
 
@@ -240,6 +228,7 @@ export default function LeaderboardPage() {
   const { user } = useAuth();
   const [periodType, setPeriodType] = useState<PeriodType>("weekly");
   const [monthsBack, setMonthsBack] = useState(0);
+  const [activeTab, setActiveTab] = useState<CategoryTab>("leaders");
 
   const periodStart =
     periodType === "daily"
@@ -438,6 +427,44 @@ export default function LeaderboardPage() {
     return map;
   }, [individualLeaders]);
 
+  // Volume only ever has content for the monthly period - if someone's
+  // sitting on that tab and switches to Daily/Weekly, treat it as if
+  // Leaders were picked instead of leaving them stranded on a tab that
+  // can't be selected anymore (derived at render time, not via an effect,
+  // so there's nothing to keep in sync).
+  const displayTab: CategoryTab = activeTab === "volume" && periodType !== "monthly" ? "leaders" : activeTab;
+
+  // Small counts shown on each tab button, so switching categories is an
+  // informed choice ("Consistency has 6 things in it") rather than a blind
+  // tap - the numbers below match exactly what the tab body actually
+  // renders (each participating list's length, or 1 per category with at
+  // least one team/individual winner).
+  const tabCounts: Record<CategoryTab, number> = useMemo(
+    () => ({
+      activity:
+        (periodType === "daily" ? newMembers.length : 0) + milestones.length + dailySales.length,
+      leaders:
+        CATEGORIES.filter((c) => leadingTeams(teamTotals, c.key).length > 0).length +
+        CATEGORIES.filter((c) => (individualsByCategory.get(c.key) ?? []).length > 0).length +
+        qi1Rhythm.length,
+      consistency: streakLeaders.length + activeCandidates.length,
+      volume: periodType === "monthly" ? core300.length + ditto.length : 0,
+    }),
+    [
+      periodType,
+      newMembers,
+      milestones,
+      dailySales,
+      teamTotals,
+      individualsByCategory,
+      qi1Rhythm,
+      streakLeaders,
+      activeCandidates,
+      core300,
+      ditto,
+    ]
+  );
+
   const allEntryKeys = useMemo(() => {
     const keys = new Set<string>();
     for (const c of CATEGORIES) {
@@ -581,12 +608,34 @@ export default function LeaderboardPage() {
           </div>
         )}
 
-        {((periodType === "daily" && newMembers.length > 0) ||
-          milestones.length > 0 ||
-          dailySales.length > 0) && <GroupHeading>Team Activity</GroupHeading>}
+        <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+          {CATEGORY_TABS.filter((t) => t.key !== "volume" || periodType === "monthly").map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setActiveTab(t.key)}
+              className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-medium transition ${
+                displayTab === t.key
+                  ? "bg-amber text-navy"
+                  : "bg-white/5 text-slate-300 active:bg-white/10"
+              }`}
+            >
+              <span>{t.icon}</span>
+              <span>{t.label}</span>
+              {tabCounts[t.key] > 0 && (
+                <span
+                  className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none ${
+                    displayTab === t.key ? "bg-navy/20 text-navy" : "bg-white/10 text-slate-300"
+                  }`}
+                >
+                  {tabCounts[t.key]}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
 
-        {periodType === "daily" && newMembers.length > 0 && (
-          <Section title="🎉 New to the Team">
+        {displayTab === "activity" && periodType === "daily" && newMembers.length > 0 && (
+          <Card title="🎉 New to the Team">
             {newMembers.map((m) => (
               <div key={m.user_id} className="flex items-center justify-between text-sm">
                 <span className="text-slate-200">
@@ -601,11 +650,11 @@ export default function LeaderboardPage() {
                 <span className="pill">{formatDateLabel(m.created_at.slice(0, 10))}</span>
               </div>
             ))}
-          </Section>
+          </Card>
         )}
 
-        {milestones.length > 0 && (
-          <Section title="🏅 Milestone Alerts">
+        {displayTab === "activity" && milestones.length > 0 && (
+          <Card title="🏅 Milestone Alerts">
             {milestones.map((m) => {
               const label =
                 STREAK_MILESTONES.find((s) => s.days === m.milestone_days)?.label ??
@@ -632,11 +681,11 @@ export default function LeaderboardPage() {
                 </div>
               );
             })}
-          </Section>
+          </Card>
         )}
 
-        {dailySales.length > 0 && (
-          <Section title="🛍️ Today's Sales">
+        {displayTab === "activity" && dailySales.length > 0 && (
+          <Card title="🛍️ Today's Sales">
             {dailySales.map((entry) => {
               const key = dailySaleEntryKey(entry.sale_id);
               const time = new Date(entry.created_at).toLocaleTimeString(undefined, {
@@ -675,15 +724,20 @@ export default function LeaderboardPage() {
                 </div>
               );
             })}
-          </Section>
+          </Card>
+        )}
+
+        {displayTab === "activity" && tabCounts.activity === 0 && !loading && (
+          <div className="empty-state">Nothing to report yet for this period.</div>
         )}
 
         {loading ? (
           <SkeletonList cards={4} />
         ) : (
           <>
-            <GroupHeading>Leaders</GroupHeading>
-            <Section title="Team Leaders" defaultOpen>
+            {displayTab === "leaders" && (
+              <>
+            <Card title="Team Leaders">
               {CATEGORIES.every((c) => leadingTeams(teamTotals, c.key).length === 0) ? (
                 <p className="text-sm text-slate-400">Nothing logged for this period yet.</p>
               ) : (
@@ -711,9 +765,9 @@ export default function LeaderboardPage() {
                   );
                 })
               )}
-            </Section>
+            </Card>
 
-            <Section title="Individual Leaders">
+            <Card title="Individual Leaders">
               {individualLeaders.length === 0 ? (
                 <p className="text-sm text-slate-400">Nothing logged for this period yet.</p>
               ) : (
@@ -761,9 +815,9 @@ export default function LeaderboardPage() {
                   );
                 })
               )}
-            </Section>
+            </Card>
 
-            <Section
+            <Card
               title={
                 <>
                   🔁 {qi1RhythmThreshold}+ QI1s{" "}
@@ -797,10 +851,13 @@ export default function LeaderboardPage() {
                   );
                 })
               )}
-            </Section>
+            </Card>
+              </>
+            )}
 
-            <GroupHeading>Consistency &amp; Pipeline</GroupHeading>
-            <Section title="🔥 Core Run Streaks">
+            {displayTab === "consistency" && (
+              <>
+            <Card title="🔥 Core Run Streaks">
               {streakLeaders.length === 0 ? (
                 <p className="text-sm text-slate-400">No one&apos;s on a streak right now.</p>
               ) : (
@@ -826,9 +883,9 @@ export default function LeaderboardPage() {
                   );
                 })
               )}
-            </Section>
+            </Card>
 
-            <Section title="🎯 5+ Active Candidates">
+            <Card title="🎯 5+ Active Candidates">
               {activeCandidates.length === 0 ? (
                 <p className="text-sm text-slate-400">No one&apos;s running 5+ active candidates right now.</p>
               ) : (
@@ -854,12 +911,13 @@ export default function LeaderboardPage() {
                   );
                 })
               )}
-            </Section>
+            </Card>
+              </>
+            )}
 
-            {periodType === "monthly" && (
+            {displayTab === "volume" && periodType === "monthly" && (
               <>
-                <GroupHeading>Volume</GroupHeading>
-                <Section title="Core 300">
+                <Card title="Core 300">
                   {core300.length === 0 ? (
                     <p className="text-sm text-slate-400">No one&apos;s hit Core 300 yet this month.</p>
                   ) : (
@@ -886,9 +944,9 @@ export default function LeaderboardPage() {
                       );
                     })
                   )}
-                </Section>
+                </Card>
 
-                <Section title="📦 Day 1 Ditto 100+">
+                <Card title="📦 Day 1 Ditto 100+">
                   {ditto.length === 0 ? (
                     <p className="text-sm text-slate-400">No one&apos;s over 100 PV on a day 1 Ditto yet.</p>
                   ) : (
@@ -915,9 +973,10 @@ export default function LeaderboardPage() {
                       );
                     })
                   )}
-                </Section>
+                </Card>
               </>
             )}
+
           </>
         )}
       </main>

@@ -174,9 +174,9 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   // iOS home-screen launch resuming its last page, a stale tab), the
   // first time the fully-authenticated app shell mounts in a given tab
   // session, send them to their home screen instead of wherever that URL
-  // points - the Today dashboard once Onboarding is complete, but
-  // Onboarding itself is the "home screen" until then, since it's the
-  // most important thing for a brand-new person to finish first.
+  // points - the Leaderboard once Onboarding is complete, but Onboarding
+  // itself is the "home screen" until then, since it's the most
+  // important thing for a brand-new person to finish first.
   // sessionStorage (not localStorage) is what makes this "once per app
   // open" rather than "once ever" or "on every reload."
   useEffect(() => {
@@ -184,7 +184,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     if (typeof window === "undefined") return;
     if (sessionStorage.getItem("atk_app_opened")) return;
     sessionStorage.setItem("atk_app_opened", "1");
-    const homePath = onboardingComplete ? "/dashboard" : "/onboarding";
+    const homePath = onboardingComplete ? "/leaderboard" : "/onboarding";
     if (pathname !== homePath) {
       router.replace(homePath);
     }

@@ -34,7 +34,7 @@ export default function SearchPage() {
     if (trimmed.length < 2) return;
     let cancelled = false;
     const timer = setTimeout(async () => {
-      const [{ data: candidates }, { data: contacts }] = await Promise.all([
+      const [{ data: candidates }, { data: contacts }, { data: people }] = await Promise.all([
         supabase
           .from("candidates")
           .select("id,name,current_step,launched,filtered_out")
@@ -47,6 +47,10 @@ export default function SearchPage() {
           .eq("user_id", ownerId)
           .ilike("name", `%${trimmed}%`)
           .limit(8),
+        // Company-wide, not scoped to ownerId - anyone on the team should
+        // be findable here even if they're not in your own up/downline,
+        // same as they already are on the Leaderboard.
+        supabase.rpc("search_profiles_by_name", { p_query: trimmed }),
       ]);
       if (cancelled) return;
       const candidateResults: SearchResult[] = ((candidates as Candidate[]) ?? []).map((c) => ({
@@ -61,7 +65,16 @@ export default function SearchPage() {
         href: "/contacts",
         source: "Contacts",
       }));
-      setLiveResults([...candidateResults, ...contactResults]);
+      const peopleResults: SearchResult[] = (
+        (people as { user_id: string; first_name: string | null; last_name: string | null; team: string | null }[]) ??
+        []
+      ).map((p) => ({
+        title: [p.first_name, p.last_name].filter(Boolean).join(" ") || "Unnamed",
+        snippet: p.team ? `View profile — ${p.team}` : "View profile",
+        href: `/profile/${p.user_id}`,
+        source: "People",
+      }));
+      setLiveResults([...peopleResults, ...candidateResults, ...contactResults]);
     }, 250);
     return () => {
       cancelled = true;

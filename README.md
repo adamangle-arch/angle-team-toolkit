@@ -4640,6 +4640,62 @@ Daily/Weekly/Monthly period-type tab is selected above it, since PV is
 tracked monthly only — the Volume page has no period-type switcher for
 the same reason. Pure client-side addition; no schema change needed.
 
+### Company-wide people search
+
+Search previously only ever queried `candidates`/`contacts` scoped to the
+caller's own downline - there was no way to find a teammate outside your
+own up/downline chain at all, even though `get_public_profile` already
+lets anyone view anyone's public profile once they have the id. A new
+`search_profiles_by_name(p_query)` RPC (`security definer`, same
+bypass-profiles'-narrower-RLS reasoning as `get_public_profile`/
+`get_public_badges` - "seen by any teammate," no internal authorization
+check) returns just `first_name`/`last_name`/`team`/`photo_url` for a
+name match, company-wide, capped at 8 results. Search now has a
+**People** result group above Candidates/Contacts, linking straight to
+`/profile/[id]` - never numbers, email, or anything private, just the
+same public profile view already reachable from the Leaderboard.
+
+### Leaderboard is the app's landing page
+
+Previously both the root `/` redirect and `AuthGate`'s once-per-app-open
+"send them to their home screen" effect pointed at `/dashboard` (Today).
+Both now point at `/leaderboard` instead (Onboarding still comes first
+for anyone who hasn't finished it - that logic is unchanged). No feature-
+gating changes needed: Leaderboard was already available from session 1
+(`lib/onboarding-gate.ts`'s `FEATURE_MIN_SESSION` has no entry for it),
+so this is safe for every account type including a brand-new signup.
+Today/dashboard itself is untouched and still reachable from the nav.
+
+### Leaderboard redesign: category tabs instead of ten-plus accordions
+
+The old layout was ten-plus individually-collapsed `Section` dropdowns
+(most defaulting closed) stacked in one long scroll under four plain-text
+`GroupHeading` labels - seeing anything meant tapping through accordions
+one at a time. Replaced with four pill-style category tabs (📣 Activity,
+🏆 Leaders, 🔥 Consistency, 💰 Volume - Volume tab only shown for the
+Monthly period, same as its content always was) at the top of the page.
+Whatever's inside the active tab is a plain `Card` - always fully
+expanded, no chevron, no second tap. Each tab button carries a small
+count badge (e.g. "🔥 Consistency 6") so switching categories is an
+informed choice rather than a blind tap. Defaults to the Leaders tab,
+matching the old `defaultOpen` sections. Purely a client-side JSX
+reorganization - every RPC call, entry key, and like-button behavior is
+unchanged; only the collapse/expand mechanism and grouping structure
+changed.
+
+### Stories: caption comes after picking the photo/video, not before
+
+The caption box used to sit above the "Post a Photo"/"Post a Video"
+buttons, and picking a file uploaded and posted immediately using
+whatever caption happened to already be typed - there was no way to
+react to the actual photo/video once you could see it. Selecting a file
+now uploads it into a preview step first (photo/video shown full-size,
+still not posted to the feed), with the caption box and a Post/Discard
+pair underneath. Discard best-effort removes the just-uploaded file from
+storage (`story_photos_bucket_delete_own` policy already allows the
+uploader to do this) so nothing orphaned lingers in the bucket for a
+caption that's never used.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

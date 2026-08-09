@@ -1424,6 +1424,39 @@ $$;
 
 grant execute on function public.get_public_profile(uuid) to authenticated;
 
+-- Company-wide name search for the Search tab's "People" results -
+-- previously Search only ever queried candidates/contacts scoped to the
+-- caller's own downline, so there was no way to find a teammate outside
+-- your own up/downline chain at all, even though get_public_profile
+-- already lets anyone view anyone's public profile once you have their
+-- id. Security definer for the same reason: bypasses profiles' narrower
+-- select policy on purpose, but only ever returns name/team/photo - never
+-- email, account_number, or anything a downline-only viewer couldn't
+-- already see on the Leaderboard. No internal authorization check, same
+-- as get_public_profile/get_public_badges.
+create or replace function public.search_profiles_by_name(p_query text)
+returns table (
+  user_id uuid,
+  first_name text,
+  last_name text,
+  team text,
+  photo_url text
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select id, first_name, last_name, team, photo_url
+  from profiles
+  where length(trim(p_query)) >= 2
+    and (first_name || ' ' || last_name) ilike '%' || trim(p_query) || '%'
+  order by first_name, last_name
+  limit 8;
+$$;
+
+grant execute on function public.search_profiles_by_name(text) to authenticated;
+
 -- Members who signed up today, for a "new to the team" spotlight on the
 -- Leaderboard's Daily tab only - visible to everyone (not just
 -- admin/upline), same as everything else there. Only surfaces name +
