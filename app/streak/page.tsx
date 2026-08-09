@@ -851,7 +851,7 @@ export default function StreakPage() {
 
     section(
       "Today:",
-      `📖 Read: ${selectedRow.read_what || "—"}${selectedRow.read_amount ? ` — ${selectedRow.read_amount}` : ""}`,
+      `📖 Read: ${selectedRow.read_what || "—"}${selectedRow.read_amount ? ` — ${selectedRow.read_amount} ${readingUnit}` : ""}`,
       `🎧 Listened: ${selectedRow.listen_what || "—"}${selectedRow.listen_count ? ` — ${selectedRow.listen_count} audio(s)` : ""}`,
       "",
       `💬 Story Shares: ${selectedRow.story_shares} | Questions: ${selectedRow.questions} | Yeses: ${selectedRow.yeses}`
@@ -945,6 +945,7 @@ export default function StreakPage() {
     downlineWeekly,
     downlineMonthly,
     downlineActive,
+    readingUnit,
   ]);
 
   async function copySummary() {

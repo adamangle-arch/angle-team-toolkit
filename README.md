@@ -4737,6 +4737,26 @@ The active tab's highlight changed from a small circle around just the
 icon to a rounded pill wrapping the whole icon+label column, closer to
 how iOS highlights the active tab.
 
+### Leaderboard: Today's Sales moved into the Volume tab for Daily
+
+Volume only shows Core 300/Day 1 Ditto (Monthly-only concepts), so the
+tab was hidden entirely for Daily/Weekly - meanwhile "🛍️ Today's Sales"
+(customer purchases logged today) sat under Activity regardless of which
+period was selected, since it's inherently daily anyway. Moved it into
+Volume, shown only when `periodType === "daily"` - the Volume tab now
+hides only for Weekly (nothing in it applies weekly), and Activity is
+back to being just new signups + milestone alerts.
+
+### Daily Update Summary: reading amount now includes its unit
+
+The "Read: [book] — 20" line in the Core Run Streak's Daily Update
+Summary (the block meant to be copy/pasted straight into an upline
+message) never said whether that `20` meant minutes or pages - only the
+Reading card elsewhere on the page shows the unit label. Now reads
+"— 20 minutes" or "— 20 pages", pulled from the same `readingUnit`
+state (backed by `profiles.reading_unit`) the rest of the page already
+uses for the toggle and the "How many {unit} today?" input placeholder.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

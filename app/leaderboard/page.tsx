@@ -434,11 +434,15 @@ export default function LeaderboardPage() {
   // so there's nothing to keep in sync).
   const displayTab: CategoryTab = activeTab === "volume" && periodType !== "monthly" ? "leaders" : activeTab;
 
-  // Volume tab only shows for the monthly period - the grid below sizes
-  // its columns off this list's length so the tabs always fill the row
-  // evenly (3 columns most of the time, 4 once Volume appears) instead of
-  // needing horizontal scrolling to reach an off-screen tab.
-  const visibleTabs = CATEGORY_TABS.filter((t) => t.key !== "volume" || periodType === "monthly");
+  // Volume only ever has content for Monthly (Core 300/Ditto) or Daily
+  // (today's customer sales) - never Weekly, so the tab hides only then.
+  // The grid below sizes its columns off this list's length so the tabs
+  // always fill the row evenly (3 columns most of the time, 4 once Volume
+  // appears) instead of needing horizontal scrolling to reach an
+  // off-screen tab.
+  const visibleTabs = CATEGORY_TABS.filter(
+    (t) => t.key !== "volume" || periodType === "monthly" || periodType === "daily"
+  );
 
   // Small counts shown on each tab button, so switching categories is an
   // informed choice ("Consistency has 6 things in it") rather than a blind
@@ -447,14 +451,18 @@ export default function LeaderboardPage() {
   // least one team/individual winner).
   const tabCounts: Record<CategoryTab, number> = useMemo(
     () => ({
-      activity:
-        (periodType === "daily" ? newMembers.length : 0) + milestones.length + dailySales.length,
+      activity: (periodType === "daily" ? newMembers.length : 0) + milestones.length,
       leaders:
         CATEGORIES.filter((c) => leadingTeams(teamTotals, c.key).length > 0).length +
         CATEGORIES.filter((c) => (individualsByCategory.get(c.key) ?? []).length > 0).length +
         qi1Rhythm.length,
       consistency: streakLeaders.length + activeCandidates.length,
-      volume: periodType === "monthly" ? core300.length + ditto.length : 0,
+      volume:
+        periodType === "monthly"
+          ? core300.length + ditto.length
+          : periodType === "daily"
+            ? dailySales.length
+            : 0,
     }),
     [
       periodType,
@@ -695,49 +703,6 @@ export default function LeaderboardPage() {
           </Card>
         )}
 
-        {displayTab === "activity" && dailySales.length > 0 && (
-          <Card title="🛍️ Today's Sales">
-            {dailySales.map((entry) => {
-              const key = dailySaleEntryKey(entry.sale_id);
-              const time = new Date(entry.created_at).toLocaleTimeString(undefined, {
-                hour: "numeric",
-                minute: "2-digit",
-              });
-              return (
-                <div
-                  key={entry.sale_id}
-                  className="space-y-1 border-b border-white/5 pb-2 text-sm last:border-0 last:pb-0"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-slate-200">
-                      <CoupleLink entry={entry} />{" "}
-                      <span className="text-xs text-slate-500">
-                        ({entry.team}) — {time}
-                      </span>
-                    </span>
-                    <div className="flex shrink-0 items-center gap-2">
-                      <span className="pill pill-amber">{entry.amount} PV</span>
-                      <LikeButton
-                        entryKey={key}
-                        likes={likesMap.get(key) ?? NO_LIKES}
-                        onToggle={toggleLike}
-                      />
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {entry.categories.map((cat) => (
-                      <span key={cat} className="pill">
-                        {cat}
-                      </span>
-                    ))}
-                  </div>
-                  {entry.notes && <p className="text-xs text-slate-400">{entry.notes}</p>}
-                </div>
-              );
-            })}
-          </Card>
-        )}
-
         {displayTab === "activity" && tabCounts.activity === 0 && !loading && (
           <div className="empty-state">Nothing to report yet for this period.</div>
         )}
@@ -924,6 +889,53 @@ export default function LeaderboardPage() {
               )}
             </Card>
               </>
+            )}
+
+            {displayTab === "volume" && periodType === "daily" && (
+              <Card title="🛍️ Today's Sales">
+                {dailySales.length === 0 ? (
+                  <p className="text-sm text-slate-400">No customer sales logged yet today.</p>
+                ) : (
+                  dailySales.map((entry) => {
+                    const key = dailySaleEntryKey(entry.sale_id);
+                    const time = new Date(entry.created_at).toLocaleTimeString(undefined, {
+                      hour: "numeric",
+                      minute: "2-digit",
+                    });
+                    return (
+                      <div
+                        key={entry.sale_id}
+                        className="space-y-1 border-b border-white/5 pb-2 text-sm last:border-0 last:pb-0"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-slate-200">
+                            <CoupleLink entry={entry} />{" "}
+                            <span className="text-xs text-slate-500">
+                              ({entry.team}) — {time}
+                            </span>
+                          </span>
+                          <div className="flex shrink-0 items-center gap-2">
+                            <span className="pill pill-amber">{entry.amount} PV</span>
+                            <LikeButton
+                              entryKey={key}
+                              likes={likesMap.get(key) ?? NO_LIKES}
+                              onToggle={toggleLike}
+                            />
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {entry.categories.map((cat) => (
+                            <span key={cat} className="pill">
+                              {cat}
+                            </span>
+                          ))}
+                        </div>
+                        {entry.notes && <p className="text-xs text-slate-400">{entry.notes}</p>}
+                      </div>
+                    );
+                  })
+                )}
+              </Card>
             )}
 
             {displayTab === "volume" && periodType === "monthly" && (
