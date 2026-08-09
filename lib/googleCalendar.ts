@@ -213,3 +213,16 @@ export async function updateGoogleEvent(
   if (!res.ok) throw new Error(`Google events.update failed: ${await res.text()}`);
   return res.json();
 }
+
+// 404/410 both mean "already gone from Google's side" - a success from
+// this app's point of view (the goal was for it not to exist there),
+// not a failure worth surfacing or retrying.
+export async function deleteGoogleEvent(accessToken: string, googleEventId: string): Promise<void> {
+  const res = await fetch(`${CALENDAR_EVENTS_URL}/${encodeURIComponent(googleEventId)}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok && res.status !== 404 && res.status !== 410) {
+    throw new Error(`Google events.delete failed: ${await res.text()}`);
+  }
+}

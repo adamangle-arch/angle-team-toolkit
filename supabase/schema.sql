@@ -3746,13 +3746,17 @@ grant execute on function public.book_candidate_meeting(uuid, text, text, timest
 
 -- ============================================================
 -- 14b. GOOGLE CALENDAR SYNC
--- Two-way sync between a user's own calendar_events rows and their
--- Google Calendar. Scoped to each user's own events only (a recipient's
--- copy of a broadcast event already has their own user_id from
+-- Two-way sync between the calendar_events this account can see and
+-- their Google Calendar. Household-aware: a linked spouse's connection
+-- syncs against the shared household owner's events (see 14c below for
+-- how one shared event maps to two different spouses' separate Google
+-- accounts), not just their own literal user_id - a recipient's copy of
+-- a broadcast event already has their own user_id from
 -- broadcast_event_to_downline, so it syncs to their own Google Calendar
--- correctly without any special-casing). Recurring Google events are
--- deliberately excluded - calendar_events itself has no recurrence
--- concept, so there's no clean place to map a recurring series into it.
+-- correctly without any special-casing there either. Recurring Google
+-- events are deliberately excluded - calendar_events itself has no
+-- recurrence concept, so there's no clean place to map a recurring
+-- series into it.
 -- ============================================================
 create table if not exists google_calendar_connections (
   user_id uuid primary key references auth.users(id) on delete cascade,
@@ -3833,6 +3837,89 @@ drop trigger if exists calendar_events_set_updated_at on calendar_events;
 create trigger calendar_events_set_updated_at
 before update on calendar_events
 for each row execute function public.set_calendar_events_updated_at();
+
+-- ============================================================
+-- 14c. GOOGLE CALENDAR SYNC — per-connection links + delete propagation
+--
+-- Replaces the original single google_event_id/google_synced_at columns
+-- on calendar_events. Those assumed one calendar_events row maps to at
+-- most one Google account, which breaks for a household-shared event: a
+-- married couple share one calendar_events row (owned by whichever
+-- spouse is the canonical household owner - see profiles.household_id
+-- notes above) but each has their OWN separate Google account. A single
+-- column can't hold two different Google event ids for the same row, so
+-- whichever spouse's connection synced second would either clobber the
+-- link or fail outright trying to update an event id that belongs to
+-- the other spouse's Google Calendar. This table makes the mapping
+-- per (event, connecting Google account) instead of per event.
+-- ============================================================
+create table if not exists calendar_event_google_links (
+  event_id uuid not null references calendar_events(id) on delete cascade,
+  connection_user_id uuid not null references auth.users(id) on delete cascade,
+  google_event_id text not null,
+  google_synced_at timestamptz not null default now(),
+  primary key (event_id, connection_user_id)
+);
+
+create index if not exists calendar_event_google_links_connection_idx
+  on calendar_event_google_links(connection_user_id, google_event_id);
+
+-- RLS enabled with zero policies - same reasoning as google_oauth_states
+-- above: this is sync-engine bookkeeping, never meant to be read or
+-- written by the anon/authenticated roles directly, only the
+-- service-role sync routes (which bypass RLS regardless).
+alter table calendar_event_google_links enable row level security;
+
+-- A local delete needs to tell each connected Google account that had
+-- its own copy of the event to delete that copy too - but by the time
+-- the sync route runs, the calendar_events row (and its links, via the
+-- ON DELETE CASCADE above) are already gone. This trigger copies each
+-- link into a pending-deletes queue right before the row disappears, so
+-- the sync route has something to act on afterward. security definer
+-- so it can write here even when the delete itself came from a plain
+-- authenticated user's own RLS-governed delete on calendar_events.
+create table if not exists calendar_google_pending_deletes (
+  id uuid primary key default gen_random_uuid(),
+  connection_user_id uuid not null references auth.users(id) on delete cascade,
+  google_event_id text not null,
+  created_at timestamptz not null default now()
+);
+
+alter table calendar_google_pending_deletes enable row level security;
+
+create or replace function public.queue_google_deletes_for_event()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into calendar_google_pending_deletes (connection_user_id, google_event_id)
+  select connection_user_id, google_event_id
+  from calendar_event_google_links
+  where event_id = old.id;
+  return old;
+end;
+$$;
+
+drop trigger if exists calendar_events_queue_google_deletes on calendar_events;
+create trigger calendar_events_queue_google_deletes
+before delete on calendar_events
+for each row execute function public.queue_google_deletes_for_event();
+
+-- One-time migration off the old single-column mapping: carry forward
+-- any already-linked event (recorded under the syncing user's own id,
+-- back when only self-connections existed) into the new per-connection
+-- table, then drop the old columns.
+insert into calendar_event_google_links (event_id, connection_user_id, google_event_id, google_synced_at)
+select id, user_id, google_event_id, coalesce(google_synced_at, now())
+from calendar_events
+where google_event_id is not null
+on conflict (event_id, connection_user_id) do nothing;
+
+drop index if exists calendar_events_google_event_id_idx;
+alter table calendar_events drop column if exists google_event_id;
+alter table calendar_events drop column if exists google_synced_at;
 
 -- ============================================================
 -- 15. COMPANY EVENTS (standing, recurring team events)

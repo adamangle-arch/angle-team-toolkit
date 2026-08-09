@@ -127,6 +127,18 @@ export default function GoogleCalendarConnect() {
       const res = await authedFetch("/api/google-calendar/sync-now", { method: "POST" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Sync failed.");
+      const result = data as { pulled: number; pushed: number; deletedLocally: number; deletedOnGoogle: number; errors: string[] };
+      if (result.errors.length > 0) {
+        setError(result.errors[0]);
+      } else {
+        const parts = [
+          result.pulled > 0 && `${result.pulled} pulled from Google`,
+          result.pushed > 0 && `${result.pushed} pushed to Google`,
+          result.deletedLocally > 0 && `${result.deletedLocally} deleted here`,
+          result.deletedOnGoogle > 0 && `${result.deletedOnGoogle} deleted on Google`,
+        ].filter(Boolean);
+        setStatusMessage(parts.length > 0 ? `Synced — ${parts.join(", ")}.` : "Synced — nothing to update.");
+      }
       await loadConnection();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sync failed.");

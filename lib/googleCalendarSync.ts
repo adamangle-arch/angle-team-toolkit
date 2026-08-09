@@ -3,6 +3,7 @@ import {
   listGoogleEvents,
   insertGoogleEvent,
   updateGoogleEvent,
+  deleteGoogleEvent,
   refreshAccessToken,
   type GoogleEvent,
 } from "./googleCalendar";
@@ -21,11 +22,11 @@ type LocalEvent = {
   title: string;
   notes: string;
   event_at: string;
-  google_event_id: string | null;
-  google_synced_at: string | null;
   updated_at: string;
   created_at: string;
 };
+
+type Link = { event_id: string; connection_user_id: string; google_event_id: string; google_synced_at: string };
 
 // Refreshes and persists a new access token if the stored one is at or
 // past expiry (a minute of slack so a token that's about to expire mid-
@@ -45,6 +46,15 @@ async function getValidAccessToken(admin: SupabaseClient, connection: Connection
   return refreshed.access_token;
 }
 
+// The calendar this connection actually syncs against - a linked
+// spouse's own literal user_id is never where shared events live (see
+// profiles.household_id notes in schema.sql), so every query below has
+// to go through this instead of connection.user_id directly.
+async function getOwnerId(admin: SupabaseClient, userId: string): Promise<string> {
+  const { data } = await admin.from("profiles").select("household_id").eq("id", userId).maybeSingle();
+  return (data as { household_id: string | null } | null)?.household_id ?? userId;
+}
+
 function googleEventToLocalFields(event: GoogleEvent): { title: string; notes: string; eventAt: string } | null {
   const startIso = event.start?.dateTime ?? (event.start?.date ? `${event.start.date}T00:00:00Z` : null);
   if (!startIso) return null;
@@ -59,16 +69,18 @@ export type SyncResult = {
   pulled: number;
   pushed: number;
   deletedLocally: number;
+  deletedOnGoogle: number;
   errors: string[];
 };
 
 // The full bidirectional pass for one connected user - shared by the
 // cron route (loops every connection) and the "Sync now" button (one
-// connection, on demand). See the schema comment on google_synced_at for
-// why outbound and inbound each compare against different timestamps
-// rather than both racing off updated_at.
+// connection, on demand). See the schema comment on
+// calendar_event_google_links for why the mapping is per (event,
+// connecting Google account) rather than a single column on
+// calendar_events.
 export async function syncOneConnection(admin: SupabaseClient, connection: Connection): Promise<SyncResult> {
-  const result: SyncResult = { pulled: 0, pushed: 0, deletedLocally: 0, errors: [] };
+  const result: SyncResult = { pulled: 0, pushed: 0, deletedLocally: 0, deletedOnGoogle: 0, errors: [] };
 
   let accessToken: string;
   try {
@@ -76,6 +88,26 @@ export async function syncOneConnection(admin: SupabaseClient, connection: Conne
   } catch (err) {
     result.errors.push(`token refresh: ${String(err)}`);
     return result;
+  }
+
+  const ownerId = await getOwnerId(admin, connection.user_id);
+
+  // --- Deletes queued locally since the last pass get pushed out first,
+  // so an event deleted here never lingers on Google waiting for a
+  // future update pass that will never come (it's gone, there's nothing
+  // left to push an update from). ---
+  const { data: pendingDeletes } = await admin
+    .from("calendar_google_pending_deletes")
+    .select("id,google_event_id")
+    .eq("connection_user_id", connection.user_id);
+  for (const pending of (pendingDeletes as { id: string; google_event_id: string }[]) ?? []) {
+    try {
+      await deleteGoogleEvent(accessToken, pending.google_event_id);
+      await admin.from("calendar_google_pending_deletes").delete().eq("id", pending.id);
+      result.deletedOnGoogle++;
+    } catch (err) {
+      result.errors.push(`delete ${pending.google_event_id}: ${String(err)}`);
+    }
   }
 
   // --- Inbound: pull whatever Google says changed since last time ---
@@ -96,14 +128,20 @@ export async function syncOneConnection(admin: SupabaseClient, connection: Conne
   }
 
   if (listing) {
-    const { data: localRows } = await admin
-      .from("calendar_events")
-      .select("id,title,notes,event_at,google_event_id,google_synced_at,updated_at,created_at")
-      .eq("user_id", connection.user_id)
-      .not("google_event_id", "is", null);
-    const localByGoogleId = new Map(
-      ((localRows as LocalEvent[]) ?? []).map((r) => [r.google_event_id as string, r])
-    );
+    const { data: linkRows } = await admin
+      .from("calendar_event_google_links")
+      .select("event_id,connection_user_id,google_event_id,google_synced_at")
+      .eq("connection_user_id", connection.user_id);
+    const linkByGoogleId = new Map(((linkRows as Link[]) ?? []).map((l) => [l.google_event_id, l]));
+
+    const linkedEventIds = Array.from(linkByGoogleId.values()).map((l) => l.event_id);
+    const { data: localRows } = linkedEventIds.length
+      ? await admin
+          .from("calendar_events")
+          .select("id,title,notes,event_at,updated_at,created_at")
+          .in("id", linkedEventIds)
+      : { data: [] as LocalEvent[] };
+    const localById = new Map(((localRows as LocalEvent[]) ?? []).map((r) => [r.id, r]));
 
     for (const event of listing.events) {
       // Recurring events (a series definition, or an expanded instance of
@@ -112,10 +150,17 @@ export async function syncOneConnection(admin: SupabaseClient, connection: Conne
       // standing team meeting as its own row isn't what anyone wants here.
       if (event.recurrence || event.recurringEventId) continue;
 
-      const local = localByGoogleId.get(event.id);
+      const link = linkByGoogleId.get(event.id);
+      const local = link ? localById.get(link.event_id) : undefined;
 
       if (event.status === "cancelled") {
         if (local) {
+          // Deletes the shared row outright, not just this connection's
+          // link - see the trigger comment in schema.sql: that also
+          // queues a delete for every OTHER connection's copy of the
+          // same shared event (e.g. the other spouse's own Google
+          // Calendar), which is what "delete on one side removes it
+          // everywhere" actually requires.
           await admin.from("calendar_events").delete().eq("id", local.id);
           result.deletedLocally++;
         }
@@ -126,18 +171,30 @@ export async function syncOneConnection(admin: SupabaseClient, connection: Conne
       if (!fields) continue;
 
       if (!local) {
-        const { error } = await admin.from("calendar_events").insert({
-          user_id: connection.user_id,
-          creator_id: connection.user_id,
-          title: fields.title,
-          notes: fields.notes,
-          event_at: fields.eventAt,
-          scope: "private",
-          reminder_minutes_before: null,
+        const { data: inserted, error } = await admin
+          .from("calendar_events")
+          .insert({
+            user_id: ownerId,
+            creator_id: connection.user_id,
+            title: fields.title,
+            notes: fields.notes,
+            event_at: fields.eventAt,
+            scope: "private",
+            reminder_minutes_before: null,
+          })
+          .select("id")
+          .single();
+        if (error || !inserted) {
+          result.errors.push(`insert ${event.id}: ${error?.message ?? "unknown error"}`);
+          continue;
+        }
+        const { error: linkError } = await admin.from("calendar_event_google_links").insert({
+          event_id: inserted.id,
+          connection_user_id: connection.user_id,
           google_event_id: event.id,
           google_synced_at: new Date().toISOString(),
         });
-        if (error) result.errors.push(`insert ${event.id}: ${error.message}`);
+        if (linkError) result.errors.push(`link ${event.id}: ${linkError.message}`);
         else result.pulled++;
         continue;
       }
@@ -149,15 +206,18 @@ export async function syncOneConnection(admin: SupabaseClient, connection: Conne
       if (new Date(event.updated).getTime() > new Date(local.updated_at).getTime()) {
         const { error } = await admin
           .from("calendar_events")
-          .update({
-            title: fields.title,
-            notes: fields.notes,
-            event_at: fields.eventAt,
-            google_synced_at: new Date().toISOString(),
-          })
+          .update({ title: fields.title, notes: fields.notes, event_at: fields.eventAt })
           .eq("id", local.id);
-        if (error) result.errors.push(`update ${event.id}: ${error.message}`);
-        else result.pulled++;
+        if (error) {
+          result.errors.push(`update ${event.id}: ${error.message}`);
+        } else {
+          await admin
+            .from("calendar_event_google_links")
+            .update({ google_synced_at: new Date().toISOString() })
+            .eq("event_id", local.id)
+            .eq("connection_user_id", connection.user_id);
+          result.pulled++;
+        }
       }
     }
 
@@ -167,36 +227,48 @@ export async function syncOneConnection(admin: SupabaseClient, connection: Conne
       .eq("user_id", connection.user_id);
   }
 
-  // --- Outbound: push local changes Google doesn't have yet ---
+  // --- Outbound: push local changes this connection's Google account
+  // doesn't have yet. Every event the household can see gets pushed -
+  // no "only if created after connecting" gate, since that made a
+  // pre-existing event silently and permanently un-syncable with no way
+  // for anyone to notice or fix it short of re-creating the event. ---
   const { data: outboundRows } = await admin
     .from("calendar_events")
-    .select("id,title,notes,event_at,google_event_id,google_synced_at,updated_at,created_at")
-    .eq("user_id", connection.user_id);
+    .select("id,title,notes,event_at,updated_at,created_at")
+    .eq("user_id", ownerId);
+  const { data: ownLinkRows } = await admin
+    .from("calendar_event_google_links")
+    .select("event_id,google_event_id,google_synced_at")
+    .eq("connection_user_id", connection.user_id);
+  const ownLinkByEventId = new Map(
+    ((ownLinkRows as { event_id: string; google_event_id: string; google_synced_at: string }[]) ?? []).map((l) => [
+      l.event_id,
+      l,
+    ])
+  );
 
   for (const row of (outboundRows as LocalEvent[]) ?? []) {
-    const neverLinked = !row.google_event_id;
-    // A never-linked row only gets pushed if it was created after this
-    // account connected Google Calendar - otherwise connecting for the
-    // first time would dump someone's entire event history into their
-    // Google Calendar in one shot, which nobody asked for.
-    const createdAfterConnecting = new Date(row.created_at).getTime() > new Date(connection.created_at).getTime();
-    const changedSinceLastPush =
-      row.google_synced_at && new Date(row.updated_at).getTime() > new Date(row.google_synced_at).getTime();
+    const link = ownLinkByEventId.get(row.id);
+    const changedSinceLastPush = link && new Date(row.updated_at).getTime() > new Date(link.google_synced_at).getTime();
 
     try {
-      if (neverLinked && createdAfterConnecting) {
+      if (!link) {
         const created = await insertGoogleEvent(accessToken, row.title, row.notes, row.event_at);
+        const { error } = await admin.from("calendar_event_google_links").insert({
+          event_id: row.id,
+          connection_user_id: connection.user_id,
+          google_event_id: created.id,
+          google_synced_at: new Date().toISOString(),
+        });
+        if (error) result.errors.push(`link ${row.id}: ${error.message}`);
+        else result.pushed++;
+      } else if (changedSinceLastPush) {
+        await updateGoogleEvent(accessToken, link.google_event_id, row.title, row.notes, row.event_at);
         await admin
-          .from("calendar_events")
-          .update({ google_event_id: created.id, google_synced_at: new Date().toISOString() })
-          .eq("id", row.id);
-        result.pushed++;
-      } else if (row.google_event_id && changedSinceLastPush) {
-        await updateGoogleEvent(accessToken, row.google_event_id, row.title, row.notes, row.event_at);
-        await admin
-          .from("calendar_events")
+          .from("calendar_event_google_links")
           .update({ google_synced_at: new Date().toISOString() })
-          .eq("id", row.id);
+          .eq("event_id", row.id)
+          .eq("connection_user_id", connection.user_id);
         result.pushed++;
       }
     } catch (err) {

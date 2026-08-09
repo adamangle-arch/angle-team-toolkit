@@ -40,5 +40,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  // Stale links would otherwise look "already synced" to a future
+  // reconnect even if it's a different Google account entirely, causing
+  // push updates to target event ids that belong to the old account.
+  await admin.from("calendar_event_google_links").delete().eq("connection_user_id", userData.user.id);
+  await admin.from("calendar_google_pending_deletes").delete().eq("connection_user_id", userData.user.id);
+
   return NextResponse.json({ ok: true });
 }

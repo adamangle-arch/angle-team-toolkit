@@ -4989,8 +4989,12 @@ direction the Daily Update toggle just took.
 `GoogleCalendarConnect` (top of the Calendar page) lets someone connect
 their own Google account; from then on, events they add here show up in
 Google Calendar and events they add in Google Calendar show up here.
-Scoped to each person's own `calendar_events` rows only - a recipient's
-copy of a broadcast event already carries their own `user_id` (from
+Household-aware: if two linked spouses (see `profiles.household_id`)
+share one calendar and each connects their own separate Google account,
+both accounts stay in sync with the shared events - see
+`calendar_event_google_links` below for how one shared event maps to
+two different Google accounts at once. A recipient's copy of a
+broadcast event already carries their own `user_id` (from
 `broadcast_event_to_downline()`), so it syncs to *their* Google Calendar
 correctly with no special-casing needed.
 
@@ -5047,26 +5051,43 @@ select cron.schedule(
   token invalid (410, typically after weeks of inactivity) or on first
   connect. Recurring events and recurring-series instances are skipped
   entirely - `calendar_events` has no recurrence concept to map them onto.
-- **Outbound** (app → Google): any local event created after the account
-  connected (not the entire pre-existing history) gets pushed once;
-  further edits get pushed again the next sync after they're made.
+- **Outbound** (app → Google): every event the household can see that
+  this connection hasn't linked to a Google event yet gets pushed;
+  further edits get pushed again the next sync after they're made. (An
+  earlier version only pushed events created after the account
+  connected, to avoid dumping a person's full event history into Google
+  on first connect - dropped, because it meant an older event would
+  silently and permanently never sync, with nothing on screen to explain
+  why. In practice this app's own event list is never big enough for a
+  one-time full push to be a real problem.)
+- **Linking** (`calendar_event_google_links`): one row per (event,
+  connected Google account) rather than a single column on
+  `calendar_events` - that's what lets a shared household event map to
+  two different spouses' Google accounts independently, instead of the
+  second spouse's sync either clobbering the first's link or failing
+  outright against an event id that belongs to someone else's calendar.
+- **Deletes propagate both ways.** Deleting locally queues a row per
+  linked Google account in `calendar_google_pending_deletes` (via a
+  `before delete on calendar_events` trigger, since by the time a sync
+  runs the row and its links are already gone) - the next sync deletes
+  the event from each of those Google Calendars, then clears the queue
+  row. Deleting on Google still propagates here too, via the `cancelled`
+  status Google reports for it - and now deletes the *shared* local row
+  outright (not just this connection's link), which in turn queues
+  deletes for every other connected household member's copy too. One
+  side deleting a shared event removes it everywhere.
 - **Conflict rule**: last-write-wins. `calendar_events` gained an
   `updated_at` column (auto-bumped by a new `calendar_events_set_updated_at`
-  trigger on every update) and a `google_synced_at` watermark - inbound
-  only overwrites local if Google's `updated` timestamp is newer than
-  local `updated_at`; outbound only pushes if local `updated_at` is newer
-  than `google_synced_at`. The two are set to the same instant right after
-  an inbound pull, which is what stops that pull from being mistaken for
-  a fresh local edit and immediately bounced back out to Google.
-- **Known v1 limitations** (both intentional scope decisions, not bugs):
-  recurring events don't sync at all, in either direction; and a local
-  **delete** doesn't currently propagate to Google (Google-side deletes
-  *do* propagate here, via the `cancelled` status Google reports for
-  them) - `calendar_events` hard-deletes rows today, which leaves nothing
-  for the sync route to notice happened after the fact. Adding delete
-  parity would mean switching to a soft-delete column across every
-  existing delete call site on the Calendar page, a bigger change than
-  this pass covers.
+  trigger on every update) - inbound only overwrites local if Google's
+  `updated` timestamp is newer than local `updated_at`; outbound only
+  pushes if local `updated_at` is newer than this connection's link's
+  `google_synced_at` watermark. The two are set to the same instant right
+  after an inbound pull, which is what stops that pull from being
+  mistaken for a fresh local edit and immediately bounced back out to
+  Google.
+- **Known v1 limitation**: recurring events don't sync at all, in either
+  direction - `calendar_events` has no recurrence concept to map a
+  series onto.
 
 The **Diagnostics** tab on Team (see above) includes
 `/api/google-calendar/sync` in its "Run a cron now" list, same as every
