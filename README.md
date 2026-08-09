@@ -4705,6 +4705,29 @@ gradient + glow `.btn-primary` uses elsewhere (e.g. "Post a Photo" on
 Stories), so it reads as a clear tappable action instead of blending
 into the header.
 
+### More page: colorful gradient tile grid, App Store Browse-style
+
+The More page was a plain single-column stack of flat rows (emoji + label
++ description). Referencing the App Store's Search tab "Browse" grid,
+it's now a 2-column grid of rounded gradient tiles - each with its emoji
+as a large faded watermark in the corner and a bold label/description at
+the bottom. Six hand-picked gradient pairs (sky, emerald, violet, teal,
+rose, amber) cycle across the tiles purely for visual variety; unrelated
+to the account-wide colorway (`profiles.theme_color`) picked on My
+Profile, which only affects the single accent color used everywhere else.
+
+### Bottom nav: frosted-glass transparency, matching iOS tab bars
+
+The nav bar's background was a fairly opaque navy gradient (0.75-0.97
+alpha) - visually solid, not the frosted/translucent look iOS tab bars
+(e.g. the App Store's) have, where content is visible blurred behind it.
+Now a much lower 0.55-alpha background with a real `backdrop-filter:
+blur(24px) saturate(180%)` (both standard and `-webkit-` prefixed, for
+Safari/iOS PWA support) lets scrolled content show through, softened.
+The active tab's highlight changed from a small circle around just the
+icon to a rounded pill wrapping the whole icon+label column, closer to
+how iOS highlights the active tab.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

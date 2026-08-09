@@ -39,15 +39,17 @@ export default function BottomNav() {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-30 mx-auto w-full max-w-md backdrop-blur-xl"
+      className="fixed inset-x-0 bottom-0 z-30 mx-auto w-full max-w-md"
       style={{
-        background: "linear-gradient(180deg, rgba(10,15,30,0.75), rgba(10,15,30,0.97))",
-        borderTop: "1px solid rgba(245,158,11,0.15)",
+        background: "rgba(10,15,30,0.55)",
+        backdropFilter: "blur(24px) saturate(180%)",
+        WebkitBackdropFilter: "blur(24px) saturate(180%)",
+        borderTop: "1px solid rgba(255,255,255,0.08)",
       }}
     >
       <div
-        className="no-scrollbar flex overflow-x-auto"
-        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+        className="no-scrollbar flex items-center gap-1 overflow-x-auto px-1.5 py-1.5"
+        style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 0.375rem)" }}
       >
         {visibleItems.map((item) => {
           const active = pathname?.startsWith(item.href);
@@ -55,20 +57,16 @@ export default function BottomNav() {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex min-w-[64px] flex-1 flex-col items-center gap-1 px-1 py-2.5 text-[11px] font-medium transition-all duration-150 ${
+              className={`flex min-w-[60px] flex-1 flex-col items-center gap-0.5 rounded-2xl py-2 text-[11px] font-medium transition-all duration-150 ${
                 active ? "text-amber-light" : "text-slate-400"
               }`}
+              style={
+                active
+                  ? { background: "rgba(245,158,11,0.14)", boxShadow: "0 0 16px -2px rgba(245,158,11,0.4)" }
+                  : undefined
+              }
             >
-              <span
-                className="flex h-7 w-7 items-center justify-center rounded-full text-lg leading-none transition-all duration-150"
-                style={
-                  active
-                    ? { background: "rgba(245,158,11,0.16)", boxShadow: "0 0 12px rgba(245,158,11,0.35)" }
-                    : undefined
-                }
-              >
-                {item.icon}
-              </span>
+              <span className="text-lg leading-none">{item.icon}</span>
               <span>{item.label}</span>
             </Link>
           );
@@ -76,20 +74,16 @@ export default function BottomNav() {
 
         <Link
           href="/more"
-          className={`flex min-w-[64px] flex-1 flex-col items-center gap-1 px-1 py-2.5 text-[11px] font-medium transition-all duration-150 ${
+          className={`flex min-w-[60px] flex-1 flex-col items-center gap-0.5 rounded-2xl py-2 text-[11px] font-medium transition-all duration-150 ${
             moreActive ? "text-amber-light" : "text-slate-400"
           }`}
+          style={
+            moreActive
+              ? { background: "rgba(245,158,11,0.14)", boxShadow: "0 0 16px -2px rgba(245,158,11,0.4)" }
+              : undefined
+          }
         >
-          <span
-            className="flex h-7 w-7 items-center justify-center rounded-full text-lg leading-none transition-all duration-150"
-            style={
-              moreActive
-                ? { background: "rgba(245,158,11,0.16)", boxShadow: "0 0 12px rgba(245,158,11,0.35)" }
-                : undefined
-            }
-          >
-            ⋯
-          </span>
+          <span className="text-lg leading-none">⋯</span>
           <span>More</span>
         </Link>
       </div>
