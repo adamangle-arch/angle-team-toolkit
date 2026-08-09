@@ -667,14 +667,20 @@ export default function StreakPage() {
 
   // Questions/Yeses are shared with the Pipeline Tracker's Daily Tally -
   // logging one here also bumps that same day's Daily/Weekly/Monthly
-  // pipeline totals (bump_pipeline_stage), and since asking the question
-  // (or getting a yes) is itself a story-sharing moment, Story Shares
-  // goes up by the same amount too - on top of the existing story_share
-  // qualifying check already being satisfied by either count.
+  // pipeline totals (bump_pipeline_stage). Story Shares tracks Questions
+  // specifically (asking the question is the story-sharing moment) - it
+  // used to also bump on every Yeses change, which double-counted since a
+  // yes only ever follows a question that was already counted, so Story
+  // Shares would silently climb past Questions with no visible cause.
+  // Story Shares' own +/- buttons still edit it directly and that edit
+  // sticks - this delta only re-syncs it when Questions itself changes.
   function logActivityCount(key: "questions" | "yeses", next: number) {
     const delta = next - (selectedRow[key] as number);
-    const nextStoryShares = Math.max(0, selectedRow.story_shares + delta);
-    saveToday({ [key]: next, story_shares: nextStoryShares });
+    const updates: Partial<StreakDay> =
+      key === "questions"
+        ? { [key]: next, story_shares: Math.max(0, selectedRow.story_shares + delta) }
+        : { [key]: next };
+    saveToday(updates);
     if (delta !== 0) {
       supabase.rpc("bump_pipeline_stage", {
         p_owner_id: ownerId,
@@ -1253,17 +1259,27 @@ export default function StreakPage() {
               </div>
             </div>
 
-            <button
-              onClick={() => saveToday({ daily_update: !selectedRow.daily_update })}
-              className={`card flex items-center justify-between transition active:scale-95 ${
+            <label
+              className={`card flex cursor-pointer items-center justify-between gap-3 transition active:scale-95 ${
                 selectedRow.daily_update ? "!border-amber" : ""
               }`}
             >
-              <span className="section-title">📝 Daily Update</span>
+              <span className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  className="h-6 w-6 shrink-0 accent-amber"
+                  checked={selectedRow.daily_update}
+                  onChange={() => saveToday({ daily_update: !selectedRow.daily_update })}
+                  aria-label={
+                    selectedRow.daily_update ? "Mark Daily Update as not done" : "Mark Daily Update as done"
+                  }
+                />
+                <span className="section-title">📝 Daily Update</span>
+              </span>
               <span className={selectedRow.daily_update ? "pill-amber" : "pill"}>
                 {selectedRow.daily_update ? "Done" : "Not yet"}
               </span>
-            </button>
+            </label>
 
             <div className="card space-y-1.5">
               <p className="section-title">

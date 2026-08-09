@@ -246,7 +246,7 @@ export default function LeaderboardPage() {
   const [ditto, setDitto] = useState<DittoEntry[]>([]);
   const [newMembers, setNewMembers] = useState<NewMember[]>([]);
   const [milestones, setMilestones] = useState<MilestoneEntry[]>([]);
-  const [dailySales, setDailySales] = useState<DailySaleEntry[]>([]);
+  const [salesFeed, setSalesFeed] = useState<DailySaleEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [myName, setMyName] = useState("You");
@@ -369,15 +369,20 @@ export default function LeaderboardPage() {
     };
   }, []);
 
+  // Backs the Volume tab's sales feed card, which shows the period-
+  // appropriate slice ("Today's"/"This Week's"/"This Month's Sales") -
+  // refetches whenever the period toggle changes, unlike the other
+  // Activity spotlights above which are always "today" regardless of
+  // periodType.
   useEffect(() => {
     let cancelled = false;
-    supabase.rpc("get_daily_sales_feed").then(({ data }) => {
-      if (!cancelled) setDailySales((data as DailySaleEntry[]) ?? []);
+    supabase.rpc("get_sales_feed", { p_period_start: periodStart }).then(({ data }) => {
+      if (!cancelled) setSalesFeed((data as DailySaleEntry[]) ?? []);
     });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [periodStart]);
 
   useEffect(() => {
     let cancelled = false;
@@ -427,22 +432,17 @@ export default function LeaderboardPage() {
     return map;
   }, [individualLeaders]);
 
-  // Volume only ever has content for the monthly period - if someone's
-  // sitting on that tab and switches to Daily/Weekly, treat it as if
-  // Leaders were picked instead of leaving them stranded on a tab that
-  // can't be selected anymore (derived at render time, not via an effect,
-  // so there's nothing to keep in sync).
-  const displayTab: CategoryTab = activeTab === "volume" && periodType !== "monthly" ? "leaders" : activeTab;
+  // Volume now has content on every period (the sales feed card always
+  // renders something for whichever period is selected, on top of Core
+  // 300/Ditto for Monthly specifically), so all four tabs are always
+  // visible - no more bouncing back to Leaders or hiding a tab depending
+  // on periodType.
+  const displayTab = activeTab;
 
-  // Volume only ever has content for Monthly (Core 300/Ditto) or Daily
-  // (today's customer sales) - never Weekly, so the tab hides only then.
   // The grid below sizes its columns off this list's length so the tabs
-  // always fill the row evenly (3 columns most of the time, 4 once Volume
-  // appears) instead of needing horizontal scrolling to reach an
-  // off-screen tab.
-  const visibleTabs = CATEGORY_TABS.filter(
-    (t) => t.key !== "volume" || periodType === "monthly" || periodType === "daily"
-  );
+  // always fill the row evenly instead of needing horizontal scrolling to
+  // reach an off-screen tab.
+  const visibleTabs = CATEGORY_TABS;
 
   // Small counts shown on each tab button, so switching categories is an
   // informed choice ("Consistency has 6 things in it") rather than a blind
@@ -457,18 +457,13 @@ export default function LeaderboardPage() {
         CATEGORIES.filter((c) => (individualsByCategory.get(c.key) ?? []).length > 0).length +
         qi1Rhythm.length,
       consistency: streakLeaders.length + activeCandidates.length,
-      volume:
-        periodType === "monthly"
-          ? core300.length + ditto.length
-          : periodType === "daily"
-            ? dailySales.length
-            : 0,
+      volume: (periodType === "monthly" ? core300.length + ditto.length : 0) + salesFeed.length,
     }),
     [
       periodType,
       newMembers,
       milestones,
-      dailySales,
+      salesFeed,
       teamTotals,
       individualsByCategory,
       qi1Rhythm,
@@ -495,7 +490,7 @@ export default function LeaderboardPage() {
     for (const e of core300) keys.add(core300EntryKey(periodStart, e.user_id));
     for (const e of ditto) keys.add(dittoEntryKey(periodStart, e.user_id));
     for (const m of milestones) keys.add(milestoneEntryKey(m.user_id, m.milestone_days));
-    for (const e of dailySales) keys.add(dailySaleEntryKey(e.sale_id));
+    for (const e of salesFeed) keys.add(dailySaleEntryKey(e.sale_id));
     return Array.from(keys);
   }, [
     teamTotals,
@@ -506,7 +501,7 @@ export default function LeaderboardPage() {
     core300,
     ditto,
     milestones,
-    dailySales,
+    salesFeed,
     periodType,
     periodStart,
   ]);
@@ -891,12 +886,23 @@ export default function LeaderboardPage() {
               </>
             )}
 
-            {displayTab === "volume" && periodType === "daily" && (
-              <Card title="🛍️ Today's Sales">
-                {dailySales.length === 0 ? (
-                  <p className="text-sm text-slate-400">No customer sales logged yet today.</p>
+            {displayTab === "volume" && (
+              <Card
+                title={
+                  periodType === "daily"
+                    ? "🛍️ Today's Sales"
+                    : periodType === "weekly"
+                      ? "🛍️ This Week's Sales"
+                      : "🛍️ This Month's Sales"
+                }
+              >
+                {salesFeed.length === 0 ? (
+                  <p className="text-sm text-slate-400">
+                    No customer sales logged{" "}
+                    {periodType === "daily" ? "yet today" : periodType === "weekly" ? "yet this week" : "yet this month"}.
+                  </p>
                 ) : (
-                  dailySales.map((entry) => {
+                  salesFeed.map((entry) => {
                     const key = dailySaleEntryKey(entry.sale_id);
                     const time = new Date(entry.created_at).toLocaleTimeString(undefined, {
                       hour: "numeric",

@@ -4747,6 +4747,19 @@ Volume, shown only when `periodType === "daily"` - the Volume tab now
 hides only for Weekly (nothing in it applies weekly), and Activity is
 back to being just new signups + milestone alerts.
 
+**Update:** Volume now shows on every period tab, not just Daily/Monthly.
+`get_daily_sales_feed()` (hardcoded to `created_at::date = current_date`)
+became `get_sales_feed(p_period_start date)` (`created_at::date >=
+p_period_start`), fetched with whatever `periodStart` the period toggle
+already computes - the same sales-feed card now serves "🛍️ Today's
+Sales"/"This Week's Sales"/"This Month's Sales" depending on
+periodType, refetching on every period change instead of once on mount.
+Core 300/Day 1 Ditto still only render for Monthly (they're genuinely
+calendar-month concepts with no daily/weekly equivalent), but they now
+sit alongside the sales feed rather than replacing it. `visibleTabs`
+dropped its filter entirely - all four category tabs are always shown,
+no more bouncing back to Leaders when Volume had nothing to show.
+
 ### Daily Update Summary: reading amount now includes its unit
 
 The "Read: [book] — 20" line in the Core Run Streak's Daily Update
@@ -4756,6 +4769,30 @@ Reading card elsewhere on the page shows the unit label. Now reads
 "— 20 minutes" or "— 20 pages", pulled from the same `readingUnit`
 state (backed by `profiles.reading_unit`) the rest of the page already
 uses for the toggle and the "How many {unit} today?" input placeholder.
+
+### Fix: Story Shares silently double-counting off of Yeses
+
+Story Shares was designed to auto-track Questions (asking a question is
+itself the story-sharing moment), but `logActivityCount` also bumped it
+by the same delta whenever Yeses changed - so getting a yes (which only
+ever follows a question already counted) silently pushed Story Shares
+above Questions with no visible cause, confusing since nothing was
+directly logged against it. Now only a Questions change re-syncs Story
+Shares; Yeses no longer touches it. Story Shares' own +/- buttons still
+edit it directly and that edit sticks - only a subsequent Questions
+change re-syncs it from there, matching "Story Shares should track
+Questions unless someone changes it directly."
+
+### Daily Update: real checkbox instead of a tap-anywhere pill
+
+The Daily Update card was a full-width button with just a "Not yet"/
+"Done" pill on the right - tappable, but nothing about it read as a
+checkbox, so it wasn't obvious you could tap it at all. Rewritten as a
+`<label>` wrapping a real `<input type="checkbox" className="accent-amber">`
+(same pattern the Prospect page's resource checklist already uses) next
+to the title, with the status pill kept alongside it - the checkbox
+itself is the obvious "tap to check this off" affordance, and the label
+wrapping keeps the whole row tappable the same way it was before.
 
 ## Tech stack
 

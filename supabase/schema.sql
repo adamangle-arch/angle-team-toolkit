@@ -2081,17 +2081,22 @@ grant execute on function public.get_ditto_leaderboard(date) to authenticated;
 -- instead of one aggregated total per person).
 drop function if exists public.get_daily_sales_leaderboard();
 
--- Every individual customer sale logged today, newest first - each sale
--- is its own "posted" row (name, categories, PV), not aggregated per
--- person, so the categories are actually meaningful per row. No
--- period_start param needed - always "today," recomputed fresh on every
--- page load, same as the Milestone Alerts / New to the Team spotlights
--- above.
+-- Every individual customer sale logged since p_period_start, newest
+-- first - each sale is its own "posted" row (name, categories, PV), not
+-- aggregated per person, so the categories are actually meaningful per
+-- row. Originally hardcoded to "today" (get_daily_sales_feed, no
+-- parameter) since the Leaderboard's Volume tab only ever showed it
+-- under the Daily period - now takes p_period_start so the same feed
+-- also backs "This Week's Sales" (weekStart) and "This Month's Sales"
+-- (monthStart), letting Volume show something relevant on every period
+-- tab instead of disappearing outside Monthly/Daily.
 --
--- Dropped first because its return shape changed (category text ->
--- categories text[]; then again to add notes/partner_* below) - Postgres
--- won't let create or replace change an existing function's return type.
+-- Dropped first because its return shape changed historically (category
+-- text -> categories text[]; then again to add notes/partner_* below,
+-- and now again for the new parameter) - Postgres won't let create or
+-- replace change an existing function's signature or return type.
 drop function if exists public.get_daily_sales_feed();
+drop function if exists public.get_sales_feed(date);
 
 -- notes: the sale-detail free text already captured on the Volume page's
 -- own log (customer_sales.notes) but never surfaced anywhere team-wide -
@@ -2104,7 +2109,7 @@ drop function if exists public.get_daily_sales_feed();
 -- get_ditto_leaderboard above, so a sale logged by one half of a linked
 -- household renders as "both spouses" (via CoupleLink) the same way
 -- those leaderboards already do, instead of looking like a solo sale.
-create or replace function public.get_daily_sales_feed()
+create or replace function public.get_sales_feed(p_period_start date)
 returns table (
   sale_id uuid,
   user_id uuid,
@@ -2129,11 +2134,11 @@ as $$
   from customer_sales cs
   join profiles pr on pr.id = cs.user_id
   left join profiles partner on partner.household_id = pr.id
-  where cs.created_at::date = current_date
+  where cs.created_at::date >= p_period_start
   order by cs.created_at desc;
 $$;
 
-grant execute on function public.get_daily_sales_feed() to authenticated;
+grant execute on function public.get_sales_feed(date) to authenticated;
 
 -- ============================================================
 -- Row Level Security
