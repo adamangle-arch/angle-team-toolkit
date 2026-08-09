@@ -4819,6 +4819,25 @@ category tabs got, fixed earlier the same way). Both switched from
 once, wrapping onto as many lines as needed instead of requiring a
 scroll gesture in either direction.
 
+### Fix: schema.sql failing to re-run once badge_earned notifications existed
+
+`sent_notifications_kind_check` was defined twice - once early in the
+file with an 11-kind list (missing `badge_earned`), then redefined later
+with the complete 12-kind list once badge notifications shipped. That's
+harmless the first time each block ever ran, but this project's whole
+workflow is "copy the entire current schema.sql and paste-run it again"
+on every update, which replays *all* history's `alter table` statements
+in one sitting - so the narrower block always ran first, and once the
+table actually had a `badge_earned` row in it (from that feature
+actually being used), every full re-run failed immediately with `check
+constraint "sent_notifications_kind_check" ... is violated by some row`
+before ever reaching the wider definition below it. Removed the earlier
+duplicate block entirely; the constraint now has exactly one definition
+(the current 12-kind list) like every other constraint in the file. If
+this ever needs a new kind added, edit that one list in place - never
+add a second `drop constraint` / `add constraint` block for the same
+name, since a repeat of this exact bug is what got fixed here.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

@@ -2817,16 +2817,17 @@ create table if not exists sent_notifications (
   recipient_count int not null default 0
 );
 
--- Same re-runnable-constraint pattern as goals_metric_check - a new kind
--- can be added without dropping (and wiping) this table.
-alter table sent_notifications drop constraint if exists sent_notifications_kind_check;
-alter table sent_notifications add constraint sent_notifications_kind_check check (
-  kind in (
-    'daily_stat_leaders', 'weekly_stat_leaders', 'monthly_stat_leaders', 'core_run_reminder',
-    'calendar_reminder', 'calendar_event_added', 'call_rating_submitted', 'core_run_completed',
-    'pipeline_5plus', 'onboarding_unlocked', 'games_unlocked'
-  )
-);
+-- The kind check constraint's one and only definition lives further down
+-- (search "sent_notifications_kind_check") where every kind added since
+-- this table was created is listed in one place. It used to also be
+-- redefined here with an earlier, narrower list - harmless the first time
+-- this ran, but every later "paste the whole file and run it" replay hit
+-- this narrower version BEFORE reaching the wider one below, so once the
+-- table actually had a 'badge_earned' row it started failing with
+-- "check constraint ... is violated by some row" on every full re-run,
+-- since this narrower list doesn't include it. Never redefine this
+-- constraint more than once in this file - update the single definition
+-- below in place instead.
 
 create index if not exists sent_notifications_user_id_idx on sent_notifications(user_id);
 create index if not exists sent_notifications_created_at_idx on sent_notifications(created_at desc);
@@ -6058,9 +6059,13 @@ $$;
 
 grant execute on function public.get_badge_metrics(uuid) to authenticated;
 
--- New notification kind: a badge earned, seen by the earner and their
--- upline (same shape as core_run_completed/pipeline_5plus, just for
--- badges instead).
+-- The sole definition of sent_notifications' kind check constraint (see
+-- the note back at the table's own CREATE TABLE block) - every kind ever
+-- added lives in this one list, most-recently 'badge_earned' (a badge
+-- earned, seen by the earner and their upline, same shape as
+-- core_run_completed/pipeline_5plus). Add new kinds by editing this list
+-- in place; never add a second drop/add-constraint block elsewhere in
+-- this file for the same constraint.
 alter table sent_notifications drop constraint if exists sent_notifications_kind_check;
 alter table sent_notifications add constraint sent_notifications_kind_check check (
   kind in (
