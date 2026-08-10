@@ -6213,7 +6213,7 @@ alter table sent_notifications add constraint sent_notifications_kind_check chec
     'pipeline_5plus', 'onboarding_unlocked', 'games_unlocked', 'badge_earned',
     'mission_reminder', 'volume_reminder', 'goals_reminder',
     'leaderboard_liked', 'story_posted', 'candidate_launched', 'candidate_resource_completed',
-    'prospect_link_visited'
+    'prospect_link_visited', 'member_resource_sent', 'library_resource_added', 'streak_milestone_reached'
   )
 );
 

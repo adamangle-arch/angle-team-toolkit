@@ -2207,6 +2207,7 @@ function MemberResourceSender({ recipientId, recipientName }: { recipientId: str
     setDetail("");
     setUrl("");
     setAdding(false);
+    fireNotifyEvent({ kind: "member_resource_sent", targetUserId: recipientId, resourceLabel: trimmedLabel });
   }
 
   async function sendFromLibrary(resource: OptionalResource) {
@@ -2228,6 +2229,7 @@ function MemberResourceSender({ recipientId, recipientName }: { recipientId: str
     }
     setSent((prev) => [...prev, data as MemberResource]);
     setAdding(false);
+    fireNotifyEvent({ kind: "member_resource_sent", targetUserId: recipientId, resourceLabel: resource.label });
   }
 
   async function remove(id: string) {

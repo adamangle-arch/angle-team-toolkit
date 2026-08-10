@@ -27,7 +27,10 @@ type Body =
   | { kind: "badge_earned"; targetUserId: string; badgeLabel: string }
   | { kind: "leaderboard_liked"; targetUserId: string }
   | { kind: "story_posted" }
-  | { kind: "candidate_launched"; candidateName: string };
+  | { kind: "candidate_launched"; candidateName: string }
+  | { kind: "member_resource_sent"; targetUserId: string; resourceLabel: string }
+  | { kind: "library_resource_added"; resourceLabel: string }
+  | { kind: "streak_milestone_reached"; days: number; label: string };
 
 function fullName(p: { first_name: string | null; last_name: string | null } | null): string {
   if (!p) return "Someone";
@@ -223,6 +226,50 @@ export async function POST(request: Request) {
           title: "🚀 New launch!",
           body: `${fullName(submitter)} just launched ${body.candidateName}`,
           url: "/pipeline",
+        });
+        return NextResponse.json(result);
+      }
+
+      case "member_resource_sent": {
+        const { data: sender } = await admin
+          .from("profiles")
+          .select("first_name,last_name")
+          .eq("id", userId)
+          .maybeSingle();
+
+        const result = await notifyUsers({
+          userIds: [body.targetUserId],
+          kind: "member_resource_sent",
+          title: "🎁 New resource sent to you",
+          body: `${fullName(sender)} sent you "${body.resourceLabel}"`,
+          url: "/onboarding",
+        });
+        return NextResponse.json(result);
+      }
+
+      case "library_resource_added": {
+        const { data: recipientRows } = await admin.from("profiles").select("id").neq("id", userId);
+        const recipients = ((recipientRows as { id: string }[]) ?? []).map((r) => r.id);
+
+        const result = await notifyUsers({
+          userIds: recipients,
+          kind: "library_resource_added",
+          title: "📚 New resource in the library",
+          body: `"${body.resourceLabel}" was just added to the resource library`,
+          url: "/library",
+        });
+        return NextResponse.json(result);
+      }
+
+      case "streak_milestone_reached": {
+        // Self-targeted, same as games_unlocked - a personal celebration,
+        // not something the rest of the team needs to hear about.
+        const result = await notifyUsers({
+          userIds: [userId],
+          kind: "streak_milestone_reached",
+          title: `🔥 ${body.label} streak!`,
+          body: `You've hit a ${body.label} Core Run streak. Keep it going!`,
+          url: "/streak",
         });
         return NextResponse.json(result);
       }

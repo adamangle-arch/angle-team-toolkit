@@ -9,6 +9,7 @@ import FeatureGate from "@/components/FeatureGate";
 import LibraryResourcePicker from "@/components/LibraryResourcePicker";
 import { SkeletonList } from "@/components/Skeleton";
 import { supabase } from "@/lib/supabaseClient";
+import { fireNotifyEvent } from "@/lib/notifyClient";
 import { AUDIOS, FIRST_YEAR_BOOKS, ADVANCED_LIBRARY } from "@/lib/library-data";
 import { LEADERS } from "@/lib/leaders-data";
 import { PRODUCTS, PV_REFERENCE, STARTER_STACKS } from "@/lib/product-data";
@@ -1363,6 +1364,7 @@ function OptionalResourcesAdmin({
     setNewDetail("");
     setNewUrl("");
     setNewEstimate("");
+    fireNotifyEvent({ kind: "library_resource_added", resourceLabel: label });
   }
 
   async function deleteResource(id: string) {

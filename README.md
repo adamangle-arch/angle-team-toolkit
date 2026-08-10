@@ -5099,6 +5099,44 @@ alter table sent_notifications add constraint sent_notifications_kind_check chec
 alter table candidates add column if not exists last_visit_notified_on date;
 ```
 
+### More notifications batch 2
+
+Three more event-triggered kinds from the same brainstormed list.
+
+- **`member_resource_sent`** - fires from both `send()` and
+  `sendFromLibrary()` in Pipeline's `MemberResourceSender` (the
+  "send a resource directly to a downline team member" box), notifying
+  the recipient directly.
+- **`library_resource_added`** - fires from `addToLibrary()` on the
+  Library page, broadcasting to everyone (same "all" scope
+  `calendar_event_added` uses) - the library is shared, so a new entry
+  is relevant to the whole team, not just the admin who added it.
+- **`streak_milestone_reached`** - fires from `saveToday()` on the Core
+  Run Streak page when today's save crosses a `STREAK_MILESTONES`
+  threshold (1 week / 30 days / 90 days / 6 months / 1 year) that
+  yesterday's streak hadn't reached yet. Self-targeted only, same as
+  `games_unlocked` - a personal streak is not upline/team news the way
+  a launch or a completed Core Run is.
+
+Run once in the Supabase SQL editor - adds the three new kinds to
+`sent_notifications`'s kind check (same drop/re-add pattern as every
+other constraint change in this file):
+
+```sql
+alter table sent_notifications drop constraint if exists sent_notifications_kind_check;
+alter table sent_notifications add constraint sent_notifications_kind_check check (
+  kind in (
+    'daily_stat_leaders', 'weekly_stat_leaders', 'monthly_stat_leaders', 'core_run_reminder',
+    'calendar_reminder', 'calendar_event_added', 'call_rating_submitted', 'core_run_completed',
+    'pipeline_5plus', 'onboarding_unlocked', 'games_unlocked', 'badge_earned',
+    'mission_reminder', 'volume_reminder', 'goals_reminder',
+    'leaderboard_liked', 'story_posted', 'candidate_launched', 'candidate_resource_completed',
+    'prospect_link_visited', 'member_resource_sent', 'library_resource_added',
+    'streak_milestone_reached'
+  )
+);
+```
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

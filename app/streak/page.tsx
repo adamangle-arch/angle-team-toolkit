@@ -15,6 +15,7 @@ import {
   CANDIDATE_STEP_SHORT_LABELS,
   ACTIVE_PIPELINE_MIN_STEP,
   READING_UNITS,
+  STREAK_MILESTONES,
   type PipelineStageKey,
   type ReadingUnit,
 } from "@/lib/constants";
@@ -610,6 +611,11 @@ export default function StreakPage() {
       const merged = withDerived({ ...base, ...patch });
       const isToday = day === today;
       const justUnlockedGames = isToday && !qualifies(base) && qualifies(merged);
+      // Captured before the optimistic update below touches historyRef -
+      // only meaningful for today's own row, same scope games_unlocked
+      // uses, since backfilling a past day isn't "the streak" in the
+      // live sense this celebrates.
+      const streakBefore = isToday ? computeStreakAsOf(historyRef.current, day) : 0;
       historyRef.current = { ...historyRef.current, [day]: merged };
       setHistory((prev) => ({ ...prev, [day]: merged }));
       if (justUnlockedGames) {
@@ -655,6 +661,15 @@ export default function StreakPage() {
         const normalized = normalizeRow(data as StreakDay);
         historyRef.current = { ...historyRef.current, [day]: normalized };
         setHistory((prev) => ({ ...prev, [day]: normalized }));
+        if (isToday) {
+          const streakAfter = computeStreakAsOf(historyRef.current, day);
+          const crossed = STREAK_MILESTONES.find(
+            (m) => streakBefore < m.days && streakAfter >= m.days
+          );
+          if (crossed) {
+            fireNotifyEvent({ kind: "streak_milestone_reached", days: crossed.days, label: crossed.label });
+          }
+        }
         // Evaluate right away instead of waiting for the next Dashboard/Badges
         // mount - otherwise a badge earned here (e.g. 5 Audios in a Day) sits
         // un-awarded until something else happens to trigger a re-check.

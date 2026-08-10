@@ -15,7 +15,10 @@ type NotifyBody =
   | { kind: "games_unlocked" }
   | { kind: "leaderboard_liked"; targetUserId: string }
   | { kind: "story_posted" }
-  | { kind: "candidate_launched"; candidateName: string };
+  | { kind: "candidate_launched"; candidateName: string }
+  | { kind: "member_resource_sent"; targetUserId: string; resourceLabel: string }
+  | { kind: "library_resource_added"; resourceLabel: string }
+  | { kind: "streak_milestone_reached"; days: number; label: string };
 
 // Fire-and-forget: every call site here is a side effect tacked onto an
 // action that already succeeded (a broadcast event sent, a rating saved,
