@@ -154,18 +154,6 @@ export const TRIVIA_QUESTIONS: TriviaQuestion[] = [
     source: "Team history, not written up in the app — ask your upline or mentor.",
   },
   {
-    question: 'Who is the speaker of the audio "Networking Is Normal"?',
-    options: ["Derek & Jill Kosek", "Kyle & Austin Brown", "Joe Markiewicz", "Manny Winston"],
-    correctIndex: 0,
-    source: 'More → Resources → Audios → "Networking Is Normal."',
-  },
-  {
-    question: '"Ditch the Pitch" moves you from a recruiting mindset to what kind of mindset?',
-    options: ["Filtering", "Closing", "Coaching", "Selling"],
-    correctIndex: 0,
-    source: 'More → Resources → Audios → "Ditch the Pitch."',
-  },
-  {
     question: 'In "10 Seconds Of Courage," what does Matt Grotewold say courage really is?',
     options: [
       "A moment-by-moment decision",

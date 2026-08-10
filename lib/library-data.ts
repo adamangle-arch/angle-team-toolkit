@@ -63,48 +63,6 @@ export const AUDIOS: Audio[] = [
     tags: ["Mental Toughness", "Discipline", "Consistency", "Personal Responsibility"],
   },
   {
-    title: "Credibility & Creating Expectation",
-    speaker: "Joe Markiewicz",
-    summary:
-      "The importance of posture, credibility, and expectation-setting with prospects — being the buyer, not the seller, and establishing confidence early.",
-    tags: ["Prospecting", "Posture", "Communication", "Networking"],
-  },
-  {
-    title: "Two Treasures",
-    speaker: "Tim Yokely",
-    summary:
-      "Everyone has the same two treasures: time and money. Priorities, budgeting, calendar management, and aligning daily decisions with long-term goals.",
-    tags: ["Time Management", "Budgeting", "Priorities", "Stewardship"],
-  },
-  {
-    title: "This Is Good",
-    speaker: "Adam & Kristen Ladenburger",
-    summary:
-      "A stronger positive mental attitude built on the belief that life happens for you, not to you — walking in faith and finding the good seed in every situation.",
-    tags: ["Perspective", "Gratitude", "Faith", "Resilience"],
-  },
-  {
-    title: "Protect Your Flame",
-    speaker: "Kyle & Austin Brown",
-    summary:
-      "Protecting and maintaining excitement for your business. Life will try to steal belief and enthusiasm — excitement is sustained through intentional decisions, not emotions.",
-    tags: ["Momentum", "Belief", "Consistency", "Emotional Stability"],
-  },
-  {
-    title: "Networking Is Normal",
-    speaker: "Derek & Jill Kosek",
-    summary:
-      "Practical principles for developing networking skills and becoming more comfortable connecting with people — networking is a normal part of everyday life.",
-    tags: ["Networking", "Prospecting", "Relationship Building", "Confidence"],
-  },
-  {
-    title: "Ditch The Pitch",
-    speaker: "Drew Tidwell",
-    summary:
-      "Moving from a recruiting mindset to a filtering mindset — identifying people whose goals and strengths align rather than trying to convince everyone.",
-    tags: ["Prospecting", "Posture", "Filtering", "Authenticity"],
-  },
-  {
     title: "Emerald Success Story – Angle",
     speaker: "Alex & Laura Angle",
     summary:
