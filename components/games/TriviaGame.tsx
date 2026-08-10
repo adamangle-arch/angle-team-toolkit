@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import { getToday } from "@/lib/dates";
-import { isPrimaryUser } from "@/lib/constants";
+import { useCoreRunUnlock } from "@/lib/useCoreRunUnlock";
 import { TRIVIA_QUESTIONS, type TriviaQuestion } from "@/lib/trivia-data";
 import type { GameLeaderEntry } from "@/lib/types";
 
@@ -44,15 +44,18 @@ function dailyQuestionIndices(day: string, poolSize: number, count: number): num
   return indices.slice(0, Math.min(count, poolSize));
 }
 
-type UnlockStatus = { coreRunDone: boolean };
 type DailyResult = { correct_count: number; total_count: number };
 
 export default function TriviaGame() {
   const { user } = useAuth();
   const today = getToday();
 
-  const [unlockStatus, setUnlockStatus] = useState<UnlockStatus | null>(null);
-  const [loadingUnlock, setLoadingUnlock] = useState(true);
+  const {
+    unlocked,
+    loading: loadingUnlock,
+    coreRunDoneToday,
+    streak: coreRunStreak,
+  } = useCoreRunUnlock(user.id, user.email);
 
   const [todayResult, setTodayResult] = useState<DailyResult | null>(null);
   const [loadingResult, setLoadingResult] = useState(true);
@@ -74,31 +77,6 @@ export default function TriviaGame() {
   // actually lives - trivia_daily_results only stores a score, not which
   // question was missed, so this doesn't survive a page reload.
   const [missedQuestion, setMissedQuestion] = useState<TriviaQuestion | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadUnlock() {
-      const { data } = await supabase
-        .from("streak_days")
-        .select("read,listen,daily_update,story_share")
-        .eq("user_id", user.id)
-        .eq("day", today)
-        .maybeSingle();
-      if (cancelled) return;
-      setUnlockStatus({
-        coreRunDone: Boolean(
-          data?.read && data?.listen && data?.daily_update && data?.story_share
-        ),
-      });
-      setLoadingUnlock(false);
-    }
-
-    loadUnlock();
-    return () => {
-      cancelled = true;
-    };
-  }, [user.id, today]);
 
   useEffect(() => {
     let cancelled = false;
@@ -190,10 +168,6 @@ export default function TriviaGame() {
     }
   }
 
-  // Admins aren't required to log a Core Run to unlock games - same
-  // "primary users see everything" carve-out used elsewhere in the app
-  // (e.g. Onboarding session gating).
-  const unlocked = isPrimaryUser(user.email) || Boolean(unlockStatus?.coreRunDone);
   const loading = loadingUnlock || loadingResult;
   const alreadyPlayedToday = todayResult !== null;
   const question = playing ? TRIVIA_QUESTIONS[questionOrder[step]] : null;
@@ -222,8 +196,21 @@ export default function TriviaGame() {
         <div className="card space-y-2">
           <p className="section-title">🔒 Locked for Today</p>
           <p className="text-sm text-slate-400">
-            Complete today&apos;s Core Run to unlock today&apos;s 5 trivia questions.
+            Complete today&apos;s Core Run - or keep an active streak going - to unlock today&apos;s 5
+            trivia questions.
           </p>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-slate-200">Core Run complete today</span>
+            <span className={coreRunDoneToday ? "pill-amber" : "pill"}>
+              {coreRunDoneToday ? "Done" : "Not yet"}
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-slate-200">Active streak</span>
+            <span className={coreRunStreak > 0 ? "pill-amber" : "pill"}>
+              {coreRunStreak > 0 ? `🔥 ${coreRunStreak}` : "None"}
+            </span>
+          </div>
           <Link href="/streak" className="btn-primary block w-full text-center">
             Go to Core Run Streak
           </Link>

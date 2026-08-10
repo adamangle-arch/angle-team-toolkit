@@ -4,13 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
-import { getToday } from "@/lib/dates";
-import { isPrimaryUser } from "@/lib/constants";
+import { useCoreRunUnlock } from "@/lib/useCoreRunUnlock";
 import type { GameLeaderEntry } from "@/lib/types";
-
-type UnlockStatus = {
-  coreRunDone: boolean;
-};
 
 const COLS = 15;
 const ROWS = 20;
@@ -47,8 +42,10 @@ export default function DiamondChaseGame() {
   const [running, setRunning] = useState(false);
   const [gameOver, setGameOver] = useState(false);
   const [leaders, setLeaders] = useState<GameLeaderEntry[]>([]);
-  const [unlockStatus, setUnlockStatus] = useState<UnlockStatus | null>(null);
-  const [loadingUnlock, setLoadingUnlock] = useState(true);
+  const { unlocked, loading: loadingUnlock, coreRunDoneToday, streak: coreRunStreak } = useCoreRunUnlock(
+    user.id,
+    user.email
+  );
 
   const snake = useRef<Point[]>([]);
   const direction = useRef<Direction>("right");
@@ -80,32 +77,6 @@ export default function DiamondChaseGame() {
     }
 
     loadBest();
-    return () => {
-      cancelled = true;
-    };
-  }, [user.id]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadUnlockStatus() {
-      setLoadingUnlock(true);
-      const { data } = await supabase
-        .from("streak_days")
-        .select("read,listen,daily_update,story_share")
-        .eq("user_id", user.id)
-        .eq("day", getToday())
-        .maybeSingle();
-      if (cancelled) return;
-      setUnlockStatus({
-        coreRunDone: Boolean(
-          data?.read && data?.listen && data?.daily_update && data?.story_share
-        ),
-      });
-      setLoadingUnlock(false);
-    }
-
-    loadUnlockStatus();
     return () => {
       cancelled = true;
     };
@@ -349,11 +320,6 @@ export default function DiamondChaseGame() {
     return () => cancelAnimationFrame(animFrame.current);
   }, []);
 
-  // Admins aren't required to log a Core Run to unlock games - same
-  // "primary users see everything" carve-out used elsewhere in the app
-  // (e.g. Onboarding session gating).
-  const unlocked = isPrimaryUser(user.email) || Boolean(unlockStatus?.coreRunDone);
-
   return (
     <>
       {loadingUnlock ? (
@@ -362,12 +328,18 @@ export default function DiamondChaseGame() {
         <div className="card space-y-2">
           <p className="section-title">🔒 Locked for Today</p>
           <p className="text-sm text-slate-400">
-            Complete today&apos;s Core Run to unlock Diamond Chase.
+            Complete today&apos;s Core Run - or keep an active streak going - to unlock Diamond Chase.
           </p>
           <div className="flex items-center justify-between text-sm">
-            <span className="text-slate-200">Core Run complete</span>
-            <span className={unlockStatus?.coreRunDone ? "pill-amber" : "pill"}>
-              {unlockStatus?.coreRunDone ? "Done" : "Not yet"}
+            <span className="text-slate-200">Core Run complete today</span>
+            <span className={coreRunDoneToday ? "pill-amber" : "pill"}>
+              {coreRunDoneToday ? "Done" : "Not yet"}
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-slate-200">Active streak</span>
+            <span className={coreRunStreak > 0 ? "pill-amber" : "pill"}>
+              {coreRunStreak > 0 ? `🔥 ${coreRunStreak}` : "None"}
             </span>
           </div>
           <Link href="/streak" className="btn-primary block w-full text-center">

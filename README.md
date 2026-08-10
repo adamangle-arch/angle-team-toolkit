@@ -2422,17 +2422,26 @@ initial tab can be deep-linked via `?tab=diamond-run|diamond-chase|trivia`
 `<Suspense>` boundary per Next's docs.
 
 Admins don't have to complete that day's Core Run to unlock any of the
-three — each game's own `unlocked` check now short-circuits on
-`isPrimaryUser(user.email)` before falling back to the real
-`coreRunDone` check everyone else needs. Same carve-out pattern used for
-Onboarding session gating elsewhere in the app.
+three — each game's own `unlocked` check short-circuits on
+`isPrimaryUser(user.email)` before falling back to the real check
+everyone else needs. Same carve-out pattern used for Onboarding session
+gating elsewhere in the app.
+
+**Unlock logic** lives in one shared hook, `lib/useCoreRunUnlock.ts`,
+used by all three games: unlocked if *either* today's Core Run is
+already complete *or* `get_current_streak()` is already greater than
+zero. That RPC walks back from today, or from yesterday if today isn't
+logged yet - so someone who reliably logs their Core Run late at night
+isn't locked out of games all day on an otherwise-unbroken streak; only
+someone who's actually let the streak lapse (today AND yesterday both
+missing) stays locked until they log today's. Originally gated purely on
+today's `streak_days` row before this widened it - the "Locked for
+Today" card now shows both signals (today's status and the active
+streak length) so it's clear which one is carrying the unlock.
 
 - **Diamond Run** — a lightweight Flappy Bird-style game: tap to keep
-  your diamond airborne and dodge classic green pipes. Playing is
-  gated: it unlocks for the day once you've completed that day's Core
-  Run (Read, Listen, Daily Update, Story Share), reading the same
-  `streak_days` row that page already writes to. Locked out, it links
-  straight to Core Run Streak. High scores: `game_high_scores` +
+  your diamond airborne and dodge classic green pipes. Locked out, it
+  links straight to Core Run Streak. High scores: `game_high_scores` +
   `get_game_leaderboard()`.
 - **Diamond Chase** — classic Snake, reskinned: a trail of diamonds
   (head outlined in white) chases down a hand-drawn book icon instead
@@ -2441,9 +2450,7 @@ Onboarding session gating elsewhere in the app.
   Safari and wasn't showing up there). Controls: arrow keys/WASD,
   swipe, or the on-screen D-pad (large 56px buttons for easier
   tapping). Speed ramps up slightly with every book eaten, starting a
-  bit slower than the first version for easier control. Gated the same
-  way as Diamond Run — locked until that day's Core Run is complete,
-  linking to Core Run Streak while locked out. High scores:
+  bit slower than the first version for easier control. High scores:
   `snake_high_scores` + `get_snake_leaderboard()`.
 - **Trivia** — a daily 5-question challenge, not a survival mode.
   Every user gets the same 5 questions on a given calendar day, picked
@@ -2455,10 +2462,8 @@ Onboarding session gating elsewhere in the app.
   knowledge" (honor system, no looking up or asking someone for the
   answer) plus a no-pressure nudge if you're struggling to get 5 in a
   row: keep plugging into audios, books, and team events and it'll keep
-  getting easier — not a "you're falling behind" message. Playing is
-  gated the same way as Diamond Run —
-  unlocks once that day's Core Run (Read, Listen, Daily Update, Story
-  Share) is complete. One attempt per day: answering a question wrong
+  getting easier — not a "you're falling behind" message. One attempt
+  per day: answering a question wrong
   ends the attempt immediately (no retries, no seeing the remaining
   questions), and finishing all 5 also ends it — either way you wait
   until the next calendar day for a new set. Results are stored in
@@ -2491,7 +2496,7 @@ Onboarding session gating elsewhere in the app.
     link straight to the Trivia tab specifically, back when Trivia was
     the only one of the three games gated behind today's Core Run — but
     Diamond Run and Diamond Chase both gate on the exact same
-    `coreRunDone` check (see each game's own `unlockStatus` in
+    `useCoreRunUnlock()` check (`lib/useCoreRunUnlock.ts`, shared by
     `components/games/DiamondRunGame.tsx` /
     `DiamondChaseGame.tsx` / `TriviaGame.tsx`), so all three unlock at
     once — the banner was just never updated to say so. It also used to
