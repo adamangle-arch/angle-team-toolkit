@@ -352,7 +352,7 @@ export const BADGE_DEFINITIONS: BadgeDefinition[] = [
   { key: "team_of_20", category: "Business Structure", label: "Team of Twenty", description: "20 people total on your team - you (2 if you're linked to a spouse) plus your downline, any depth.", icon: "👥", metric: "total_downline_people", threshold: 20, points: 132 },
   { key: "team_of_50", category: "Business Structure", label: "Team of Fifty", description: "50 people total on your team - you (2 if you're linked to a spouse) plus your downline, any depth.", icon: "👥", metric: "total_downline_people", threshold: 50, points: 168 },
   { key: "team_of_100", category: "Business Structure", label: "Team of a Hundred", description: "100 people total on your team - you (2 if you're linked to a spouse) plus your downline, any depth.", icon: "👑", metric: "total_downline_people", threshold: 100, points: 204 },
-  { key: "team10_qi1_8", category: "Business Structure", label: "Team of 10, 8 QI1s", description: "10 people total on your team (you plus your downline), plus 8 QI1s combined in a month.", icon: "🏢", metric: "has_team10_qi1_8", threshold: 1, points: 90 },
+  { key: "team10_qi1_8", category: "Business Structure", label: "Team of 10, 8 QI1s", description: "10 people total on your team (you plus your downline), with 8 different people or couples each hitting 8 QI1s in the same month.", icon: "🏢", metric: "has_team10_qi1_8", threshold: 1, points: 90 },
 
   // Goals
   { key: "own_your_story", category: "Goals", label: "Own Your Story", description: "Fill in all three of your Dreams fields.", icon: "📖", metric: "has_dreams_filled", threshold: 1, points: 30 },

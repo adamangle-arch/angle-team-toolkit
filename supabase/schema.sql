@@ -5793,13 +5793,22 @@ as $$
       ) t
     ),
     (
+      -- Fixed to require 8 different people/couples on the team to each
+      -- individually hit 8 QI1s in the same month (like 8 of them earning
+      -- their own "8 QI1s in a Month" badge at once) - not just the whole
+      -- team's QI1s summed to 8, which any team of 10 clears trivially.
+      -- Grouped by coalesce(household_id, id) so a linked spouse pair
+      -- counts as one unit either way, matching self_count/leg_root.
       (select count(distinct member_id) from legs) + (select n from self_count) >= 10
       and (
-        select coalesce(max(total), 0) from (
-          select sum(qi1) as total from pipeline_periods
-          where period_type = 'monthly'
-            and (user_id = p_user_id or user_id in (select user_id from public.get_downline_user_ids(p_user_id)))
-          group by period_start
+        select coalesce(max(unit_count), 0) from (
+          select pp.period_start, count(distinct coalesce(pr.household_id, pr.id)) as unit_count
+          from pipeline_periods pp
+          join profiles pr on pr.id = pp.user_id
+          where pp.period_type = 'monthly'
+            and pp.qi1 >= 8
+            and (pp.user_id = p_user_id or pp.user_id in (select member_id from legs))
+          group by pp.period_start
         ) t
       ) >= 8
     ),
