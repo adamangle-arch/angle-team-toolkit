@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabaseClient";
+import { fireNotifyEvent } from "@/lib/notifyClient";
 import { TEAMS, ONBOARDING_SESSIONS, isPrimaryUser } from "@/lib/constants";
 
 export default function ProfileGate({
@@ -89,6 +90,11 @@ export default function ProfileGate({
         setError(`Upline account number: ${uplineError.message}`);
         return;
       }
+      // Only fired from this one-time signup gate, never from My Profile's
+      // own "re-link my upline" field - that one's a self-service edit
+      // someone might use any time (fixing a typo, changing sponsors), not
+      // a new-person-joined-the-team event.
+      fireNotifyEvent({ kind: "downline_signup_linked", firstName: firstName.trim(), lastName: lastName.trim() });
     }
 
     // Optional - not everyone has a spouse also on the team, but if they

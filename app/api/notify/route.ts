@@ -30,7 +30,8 @@ type Body =
   | { kind: "candidate_launched"; candidateName: string }
   | { kind: "member_resource_sent"; targetUserId: string; resourceLabel: string }
   | { kind: "library_resource_added"; resourceLabel: string }
-  | { kind: "streak_milestone_reached"; days: number; label: string };
+  | { kind: "streak_milestone_reached"; days: number; label: string }
+  | { kind: "downline_signup_linked"; firstName: string; lastName: string };
 
 function fullName(p: { first_name: string | null; last_name: string | null } | null): string {
   if (!p) return "Someone";
@@ -225,6 +226,32 @@ export async function POST(request: Request) {
           kind: "candidate_launched",
           title: "🚀 New launch!",
           body: `${fullName(submitter)} just launched ${body.candidateName}`,
+          url: "/pipeline",
+        });
+        return NextResponse.json(result);
+      }
+
+      case "downline_signup_linked": {
+        // Recipient is the caller's own upline_id, not something the client
+        // sends - by the time this fires, ProfileGate's link_upline() RPC
+        // has already set it server-side, so re-reading it here is both
+        // simpler and safer than trusting a client-supplied target id.
+        const { data: caller } = await admin
+          .from("profiles")
+          .select("upline_id")
+          .eq("id", userId)
+          .maybeSingle();
+        const uplineId = caller?.upline_id;
+        if (!uplineId) {
+          return NextResponse.json({ sent: 0, skipped: 0, removed: 0, errors: [] });
+        }
+
+        const name = [body.firstName, body.lastName].filter(Boolean).join(" ") || "Someone";
+        const result = await notifyUsers({
+          userIds: [uplineId],
+          kind: "downline_signup_linked",
+          title: "🎉 New team member",
+          body: `${name} just joined your team and linked you as their upline`,
           url: "/pipeline",
         });
         return NextResponse.json(result);

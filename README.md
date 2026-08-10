@@ -5137,6 +5137,39 @@ alter table sent_notifications add constraint sent_notifications_kind_check chec
 );
 ```
 
+### More notifications batch 3
+
+One more kind, unblocking the "new downline signup" item from the
+original list - it needed a real hook, since account creation itself
+(`handle_new_user()`) happens before anyone's chosen an upline yet.
+
+- **`downline_signup_linked`** - fires from `ProfileGate.tsx`, the
+  one-time "finish your profile" gate every new signup goes through,
+  right after their `link_upline(account_number)` call succeeds.
+  Notifies whichever upline they just linked. Deliberately **not**
+  wired into My Profile's own "My Upline" field (`handleLinkUpline()`
+  in `app/profile/page.tsx`) - that one's a self-service re-link
+  anyone can use any time (fixing a typo, changing sponsors), not a
+  new-person-joined-the-team event, and firing there too would
+  misfire on every edit.
+
+Run once in the Supabase SQL editor:
+
+```sql
+alter table sent_notifications drop constraint if exists sent_notifications_kind_check;
+alter table sent_notifications add constraint sent_notifications_kind_check check (
+  kind in (
+    'daily_stat_leaders', 'weekly_stat_leaders', 'monthly_stat_leaders', 'core_run_reminder',
+    'calendar_reminder', 'calendar_event_added', 'call_rating_submitted', 'core_run_completed',
+    'pipeline_5plus', 'onboarding_unlocked', 'games_unlocked', 'badge_earned',
+    'mission_reminder', 'volume_reminder', 'goals_reminder',
+    'leaderboard_liked', 'story_posted', 'candidate_launched', 'candidate_resource_completed',
+    'prospect_link_visited', 'member_resource_sent', 'library_resource_added',
+    'streak_milestone_reached', 'downline_signup_linked'
+  )
+);
+```
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

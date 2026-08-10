@@ -56,6 +56,7 @@ export const NOTIFICATION_KINDS = [
   { kind: "member_resource_sent", label: "Resource sent to you" },
   { kind: "library_resource_added", label: "New library resource" },
   { kind: "streak_milestone_reached", label: "Streak milestone" },
+  { kind: "downline_signup_linked", label: "New team member" },
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number]["kind"];
 export const NOTIFICATION_KIND_LABELS = Object.fromEntries(
