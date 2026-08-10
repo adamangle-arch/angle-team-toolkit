@@ -4796,6 +4796,18 @@ update optional_resources
 set url = 'https://www.dropbox.com/scl/fi/9r1f9j6qkbcrxbu3j68jv/Emerald-Success-Story-Angle-L11-0221-AUD.mp3?rlkey=lvinm6ork0my2cbn31adf1hoy&st=d17413c8&dl=0'
 where label = '🎧 Emerald Success Story - Angle';
 
+-- This row's label said "...of the 21st Century" while the AUDIOS entry
+-- (lib/library-data.ts) has always said "...In The 21st Century" - a word
+-- difference normalizeTitle() can't paper over the way it now does for
+-- dash variants, so the link never surfaced even though it was seeded
+-- correctly. Renamed to match the app's title exactly, and refreshed the
+-- Dropbox link to the newer share link (same recording, new rlkey/token).
+update optional_resources
+set
+  label = '🎧 Financial Stability In The 21st Century',
+  url = 'https://www.dropbox.com/scl/fi/y20r3u6rhlhvx6xnpeup3/NLA-Financial-Stability-in-the-21st-Century-L15-1347-AUD.mp3?rlkey=2wc67eptr1wn5a18vubfbirxg&st=bf20bm6w&dl=0'
+where label = '🎧 Financial Stability of the 21st Century';
+
 -- One-time content cleanup pass, per a live review of the newly-added book
 -- PDFs: adds the missing 📖 prefix (one consistent emoji for every
 -- book, matching the podcast cleanup earlier), normalizes title-case

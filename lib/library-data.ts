@@ -77,46 +77,11 @@ export const AUDIOS: Audio[] = [
     tags: ["Skill Development", "Confidence", "Growth", "Learning Curve"],
   },
   {
-    title: "Mentally Shredded",
-    speaker: "Chase McIlroy",
-    summary:
-      "Comparing physical fitness to mental fitness — developing disciplined thinking, emotional control, and mental toughness for business and life.",
-    tags: ["Mental Toughness", "Discipline", "Emotional Control", "Resilience"],
-  },
-  {
-    title: "10 Seconds Of Courage",
-    speaker: "Matt Grotewold",
-    summary:
-      "Courage isn't a personality trait — it's a moment-by-moment decision. Overcoming fear by focusing on service and logic rather than emotion.",
-    tags: ["Courage", "Confidence", "Overcoming Fear", "Action"],
-  },
-  {
     title: "Financial Stability In The 21st Century",
     speaker: "Greg Duncan",
     summary:
       "The growing instability of modern economic systems, and how entrepreneurship and diversified income can build long-term security and freedom.",
     tags: ["Finances", "Entrepreneurship", "Economic Awareness", "Freedom"],
-  },
-  {
-    title: "The Customer Experience",
-    speaker: "Tyler Sheridan",
-    summary:
-      "Long-term sales success is built on relationships and loyalty, not transactions. Principles for creating exceptional customer experiences.",
-    tags: ["Customer Building", "Relationships", "Loyalty", "Service"],
-  },
-  {
-    title: "Results-Driven Coaching",
-    speaker: "Adam Ladenburger & Brent Harris",
-    summary:
-      "How strong mentorship, communication, and transparency accelerate growth and leadership development — leading by example and taking ownership of coaching others.",
-    tags: ["Leadership", "Coaching", "Mentorship", "Accountability"],
-  },
-  {
-    title: "Unrattled",
-    speaker: "Drew Tidwell",
-    summary:
-      "Handling negativity, objections, and resistance with confidence and composure — practical responses that maintain belief, resilience, and momentum.",
-    tags: ["Objections", "Resilience", "Confidence", "Emotional Stability"],
   },
   {
     title: "Dissatisfied",
@@ -126,39 +91,11 @@ export const AUDIOS: Audio[] = [
     tags: ["Growth Mindset", "Discipline", "Ambition", "Personal Development"],
   },
   {
-    title: "Get Through Or Win Through",
-    speaker: "Alex Angle interviews Kent & Jenna Scheerer",
-    summary:
-      "Overcoming adversity through Jenna's battle with breast cancer — every trial presents a choice: simply survive it, or leverage it to become stronger and help others.",
-    tags: ["Adversity", "Resilience", "Perseverance", "Perspective"],
-  },
-  {
     title: "Crush Your List",
     speaker: "Jim Mueller & John Resch",
     summary:
       "Practical strategies for sponsoring and expanding your network — building quality contact lists, generating referrals, and remembering you can't predict who joins.",
     tags: ["Prospecting", "List Building", "Networking", "Activity"],
-  },
-  {
-    title: "Getting Through The First Year",
-    speaker: "Toby Ayers",
-    summary:
-      "The challenges many people face during their first year — meaningful results require honest self-evaluation and committing to become the person capable of greater success.",
-    tags: ["New IBO", "Personal Growth", "Consistency", "Expectations"],
-  },
-  {
-    title: "Purveyors Of Hope",
-    speaker: "Joe Markiewicz",
-    summary:
-      "This business offers something money can't buy: hope for a better life. Why this team is uniquely positioned to offer real hope in an uncertain world.",
-    tags: ["Hope", "Vision", "Belief", "Leadership"],
-  },
-  {
-    title: "P & C Is What I Need To Be",
-    speaker: "Derek & Robyn Krueger",
-    summary:
-      "The characteristic most successful IBOs share is persistent and consistent effort — relying on habits instead of emotions and doing the work even when you don't feel like it.",
-    tags: ["Consistency", "Discipline", "Habits", "Perseverance"],
   },
   {
     title: "Predictably Radical",
@@ -173,27 +110,6 @@ export const AUDIOS: Audio[] = [
     summary:
       "The importance of gratitude in growth — barriers to a thankful mindset, and staying focused through stagnation on the path to success.",
     tags: ["Gratitude", "Mindset", "Perseverance", "Perspective"],
-  },
-  {
-    title: "Bird Dog Mentality",
-    speaker: "Brandon West & Larry Winters",
-    summary:
-      "The three crucial components of getting new IBOs past their first 90 days, and a warning against falling into a 'bird dog mentality' of chasing instead of growing.",
-    tags: ["Leadership", "Coaching", "New IBO", "Focus"],
-  },
-  {
-    title: "Give It A Second",
-    speaker: "Derek & Jill Kosek",
-    summary:
-      "Patience is one of the most powerful business-building tools. If your business isn't moving, it may not mean you're doing anything wrong — run the play in front of you.",
-    tags: ["Patience", "Consistency", "Perseverance", "Long-Term Thinking"],
-  },
-  {
-    title: "Welcome To The Success Journey",
-    speaker: "Andrew Tidwell",
-    summary:
-      "A power-packed welcome covering the mindset basics needed to get started, and where you'll need to grow as you develop into a leader.",
-    tags: ["New IBO", "Mindset", "Commitment", "Growth"],
   },
   {
     title: "Ruby Success Story – Jason & Milynda Abbott",
@@ -334,13 +250,6 @@ export const AUDIOS: Audio[] = [
     summary:
       "How to ignite the light inside yourself to build a bigger business and better future — becoming courageous and comfortable being uncomfortable.",
     tags: ["Courage", "Vision", "Growth", "Mindset"],
-  },
-  {
-    title: "Your Pipeline Is Your Lifeline",
-    speaker: "Mike LoBue",
-    summary:
-      "Business confidence is rarely a matter of belief — it's a direct result of maintaining a healthy pipeline. Keeping your pipeline full protects attitude during setbacks.",
-    tags: ["Pipeline", "Confidence", "Consistency", "Prospecting"],
   },
 ];
 

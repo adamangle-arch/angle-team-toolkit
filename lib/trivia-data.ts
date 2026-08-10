@@ -89,7 +89,7 @@ export const TRIVIA_QUESTIONS: TriviaQuestion[] = [
       "Faith Over Fear",
     ],
     correctIndex: 2,
-    source: 'More → Resources → Audios → "Get Through Or Win Through."',
+    source: '"Get Through Or Win Through" on the LTD Media app.',
   },
   {
     question:
@@ -154,6 +154,18 @@ export const TRIVIA_QUESTIONS: TriviaQuestion[] = [
     source: "Team history, not written up in the app — ask your upline or mentor.",
   },
   {
+    question: 'Who is the speaker of the audio "Networking Is Normal"?',
+    options: ["Derek & Jill Kosek", "Kyle & Austin Brown", "Joe Markiewicz", "Manny Winston"],
+    correctIndex: 0,
+    source: '"Networking Is Normal" on the LTD Media app.',
+  },
+  {
+    question: '"Ditch the Pitch" moves you from a recruiting mindset to what kind of mindset?',
+    options: ["Filtering", "Closing", "Coaching", "Selling"],
+    correctIndex: 0,
+    source: '"Ditch the Pitch" on the LTD Media app.',
+  },
+  {
     question: 'In "10 Seconds Of Courage," what does Matt Grotewold say courage really is?',
     options: [
       "A moment-by-moment decision",
@@ -162,13 +174,13 @@ export const TRIVIA_QUESTIONS: TriviaQuestion[] = [
       "A result of confidence",
     ],
     correctIndex: 0,
-    source: 'More → Resources → Audios → "10 Seconds Of Courage."',
+    source: '"10 Seconds Of Courage" on the LTD Media app.',
   },
   {
     question: 'Who interviews Kent & Jenna Scheerer in the audio "Get Through Or Win Through"?',
     options: ["Alex Angle", "Joe Markiewicz", "Mark Nathan", "Drew Tidwell"],
     correctIndex: 0,
-    source: 'More → Resources → Audios → "Get Through Or Win Through" (speaker line).',
+    source: '"Get Through Or Win Through" on the LTD Media app (speaker line).',
   },
   {
     question: "What was Alex Angle's career before the business?",
