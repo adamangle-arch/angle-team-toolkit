@@ -237,6 +237,11 @@ function AudiosSection({
 function normalizeTitle(s: string): string {
   return s
     .replace(/^[^\p{L}\p{N}]+/gu, "")
+    .replace(/[‐‑‒–—―]/g, "-") // en/em dash
+    // etc. -> plain hyphen, so a typographic dash in one source
+    // (lib/library-data.ts) still matches a plain hyphen typed into the
+    // other (optional_resources.label) - e.g. "Emerald Success Story –
+    // Angle" vs "🎧 Emerald Success Story - Angle"
     .trim()
     .toLowerCase();
 }
