@@ -61,6 +61,7 @@ const CRON_ROUTES = [
   { path: "/api/push/send-stat-leaders", label: "Stat leaders digest" },
   { path: "/api/push/send-calendar-reminders", label: "Calendar reminders" },
   { path: "/api/push/send-daily-nudges", label: "Mission/volume/goals nudges" },
+  { path: "/api/push/send-engagement-filler", label: "Engagement filler (book/audio)" },
 ] as const;
 
 function pct(numerator: number, denominator: number): string {

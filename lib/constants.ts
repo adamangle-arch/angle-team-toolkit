@@ -61,6 +61,7 @@ export const NOTIFICATION_KINDS = [
   { kind: "app_inactive_reminder", label: "Haven't opened the app" },
   { kind: "streak_break_downline", label: "Downline streak ended" },
   { kind: "admin_weekly_report", label: "Weekly team report" },
+  { kind: "engagement_filler", label: "Book/audio recommendations" },
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number]["kind"];
 export const NOTIFICATION_KIND_LABELS = Object.fromEntries(

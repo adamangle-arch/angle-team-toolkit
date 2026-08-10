@@ -23,6 +23,7 @@ const ALLOWED_PATHS = [
   "/api/push/send-stat-leaders",
   "/api/push/send-calendar-reminders",
   "/api/push/send-daily-nudges",
+  "/api/push/send-engagement-filler",
 ] as const;
 
 export async function POST(request: Request) {

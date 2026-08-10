@@ -5226,6 +5226,81 @@ turned out to already be covered - the latter by the existing
 `calendar_event_added` notification, which already fires on any event
 someone else adds for you regardless of who owns the calendar.
 
+### Engagement filler: a notification at least every 20 minutes
+
+On request - fills the gap whenever nothing else has notified someone
+in a while, so the app stays present through the day even between real
+events, using book/audio recommendations pulled from the existing
+Resources library content (no fabricated quotes - there's no actual
+quote text stored anywhere in the app, and inventing verbatim quotes
+attributed to real authors isn't something to guess at).
+
+- **New route**: `/api/push/send-engagement-filler`. Meant to run every
+  10 minutes via its own Supabase pg_cron job (see below) - Vercel
+  Hobby's two cron slots are already spent on `send-reminders` and
+  `send-stat-leaders`, same reasoning as `send-calendar-reminders` and
+  `send-daily-nudges`.
+- **No new "last notified" column** - instead of tracking that
+  separately (which would mean touching every existing send path), it
+  queries `sent_notifications` for anything created in the last 20
+  minutes and checks whether this specific person was actually covered:
+  either a row addressed directly to them, or a broadcast row
+  (`user_id is null`) for a kind they haven't muted. Only fires for
+  someone genuinely not covered by anything else - a busy notification
+  day naturally suppresses this one.
+- **Daytime window only**: 8am-9pm in each person's own local time
+  (`profiles.timezone`, falling back to Eastern for anyone without one
+  set) - nobody gets a book recommendation at 3am.
+- **Respects mutes**: a new `engagement_filler` kind, muteable like
+  every other kind from My Profile's Notification Preferences - someone
+  who doesn't want this can turn it off without losing anything else.
+- **10-minute cron / 20-minute gap** means the actual worst-case gap
+  between notifications is closer to ~20-30 minutes, not a hard 20-minute
+  guarantee - a deliberate tradeoff against running the check (and the
+  push volume) twice as often for a target that was never meant as a
+  strict SLA.
+- Also added to `/api/admin/run-cron`'s allowlist and the Diagnostics
+  tab's cron list, so it can be triggered/inspected the same way as the
+  other three externally-scheduled routes.
+
+Run once in the Supabase SQL editor - the one-time pg_cron schedule (fill
+in your real Vercel domain and `CRON_SECRET` value, same as the other
+externally-scheduled routes):
+
+```sql
+create extension if not exists pg_net;
+
+select cron.schedule(
+  'send-engagement-filler',
+  '*/10 * * * *',
+  $$
+  select net.http_post(
+    url := 'https://YOUR-VERCEL-DOMAIN/api/push/send-engagement-filler',
+    headers := jsonb_build_object('Authorization', 'Bearer YOUR-CRON-SECRET-VALUE'),
+    body := '{}'::jsonb
+  );
+  $$
+);
+```
+
+Plus the usual kind-check addition:
+
+```sql
+alter table sent_notifications drop constraint if exists sent_notifications_kind_check;
+alter table sent_notifications add constraint sent_notifications_kind_check check (
+  kind in (
+    'daily_stat_leaders', 'weekly_stat_leaders', 'monthly_stat_leaders', 'core_run_reminder',
+    'calendar_reminder', 'calendar_event_added', 'call_rating_submitted', 'core_run_completed',
+    'pipeline_5plus', 'onboarding_unlocked', 'games_unlocked', 'badge_earned',
+    'mission_reminder', 'volume_reminder', 'goals_reminder',
+    'leaderboard_liked', 'story_posted', 'candidate_launched', 'candidate_resource_completed',
+    'prospect_link_visited', 'member_resource_sent', 'library_resource_added',
+    'streak_milestone_reached', 'downline_signup_linked', 'trivia_streak_reminder',
+    'app_inactive_reminder', 'streak_break_downline', 'admin_weekly_report', 'engagement_filler'
+  )
+);
+```
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)
