@@ -6200,20 +6200,31 @@ grant execute on function public.get_badge_metrics(uuid) to authenticated;
 
 -- The sole definition of sent_notifications' kind check constraint (see
 -- the note back at the table's own CREATE TABLE block) - every kind ever
--- added lives in this one list, most-recently 'badge_earned' (a badge
--- earned, seen by the earner and their upline, same shape as
--- core_run_completed/pipeline_5plus). Add new kinds by editing this list
--- in place; never add a second drop/add-constraint block elsewhere in
--- this file for the same constraint.
+-- added lives in this one list, most-recently the notifications batch
+-- adding leaderboard_liked/story_posted/candidate_launched/
+-- candidate_resource_completed/prospect_link_visited. Add new kinds by
+-- editing this list in place; never add a second drop/add-constraint
+-- block elsewhere in this file for the same constraint.
 alter table sent_notifications drop constraint if exists sent_notifications_kind_check;
 alter table sent_notifications add constraint sent_notifications_kind_check check (
   kind in (
     'daily_stat_leaders', 'weekly_stat_leaders', 'monthly_stat_leaders', 'core_run_reminder',
     'calendar_reminder', 'calendar_event_added', 'call_rating_submitted', 'core_run_completed',
     'pipeline_5plus', 'onboarding_unlocked', 'games_unlocked', 'badge_earned',
-    'mission_reminder', 'volume_reminder', 'goals_reminder'
+    'mission_reminder', 'volume_reminder', 'goals_reminder',
+    'leaderboard_liked', 'story_posted', 'candidate_launched', 'candidate_resource_completed',
+    'prospect_link_visited'
   )
 );
+
+-- Additive: dedups the prospect_link_visited push to at most once per
+-- candidate per day - without this, a candidate refreshing their
+-- resources page (or leaving the tab open and coming back) would fire a
+-- fresh push to their rep every single time, which is noise, not signal.
+-- Written by the anonymous (no rep session) /api/notify/prospect-event
+-- route, same access-code-is-the-only-credential trust model every
+-- other /prospect write already uses.
+alter table candidates add column if not exists last_visit_notified_on date;
 
 -- ============================================================
 -- STORIES

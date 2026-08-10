@@ -12,7 +12,10 @@ type NotifyBody =
   | { kind: "core_run_completed" }
   | { kind: "pipeline_5plus" }
   | { kind: "onboarding_unlocked"; targetUserId: string; sessionNumber: number }
-  | { kind: "games_unlocked" };
+  | { kind: "games_unlocked" }
+  | { kind: "leaderboard_liked"; targetUserId: string }
+  | { kind: "story_posted" }
+  | { kind: "candidate_launched"; candidateName: string };
 
 // Fire-and-forget: every call site here is a side effect tacked onto an
 // action that already succeeded (a broadcast event sent, a rating saved,

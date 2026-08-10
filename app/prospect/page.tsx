@@ -10,6 +10,21 @@ import {
 } from "@/lib/constants";
 import { nextWebinarOccurrence, formatWebinarTime } from "@/lib/dates";
 
+// Fire-and-forget, same "never block or surface an error for a
+// best-effort side effect" reasoning as fireNotifyEvent - can't reuse
+// that helper directly since it requires a logged-in app session, which
+// a candidate on this page never has. The access code itself is the only
+// credential /api/notify/prospect-event needs.
+function pingProspectEvent(body: { kind: "prospect_link_visited"; code: string } | { kind: "candidate_resource_completed"; code: string; resourceLabel: string }) {
+  fetch("/api/notify/prospect-event", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  }).catch(() => {
+    // Best-effort only - see comment above.
+  });
+}
+
 type SessionMode = "in_person" | "virtual" | null;
 
 type CandidateInfo = {
@@ -127,6 +142,7 @@ export default function ProspectPage() {
     setQuestions((questionRows as QuestionRow[]) ?? []);
     setVerifiedCode(trimmed);
     if (persist) localStorage.setItem(STORAGE_KEY, trimmed);
+    pingProspectEvent({ kind: "prospect_link_visited", code: trimmed });
   }
 
   async function markWatched(step: "is1" | "is2") {
@@ -159,6 +175,9 @@ export default function ProspectPage() {
         else next.delete(label);
         return next;
       });
+    } else if (!wasCompleted) {
+      // Only on marking something done, never on unchecking it.
+      pingProspectEvent({ kind: "candidate_resource_completed", code: verifiedCode, resourceLabel: label });
     }
   }
 

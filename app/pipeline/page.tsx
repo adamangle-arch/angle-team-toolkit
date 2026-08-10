@@ -638,6 +638,9 @@ function PipelinePageInner() {
       if (justCrossed === true) {
         fireNotifyEvent({ kind: "pipeline_5plus" });
       }
+      if (patch.launched === true && previous) {
+        fireNotifyEvent({ kind: "candidate_launched", candidateName: previous.name });
+      }
     }
   }
 
@@ -2387,7 +2390,8 @@ function DownlineCandidateResources({ actingFor }: { actingFor: DownlineOption }
       // threshold" and "whose upline to tell" from the CALLER's own
       // session, not an explicit target, so firing it here would
       // credit this account's own 5+ milestone instead of the person
-      // actually being filled in for.
+      // actually being filled in for. Same reasoning skips
+      // candidate_launched here too.
     }
   }
 

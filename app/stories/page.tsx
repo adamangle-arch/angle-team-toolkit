@@ -7,6 +7,7 @@ import { SkeletonList } from "@/components/Skeleton";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import { getTodayStoryPrompt, isPrimaryUser } from "@/lib/constants";
+import { fireNotifyEvent } from "@/lib/notifyClient";
 import type { StoryPost } from "@/lib/types";
 
 function uniqueId(): string {
@@ -152,6 +153,7 @@ export default function StoriesPage() {
         setPostError(insertError.message);
         return;
       }
+      fireNotifyEvent({ kind: "story_posted" });
       setCaption("");
       setPendingMedia(null);
       await load();

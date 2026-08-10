@@ -24,7 +24,10 @@ type Body =
   | { kind: "pipeline_5plus" }
   | { kind: "onboarding_unlocked"; targetUserId: string; sessionNumber: number }
   | { kind: "games_unlocked" }
-  | { kind: "badge_earned"; targetUserId: string; badgeLabel: string };
+  | { kind: "badge_earned"; targetUserId: string; badgeLabel: string }
+  | { kind: "leaderboard_liked"; targetUserId: string }
+  | { kind: "story_posted" }
+  | { kind: "candidate_launched"; candidateName: string };
 
 function fullName(p: { first_name: string | null; last_name: string | null } | null): string {
   if (!p) return "Someone";
@@ -155,6 +158,71 @@ export async function POST(request: Request) {
           title: "✅ Core Run complete",
           body: `${fullName(submitter)} completed today's Core Run`,
           url: "/streak",
+        });
+        return NextResponse.json(result);
+      }
+
+      case "leaderboard_liked": {
+        const { data: liker } = await admin
+          .from("profiles")
+          .select("first_name,last_name")
+          .eq("id", userId)
+          .maybeSingle();
+
+        const result = await notifyUsers({
+          userIds: [body.targetUserId],
+          kind: "leaderboard_liked",
+          title: "❤️ Someone liked your ranking",
+          body: `${fullName(liker)} liked one of your Leaderboard rankings!`,
+          url: "/leaderboard",
+        });
+        return NextResponse.json(result);
+      }
+
+      case "story_posted": {
+        const { data: recipientRows } = await admin.rpc("get_upline_user_ids", {
+          p_user_id: userId,
+        });
+        const recipients = ((recipientRows as { user_id?: string }[]) ?? [])
+          .map((r) => r.user_id)
+          .filter((id): id is string => Boolean(id));
+
+        const { data: poster } = await admin
+          .from("profiles")
+          .select("first_name,last_name")
+          .eq("id", userId)
+          .maybeSingle();
+
+        const result = await notifyUsers({
+          userIds: recipients,
+          kind: "story_posted",
+          title: "📸 New story posted",
+          body: `${fullName(poster)} just posted today's story`,
+          url: "/stories",
+        });
+        return NextResponse.json(result);
+      }
+
+      case "candidate_launched": {
+        const { data: recipientRows } = await admin.rpc("get_upline_user_ids", {
+          p_user_id: userId,
+        });
+        const recipients = ((recipientRows as { user_id?: string }[]) ?? [])
+          .map((r) => r.user_id)
+          .filter((id): id is string => Boolean(id));
+
+        const { data: submitter } = await admin
+          .from("profiles")
+          .select("first_name,last_name")
+          .eq("id", userId)
+          .maybeSingle();
+
+        const result = await notifyUsers({
+          userIds: recipients,
+          kind: "candidate_launched",
+          title: "🚀 New launch!",
+          body: `${fullName(submitter)} just launched ${body.candidateName}`,
+          url: "/pipeline",
         });
         return NextResponse.json(result);
       }

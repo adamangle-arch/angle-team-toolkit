@@ -8,6 +8,7 @@ import { SkeletonList } from "@/components/Skeleton";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import { pointsForBadgeKeys, levelForPoints } from "@/lib/levels";
+import { fireNotifyEvent } from "@/lib/notifyClient";
 import LevelAvatar from "@/components/LevelAvatar";
 import {
   getWeekStart,
@@ -145,17 +146,22 @@ function CoupleLink({
 
 function LikeButton({
   entryKey,
+  targetUserId,
   likes,
   onToggle,
 }: {
   entryKey: string;
+  // Absent for team-level rankings (no single person to notify) and for
+  // an individual-category tie (ambiguous which of several winners) -
+  // liking still works, it just doesn't trigger a push in those cases.
+  targetUserId?: string;
   likes: LikeInfo;
-  onToggle: (entryKey: string) => void;
+  onToggle: (entryKey: string, targetUserId?: string) => void;
 }) {
   return (
     <div className="flex shrink-0 flex-col items-end gap-0.5">
       <button
-        onClick={() => onToggle(entryKey)}
+        onClick={() => onToggle(entryKey, targetUserId)}
         className={`flex items-center gap-1 text-xs transition active:scale-90 ${
           likes.likedByMe ? "text-amber-light" : "text-slate-500"
         }`}
@@ -543,7 +549,7 @@ export default function LeaderboardPage() {
     };
   }, [allEntryKeys, user.id]);
 
-  async function toggleLike(entryKey: string) {
+  async function toggleLike(entryKey: string, targetUserId?: string) {
     const current = likesMap.get(entryKey) ?? NO_LIKES;
     const optimistic = new Map(likesMap);
     if (current.likedByMe) {
@@ -566,6 +572,13 @@ export default function LeaderboardPage() {
       });
       setLikesMap(optimistic);
       await supabase.from("leaderboard_likes").insert({ entry_key: entryKey, liker_id: user.id });
+      // Only the actual liked person gets pinged, never on unliking (that'd
+      // just be confusing), never for liking your own row, and never for a
+      // team-level or tied ranking with no single target (targetUserId
+      // absent in both cases).
+      if (targetUserId && targetUserId !== user.id) {
+        fireNotifyEvent({ kind: "leaderboard_liked", targetUserId });
+      }
     }
   }
 
@@ -690,6 +703,7 @@ export default function LeaderboardPage() {
                     <span className="pill pill-amber">🔥 {m.current_streak}d</span>
                     <LikeButton
                       entryKey={key}
+                      targetUserId={m.user_id}
                       likes={likesMap.get(key) ?? NO_LIKES}
                       onToggle={toggleLike}
                     />
@@ -769,6 +783,7 @@ export default function LeaderboardPage() {
                           <span className="pill pill-amber">{winners[0].value}</span>
                           <LikeButton
                             entryKey={key}
+                            targetUserId={winners.length === 1 ? winners[0].user_id : undefined}
                             likes={likesMap.get(key) ?? NO_LIKES}
                             onToggle={toggleLike}
                           />
@@ -816,6 +831,7 @@ export default function LeaderboardPage() {
                         <span className="pill pill-amber">{entry.qi1} QI1</span>
                         <LikeButton
                           entryKey={key}
+                          targetUserId={entry.user_id}
                           likes={likesMap.get(key) ?? NO_LIKES}
                           onToggle={toggleLike}
                         />
@@ -848,6 +864,7 @@ export default function LeaderboardPage() {
                         <span className="pill pill-amber">{s.streak_days}d</span>
                         <LikeButton
                           entryKey={key}
+                          targetUserId={s.user_id}
                           likes={likesMap.get(key) ?? NO_LIKES}
                           onToggle={toggleLike}
                         />
@@ -876,6 +893,7 @@ export default function LeaderboardPage() {
                         <span className="pill pill-amber">{entry.active_count}</span>
                         <LikeButton
                           entryKey={key}
+                          targetUserId={entry.user_id}
                           likes={likesMap.get(key) ?? NO_LIKES}
                           onToggle={toggleLike}
                         />
@@ -909,6 +927,7 @@ export default function LeaderboardPage() {
                             <span className="pill pill-amber">{entry.pv} PV</span>
                             <LikeButton
                               entryKey={key}
+                              targetUserId={entry.user_id}
                               likes={likesMap.get(key) ?? NO_LIKES}
                               onToggle={toggleLike}
                             />
@@ -938,6 +957,7 @@ export default function LeaderboardPage() {
                             <span className="pill pill-amber">{entry.day1_ditto_pv} PV</span>
                             <LikeButton
                               entryKey={key}
+                              targetUserId={entry.user_id}
                               likes={likesMap.get(key) ?? NO_LIKES}
                               onToggle={toggleLike}
                             />
@@ -977,6 +997,7 @@ export default function LeaderboardPage() {
                                 <span className="pill pill-amber">{entry.amount} PV</span>
                                 <LikeButton
                                   entryKey={key}
+                                  targetUserId={entry.user_id}
                                   likes={likesMap.get(key) ?? NO_LIKES}
                                   onToggle={toggleLike}
                                 />

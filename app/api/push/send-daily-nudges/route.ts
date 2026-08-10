@@ -16,15 +16,16 @@ type Subscription = {
 // Once-a-day sweep for the three "you haven't filled this out" nudges -
 // grouped into one route (and one pg_cron entry, same reasoning as
 // send-calendar-reminders: Vercel Hobby's cron slots are already spent on
-// the Core Run reminder and stat leaders digest) rather than three. Each
-// check is independent and only some run on a given day:
-//   - mission_reminder: every day, to anyone who hasn't opened the app yet
-//     today (app_opens) - points at Today's Mission on the dashboard.
-//   - volume_reminder: only on the 10th/20th/27th, to anyone with no PV
-//     logged yet for the current month.
-//   - goals_reminder: only on Mondays, to anyone who has never set a
-//     single goal (any period, ever) - once they set one this stops
-//     forever for them, this isn't a recurring "update your goals" nag.
+// the Core Run reminder and stat leaders digest) rather than three. All
+// three now run every day (volume_reminder and goals_reminder used to be
+// gated to a few dates/Mondays only - widened to daily on request):
+//   - mission_reminder: to anyone who hasn't opened the app yet today
+//     (app_opens) - points at Today's Mission on the dashboard.
+//   - volume_reminder: to anyone with no PV logged yet for the current
+//     month.
+//   - goals_reminder: to anyone who has never set a single goal (any
+//     period, ever) - once they set one this stops forever for them,
+//     this isn't a recurring "update your goals" nag.
 export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization");
   if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -42,10 +43,7 @@ export async function GET(request: Request) {
 
   const supabase = getSupabaseAdmin();
   const today = getToday();
-  const dayOfMonth = new Date(`${today}T00:00:00`).getDate();
-  const isMonday = new Date(`${today}T00:00:00`).getDay() === 1;
   const monthStart = getMonthStart();
-  const runVolumeCheck = [10, 20, 27].includes(dayOfMonth);
 
   const { data: subs } = await supabase
     .from("push_subscriptions")
@@ -60,12 +58,8 @@ export async function GET(request: Request) {
     await Promise.all([
       supabase.from("profiles").select("id,muted_notification_kinds,first_name,last_name,email").in("id", userIds),
       supabase.from("app_opens").select("user_id").eq("day", today).in("user_id", userIds),
-      runVolumeCheck
-        ? supabase.from("monthly_pv").select("user_id,pv").eq("period_start", monthStart).in("user_id", userIds)
-        : Promise.resolve({ data: [] as { user_id: string; pv: number }[] }),
-      isMonday
-        ? supabase.from("goals").select("user_id").in("user_id", userIds)
-        : Promise.resolve({ data: [] as { user_id: string }[] }),
+      supabase.from("monthly_pv").select("user_id,pv").eq("period_start", monthStart).in("user_id", userIds),
+      supabase.from("goals").select("user_id").in("user_id", userIds),
     ]);
 
   const profileRows =
@@ -101,7 +95,7 @@ export async function GET(request: Request) {
         url: "/dashboard",
       });
     }
-    if (runVolumeCheck && (pvByUser.get(userId) ?? 0) === 0) {
+    if ((pvByUser.get(userId) ?? 0) === 0) {
       queue(userId, {
         kind: "volume_reminder",
         title: "💰 Log this month's volume",
@@ -109,7 +103,7 @@ export async function GET(request: Request) {
         url: "/volume",
       });
     }
-    if (isMonday && !hasAnyGoalSet.has(userId)) {
+    if (!hasAnyGoalSet.has(userId)) {
       queue(userId, {
         kind: "goals_reminder",
         title: "🎯 Set your goals",

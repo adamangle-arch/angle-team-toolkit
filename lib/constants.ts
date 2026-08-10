@@ -46,8 +46,13 @@ export const NOTIFICATION_KINDS = [
   { kind: "weekly_stat_leaders", label: "Weekly leaders" },
   { kind: "monthly_stat_leaders", label: "Monthly leaders" },
   { kind: "mission_reminder", label: "Today's Mission reminder" },
-  { kind: "volume_reminder", label: "Monthly volume reminder" },
+  { kind: "volume_reminder", label: "Volume reminder" },
   { kind: "goals_reminder", label: "Goals reminder" },
+  { kind: "leaderboard_liked", label: "Leaderboard like" },
+  { kind: "story_posted", label: "New story posted" },
+  { kind: "candidate_launched", label: "Candidate launched" },
+  { kind: "candidate_resource_completed", label: "Candidate completed a resource" },
+  { kind: "prospect_link_visited", label: "Candidate viewed their link" },
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number]["kind"];
 export const NOTIFICATION_KIND_LABELS = Object.fromEntries(

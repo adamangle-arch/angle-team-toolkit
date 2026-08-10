@@ -39,25 +39,29 @@ function topByValue<T extends WithPartnerName>(rows: T[], valueOf: (row: T) => n
   return rows.filter((row) => valueOf(row) === max);
 }
 
-function buildLeaderLines(rows: IndividualLeaderEntry[]): string[] {
+type CategoryMessage = { title: string; body: string };
+
+// One push per category instead of one combined "here's everyone" digest
+// - a rep who only cares about, say, Yeses shouldn't have to read past
+// four other categories to find their own name (or miss it entirely in a
+// notification preview that only shows the first line).
+function buildCategoryMessages(periodLabel: string, rows: IndividualLeaderEntry[]): CategoryMessage[] {
   const byCategory = new Map<string, IndividualLeaderEntry[]>();
   for (const row of rows) {
     const list = byCategory.get(row.category) ?? [];
     list.push(row);
     byCategory.set(row.category, list);
   }
-  const lines: string[] = [];
+  const messages: CategoryMessage[] = [];
   for (const key of CATEGORY_ORDER) {
     const group = byCategory.get(key);
     if (!group || group.length === 0) continue;
-    lines.push(`${CATEGORY_LABELS[key]}: ${group.map(personLabel).join(" / ")} (${group[0].value})`);
+    messages.push({
+      title: `🏆 ${periodLabel} ${CATEGORY_LABELS[key]} Leader${group.length > 1 ? "s" : ""}`,
+      body: `${group.map(personLabel).join(" / ")} (${group[0].value})`,
+    });
   }
-  return lines;
-}
-
-function composeMessage(periodLabel: string, lines: string[]): { title: string; body: string } | null {
-  if (lines.length === 0) return null;
-  return { title: `🏆 ${periodLabel} Leaders`, body: lines.join(" · ") };
+  return messages;
 }
 
 type PendingMessage = {
@@ -92,9 +96,8 @@ export async function GET(request: Request) {
     p_period_type: "daily",
     p_period_start: yesterday,
   });
-  const dailyMsg = composeMessage("Yesterday's", buildLeaderLines((dailyRows as IndividualLeaderEntry[]) ?? []));
-  if (dailyMsg) {
-    messages.push({ kind: "daily_stat_leaders", periodType: "daily", periodStart: yesterday, ...dailyMsg });
+  for (const msg of buildCategoryMessages("Yesterday's", (dailyRows as IndividualLeaderEntry[]) ?? [])) {
+    messages.push({ kind: "daily_stat_leaders", periodType: "daily", periodStart: yesterday, ...msg });
   }
 
   if (getWeekStart() === today) {
@@ -103,9 +106,8 @@ export async function GET(request: Request) {
       p_period_type: "weekly",
       p_period_start: lastWeekStart,
     });
-    const weeklyMsg = composeMessage("Last Week's", buildLeaderLines((weeklyRows as IndividualLeaderEntry[]) ?? []));
-    if (weeklyMsg) {
-      messages.push({ kind: "weekly_stat_leaders", periodType: "weekly", periodStart: lastWeekStart, ...weeklyMsg });
+    for (const msg of buildCategoryMessages("Last Week's", (weeklyRows as IndividualLeaderEntry[]) ?? [])) {
+      messages.push({ kind: "weekly_stat_leaders", periodType: "weekly", periodStart: lastWeekStart, ...msg });
     }
   }
 
@@ -117,26 +119,26 @@ export async function GET(request: Request) {
       supabase.rpc("get_ditto_leaderboard", { p_period_start: lastMonthStart }),
     ]);
 
-    const lines = buildLeaderLines((monthlyRows as IndividualLeaderEntry[]) ?? []);
+    const monthlyMsgs = buildCategoryMessages("Last Month's", (monthlyRows as IndividualLeaderEntry[]) ?? []);
 
     const core300Top = topByValue((core300Rows as Core300Entry[]) ?? [], (row) => row.pv);
     if (core300Top.length > 0) {
-      lines.push(`Core 300: ${core300Top.map(personLabel).join(" / ")} (${core300Top[0].pv} PV)`);
+      monthlyMsgs.push({
+        title: "🏆 Last Month's Core 300 Leader" + (core300Top.length > 1 ? "s" : ""),
+        body: `${core300Top.map(personLabel).join(" / ")} (${core300Top[0].pv} PV)`,
+      });
     }
 
     const dittoTop = topByValue((dittoRows as DittoEntry[]) ?? [], (row) => row.day1_ditto_pv);
     if (dittoTop.length > 0) {
-      lines.push(`Ditto Bonus: ${dittoTop.map(personLabel).join(" / ")} (${dittoTop[0].day1_ditto_pv} PV)`);
+      monthlyMsgs.push({
+        title: "🏆 Last Month's Ditto Bonus Leader" + (dittoTop.length > 1 ? "s" : ""),
+        body: `${dittoTop.map(personLabel).join(" / ")} (${dittoTop[0].day1_ditto_pv} PV)`,
+      });
     }
 
-    const monthlyMsg = composeMessage("Last Month's", lines);
-    if (monthlyMsg) {
-      messages.push({
-        kind: "monthly_stat_leaders",
-        periodType: "monthly",
-        periodStart: lastMonthStart,
-        ...monthlyMsg,
-      });
+    for (const msg of monthlyMsgs) {
+      messages.push({ kind: "monthly_stat_leaders", periodType: "monthly", periodStart: lastMonthStart, ...msg });
     }
   }
 

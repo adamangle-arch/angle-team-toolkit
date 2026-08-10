@@ -2320,28 +2320,33 @@ alter table sent_notifications add constraint sent_notifications_kind_check chec
 
 On top of the Core Run reminder, a second cron route
 (`/api/push/send-stat-leaders`, one Vercel Cron entry at `0 13 * * *`
-UTC) sends **exactly one** consolidated push per period — never one per
-stat category:
+UTC) sends **one push per stat category that had a leader** — originally
+this was a single consolidated digest per period, but a rep who only
+cared about, say, Yeses had to read past several other categories to
+find their own name (or missed it entirely in a notification preview
+that only shows the first line). Now each category is its own push,
+still logged as its own `sent_notifications` row:
 
 - **Daily** — every run, recaps yesterday's Individual Leaders
-  (`get_individual_leaders('daily', yesterday)`) into a single line per
-  category that had a leader, e.g. `Yeses: Jane Doe (5) · QI1: Bob Smith
-  (3)`.
+  (`get_individual_leaders('daily', yesterday)`), one push per category
+  that had a leader, e.g. `🏆 Yesterday's Yeses Leader` / `Jane Doe (5)`.
 - **Weekly** — only fires when the run date is a Monday (the start of a
   new week), recapping the week that just ended
   (`get_individual_leaders('weekly', lastWeekStart)`).
 - **Monthly** — only fires on the 1st of the month, recapping the month
   that just ended: Individual Leaders plus the top Core 300 PV
   (`get_core300_leaderboard`) and top Day 1 Ditto (`get_ditto_leaderboard`)
-  performers, each appended as its own line.
+  performers, each its own push.
 
-Ties within a category join with `/` (`Launches: Jane Doe / Bob Smith
-(2)`); a household couple's shared stat joins with `&` (`Jane Doe & John
-Doe`), matching the Leaderboard's existing convention. If a period has no
-qualifying leaders in any category, that period's notification is skipped
-entirely rather than sending an empty message — this is also why the
-route can safely run every day without ever producing three separate
-pings.
+Ties within a category join with `/` in the body (`Jane Doe / Bob
+Smith`); a household couple's shared stat joins with `&` (`Jane Doe &
+John Doe`), matching the Leaderboard's existing convention. A category
+with no leader that period simply doesn't get a push - if literally
+nothing qualifies anywhere, the route sends nothing at all rather than
+an empty message. The kind (`daily_stat_leaders` / `weekly_stat_leaders`
+/ `monthly_stat_leaders`) and its mute toggle stay period-level, not
+per-category — muting "Daily leaders" mutes all of that day's category
+pushes together.
 
 ### Notifications page
 
@@ -4896,14 +4901,18 @@ a Supabase pg_cron job hitting it once daily, not a `vercel.json` entry,
 since both of Vercel Hobby's cron slots are already spent) adds three new
 kinds, each independent:
 
-- **`mission_reminder`** - every day, to anyone who hasn't opened the app
-  yet that day (`app_opens`, the same table the Daily Visitor badge
-  already uses) - points at Today's Mission on the dashboard.
-- **`volume_reminder`** - only on the 10th/20th/27th of the month, to
-  anyone with no PV logged yet for the current month (`monthly_pv`).
-- **`goals_reminder`** - only on Mondays, to anyone who has never set a
-  single goal, ever, in any period - once they set one this stops
-  forever for them; it's not a recurring "update your goals" nag.
+All three now run every day (`volume_reminder` and `goals_reminder`
+originally ran on a handful of dates/Mondays only - widened to daily on
+request):
+
+- **`mission_reminder`** - to anyone who hasn't opened the app yet that
+  day (`app_opens`, the same table the Daily Visitor badge already uses)
+  - points at Today's Mission on the dashboard.
+- **`volume_reminder`** - to anyone with no PV logged yet for the current
+  month (`monthly_pv`).
+- **`goals_reminder`** - to anyone who has never set a single goal, ever,
+  in any period - once they set one this stops forever for them; it's
+  not a recurring "update your goals" nag.
 
 Run once in the Supabase SQL editor (same pattern as the calendar
 reminder job - Postgres can't read Vercel's env vars, so the domain and
@@ -5022,6 +5031,73 @@ set of Google Calendar-style upgrades to the built-in Calendar page:
   existing ‹ › arrow buttons rather than replacing them - a plain
   horizontal-distance threshold (`useSwipeNav`, 50px) so a normal
   vertical scroll inside the same element is never mistaken for a swipe.
+
+### More notifications batch 1
+
+Five new event-triggered kinds, from a brainstormed list of ~40
+requested notifications - this batch covers the ones that either reuse
+existing data/infra directly or only needed a single new trigger point;
+the rest (streak milestones/breaks, leaderboard rank changes, badge
+near-misses, admin weekly team report, game high scores, and more) are
+tracked for a follow-up batch.
+
+- **`leaderboard_liked`** - fires from `toggleLike()` on Leaderboard when
+  someone hearts a ranking that has a single clear owner (an individual,
+  a couple, a specific sale) - skipped for team-level rankings and for a
+  tied individual category with more than one winner, where there's no
+  one unambiguous person to tell. Never fires on unliking, and never for
+  liking your own row.
+- **`story_posted`** - fires after a successful `story_posts` insert,
+  notifying the poster's upline.
+- **`candidate_launched`** - fires from the Candidate Roadmap's "Mark
+  Launched" button, notifying the rep's upline. Deliberately only wired
+  into the *own* `updateCandidate()` on Pipeline, not the "filling in
+  for someone" one - that second one already skips `pipeline_5plus` for
+  the same reason (it'd resolve "whose upline" from the filler's own
+  session, misattributing the launch).
+- **`candidate_resource_completed`** and **`prospect_link_visited`** -
+  both fire from `/prospect`, where the visitor is an anonymous
+  candidate with no app session at all, so neither can go through the
+  normal bearer-token-authed `/api/notify`. A new unauthenticated route,
+  **`/api/notify/prospect-event`**, takes just `{ code, kind, ... }` and
+  looks the candidate up by access code itself (same trust model every
+  other `/prospect` read/write already uses - the code is the
+  credential) before resolving `creator_id` as the one recipient.
+  `candidate_resource_completed` fires only when a resource is checked
+  *on* (not off) in `toggleResourceCompletion()`.
+  `prospect_link_visited` fires from `lookup()` succeeding, but is
+  capped at once per candidate per day via a new
+  `candidates.last_visit_notified_on` column - without that, simply
+  reopening the page or leaving the tab open would re-ping the rep on
+  every load.
+
+Also widened `send-daily-nudges`'s `volume_reminder` and
+`goals_reminder` from their original cadence (a few fixed dates/Mondays
+only) to run every day, same as `mission_reminder` always has - and
+restructured `send-stat-leaders` to send one push per category that had
+a leader instead of one consolidated digest per period (see "Stat Leader
+Notifications" above, updated in place rather than duplicated here).
+
+Run once in the Supabase SQL editor - adds the five new kinds to
+`sent_notifications`'s kind check and the visit-dedup column (safe to
+re-run, same drop/re-add pattern as every other constraint change in
+this file):
+
+```sql
+alter table sent_notifications drop constraint if exists sent_notifications_kind_check;
+alter table sent_notifications add constraint sent_notifications_kind_check check (
+  kind in (
+    'daily_stat_leaders', 'weekly_stat_leaders', 'monthly_stat_leaders', 'core_run_reminder',
+    'calendar_reminder', 'calendar_event_added', 'call_rating_submitted', 'core_run_completed',
+    'pipeline_5plus', 'onboarding_unlocked', 'games_unlocked', 'badge_earned',
+    'mission_reminder', 'volume_reminder', 'goals_reminder',
+    'leaderboard_liked', 'story_posted', 'candidate_launched', 'candidate_resource_completed',
+    'prospect_link_visited'
+  )
+);
+
+alter table candidates add column if not exists last_visit_notified_on date;
+```
 
 ## Tech stack
 
