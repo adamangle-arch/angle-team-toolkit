@@ -5170,6 +5170,62 @@ alter table sent_notifications add constraint sent_notifications_kind_check chec
 );
 ```
 
+### More notifications batch 4
+
+Four kinds that needed cron-style comparisons rather than a simple event
+hook, closing out most of the rest of the original brainstormed list. All
+four ride on cron routes that already run daily/weekly (`send-reminders`
+via `vercel.json`, `send-stat-leaders` via its existing weekly block) -
+no new pg_cron setup needed.
+
+- **`trivia_streak_reminder`** - self-targeted, fires from
+  `send-reminders` for anyone whose Trivia streak is still alive as of
+  yesterday's perfect day but who hasn't played today's 5 questions yet.
+- **`app_inactive_reminder`** - self-targeted, fires once for anyone
+  whose most recent `app_opens` row is exactly 3 days old - a one-time
+  trigger on the day they cross the threshold, not a repeat every day
+  after (which would just be noise for someone who's genuinely stepped
+  away).
+- **`streak_break_downline`** - notifies a person's upline the morning
+  after their Core Run streak breaks (qualified two days ago, missed
+  yesterday) - a plain query over `streak_days`, no new column needed
+  since "qualified two days back, not yesterday" is a fixed historical
+  fact that only matches on the one day right after the break.
+- **`admin_weekly_report`** - admin-only (`PRIMARY_EMAILS`), fires from
+  `send-stat-leaders`'s existing Monday-only weekly block alongside
+  `weekly_stat_leaders`, but through its own send loop since the
+  recipient list is different (admins only, not everyone). Recaps last
+  week's total launches (summed from `pipeline_periods.launches`,
+  team-wide), new candidates added, and current active pipeline size.
+
+Run once in the Supabase SQL editor:
+
+```sql
+alter table sent_notifications drop constraint if exists sent_notifications_kind_check;
+alter table sent_notifications add constraint sent_notifications_kind_check check (
+  kind in (
+    'daily_stat_leaders', 'weekly_stat_leaders', 'monthly_stat_leaders', 'core_run_reminder',
+    'calendar_reminder', 'calendar_event_added', 'call_rating_submitted', 'core_run_completed',
+    'pipeline_5plus', 'onboarding_unlocked', 'games_unlocked', 'badge_earned',
+    'mission_reminder', 'volume_reminder', 'goals_reminder',
+    'leaderboard_liked', 'story_posted', 'candidate_launched', 'candidate_resource_completed',
+    'prospect_link_visited', 'member_resource_sent', 'library_resource_added',
+    'streak_milestone_reached', 'downline_signup_linked', 'trivia_streak_reminder',
+    'app_inactive_reminder', 'streak_break_downline', 'admin_weekly_report'
+  )
+);
+```
+
+Still not built from the original list - each needs new infrastructure
+beyond a comparison query: leaderboard rank-change tracking ("you're #1
+this week"), badge near-miss detection (a "distance to threshold" pass
+over all 300 badges), personal-best-week comparisons, and game high
+scores (no score-persistence schema exists yet for Diamond Run/Diamond
+Chase). Recurring-event-ending-soon and "someone books on your behalf"
+turned out to already be covered - the latter by the existing
+`calendar_event_added` notification, which already fires on any event
+someone else adds for you regardless of who owns the calendar.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

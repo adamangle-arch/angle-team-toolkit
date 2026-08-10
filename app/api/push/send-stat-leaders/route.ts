@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { ensureWebPushConfigured, webpush, describePushError, isPermanentPushFailure } from "@/lib/webpush";
 import { getDateOffset, getMonthStart, getMonthStartOffset, getToday, getWeekStart, getWeekStartOffset } from "@/lib/dates";
-import { PIPELINE_STAGES } from "@/lib/constants";
+import { PIPELINE_STAGES, PRIMARY_EMAILS } from "@/lib/constants";
 import type { Core300Entry, DittoEntry, IndividualLeaderEntry } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -100,6 +100,8 @@ export async function GET(request: Request) {
     messages.push({ kind: "daily_stat_leaders", periodType: "daily", periodStart: yesterday, ...msg });
   }
 
+  let adminReport: { title: string; body: string } | null = null;
+
   if (getWeekStart() === today) {
     const lastWeekStart = getWeekStartOffset(1);
     const { data: weeklyRows } = await supabase.rpc("get_individual_leaders", {
@@ -109,6 +111,42 @@ export async function GET(request: Request) {
     for (const msg of buildCategoryMessages("Last Week's", (weeklyRows as IndividualLeaderEntry[]) ?? [])) {
       messages.push({ kind: "weekly_stat_leaders", periodType: "weekly", periodStart: lastWeekStart, ...msg });
     }
+
+    // Admin-only recap, separate from the per-category leader pushes above -
+    // whole-team totals an admin cares about (growth, launches, current
+    // pipeline size) rather than any one category's top performer. Sent to
+    // PRIMARY_EMAILS only, via its own block after the main send loop below,
+    // since it needs a different (much smaller) recipient list than the
+    // broadcast-to-everyone messages array uses.
+    const weekEnd = new Date(`${lastWeekStart}T00:00:00Z`);
+    weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
+    const weekEndIso = weekEnd.toISOString();
+
+    const [{ data: weeklyPeriodRows }, { count: newCandidatesCount }, { count: activePipelineCount }] =
+      await Promise.all([
+        supabase.from("pipeline_periods").select("launches").eq("period_type", "weekly").eq("period_start", lastWeekStart),
+        supabase
+          .from("candidates")
+          .select("id", { count: "exact", head: true })
+          .gte("created_at", `${lastWeekStart}T00:00:00Z`)
+          .lt("created_at", weekEndIso),
+        supabase
+          .from("candidates")
+          .select("id", { count: "exact", head: true })
+          .eq("launched", false)
+          .eq("filtered_out", false)
+          .gte("current_step", 1),
+      ]);
+
+    const totalLaunches = ((weeklyPeriodRows as { launches: number }[]) ?? []).reduce(
+      (sum, row) => sum + (row.launches ?? 0),
+      0
+    );
+
+    adminReport = {
+      title: "📊 Weekly team recap",
+      body: `Last week: ${totalLaunches} launch${totalLaunches === 1 ? "" : "es"}, ${newCandidatesCount ?? 0} new candidate${(newCandidatesCount ?? 0) === 1 ? "" : "s"} added. ${activePipelineCount ?? 0} active in the pipeline right now.`,
+    };
   }
 
   if (getMonthStart() === today) {
@@ -142,7 +180,7 @@ export async function GET(request: Request) {
     }
   }
 
-  if (messages.length === 0) {
+  if (messages.length === 0 && !adminReport) {
     return NextResponse.json({ sent: 0, note: "nothing to report for this run" });
   }
 
@@ -209,6 +247,41 @@ export async function GET(request: Request) {
     });
 
     results.push({ kind: message.kind, recipientCount });
+  }
+
+  if (adminReport) {
+    const adminEmails = new Set(PRIMARY_EMAILS.map((e) => e.toLowerCase()));
+    let recipientCount = 0;
+    for (const sub of subscriptions) {
+      const profile = profileRows.find((p) => p.id === sub.user_id);
+      if (!profile || !adminEmails.has(profile.email.toLowerCase())) continue;
+      if (mutedKindsByUser.get(sub.user_id)?.has("admin_weekly_report")) continue;
+      try {
+        await webpush.sendNotification(
+          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+          JSON.stringify({ title: adminReport.title, body: adminReport.body, url: "/team" })
+        );
+        recipientCount++;
+      } catch (error: unknown) {
+        if (isPermanentPushFailure(error)) {
+          await supabase.from("push_subscriptions").delete().eq("id", sub.id);
+        } else {
+          errors.push(`${labelByUserId.get(sub.user_id) ?? sub.user_id}: ${describePushError(error)}`);
+        }
+      }
+    }
+
+    await supabase.from("sent_notifications").insert({
+      kind: "admin_weekly_report",
+      title: adminReport.title,
+      body: adminReport.body,
+      period_type: "weekly",
+      period_start: getWeekStartOffset(1),
+      user_id: null,
+      recipient_count: recipientCount,
+    });
+
+    results.push({ kind: "admin_weekly_report", recipientCount });
   }
 
   return NextResponse.json({ sent: results, errors });

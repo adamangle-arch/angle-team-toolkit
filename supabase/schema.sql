@@ -6223,7 +6223,8 @@ alter table sent_notifications add constraint sent_notifications_kind_check chec
     'mission_reminder', 'volume_reminder', 'goals_reminder',
     'leaderboard_liked', 'story_posted', 'candidate_launched', 'candidate_resource_completed',
     'prospect_link_visited', 'member_resource_sent', 'library_resource_added', 'streak_milestone_reached',
-    'downline_signup_linked'
+    'downline_signup_linked', 'trivia_streak_reminder', 'app_inactive_reminder', 'streak_break_downline',
+    'admin_weekly_report'
   )
 );
 
