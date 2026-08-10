@@ -1314,6 +1314,7 @@ function CandidateCard({
   const [expanded, setExpanded] = useState(false);
   const [notes, setNotes] = useState(candidate.notes);
   const [codeCopied, setCodeCopied] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   const [showFilterReason, setShowFilterReason] = useState(false);
   const [filterReason, setFilterReason] = useState(candidate.filtered_out_reason ?? "");
   const step = CANDIDATE_STEPS[candidate.current_step];
@@ -1339,11 +1340,25 @@ function CandidateCard({
     setFilterReason("");
   }
 
+  // Deliberately two separate copy actions instead of one combined
+  // "link + code" message - a text containing a tappable link, sent to a
+  // number that isn't saved as a contact, gets silently spam-filtered by
+  // carriers/iMessage at a meaningfully higher rate than plain text does,
+  // with zero signal back to the sender that it happened (confirmed live:
+  // a candidate never received the combined message, no error shown on
+  // the sending side). Splitting it into two separate texts - one with
+  // just the code, one with just the link - and saving the person as a
+  // contact first cuts that risk substantially.
   async function copyAccessCode() {
-    const message = `Check out these resources: ${window.location.origin}/prospect — your code is ${candidate.access_code}`;
-    await navigator.clipboard.writeText(message);
+    await navigator.clipboard.writeText(`Your code for the resources page is ${candidate.access_code}`);
     setCodeCopied(true);
     setTimeout(() => setCodeCopied(false), 2000);
+  }
+
+  async function copyAccessLink() {
+    await navigator.clipboard.writeText(`${window.location.origin}/prospect`);
+    setLinkCopied(true);
+    setTimeout(() => setLinkCopied(false), 2000);
   }
 
   // Collapsed by default and just one line - a full roster of active
@@ -1411,12 +1426,18 @@ function CandidateCard({
         <div className="space-y-3 pt-3">
           {candidate.access_code && (
             <div className="space-y-1">
-              <button className="pill" onClick={copyAccessCode}>
-                {codeCopied ? "✓ Copied!" : `🔑 Code: ${candidate.access_code}`}
-              </button>
+              <div className="flex flex-wrap gap-1.5">
+                <button className="pill" onClick={copyAccessCode}>
+                  {codeCopied ? "✓ Copied!" : `🔑 Copy code: ${candidate.access_code}`}
+                </button>
+                <button className="pill" onClick={copyAccessLink}>
+                  {linkCopied ? "✓ Copied!" : "🔗 Copy link"}
+                </button>
+              </div>
               <p className="text-xs text-slate-500">
-                Tap to copy a ready-to-send text — a link to their resources page plus this
-                code, so they can look in without an account.
+                Send these as two separate texts, not pasted together — and save them as a
+                contact first if you haven&apos;t. A text with a link, sent to an unsaved
+                number, can get silently spam-filtered with no warning on your end.
               </p>
             </div>
           )}
