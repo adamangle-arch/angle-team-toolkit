@@ -144,6 +144,15 @@ function SearchBox({
   );
 }
 
+type DisplayAudio = {
+  title: string;
+  speaker: string;
+  summary: string;
+  tags: string[];
+  url?: string;
+  estimate?: string | null;
+};
+
 function AudiosSection({
   query,
   setQuery,
@@ -151,22 +160,21 @@ function AudiosSection({
   query: string;
   setQuery: (v: string) => void;
 }) {
-  const [audioLinks, setAudioLinks] = useState<Map<string, string>>(new Map());
+  const [audioResources, setAudioResources] = useState<
+    { label: string; detail: string; url: string | null; estimate: string | null }[]
+  >([]);
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
       const { data } = await supabase
         .from("optional_resources")
-        .select("label,url")
-        .eq("kind", "audio")
-        .not("url", "is", null);
+        .select("label,detail,url,estimate")
+        .eq("kind", "audio");
       if (!cancelled) {
-        const map = new Map<string, string>();
-        for (const row of (data as { label: string; url: string | null }[]) ?? []) {
-          if (row.url) map.set(normalizeTitle(row.label), row.url);
-        }
-        setAudioLinks(map);
+        setAudioResources(
+          (data as { label: string; detail: string; url: string | null; estimate: string | null }[]) ?? []
+        );
       }
     }
     load();
@@ -175,17 +183,56 @@ function AudiosSection({
     };
   }, []);
 
+  // Every optional_resources row with kind="audio" either overlays a link
+  // (+ estimate) onto a curated AUDIOS entry it title-matches, or - if it
+  // doesn't match any curated title - shows up as its own card. This is
+  // what makes "Add to Library" (Resources hub, kind Audio) automatically
+  // appear here with a working link, with no code change needed for each
+  // new one added.
+  const allAudios = useMemo<DisplayAudio[]>(() => {
+    const curatedKeys = new Set(AUDIOS.map((a) => normalizeTitle(a.title)));
+    const byKey = new Map<string, { label: string; detail: string; url: string | null; estimate: string | null }>();
+    for (const row of audioResources) {
+      byKey.set(normalizeTitle(row.label), row);
+    }
+
+    const curated: DisplayAudio[] = AUDIOS.map((a) => {
+      const match = byKey.get(normalizeTitle(a.title));
+      return {
+        title: a.title,
+        speaker: a.speaker,
+        summary: a.summary,
+        tags: a.tags,
+        url: match?.url ?? undefined,
+        estimate: match?.estimate ?? null,
+      };
+    });
+
+    const extra: DisplayAudio[] = audioResources
+      .filter((row) => !curatedKeys.has(normalizeTitle(row.label)))
+      .map((row) => ({
+        title: row.label,
+        speaker: row.detail,
+        summary: "",
+        tags: [],
+        url: row.url ?? undefined,
+        estimate: row.estimate,
+      }));
+
+    return [...curated, ...extra];
+  }, [audioResources]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return AUDIOS;
-    return AUDIOS.filter(
+    if (!q) return allAudios;
+    return allAudios.filter(
       (a) =>
         a.title.toLowerCase().includes(q) ||
         a.speaker.toLowerCase().includes(q) ||
         a.summary.toLowerCase().includes(q) ||
         a.tags.some((t) => t.toLowerCase().includes(q))
     );
-  }, [query]);
+  }, [allAudios, query]);
 
   return (
     <>
@@ -194,36 +241,36 @@ function AudiosSection({
         {filtered.length} audio{filtered.length === 1 ? "" : "s"}
       </p>
       <div className="space-y-2">
-        {filtered.map((audio) => {
-          const url = audioLinks.get(normalizeTitle(audio.title));
-          return (
-            <div key={audio.title} className="card space-y-1.5">
-              <div>
-                {url ? (
-                  <a
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-semibold text-amber-light underline decoration-dotted underline-offset-2"
-                  >
-                    {audio.title}
-                  </a>
-                ) : (
-                  <p className="font-semibold text-white">{audio.title}</p>
-                )}
-                <p className="text-xs text-slate-400">{audio.speaker}</p>
-              </div>
-              <p className="text-sm text-slate-300">{audio.summary}</p>
+        {filtered.map((audio) => (
+          <div key={audio.title} className="card space-y-1.5">
+            <div>
+              {audio.url ? (
+                <a
+                  href={audio.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-amber-light underline decoration-dotted underline-offset-2"
+                >
+                  {audio.title}
+                </a>
+              ) : (
+                <p className="font-semibold text-white">{audio.title}</p>
+              )}
+              {audio.speaker && <p className="text-xs text-slate-400">{audio.speaker}</p>}
+            </div>
+            {audio.summary && <p className="text-sm text-slate-300">{audio.summary}</p>}
+            {(audio.tags.length > 0 || audio.estimate) && (
               <div className="flex flex-wrap gap-1.5 pt-1">
+                {audio.estimate && <span className="pill">{audio.estimate}</span>}
                 {audio.tags.map((t) => (
                   <span key={t} className="pill">
                     {t}
                   </span>
                 ))}
               </div>
-            </div>
-          );
-        })}
+            )}
+          </div>
+        ))}
         {filtered.length === 0 && <div className="empty-state">No audios match that search.</div>}
       </div>
     </>

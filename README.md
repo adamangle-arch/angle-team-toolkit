@@ -5301,6 +5301,26 @@ alter table sent_notifications add constraint sent_notifications_kind_check chec
 );
 ```
 
+### Audios tab: any library-added audio shows up automatically
+
+Previously the Audios tab only ever showed the fixed `AUDIOS` list from
+`lib/library-data.ts` - adding a new one there meant a code change, and
+an `optional_resources` row (kind `audio`, from the Resources hub's "Add
+to Library" panel) could only overlay a link onto a title that already
+matched one of those fixed entries exactly (see the dash-normalization
+and label-wording fixes above - both were entries that existed in the
+database but silently never matched anything).
+
+`AudiosSection` (`app/library/page.tsx`) now merges both sources instead
+of just linking one to the other: every curated `AUDIOS` entry keeps its
+speaker/summary/tags, picking up a link (and now also an estimate pill)
+from any `optional_resources` row whose label matches; any `audio`-kind
+row that *doesn't* match an existing title renders as its own card
+(title = label, subtitle = detail, estimate pill if set) instead of
+being silently dropped. So adding a new audio via Resources hub → Library
+→ Add to Library (kind Audio) now shows up in the Audios tab immediately
+with a working link, no code change or deploy required.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)
