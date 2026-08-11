@@ -105,27 +105,6 @@ export const AUDIOS: Audio[] = [
     tags: ["Success Story", "Personal Responsibility", "Perseverance", "Mentorship"],
   },
   {
-    title: "Personal Momentum Vs Group Momentum",
-    speaker: "Doug Weir",
-    summary:
-      "There's no such thing as something for nothing — consistent, long-term action produces stability. How to build personal and group momentum toward Platinum and beyond.",
-    tags: ["Momentum", "Consistency", "Leadership", "Faith"],
-  },
-  {
-    title: "Generation Entrepreneur",
-    speaker: "Gary Newell",
-    summary:
-      "Pioneer or settler — the choice is before you. LTD as America's new pioneers, and the courage required to leave fear of failure behind.",
-    tags: ["Vision", "Courage", "Entrepreneurship", "Legacy"],
-  },
-  {
-    title: "A Formula For Belief",
-    speaker: "Gary & Tammy Newell",
-    summary:
-      "The crucial but invisible component at the root of success: belief. The formula that has worked for building belief in their business.",
-    tags: ["Belief", "Mindset", "Growth", "Consistency"],
-  },
-  {
     title: "Never Going To Be This Way Again",
     speaker: "Mark & Meredith Nathan",
     summary:
@@ -133,39 +112,11 @@ export const AUDIOS: Audio[] = [
     tags: ["Perspective", "Patience", "Urgency", "Gratitude"],
   },
   {
-    title: "Going Platinum Attitude",
-    speaker: "Larry Winters",
-    summary:
-      "The attitude needed and the six habits to master as you move toward the decision to achieve Platinum.",
-    tags: ["Leadership", "Habits", "Goal Setting", "Consistency"],
-  },
-  {
-    title: "What Makes A Leader",
-    speaker: "Joe Markiewicz",
-    summary:
-      "The essential qualities, heart, and behavior of a good leader — what to aspire to as you grow.",
-    tags: ["Leadership", "Character", "Growth", "Mentorship"],
-  },
-  {
-    title: "Impact Players",
-    speaker: "Jake Baker",
-    summary:
-      "Drawing on decades of experience, the key characteristics that set an impact player apart and why that progression builds strong, elite teams.",
-    tags: ["Leadership", "Consistency", "Culture", "Impact"],
-  },
-  {
     title: "Action Changes Everything",
     speaker: "Jake & Jackie Baker",
     summary:
       "How daily activities impact your attitude, habits, and PV check — never underestimate the value of taking action.",
     tags: ["Consistency", "Activity", "Habits", "Action"],
-  },
-  {
-    title: "Believing More In Yourself",
-    speaker: "Mayank & Sejal Gala",
-    summary:
-      "Why belief in yourself is critical to success — vulnerably sharing how the team's presence and friendship built them up until they could believe in themselves.",
-    tags: ["Belief", "Confidence", "Community", "Vulnerability"],
   },
   {
     title: "Words",
@@ -180,20 +131,6 @@ export const AUDIOS: Audio[] = [
     summary:
       "Building the business with integrity by considering Diamond an assignment rather than a calling — a mindset shift toward progressing on a deadline.",
     tags: ["Integrity", "Commitment", "Goal Setting", "Mindset"],
-  },
-  {
-    title: "Fantasy Or Faith?",
-    speaker: "Mark Nathan",
-    summary:
-      "How to visualize your future with faith instead of fantasy — the difference between the two, and the action needed to produce the story you want.",
-    tags: ["Vision", "Faith", "Action", "Belief"],
-  },
-  {
-    title: "Memory Box",
-    speaker: "Tyler & Amanda Sheridan",
-    summary:
-      "Whether you're doing what it takes shows up in your daily habits. Cherish the basics of building your business instead of viewing them as chores.",
-    tags: ["Consistency", "Habits", "Perspective", "Gratitude"],
   },
   {
     title: "Gritty Not Pretty",
