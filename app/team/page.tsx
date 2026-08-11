@@ -161,6 +161,7 @@ export default function TeamPage() {
   const [confirmEmail, setConfirmEmail] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const [lastRemovedEmail, setLastRemovedEmail] = useState<string | null>(null);
 
   const [grantingOnboarding, setGrantingOnboarding] = useState(false);
   const [grantError, setGrantError] = useState("");
@@ -544,6 +545,7 @@ export default function TeamPage() {
     if (!selectedId) return;
     setDeleting(true);
     setDeleteError("");
+    const removedEmail = selectedProfile?.email ?? null;
     const { error } = await supabase.rpc("delete_downline_account", {
       p_user_id: selectedId,
     });
@@ -556,6 +558,7 @@ export default function TeamPage() {
     setSelectedId(null);
     setMemberData(null);
     setDeleting(false);
+    setLastRemovedEmail(removedEmail);
   }
 
   return (
@@ -569,6 +572,17 @@ export default function TeamPage() {
         }
       />
       <main className="page-main">
+        {lastRemovedEmail && (
+          <div className="card flex items-center justify-between gap-2 !border-amber/40">
+            <p className="text-xs text-slate-300">
+              🔗 Don&apos;t forget to remove <span className="font-semibold text-white">{lastRemovedEmail}</span>{" "}
+              from the Gemini Assistant Google Group.
+            </p>
+            <button className="pill shrink-0" onClick={() => setLastRemovedEmail(null)}>
+              ✓ Done
+            </button>
+          </div>
+        )}
         <div className="card flex flex-wrap gap-1 p-1">
           <button
             className={viewMode === "members" ? "toggle-pill-active" : "toggle-pill-inactive"}

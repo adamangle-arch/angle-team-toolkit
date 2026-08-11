@@ -242,6 +242,7 @@ export type Candidate = {
   connected_date: string;
   launched: boolean;
   launched_at: string | null;
+  gemini_group_added: boolean;
   filtered_out: boolean;
   filtered_out_reason: string | null;
   access_code: string | null;

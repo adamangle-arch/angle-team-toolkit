@@ -1559,6 +1559,19 @@ function CandidateCard({
             )
           ) : (
             <div className="space-y-2">
+              {candidate.launched && !candidate.gemini_group_added && (
+                <div className="flex items-center justify-between gap-2 rounded-lg bg-navy px-3 py-2">
+                  <p className="text-xs text-slate-300">
+                    🔗 Add {candidate.name} to the Gemini Assistant Google Group
+                  </p>
+                  <button
+                    className="pill shrink-0"
+                    onClick={() => onUpdate(candidate.id, { gemini_group_added: true })}
+                  >
+                    ✓ Done
+                  </button>
+                </div>
+              )}
               {candidate.filtered_out && (
                 <div className="space-y-1">
                   <p className="text-xs font-medium text-slate-300">Why they were filtered out:</p>

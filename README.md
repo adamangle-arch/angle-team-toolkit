@@ -5461,6 +5461,38 @@ is harmless and needs no cleanup migration.
 Still to come: Tower Stack, Sprint to Diamond, 2048-style Merge, Diamond
 Solitaire.
 
+### Gemini Assistant Google Group reminders
+
+The Gemini Assistant link on the Assistant tab points at a Gem shared
+through a Google Group (rather than emailing each person individually or
+opening it to "anyone with the link") so one person can be removed without
+regenerating the link for everyone else. Real automation - the app calling
+Google's API to add/remove Group members itself - needs a Google Workspace
+admin console (the Admin SDK Directory API); the account behind this Gem is
+a personal Gmail (even on a paid Gemini plan), which has no such API
+access. So membership stays a manual step, with the app just reminding you
+when to do it:
+
+- **On launch**: once a candidate's card is marked Launched, it shows a
+  "🔗 Add [Name] to the Gemini Assistant Google Group" reminder with a
+  "✓ Done" button, tracked by a new `candidates.gemini_group_added`
+  column (defaults `false`, no separate "dismiss" state needed since
+  marking it done is the actual completion). No email is stored on
+  `candidates` at all, so this reminds by name, not email - you look the
+  person's email up the same way you would to add them to the Group by
+  hand either way.
+- **On removal**: `Team → Delete` already fully revokes in-app access
+  (deletes from `auth.users`, cascades everywhere). Right after a
+  successful delete, a banner shows the removed person's email with a
+  "🔗 Don't forget to remove [email] from the Gemini Assistant Google
+  Group" reminder and its own "✓ Done" dismiss - this one is UI-only
+  state (`lastRemovedEmail`), not persisted, since it only matters in the
+  moment right after the delete action.
+
+```sql
+alter table candidates add column if not exists gemini_group_added boolean not null default false;
+```
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

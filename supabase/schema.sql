@@ -6449,3 +6449,10 @@ as $$
 $$;
 
 grant execute on function public.get_active_stories() to authenticated;
+
+-- Manual reminder flag for the Gemini Assistant Google Group - the app
+-- has no way to call Google's API to add/remove members (the account
+-- behind the Gem is a personal Gmail, not Workspace, so there's no
+-- Admin SDK access), so this just tracks "has the rep marked this done"
+-- for the reminder card shown on a launched candidate's card.
+alter table candidates add column if not exists gemini_group_added boolean not null default false;
