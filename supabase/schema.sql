@@ -4863,6 +4863,20 @@ set
   url = 'https://www.dropbox.com/scl/fi/y20r3u6rhlhvx6xnpeup3/NLA-Financial-Stability-in-the-21st-Century-L15-1347-AUD.mp3?rlkey=2wc67eptr1wn5a18vubfbirxg&st=bf20bm6w&dl=0'
 where label = '🎧 Financial Stability of the 21st Century';
 
+-- Ruby Success Story - Abbott has (at least) two rows floating around: the
+-- old seeded "🎧 Ruby Success Story - Abbott" row, and a row added later
+-- through the in-app admin panel labeled with the AUDIOS entry's full title
+-- ("Ruby Success Story – Jason & Milynda Abbott"). Neither had a url. Covers
+-- every label variant seen so far so this is a no-op on whichever doesn't exist.
+update optional_resources
+set url = 'https://www.dropbox.com/scl/fi/r0vxcisthh3qpzb5m9be7/Ruby-Success-Story-Abbott-L21-3422-AUD.mp3?rlkey=n6azt4rp6j5ghl4ip9iu93kmd&st=bbempm0y&dl=0'
+where label in (
+  '🎧 Ruby Success Story - Abbott',
+  'Ruby Success Story - Abbott',
+  'Ruby Success Story – Jason & Milynda Abbott',
+  '🎧 Ruby Success Story – Jason & Milynda Abbott'
+);
+
 -- One-time content cleanup pass, per a live review of the newly-added book
 -- PDFs: adds the missing 📖 prefix (one consistent emoji for every
 -- book, matching the podcast cleanup earlier), normalizes title-case
