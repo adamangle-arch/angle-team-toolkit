@@ -5489,6 +5489,15 @@ when to do it:
   state (`lastRemovedEmail`), not persisted, since it only matters in the
   moment right after the delete action.
 
+Both reminders are gated to `isGeminiGroupOwner()` (`lib/constants.ts`) -
+of the three `PRIMARY_EMAILS` who can see every team member's data, only
+one of them actually owns/administers this particular Google Group.
+Deliberately narrower than `isPrimaryUser()`: showing "add/remove someone
+from the Group" to an admin who has no access to that Group would just be
+a reminder nobody in that seat can act on. `Team → Delete` itself stays
+available to any admin or upline the way it always has - only the
+post-delete Gemini reminder banner is restricted.
+
 ```sql
 alter table candidates add column if not exists gemini_group_added boolean not null default false;
 ```

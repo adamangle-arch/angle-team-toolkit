@@ -8,6 +8,7 @@ import FeatureGate from "@/components/FeatureGate";
 import { supabase } from "@/lib/supabaseClient";
 import {
   isPrimaryUser,
+  isGeminiGroupOwner,
   PIPELINE_STAGES,
   CANDIDATE_STEPS,
   ONBOARDING_SESSIONS,
@@ -558,7 +559,9 @@ export default function TeamPage() {
     setSelectedId(null);
     setMemberData(null);
     setDeleting(false);
-    setLastRemovedEmail(removedEmail);
+    if (isGeminiGroupOwner(user.email)) {
+      setLastRemovedEmail(removedEmail);
+    }
   }
 
   return (

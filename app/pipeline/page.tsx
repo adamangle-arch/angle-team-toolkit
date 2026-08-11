@@ -21,6 +21,7 @@ import {
   US_TIMEZONES,
   CALENDAR_DURATION_OPTIONS,
   effectiveResourcesForStep,
+  isGeminiGroupOwner,
   type CandidateResourceOverrideEntry,
   type PipelineStageKey,
 } from "@/lib/constants";
@@ -1314,6 +1315,7 @@ function CandidateCard({
   onUpdate: (id: string, patch: Partial<Candidate>) => void;
   isStale?: boolean;
 }) {
+  const { user } = useAuth();
   const [expanded, setExpanded] = useState(false);
   const [notes, setNotes] = useState(candidate.notes);
   const [codeCopied, setCodeCopied] = useState(false);
@@ -1559,7 +1561,7 @@ function CandidateCard({
             )
           ) : (
             <div className="space-y-2">
-              {candidate.launched && !candidate.gemini_group_added && (
+              {candidate.launched && !candidate.gemini_group_added && isGeminiGroupOwner(user.email) && (
                 <div className="flex items-center justify-between gap-2 rounded-lg bg-navy px-3 py-2">
                   <p className="text-xs text-slate-300">
                     🔗 Add {candidate.name} to the Gemini Assistant Google Group

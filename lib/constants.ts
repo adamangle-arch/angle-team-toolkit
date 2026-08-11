@@ -16,6 +16,18 @@ export function isPrimaryUser(email: string | null | undefined): boolean {
 // see the Badges tab, and don't show a Badges section on their profile.
 export const BADGE_EXCLUDED_EMAILS = ["alexangle@me.com", "laurasangle@gmail.com"];
 
+// Of the three PRIMARY_EMAILS above, only this one actually owns the
+// Gemini Assistant Google Group - Alex and Laura can't add/remove members
+// from it, so the "add/remove someone from the Group" reminders on
+// Candidate Roadmap and Team should only ever show to this account, not
+// to every admin isPrimaryUser() would otherwise cover.
+const GEMINI_GROUP_OWNER_EMAIL = "adamangle@icloud.com";
+
+export function isGeminiGroupOwner(email: string | null | undefined): boolean {
+  const normalized = (email ?? "").trim().toLowerCase();
+  return normalized === GEMINI_GROUP_OWNER_EMAIL;
+}
+
 export function isBadgeExcluded(email: string | null | undefined): boolean {
   const normalized = (email ?? "").trim().toLowerCase();
   return BADGE_EXCLUDED_EMAILS.some((e) => e.toLowerCase() === normalized);
