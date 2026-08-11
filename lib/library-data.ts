@@ -21,25 +21,11 @@ export const AUDIOS: Audio[] = [
     tags: ["Commitment", "Vision", "Significance", "Personal Responsibility"],
   },
   {
-    title: "Do You Own The Story?",
-    speaker: "Laura Angle & Alex Angle",
-    summary:
-      "The importance of balance and protecting priorities, and the difference between pursuing happiness and pursuing purpose. Ownership of the daily story you're writing.",
-    tags: ["Purpose", "Balance", "Ownership", "Priorities"],
-  },
-  {
     title: "An Average Normal Life",
     speaker: "Alex & Laura Angle",
     summary:
       "A challenge to evaluate whether you're settling for average — the danger of staying in comfort zones versus what's possible through growth and intentional living.",
     tags: ["Vision", "Growth", "Comfort Zone", "Lifestyle Design"],
-  },
-  {
-    title: "An Educated Perspective",
-    speaker: "Derrick & Kaprice Tucker",
-    summary:
-      "Why highly educated, professionally successful people chose to build this business despite demanding careers — useful perspective for skeptical or analytical prospects.",
-    tags: ["Professional Prospects", "Analytical Thinkers", "Credibility", "Entrepreneurship"],
   },
   {
     title: "Call Me Fanatical",
