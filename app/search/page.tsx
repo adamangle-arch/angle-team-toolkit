@@ -21,7 +21,14 @@ const QUICK_ACTIONS = [
   { label: "📅 Log a Meeting", href: "/calendar" },
 ] as const;
 
-function candidateSnippet(c: Candidate): string {
+function candidateSnippet(c: Candidate, query: string): string {
+  // A note match ("works at Amazon") is the whole reason this candidate
+  // surfaced, so show the note itself rather than the usual step status -
+  // otherwise there's no visible link between the search term and why
+  // this result showed up at all.
+  if (c.notes && c.notes.toLowerCase().includes(query.toLowerCase())) {
+    return `📝 ${c.notes}`;
+  }
   if (c.launched) return "Launched";
   if (c.filtered_out) return "Filtered out";
   return `Step ${c.current_step + 1}/${CANDIDATE_STEPS.length}: ${CANDIDATE_STEPS[c.current_step]?.label ?? ""}`;
@@ -46,12 +53,22 @@ export default function SearchPage() {
     if (trimmed.length < 2) return;
     let cancelled = false;
     const timer = setTimeout(async () => {
-      const [{ data: candidates }, { data: contacts }, { data: people }] = await Promise.all([
+      const [{ data: candidatesByName }, { data: candidatesByNotes }, { data: contacts }, { data: people }] =
+        await Promise.all([
         supabase
           .from("candidates")
-          .select("id,name,current_step,launched,filtered_out")
+          .select("id,name,current_step,launched,filtered_out,notes")
           .eq("user_id", ownerId)
           .ilike("name", `%${trimmed}%`)
+          .limit(8),
+        // Separate query rather than a single .or() filter - a search term
+        // containing a comma or parenthesis would otherwise collide with
+        // PostgREST's own filter-syntax delimiters.
+        supabase
+          .from("candidates")
+          .select("id,name,current_step,launched,filtered_out,notes")
+          .eq("user_id", ownerId)
+          .ilike("notes", `%${trimmed}%`)
           .limit(8),
         supabase
           .from("contacts")
@@ -65,9 +82,12 @@ export default function SearchPage() {
         supabase.rpc("search_profiles_by_name", { p_query: trimmed }),
       ]);
       if (cancelled) return;
-      const candidateResults: SearchResult[] = ((candidates as Candidate[]) ?? []).map((c) => ({
+      const candidatesById = new Map<string, Candidate>();
+      for (const c of (candidatesByName as Candidate[]) ?? []) candidatesById.set(c.id, c);
+      for (const c of (candidatesByNotes as Candidate[]) ?? []) candidatesById.set(c.id, c);
+      const candidateResults: SearchResult[] = Array.from(candidatesById.values()).map((c) => ({
         title: c.name,
-        snippet: candidateSnippet(c),
+        snippet: candidateSnippet(c, trimmed),
         href: "/pipeline",
         source: "Candidates",
       }));

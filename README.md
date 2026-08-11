@@ -1503,9 +1503,21 @@ to the right Resources tab (`/library?tab=scripts`, `?tab=products`,
 etc. — the Resources hub now reads a `tab` query param on load) or the
 right page (`/goals`, `/calendar`, and so on).
 
-This only searches static reference content and page shortcuts, not your
-personal data (candidates, contacts, notes) — each of those already has
-its own search box on its own page.
+It also runs a debounced (250ms), live Supabase search (2+ characters)
+alongside the static index: your own candidates by name, your own
+contacts by name, and every team member by name (via
+`search_profiles_by_name`, company-wide rather than scoped to your
+up/downline — same visibility as the Leaderboard already has). Candidate
+notes are searched too, as a **separate** `ilike` query rather than
+folded into the name query with `.or()` — a search term containing a
+comma or parenthesis would otherwise collide with PostgREST's own
+filter-syntax delimiters. Results from both candidate queries are merged
+and de-duped by id client-side. When a candidate matches on notes, the
+result shows the note itself as the snippet (prefixed `📝`) instead of the
+usual step-status line, since that's the actual reason the match
+surfaced — e.g. writing "works at Amazon" in a candidate's notes makes
+them findable by searching "Amazon," with that note shown right in the
+result.
 
 ### Onboarding
 
