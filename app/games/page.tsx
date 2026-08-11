@@ -14,7 +14,6 @@ import DiamondMatchGame from "@/components/games/DiamondMatchGame";
 import DiamondTossGame from "@/components/games/DiamondTossGame";
 import WordScrambleGame from "@/components/games/WordScrambleGame";
 import TermOfDayGame from "@/components/games/TermOfDayGame";
-import SpeedSortGame from "@/components/games/SpeedSortGame";
 
 type GameKey =
   | "diamond-run"
@@ -25,8 +24,7 @@ type GameKey =
   | "diamond-match"
   | "diamond-toss"
   | "word-scramble"
-  | "term-of-day"
-  | "speed-sort";
+  | "term-of-day";
 
 const GAMES: { key: GameKey; label: string }[] = [
   { key: "diamond-run", label: "Diamond Run" },
@@ -38,7 +36,6 @@ const GAMES: { key: GameKey; label: string }[] = [
   { key: "diamond-toss", label: "Diamond Toss" },
   { key: "word-scramble", label: "Word Scramble" },
   { key: "term-of-day", label: "Term of the Day" },
-  { key: "speed-sort", label: "Speed Sort" },
 ];
 
 function isGameKey(value: string | null): value is GameKey {
@@ -75,7 +72,6 @@ function GamesTabs() {
       {game === "diamond-toss" && <DiamondTossGame />}
       {game === "word-scramble" && <WordScrambleGame />}
       {game === "term-of-day" && <TermOfDayGame />}
-      {game === "speed-sort" && <SpeedSortGame />}
     </>
   );
 }

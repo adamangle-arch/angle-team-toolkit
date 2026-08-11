@@ -5435,18 +5435,18 @@ no new migration needed for this batch.
   `1000 - seconds*8 - mistakes*15`.
 - **Term of the Day** (`term_of_day`) - Wordle, business-term edition.
   Same deterministic per-day pick as Trivia (`hashString(day) %
-  GAME_TERMS.length`, so everyone gets the same term), standard
-  green/present/gray letter feedback, 6 guesses, variable word length
-  instead of a fixed 5-letter grid. No dedicated "already played today"
+  TERM_OF_DAY_WORDS.length`, so everyone gets the same term), standard
+  green/present/gray letter feedback, 6 guesses, fixed 5-letter grid
+  drawn from a dedicated `TERM_OF_DAY_WORDS` pool (`lib/games-terms.ts`)
+  with a short paired hint per word (collapsed behind a "Need a hint?"
+  toggle - not shown by default). No dedicated "already played today"
   table like `trivia_daily_results` - same self-reported trust level as
   every other mini-game, so replaying the same day just replays the same
   word.
-- **Speed Sort** (`speed_sort`) - 45-second "what comes next" drill
-  through the real Candidate Roadmap sequence (`CANDIDATE_STEPS` from
-  `lib/constants.ts` - Yes → QI1 → QI2 → IS1 → FU1 → IS2 → FU2 →
-  Questionnaire → Offer Call), 4-choice multiple choice, +1 per correct
-  answer, no penalty for a miss (just moves to the next question) to
-  keep it upbeat rather than punishing.
+
+Speed Sort was built in this batch and then removed at the user's
+request - `game_scores` may still hold orphaned `speed_sort` rows, which
+is harmless and needs no cleanup migration.
 
 Still to come: Tower Stack, Sprint to Diamond, 2048-style Merge, Diamond
 Solitaire.

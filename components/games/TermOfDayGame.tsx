@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useAuth } from "@/components/AuthGate";
 import { getToday } from "@/lib/dates";
 import { useGameScore } from "@/lib/useGameScore";
-import { GAME_TERMS } from "@/lib/games-terms";
+import { TERM_OF_DAY_WORDS } from "@/lib/games-terms";
 import GameLockGate from "@/components/games/GameLockGate";
 import GameLeaderboard from "@/components/games/GameLeaderboard";
 
@@ -22,9 +22,9 @@ function hashString(s: string): number {
   return Math.abs(h);
 }
 
-function todaysTerm(day: string): string {
-  const index = hashString(day) % GAME_TERMS.length;
-  return GAME_TERMS[index];
+function todaysTerm(day: string): { word: string; hint: string } {
+  const index = hashString(day) % TERM_OF_DAY_WORDS.length;
+  return TERM_OF_DAY_WORDS[index];
 }
 
 type LetterState = "correct" | "present" | "absent";
@@ -59,13 +59,14 @@ function pointsFromGuesses(guessCount: number, won: boolean): number {
 export default function TermOfDayGame() {
   const { user } = useAuth();
   const { bestScore, submitScore } = useGameScore(user.id, GAME_KEY);
-  const answer = useMemo(() => todaysTerm(getToday()), []);
+  const { word: answer, hint } = useMemo(() => todaysTerm(getToday()), []);
 
   const [current, setCurrent] = useState("");
   const [guesses, setGuesses] = useState<string[]>([]);
   const [status, setStatus] = useState<"playing" | "won" | "lost">("playing");
   const [refreshKey, setRefreshKey] = useState(0);
   const [submitted, setSubmitted] = useState(false);
+  const [showHint, setShowHint] = useState(false);
 
   function tapLetter(letter: string) {
     if (status !== "playing" || current.length >= answer.length) return;
@@ -149,6 +150,21 @@ export default function TermOfDayGame() {
         {status === "won" && <p className="text-lg font-bold text-white">🎉 Solved it!</p>}
         {status === "lost" && (
           <p className="text-sm text-slate-300">The term was {answer}. Come back tomorrow!</p>
+        )}
+
+        {status === "playing" && (
+          <div>
+            {showHint ? (
+              <p className="text-xs italic text-slate-400">💡 {hint}</p>
+            ) : (
+              <button
+                className="text-xs text-slate-400 underline"
+                onClick={() => setShowHint(true)}
+              >
+                💡 Need a hint?
+              </button>
+            )}
+          </div>
         )}
       </div>
 
