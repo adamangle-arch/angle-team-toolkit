@@ -8,17 +8,29 @@ import { SkeletonList } from "@/components/Skeleton";
 import DiamondRunGame from "@/components/games/DiamondRunGame";
 import DiamondChaseGame from "@/components/games/DiamondChaseGame";
 import TriviaGame from "@/components/games/TriviaGame";
+import ReactionRushGame from "@/components/games/ReactionRushGame";
+import PvPopGame from "@/components/games/PvPopGame";
+import DiamondMatchGame from "@/components/games/DiamondMatchGame";
 
-type GameKey = "diamond-run" | "diamond-chase" | "trivia";
+type GameKey =
+  | "diamond-run"
+  | "diamond-chase"
+  | "trivia"
+  | "reaction-rush"
+  | "pv-pop"
+  | "diamond-match";
 
 const GAMES: { key: GameKey; label: string }[] = [
   { key: "diamond-run", label: "Diamond Run" },
   { key: "diamond-chase", label: "Diamond Chase" },
   { key: "trivia", label: "Trivia" },
+  { key: "reaction-rush", label: "Reaction Rush" },
+  { key: "pv-pop", label: "PV Pop" },
+  { key: "diamond-match", label: "Diamond Match" },
 ];
 
 function isGameKey(value: string | null): value is GameKey {
-  return value === "diamond-run" || value === "diamond-chase" || value === "trivia";
+  return GAMES.some((g) => g.key === value);
 }
 
 function GamesTabs() {
@@ -45,6 +57,9 @@ function GamesTabs() {
       {game === "diamond-run" && <DiamondRunGame />}
       {game === "diamond-chase" && <DiamondChaseGame />}
       {game === "trivia" && <TriviaGame />}
+      {game === "reaction-rush" && <ReactionRushGame />}
+      {game === "pv-pop" && <PvPopGame />}
+      {game === "diamond-match" && <DiamondMatchGame />}
     </>
   );
 }

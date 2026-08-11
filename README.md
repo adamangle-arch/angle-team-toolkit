@@ -5326,6 +5326,97 @@ being silently dropped. So adding a new audio via Resources hub → Library
 → Add to Library (kind Audio) now shows up in the Audios tab immediately
 with a working link, no code change or deploy required.
 
+### Games batch 2: Reaction Rush, PV Pop, Diamond Match
+
+First installment of a much longer requested list (11 total game ideas) -
+built in batches rather than all at once, same pattern as every other
+big multi-item request this session. These three were picked as the
+simplest to build well; the rest follow in later batches.
+
+Two pieces of shared infrastructure went in alongside them, since every
+game after Diamond Run/Diamond Chase would otherwise need its own
+near-identical table + leaderboard RPC:
+
+- **`game_scores` table** (`user_id, game_key, best_score, times_improved`)
+  + **`get_misc_game_leaderboard(p_game_key)`** RPC - one shared
+  high-score table for every game after Diamond Run/Diamond Chase, which
+  keep their own dedicated `game_high_scores`/`snake_high_scores` tables
+  (not worth a data migration to consolidate those now that they're
+  already live). Client side, `lib/useGameScore.ts` (load-best/submit-
+  if-better/times-improved, same rules as the two dedicated tables) and
+  `components/games/GameLeaderboard.tsx` (the shared "💎 High Scores"
+  card) wrap it so a new game just passes its own `game_key`.
+- **`components/games/GameLockGate.tsx`** - wraps a game's content in
+  the same `useCoreRunUnlock()` check (today's Core Run done, or an
+  active streak already) and "Locked for Today" card Diamond
+  Run/Diamond Chase/Trivia each wire manually, so a new game doesn't
+  repeat that JSX every time.
+
+The three games:
+
+- **Reaction Rush** (`reaction_rush`) - 5 rounds, tap the instant a box
+  turns green; tapping during the "wait" phase resets that round ("Too
+  soon!"). Score is `1000 - averageReactionMs` (floored at 0) so faster
+  reactions produce a higher number, keeping the shared leaderboard's
+  "higher is better" ordering rather than needing an ascending-sort
+  special case.
+- **PV Pop** (`pv_pop`) - 30-second canvas bubble-popper: bubbles drift
+  upward from the bottom, tap to pop before they escape off the top.
+  Gold 💎 bubbles (~12% spawn chance) are worth 5 points instead of 1.
+- **Diamond Match** (`diamond_match`) - classic concentration/memory
+  match, 8 pairs (16 cards) of business-themed emoji. Score rewards
+  fewer moves and less time: `1000 - moves*20 - seconds*5`, floored at
+  50 for anyone who finishes at all.
+
+Run once in the Supabase SQL editor:
+
+```sql
+create table if not exists game_scores (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  game_key text not null,
+  best_score int not null default 0,
+  times_improved int not null default 0,
+  updated_at timestamptz not null default now(),
+  primary key (user_id, game_key)
+);
+
+alter table game_scores enable row level security;
+
+drop policy if exists "game_scores_select_all" on game_scores;
+create policy "game_scores_select_all" on game_scores
+for select using (true);
+
+drop policy if exists "game_scores_insert_own" on game_scores;
+create policy "game_scores_insert_own" on game_scores
+for insert with check (user_id = auth.uid());
+
+drop policy if exists "game_scores_update_own" on game_scores;
+create policy "game_scores_update_own" on game_scores
+for update using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+create or replace function public.get_misc_game_leaderboard(p_game_key text)
+returns table (
+  user_id uuid,
+  first_name text,
+  last_name text,
+  best_score int
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select g.user_id, p.first_name, p.last_name, g.best_score
+  from game_scores g
+  join profiles p on p.id = g.user_id
+  where g.game_key = p_game_key
+  order by g.best_score desc
+  limit 20;
+$$;
+
+grant execute on function public.get_misc_game_leaderboard(text) to authenticated;
+```
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

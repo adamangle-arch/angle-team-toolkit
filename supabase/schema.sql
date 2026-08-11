@@ -3026,6 +3026,61 @@ $$;
 grant execute on function public.get_snake_leaderboard() to authenticated;
 
 -- ============================================================
+-- 12. MISC MINI-GAMES (shared high-score table)
+-- Diamond Run and Diamond Chase each got their own dedicated table above
+-- before this point - not worth a data migration to consolidate those
+-- now that they're already live. Every game added after them shares this
+-- one table instead, keyed by (user_id, game_key), so scaling up the
+-- Games tab doesn't mean a near-identical table + leaderboard RPC per
+-- game. Same trust level as the two above: client-side only, no
+-- anti-cheat, self-reported like any other number in this app.
+-- ============================================================
+create table if not exists game_scores (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  game_key text not null,
+  best_score int not null default 0,
+  times_improved int not null default 0,
+  updated_at timestamptz not null default now(),
+  primary key (user_id, game_key)
+);
+
+alter table game_scores enable row level security;
+
+drop policy if exists "game_scores_select_all" on game_scores;
+create policy "game_scores_select_all" on game_scores
+for select using (true);
+
+drop policy if exists "game_scores_insert_own" on game_scores;
+create policy "game_scores_insert_own" on game_scores
+for insert with check (user_id = auth.uid());
+
+drop policy if exists "game_scores_update_own" on game_scores;
+create policy "game_scores_update_own" on game_scores
+for update using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+create or replace function public.get_misc_game_leaderboard(p_game_key text)
+returns table (
+  user_id uuid,
+  first_name text,
+  last_name text,
+  best_score int
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select g.user_id, p.first_name, p.last_name, g.best_score
+  from game_scores g
+  join profiles p on p.id = g.user_id
+  where g.game_key = p_game_key
+  order by g.best_score desc
+  limit 20;
+$$;
+
+grant execute on function public.get_misc_game_leaderboard(text) to authenticated;
+
+-- ============================================================
 -- 12. TRIVIA (mini-game)
 -- Redesigned as a daily challenge rather than unlimited-play survival
 -- mode: everyone gets the same 5 questions on a given calendar day
