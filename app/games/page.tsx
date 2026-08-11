@@ -11,6 +11,10 @@ import TriviaGame from "@/components/games/TriviaGame";
 import ReactionRushGame from "@/components/games/ReactionRushGame";
 import PvPopGame from "@/components/games/PvPopGame";
 import DiamondMatchGame from "@/components/games/DiamondMatchGame";
+import DiamondTossGame from "@/components/games/DiamondTossGame";
+import WordScrambleGame from "@/components/games/WordScrambleGame";
+import TermOfDayGame from "@/components/games/TermOfDayGame";
+import SpeedSortGame from "@/components/games/SpeedSortGame";
 
 type GameKey =
   | "diamond-run"
@@ -18,7 +22,11 @@ type GameKey =
   | "trivia"
   | "reaction-rush"
   | "pv-pop"
-  | "diamond-match";
+  | "diamond-match"
+  | "diamond-toss"
+  | "word-scramble"
+  | "term-of-day"
+  | "speed-sort";
 
 const GAMES: { key: GameKey; label: string }[] = [
   { key: "diamond-run", label: "Diamond Run" },
@@ -27,6 +35,10 @@ const GAMES: { key: GameKey; label: string }[] = [
   { key: "reaction-rush", label: "Reaction Rush" },
   { key: "pv-pop", label: "PV Pop" },
   { key: "diamond-match", label: "Diamond Match" },
+  { key: "diamond-toss", label: "Diamond Toss" },
+  { key: "word-scramble", label: "Word Scramble" },
+  { key: "term-of-day", label: "Term of the Day" },
+  { key: "speed-sort", label: "Speed Sort" },
 ];
 
 function isGameKey(value: string | null): value is GameKey {
@@ -60,6 +72,10 @@ function GamesTabs() {
       {game === "reaction-rush" && <ReactionRushGame />}
       {game === "pv-pop" && <PvPopGame />}
       {game === "diamond-match" && <DiamondMatchGame />}
+      {game === "diamond-toss" && <DiamondTossGame />}
+      {game === "word-scramble" && <WordScrambleGame />}
+      {game === "term-of-day" && <TermOfDayGame />}
+      {game === "speed-sort" && <SpeedSortGame />}
     </>
   );
 }

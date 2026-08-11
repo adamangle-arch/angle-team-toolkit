@@ -5417,6 +5417,40 @@ $$;
 grant execute on function public.get_misc_game_leaderboard(text) to authenticated;
 ```
 
+### Games batch 3: Diamond Toss, Word Scramble, Term of the Day, Speed Sort
+
+Second installment of the 11-game list. All four use the `game_scores`
+table and `GameLockGate`/`GameLeaderboard` infrastructure from batch 2 -
+no new migration needed for this batch.
+
+- **Diamond Toss** (`diamond_toss`) - 5 throws at a timing bar: a 💎
+  marker oscillates left-right, tap when it's over the gold zone. Points
+  per throw taper from 100 at the zone's exact center to 0 at its edges
+  (`pointsForToss()`), summed across all 5 throws.
+- **Word Scramble** (`word_scramble`) - unscramble 8 business terms
+  (`lib/games-terms.ts` - real vocabulary already used elsewhere in the
+  app: pin titles, pipeline/program terms - not invented jargon) by
+  tapping letter tiles in order. Wrong order re-scrambles that same word
+  rather than ending the run. Points reward speed and accuracy:
+  `1000 - seconds*8 - mistakes*15`.
+- **Term of the Day** (`term_of_day`) - Wordle, business-term edition.
+  Same deterministic per-day pick as Trivia (`hashString(day) %
+  GAME_TERMS.length`, so everyone gets the same term), standard
+  green/present/gray letter feedback, 6 guesses, variable word length
+  instead of a fixed 5-letter grid. No dedicated "already played today"
+  table like `trivia_daily_results` - same self-reported trust level as
+  every other mini-game, so replaying the same day just replays the same
+  word.
+- **Speed Sort** (`speed_sort`) - 45-second "what comes next" drill
+  through the real Candidate Roadmap sequence (`CANDIDATE_STEPS` from
+  `lib/constants.ts` - Yes → QI1 → QI2 → IS1 → FU1 → IS2 → FU2 →
+  Questionnaire → Offer Call), 4-choice multiple choice, +1 per correct
+  answer, no penalty for a miss (just moves to the next question) to
+  keep it upbeat rather than punishing.
+
+Still to come: Tower Stack, Sprint to Diamond, 2048-style Merge, Diamond
+Solitaire.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)
