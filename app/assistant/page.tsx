@@ -161,6 +161,23 @@ export default function AssistantPage() {
   return (
     <FeatureGate minSession={5}>
       <PageHeader title="Assistant" subtitle="Role-play conversations, and rate your meetings" />
+      <div className="px-4 pt-3">
+        <div className="card space-y-2">
+          <p className="text-sm font-semibold text-white">🔗 Full Team AI Assistant</p>
+          <p className="text-xs text-slate-400">
+            Want deeper Q&amp;A on scripts, comp plan, or objections? Ask your upline to invite
+            you to the team&apos;s Gemini Assistant, then open it below.
+          </p>
+          <a
+            href="https://gemini.google.com/gem/1NkM3ZlEKZxU2sUFvSIaEEQ9i7DTw2So9?usp=sharing"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn-secondary inline-block text-center"
+          >
+            Open Gemini Assistant ↗
+          </a>
+        </div>
+      </div>
       <div className="tab-bar px-4 pb-3 pt-3">
         <div className="card flex p-1">
           <button

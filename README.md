@@ -3096,6 +3096,16 @@ more capable model, change the `model` value in
 `assistant_messages` table with the same private-by-default RLS as
 everything else.
 
+For broader business Q&A beyond the roleplay/rate-a-call scope, the
+Assistant tab now shows a static link-out card (above the tab bar, so it's
+visible on both tabs) to a separate, more comprehensive team assistant
+hosted as a Gemini Gem — deliberately kept off the metered Claude route
+rather than folded into `angle-team-system-prompt.txt`, since a
+general-purpose prompt is exactly what was trimmed out of the in-app
+assistant for cost in the first place (see above). The card tells reps to
+request an invite from their upline first, since the Gem is access-gated
+on Google's side, not something this app controls.
+
 **Update:** the route had no cap on how often it could be called — a
 scripted loop (or one very chatty user) could run up real Anthropic spend
 with nothing to stop it. It now logs every call to a new
