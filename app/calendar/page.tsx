@@ -5,6 +5,7 @@ import PageHeader from "@/components/PageHeader";
 import { SkeletonList } from "@/components/Skeleton";
 import { useAuth } from "@/components/AuthGate";
 import AvatarCluster from "@/components/AvatarCluster";
+import SearchablePicker from "@/components/SearchablePicker";
 import { supabase } from "@/lib/supabaseClient";
 import {
   isPrimaryUser,
@@ -1437,11 +1438,9 @@ export default function CalendarPage() {
                   ))}
                 </select>
               </label>
-              <select
-                className="select"
+              <SearchablePicker
                 value={candidateId}
-                onChange={(e) => {
-                  const id = e.target.value;
+                onChange={(id) => {
                   setCandidateId(id);
                   // Auto-fill the candidate's own saved zone, if they
                   // have one - the whole point of tagging a candidate's
@@ -1453,14 +1452,21 @@ export default function CalendarPage() {
                   const cand = candidates.find((c) => c.id === id);
                   if (cand?.timezone) setTimezone(cand.timezone);
                 }}
-              >
-                <option value="">No linked candidate</option>
-                {candidates.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+                placeholder="No linked candidate"
+                searchPlaceholder="Search candidates…"
+                options={[
+                  { value: "", label: "No linked candidate" },
+                  // Connected date + notes shown as a sublabel - two
+                  // candidates can share a first name, and this is the
+                  // fastest way to tell them apart while picking rather
+                  // than guessing from the name alone.
+                  ...candidates.map((c) => ({
+                    value: c.id,
+                    label: c.name,
+                    sublabel: `Connected ${formatDateLabel(c.connected_date)}${c.notes ? ` · ${c.notes}` : ""}`,
+                  })),
+                ]}
+              />
               <div className="flex gap-2">
                 <select
                   className="select flex-1"

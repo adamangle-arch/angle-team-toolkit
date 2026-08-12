@@ -5594,6 +5594,33 @@ post-delete Gemini reminder banner is restricted.
 alter table candidates add column if not exists gemini_group_added boolean not null default false;
 ```
 
+### SearchablePicker: type-to-filter dropdowns for long lists
+
+A native `<select>` has no way to type-to-filter, which is fine for a
+handful of options (timezone, event type, duration) but not for someone
+with hundreds of downline or candidates. Audited every `<select>` in the
+app and found exactly two backed by a genuinely long, dynamic list: the
+"Filling In For" team-member picker on Pipeline's Tally tab, and the
+"linked candidate" picker on Calendar's Add Event form - both replaced
+with a new shared `components/SearchablePicker.tsx`. (The audio/book
+library picker, `LibraryResourcePicker`, already had its own search box
+built in from when the library grew past a handful of entries - nothing
+to change there.)
+
+`SearchablePicker` is collapsed by default (shows just the current
+selection, same footprint as the `<select>` it replaces); tapping it
+opens a search box over a scrollable option list, same interaction
+pattern `LibraryResourcePicker` already established. Filtering matches
+against both a `label` and an optional `sublabel`.
+
+The Calendar candidate picker uses that `sublabel` for disambiguation -
+each option shows `Connected {date} · {notes}` under the candidate's
+name, so two candidates who happen to share a first name can be told
+apart while picking rather than guessed at. Considered a separate
+tap-to-reveal "Bio" button instead, but showing it inline needs zero
+extra taps and the option list already scrolls, so there's no real
+space cost to always showing it.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

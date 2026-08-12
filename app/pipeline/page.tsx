@@ -7,6 +7,7 @@ import TrendChart from "@/components/TrendChart";
 import { useAuth } from "@/components/AuthGate";
 import FeatureGate from "@/components/FeatureGate";
 import LibraryResourcePicker from "@/components/LibraryResourcePicker";
+import SearchablePicker from "@/components/SearchablePicker";
 import FirstVisitTip from "@/components/FirstVisitTip";
 import { SkeletonList, SkeletonRows } from "@/components/Skeleton";
 import AverageLeaders from "@/components/AverageLeaders";
@@ -818,19 +819,19 @@ function PipelinePageInner() {
             {downlineOptions.length > 0 && (
               <div className="card space-y-2">
                 <p className="section-title">Filling In For</p>
-                <select
-                  className="select"
+                <SearchablePicker
                   value={actingForId}
-                  onChange={(e) => setActingForId(e.target.value)}
-                >
-                  <option value="">Me</option>
-                  {downlineOptions.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.name}
-                      {d.accountNumber ? ` (#${d.accountNumber})` : ""}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setActingForId}
+                  placeholder="Me"
+                  searchPlaceholder="Search team members…"
+                  options={[
+                    { value: "", label: "Me" },
+                    ...downlineOptions.map((d) => ({
+                      value: d.id,
+                      label: d.accountNumber ? `${d.name} (#${d.accountNumber})` : d.name,
+                    })),
+                  ]}
+                />
                 {actingFor && (
                   <p className="text-xs text-amber-light">
                     ✏️ You&apos;re editing {actingFor.name}&apos;s pipeline numbers, not your own.
