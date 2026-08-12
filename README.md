@@ -3880,6 +3880,15 @@ less like a chore and more like something reps actually want to open:
   today or several back), plus the overall Questions → Launches
   conversion, so a rep can paste their numbers into an upline text/chat
   without retyping each stage by hand.
+- **Conversion card is now any stage pair, not just Questions →
+  Launches.** Two `<select>`s (`ratioFromKey`/`ratioToKey`, both plain
+  native dropdowns since `PIPELINE_STAGES` is only 10 items — no
+  `SearchablePicker` needed here) let you pick any "from" and "to" stage
+  and see that specific conversion, e.g. "Yeses → QI1" or "Questionnaire
+  → Launches" to find exactly where a funnel is leaking, not just the
+  overall rate. Defaults to Questions → Launches, matching the old fixed
+  behavior. The Copy Summary line reflects whichever pair is currently
+  selected.
 - **Search now finds your actual people, not just app content.**
   `app/search/page.tsx` used to only search static content — page names,
   Scripts & FAQ, Products, Leaders. Typing a name now also runs a

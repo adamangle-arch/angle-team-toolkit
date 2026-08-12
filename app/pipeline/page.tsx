@@ -189,6 +189,9 @@ function PipelinePageInner() {
   const [trendStage, setTrendStage] = useState<PipelineStageKey>("questions");
   const [trendHistory, setTrendHistory] = useState<PipelinePeriod[]>([]);
 
+  const [ratioFromKey, setRatioFromKey] = useState<PipelineStageKey>("questions");
+  const [ratioToKey, setRatioToKey] = useState<PipelineStageKey>("launches");
+
   // Daily/Weekly/Monthly averages for Questions/Yeses/QI1s - independent of
   // whichever periodType tab is currently selected above (that only
   // governs the single period being viewed/edited), so all three windows
@@ -674,8 +677,10 @@ function PipelinePageInner() {
     updateCandidate(candidate.id, { current_step: next });
   }
 
-  const questions = period?.questions ?? 0;
-  const launches = period?.launches ?? 0;
+  const ratioFromLabel = PIPELINE_STAGES.find((s) => s.key === ratioFromKey)?.label ?? "";
+  const ratioToLabel = PIPELINE_STAGES.find((s) => s.key === ratioToKey)?.label ?? "";
+  const ratioFromValue = (period?.[ratioFromKey] as number | undefined) ?? 0;
+  const ratioToValue = (period?.[ratioToKey] as number | undefined) ?? 0;
 
   // Copy/paste summary of whichever period (Daily/Weekly/Monthly) and
   // offset is currently selected above - same idea as Core Run Streak's
@@ -692,9 +697,9 @@ function PipelinePageInner() {
       lines.push(`${stage.label}: ${period[stage.key] as number}`);
     }
     lines.push("");
-    lines.push(`Questions → Launches: ${pct(launches, questions)}`);
+    lines.push(`${ratioFromLabel} → ${ratioToLabel}: ${pct(ratioToValue, ratioFromValue)}`);
     return lines.join("\n");
-  }, [period, periodType, tallyPeriodLabel, questions, launches]);
+  }, [period, periodType, tallyPeriodLabel, ratioFromLabel, ratioToLabel, ratioFromValue, ratioToValue]);
 
   async function copyTallySummary() {
     try {
@@ -840,12 +845,41 @@ function PipelinePageInner() {
               </div>
             )}
 
-            <div className="card flex items-center justify-between">
-              <div>
-                <p className="section-title">Questions → Launches</p>
-                <p className="text-xs text-slate-400">Overall conversion</p>
+            <div className="card space-y-2">
+              <p className="section-title">Conversion</p>
+              <div className="flex items-center gap-2">
+                <select
+                  className="select flex-1"
+                  value={ratioFromKey}
+                  onChange={(e) => setRatioFromKey(e.target.value as PipelineStageKey)}
+                  aria-label="From stage"
+                >
+                  {PIPELINE_STAGES.map((s) => (
+                    <option key={s.key} value={s.key}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
+                <span className="shrink-0 text-slate-500">→</span>
+                <select
+                  className="select flex-1"
+                  value={ratioToKey}
+                  onChange={(e) => setRatioToKey(e.target.value as PipelineStageKey)}
+                  aria-label="To stage"
+                >
+                  {PIPELINE_STAGES.map((s) => (
+                    <option key={s.key} value={s.key}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
               </div>
-              <p className="text-3xl font-bold text-amber">{pct(launches, questions)}</p>
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-slate-400">
+                  {ratioFromLabel} → {ratioToLabel}
+                </p>
+                <p className="text-3xl font-bold text-amber">{pct(ratioToValue, ratioFromValue)}</p>
+              </div>
             </div>
 
             {updateError && (
