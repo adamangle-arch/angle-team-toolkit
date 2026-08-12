@@ -4918,6 +4918,42 @@ mechanics work, not that any cron is actually wired up). A new
   up" - the second half still has to be checked in the Vercel/Supabase
   dashboards directly, but now the first half doesn't.
 
+**"Notification kinds — last fired"**: with 30+ kinds now, "Recent sends"
+only showing the last 25 rows across *every* kind is dominated by the
+highest-frequency ones (`engagement_filler`, `core_run_reminder`, stat
+leaders) - a genuinely rare kind (`admin_weekly_report`,
+`downline_signup_linked`, a specific badge) could have zero rows ever and
+that would be invisible in a 25-row feed, which is exactly what "not all
+of them seem to be going off" turns out to mean in practice: not a broken
+kind, just no visibility into which ones are actually quiet vs which
+never fired at all. A new `get_notification_kind_summary()` RPC
+(`security definer`, same no-`is_app_admin()`-check reasoning as the two
+RPCs above since it's only ever called after the diagnostics route's own
+auth check) groups every existing `sent_notifications` row by `kind` with
+a count and `max(created_at)`. The Diagnostics tab cross-references this
+against the full `NOTIFICATION_KINDS` catalog client-side - a kind that
+doesn't come back in the summary at all (zero rows, ever) shows
+**"Never fired"** in red, everything else shows its last-fired time and
+total count, sorted oldest/never-fired first so the kinds most worth
+investigating are always at the top of the list.
+
+```sql
+create or replace function public.get_notification_kind_summary()
+returns table(kind text, total_count bigint, last_sent_at timestamptz)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select kind, count(*), max(created_at)
+  from sent_notifications
+  group by kind
+  order by kind;
+$$;
+
+grant execute on function public.get_notification_kind_summary() to authenticated;
+```
+
 Both routes are gated the same way `/api/notify`'s admin-only cases are -
 the caller's own access token, checked against `isPrimaryUser()`.
 

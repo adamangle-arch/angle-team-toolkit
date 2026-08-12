@@ -41,19 +41,21 @@ export async function GET(request: Request) {
     { count: subscriptionCount },
     { data: recentNotifications, error: notificationsError },
     { data: pgCronJobs, error: pgCronError },
+    { data: kindSummary, error: kindSummaryError },
   ] = await Promise.all([
     admin.from("push_subscriptions").select("id", { count: "exact", head: true }),
     admin.rpc("get_recent_sent_notifications_admin", { p_limit: 25 }),
     admin.rpc("get_pg_cron_jobs"),
+    admin.rpc("get_notification_kind_summary"),
   ]);
 
-  // Previously these two RPC errors were silently swallowed into an empty
+  // Previously these RPC errors were silently swallowed into an empty
   // array by `?? []` below, which is exactly how a real bug (both
   // functions rejecting every call from this route with "not authorized")
   // went unnoticed - it looked identical to "genuinely nothing to show."
   // Surfacing them means a future regression here is visible immediately
   // instead of looking like an empty-but-healthy state.
-  const errors = [notificationsError?.message, pgCronError?.message].filter(
+  const errors = [notificationsError?.message, pgCronError?.message, kindSummaryError?.message].filter(
     (m): m is string => Boolean(m)
   );
 
@@ -63,6 +65,7 @@ export async function GET(request: Request) {
     subscriptionCount: subscriptionCount ?? 0,
     recentNotifications: recentNotifications ?? [],
     pgCronJobs: pgCronJobs ?? [],
+    kindSummary: kindSummary ?? [],
     errors,
   });
 }

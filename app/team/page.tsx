@@ -16,6 +16,7 @@ import {
   SESSION_4_READING_REQUIREMENT,
   GOAL_ITEMS_BY_PERIOD,
   GOAL_PERIODS,
+  NOTIFICATION_KINDS,
 } from "@/lib/constants";
 import { groupCallRatingsByType } from "@/lib/call-ratings";
 import { buildSponsorshipChildren } from "@/lib/sponsorship-tree";
@@ -54,6 +55,7 @@ type DiagnosticsData = {
   subscriptionCount: number;
   recentNotifications: { id: string; kind: string; title: string; created_at: string; recipient_count: number; user_id: string | null }[];
   pgCronJobs: { jobname: string; schedule: string; active: boolean }[];
+  kindSummary: { kind: string; total_count: number; last_sent_at: string }[];
   errors: string[];
 };
 
@@ -571,6 +573,30 @@ export default function TeamPage() {
     }
   }
 
+  // Cross-references the full NOTIFICATION_KINDS catalog against whatever
+  // get_notification_kind_summary() actually returned, so a kind with zero
+  // rows ever (never in the summary at all, since it's a group-by over
+  // existing rows) shows up as "Never fired" instead of just being absent
+  // from the list - the absence itself is the signal "Recent sends" alone
+  // can't surface for a low-frequency kind.
+  const kindStatus = useMemo(() => {
+    const byKind = new Map((diagnostics?.kindSummary ?? []).map((k) => [k.kind, k]));
+    return NOTIFICATION_KINDS.map((k) => {
+      const summary = byKind.get(k.kind);
+      return {
+        kind: k.kind,
+        label: k.label,
+        totalCount: summary?.total_count ?? 0,
+        lastSentAt: summary?.last_sent_at ?? null,
+      };
+    }).sort((a, b) => {
+      if (!a.lastSentAt && !b.lastSentAt) return a.label.localeCompare(b.label);
+      if (!a.lastSentAt) return -1;
+      if (!b.lastSentAt) return 1;
+      return a.lastSentAt.localeCompare(b.lastSentAt);
+    });
+  }, [diagnostics]);
+
   return (
     <FeatureGate minSession={5}>
       <PageHeader
@@ -860,6 +886,38 @@ export default function TeamPage() {
                   )}
                 </div>
               ))}
+            </div>
+
+            <div className="card space-y-1.5">
+              <p className="section-title">🗂️ Notification kinds — last fired</p>
+              <p className="text-xs text-slate-400">
+                Every kind this app can send, oldest/never-fired first. A kind sitting at
+                &quot;Never fired&quot; despite conditions that should&apos;ve triggered it by now
+                points at a real bug, not just low frequency — a genuinely rare kind (a new
+                signup, a badge, a monthly digest) is expected to sit quiet for a while.
+              </p>
+              {loadingDiagnostics ? (
+                <SkeletonRows rows={3} />
+              ) : (
+                kindStatus.map((k) => (
+                  <div
+                    key={k.kind}
+                    className="flex items-center justify-between gap-2 rounded-lg bg-navy px-3 py-2 text-xs"
+                  >
+                    <span className="text-slate-200">{k.label}</span>
+                    <span className={`shrink-0 ${k.lastSentAt ? "text-slate-500" : "text-red-400"}`}>
+                      {k.lastSentAt
+                        ? `${new Date(k.lastSentAt).toLocaleString(undefined, {
+                            month: "short",
+                            day: "numeric",
+                            hour: "numeric",
+                            minute: "2-digit",
+                          })} · ${k.totalCount} total`
+                        : "Never fired"}
+                    </span>
+                  </div>
+                ))
+              )}
             </div>
 
             <div className="card space-y-1.5">

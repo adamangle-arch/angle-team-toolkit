@@ -2920,6 +2920,30 @@ $$;
 
 grant execute on function public.get_pg_cron_jobs() to authenticated;
 
+-- "Recent sends" only shows the last 25 rows across every kind, which at
+-- real traffic volume is dominated by the highest-frequency kinds
+-- (engagement_filler, core_run_reminder, stat leaders) - a genuinely rare
+-- kind (admin_weekly_report, monthly_stat_leaders, downline_signup_linked)
+-- could have never fired even once and that would be invisible in a
+-- 25-row feed. This groups every row that DOES exist by kind so the
+-- Diagnostics tab can cross-reference against the full NOTIFICATION_KINDS
+-- list client-side and show "never fired" for whichever kinds don't come
+-- back here at all - same no-admin-check reasoning as the two RPCs above.
+create or replace function public.get_notification_kind_summary()
+returns table(kind text, total_count bigint, last_sent_at timestamptz)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select kind, count(*), max(created_at)
+  from sent_notifications
+  group by kind
+  order by kind;
+$$;
+
+grant execute on function public.get_notification_kind_summary() to authenticated;
+
 -- ============================================================
 -- 10. DIAMOND RUN (mini-game)
 -- One row per user tracking their best score. The game itself is
