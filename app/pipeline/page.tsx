@@ -642,6 +642,9 @@ function PipelinePageInner() {
       if (patch.launched === true && previous) {
         fireNotifyEvent({ kind: "candidate_launched", candidateName: previous.name });
       }
+      if (patch.filtered_out === true && previous) {
+        fireNotifyEvent({ kind: "candidate_filtered_out", candidateName: previous.name });
+      }
     }
   }
 

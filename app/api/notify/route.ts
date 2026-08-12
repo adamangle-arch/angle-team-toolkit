@@ -28,10 +28,13 @@ type Body =
   | { kind: "leaderboard_liked"; targetUserId: string }
   | { kind: "story_posted" }
   | { kind: "candidate_launched"; candidateName: string }
+  | { kind: "candidate_filtered_out"; candidateName: string }
   | { kind: "member_resource_sent"; targetUserId: string; resourceLabel: string }
   | { kind: "library_resource_added"; resourceLabel: string }
   | { kind: "streak_milestone_reached"; days: number; label: string }
-  | { kind: "downline_signup_linked"; firstName: string; lastName: string };
+  | { kind: "downline_signup_linked"; firstName: string; lastName: string }
+  | { kind: "customer_sale_logged" }
+  | { kind: "onboarding_completed"; targetUserId: string };
 
 function fullName(p: { first_name: string | null; last_name: string | null } | null): string {
   if (!p) return "Someone";
@@ -227,6 +230,93 @@ export async function POST(request: Request) {
           title: "🚀 New launch!",
           body: `${fullName(submitter)} just launched ${body.candidateName}`,
           url: "/pipeline",
+        });
+        return NextResponse.json(result);
+      }
+
+      case "candidate_filtered_out": {
+        const { data: recipientRows } = await admin.rpc("get_upline_user_ids", {
+          p_user_id: userId,
+        });
+        const recipients = ((recipientRows as { user_id?: string }[]) ?? [])
+          .map((r) => r.user_id)
+          .filter((id): id is string => Boolean(id));
+
+        const { data: submitter } = await admin
+          .from("profiles")
+          .select("first_name,last_name")
+          .eq("id", userId)
+          .maybeSingle();
+
+        const result = await notifyUsers({
+          userIds: recipients,
+          kind: "candidate_filtered_out",
+          title: "📋 Candidate filtered out",
+          body: `${fullName(submitter)} filtered out ${body.candidateName}`,
+          url: "/pipeline",
+        });
+        return NextResponse.json(result);
+      }
+
+      case "customer_sale_logged": {
+        const { data: recipientRows } = await admin.rpc("get_upline_user_ids", {
+          p_user_id: userId,
+        });
+        const recipients = ((recipientRows as { user_id?: string }[]) ?? [])
+          .map((r) => r.user_id)
+          .filter((id): id is string => Boolean(id));
+
+        const { data: submitter } = await admin
+          .from("profiles")
+          .select("first_name,last_name")
+          .eq("id", userId)
+          .maybeSingle();
+
+        const result = await notifyUsers({
+          userIds: recipients,
+          kind: "customer_sale_logged",
+          title: "💰 New customer sale",
+          body: `${fullName(submitter)} logged a new customer sale`,
+          url: "/volume",
+        });
+        return NextResponse.json(result);
+      }
+
+      case "onboarding_completed": {
+        // Same guard as onboarding_unlocked - only the target's real
+        // upline (or an admin) can trigger this, since it's fired from
+        // Team's grant flow where the caller could be an admin acting on
+        // someone else's behalf, not just the target's direct upline.
+        const isAdmin = isPrimaryUser(userEmail);
+        if (!isAdmin) {
+          const { data: isUpline } = await admin.rpc("is_upline_of", {
+            p_viewer: userId,
+            p_target: body.targetUserId,
+          });
+          if (!isUpline) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+          }
+        }
+
+        const { data: graduate } = await admin
+          .from("profiles")
+          .select("first_name,last_name")
+          .eq("id", body.targetUserId)
+          .maybeSingle();
+
+        const { data: uplineRows } = await admin.rpc("get_upline_user_ids", {
+          p_user_id: body.targetUserId,
+        });
+        const recipients = ((uplineRows as { user_id?: string }[]) ?? [])
+          .map((r) => r.user_id)
+          .filter((id): id is string => Boolean(id));
+
+        const result = await notifyUsers({
+          userIds: recipients,
+          kind: "onboarding_completed",
+          title: "🎓 Onboarding completed",
+          body: `${fullName(graduate)} just finished onboarding!`,
+          url: "/onboarding",
         });
         return NextResponse.json(result);
       }

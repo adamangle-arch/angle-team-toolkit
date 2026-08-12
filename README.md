@@ -5328,6 +5328,50 @@ alter table sent_notifications add constraint sent_notifications_kind_check chec
 );
 ```
 
+### More notifications batch 5
+
+Three more event-triggered kinds, found by checking which write paths in
+the app still had zero notify hook at all.
+
+- **`customer_sale_logged`** - fires from `addSale()` on the Volume page
+  (`customer_sales` insert), notifying the submitter's upline. That table
+  already fed Badges and the Volume page itself but had never triggered a
+  push.
+- **`candidate_filtered_out`** - fires from `updateCandidate()` on the
+  Pipeline page's main candidate list, mirroring `candidate_launched`
+  exactly (upline-facing, same trigger point) but for the other outcome -
+  gives upline visibility into both launches and losses, not just wins.
+  Deliberately not added to the second `updateCandidate()` used by
+  "Filling In For" a downline, same reasoning `candidate_launched`
+  already skips there (see the comment at that function - firing based
+  on the caller's own session would misattribute the event).
+- **`onboarding_completed`** - fires from Team's `handleGrantOnboarding`/
+  `handleGrantAllOnboarding` when a grant crosses the final session
+  threshold (`ONBOARDING_SESSIONS.length`), notifying the graduate's
+  upline - distinct from the existing self-targeted `onboarding_unlocked`
+  push, which tells the graduate their *next* session unlocked, not that
+  they just finished the whole thing. Guarded against re-firing if
+  someone already fully unlocked gets "Unlock All" tapped again.
+
+Run once in the Supabase SQL editor:
+
+```sql
+alter table sent_notifications drop constraint if exists sent_notifications_kind_check;
+alter table sent_notifications add constraint sent_notifications_kind_check check (
+  kind in (
+    'daily_stat_leaders', 'weekly_stat_leaders', 'monthly_stat_leaders', 'core_run_reminder',
+    'calendar_reminder', 'calendar_event_added', 'call_rating_submitted', 'core_run_completed',
+    'pipeline_5plus', 'onboarding_unlocked', 'games_unlocked', 'badge_earned',
+    'mission_reminder', 'volume_reminder', 'goals_reminder',
+    'leaderboard_liked', 'story_posted', 'candidate_launched', 'candidate_resource_completed',
+    'prospect_link_visited', 'member_resource_sent', 'library_resource_added',
+    'streak_milestone_reached', 'downline_signup_linked', 'trivia_streak_reminder',
+    'app_inactive_reminder', 'streak_break_downline', 'admin_weekly_report', 'engagement_filler',
+    'candidate_filtered_out', 'customer_sale_logged', 'onboarding_completed'
+  )
+);
+```
+
 ### Audios tab: any library-added audio shows up automatically
 
 Previously the Audios tab only ever showed the fixed `AUDIOS` list from

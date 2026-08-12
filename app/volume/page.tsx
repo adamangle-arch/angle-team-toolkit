@@ -9,6 +9,7 @@ import FeatureGate from "@/components/FeatureGate";
 import AverageLeaders from "@/components/AverageLeaders";
 import Fab from "@/components/Fab";
 import { supabase } from "@/lib/supabaseClient";
+import { fireNotifyEvent } from "@/lib/notifyClient";
 import { getMonthStart, getMonthStartOffset, formatMonthLabel, formatShortMonthLabel } from "@/lib/dates";
 import type { MonthlyPv, CustomerSale, SaleCategory, AverageLeaderEntry } from "@/lib/types";
 
@@ -294,6 +295,7 @@ export default function VolumePage() {
       setSaleCategories(["Other"]);
       setSaleAmount("");
       setSaleNotes("");
+      fireNotifyEvent({ kind: "customer_sale_logged" });
     }
     setAddingSale(false);
   }

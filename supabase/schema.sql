@@ -6305,7 +6305,8 @@ alter table sent_notifications add constraint sent_notifications_kind_check chec
     'leaderboard_liked', 'story_posted', 'candidate_launched', 'candidate_resource_completed',
     'prospect_link_visited', 'member_resource_sent', 'library_resource_added', 'streak_milestone_reached',
     'downline_signup_linked', 'trivia_streak_reminder', 'app_inactive_reminder', 'streak_break_downline',
-    'admin_weekly_report', 'engagement_filler'
+    'admin_weekly_report', 'engagement_filler',
+    'candidate_filtered_out', 'customer_sale_logged', 'onboarding_completed'
   )
 );
 

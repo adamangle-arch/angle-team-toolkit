@@ -474,8 +474,8 @@ export default function TeamPage() {
       setGrantingOnboarding(false);
       return;
     }
-    const newSessionNumber =
-      (profiles.find((p) => p.id === selectedId)?.onboarding_unlocked_through ?? 1) + 1;
+    const previousSessionNumber = profiles.find((p) => p.id === selectedId)?.onboarding_unlocked_through ?? 1;
+    const newSessionNumber = previousSessionNumber + 1;
     setProfiles((prev) =>
       prev.map((p) =>
         p.id === selectedId
@@ -488,6 +488,9 @@ export default function TeamPage() {
       targetUserId: selectedId,
       sessionNumber: newSessionNumber,
     });
+    if (newSessionNumber >= ONBOARDING_SESSIONS.length && previousSessionNumber < ONBOARDING_SESSIONS.length) {
+      fireNotifyEvent({ kind: "onboarding_completed", targetUserId: selectedId });
+    }
     setGrantingOnboarding(false);
   }
 
@@ -505,6 +508,7 @@ export default function TeamPage() {
       setGrantingOnboarding(false);
       return;
     }
+    const previousSessionNumber = profiles.find((p) => p.id === selectedId)?.onboarding_unlocked_through ?? 1;
     setProfiles((prev) =>
       prev.map((p) =>
         p.id === selectedId ? { ...p, onboarding_unlocked_through: ONBOARDING_SESSIONS.length } : p
@@ -515,6 +519,9 @@ export default function TeamPage() {
       targetUserId: selectedId,
       sessionNumber: ONBOARDING_SESSIONS.length,
     });
+    if (previousSessionNumber < ONBOARDING_SESSIONS.length) {
+      fireNotifyEvent({ kind: "onboarding_completed", targetUserId: selectedId });
+    }
     setGrantingOnboarding(false);
   }
 
