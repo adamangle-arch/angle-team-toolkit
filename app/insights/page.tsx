@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import PageHeader from "@/components/PageHeader";
 import FeatureGate from "@/components/FeatureGate";
+import SearchablePicker from "@/components/SearchablePicker";
 import { SkeletonList } from "@/components/Skeleton";
 import TrendChart from "@/components/TrendChart";
 import { useAuth } from "@/components/AuthGate";
@@ -26,6 +27,12 @@ type StreakDayRow = {
   story_share: boolean;
 };
 
+type DownlineMember = { id: string; name: string };
+
+function stageLabel(key: PipelineStageKey): string {
+  return PIPELINE_STAGES.find((s) => s.key === key)?.label ?? key;
+}
+
 function emptyStageTotals(): Record<PipelineStageKey, number> {
   const totals = {} as Record<PipelineStageKey, number>;
   for (const stage of PIPELINE_STAGES) totals[stage.key] = 0;
@@ -44,23 +51,8 @@ function sumStageTotals(rows: PipelinePeriod[]): Record<PipelineStageKey, number
   return totals;
 }
 
-function pluralize(n: number, word: string): string {
-  return `${n} ${word}${n === 1 ? "" : "s"}`;
-}
-
-// One auto-written sentence comparing the last two fully-completed weeks -
-// deliberately skips the current in-progress week (see weekStarts below),
-// since a partial week would always look artificially low next to a
-// finished one.
-function buildDigest(lastWeek: PipelinePeriod | undefined, weekBefore: PipelinePeriod | undefined): string | null {
-  if (!lastWeek) return null;
-  const prevQuestions = weekBefore?.questions ?? 0;
-  const prevLaunches = weekBefore?.launches ?? 0;
-  const qDelta = lastWeek.questions - prevQuestions;
-  const lDelta = lastWeek.launches - prevLaunches;
-  const qWord = qDelta > 0 ? "up" : qDelta < 0 ? "down" : "flat vs.";
-  const lWord = lDelta > 0 ? "up" : lDelta < 0 ? "down" : "flat vs.";
-  return `Last week you logged ${pluralize(lastWeek.questions, "question")} (${qWord} ${Math.abs(qDelta)} from the week before) and ${pluralize(lastWeek.launches, "launch")} (${lWord} ${Math.abs(lDelta)}).`;
+function deltaArrow(delta: number): string {
+  return delta > 0 ? "▲" : delta < 0 ? "▼" : "—";
 }
 
 type DownlineTotals = Record<PipelineStageKey, number>;
@@ -82,12 +74,27 @@ function InsightsPageInner() {
   const [weeklyRows, setWeeklyRows] = useState<PipelinePeriod[]>([]);
   const [monthlyRow, setMonthlyRow] = useState<PipelinePeriod | null>(null);
   const [streakDays, setStreakDays] = useState<StreakDayRow[]>([]);
-  const [hasDownline, setHasDownline] = useState(false);
+  const [downlineMembers, setDownlineMembers] = useState<DownlineMember[]>([]);
   const [downlineWeekly, setDownlineWeekly] = useState<Record<string, DownlineTotals>>({});
   const [trendStage, setTrendStage] = useState<PipelineStageKey>("launches");
   const [editingPins, setEditingPins] = useState(false);
   const [pinDraft, setPinDraft] = useState<PipelineStageKey[]>([]);
   const [savingPins, setSavingPins] = useState(false);
+  const [correlationStage, setCorrelationStage] = useState<PipelineStageKey>("questions");
+
+  // Empty string = viewing your own (household) numbers - anything else is
+  // a downline member's raw user_id, viewed directly rather than through
+  // their own household resolution (an edge case not worth the extra
+  // lookup for a "peek at someone else's numbers" feature).
+  const [viewingId, setViewingId] = useState("");
+  const viewingSelf = viewingId === "";
+  const pipelineTargetId = viewingSelf ? ownerId : viewingId;
+  const streakTargetId = viewingSelf ? user.id : viewingId;
+  const viewingName = viewingSelf
+    ? "You"
+    : downlineMembers.find((m) => m.id === viewingId)?.name ?? "them";
+
+  const hasDownline = downlineMembers.length > 0;
 
   // Oldest to newest, excludes the current in-progress week (offset 0) -
   // same "don't count an unfinished period" principle lib/periodAverages.ts
@@ -97,61 +104,83 @@ function InsightsPageInner() {
     []
   );
 
+  // The downline roster (for the "Viewing" picker) and your own profile
+  // (pinned_kpis is always yours, even while viewing someone else's
+  // numbers) - neither depends on which target is selected, so both load
+  // once per visit rather than re-fetching on every picker change.
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      setLoading(true);
-      const [
-        { data: profileRow },
-        { data: currentWeek },
-        { data: daily },
-        { data: weekly },
-        { data: monthly },
-        { data: streak },
-        { data: downlineIds },
-      ] = await Promise.all([
+      const [{ data: profileRow }, { data: downlineIds }] = await Promise.all([
         supabase.from("profiles").select("*").eq("id", user.id).single(),
-        supabase
-          .from("pipeline_periods")
-          .select("*")
-          .eq("user_id", ownerId)
-          .eq("period_type", "weekly")
-          .eq("period_start", getWeekStartOffset(0))
-          .maybeSingle(),
-        supabase
-          .from("pipeline_periods")
-          .select("*")
-          .eq("user_id", ownerId)
-          .eq("period_type", "daily")
-          .gte("period_start", getDateOffset(DAILY_WINDOW_DAYS - 1)),
-        supabase
-          .from("pipeline_periods")
-          .select("*")
-          .eq("user_id", ownerId)
-          .eq("period_type", "weekly")
-          .in("period_start", weekStarts),
-        supabase
-          .from("pipeline_periods")
-          .select("*")
-          .eq("user_id", ownerId)
-          .eq("period_type", "monthly")
-          .eq("period_start", getMonthStartOffset(0))
-          .maybeSingle(),
-        supabase
-          .from("streak_days")
-          .select("day,read,listen,daily_update,story_share")
-          .eq("user_id", user.id)
-          .gte("day", weekStarts[0]),
         supabase.rpc("get_downline_user_ids", { p_user_id: user.id }),
       ]);
       if (cancelled) return;
       setProfile((profileRow as Profile) ?? null);
+      const ids = ((downlineIds as { user_id: string }[]) ?? []).map((r) => r.user_id);
+      if (ids.length === 0) {
+        setDownlineMembers([]);
+        return;
+      }
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id,first_name,last_name")
+        .in("id", ids);
+      const list = ((profiles as Pick<Profile, "id" | "first_name" | "last_name">[]) ?? [])
+        .map((p) => ({ id: p.id, name: [p.first_name, p.last_name].filter(Boolean).join(" ") || "Unnamed" }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+      if (!cancelled) setDownlineMembers(list);
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [user.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      const [{ data: currentWeek }, { data: daily }, { data: weekly }, { data: monthly }, { data: streak }] =
+        await Promise.all([
+          supabase
+            .from("pipeline_periods")
+            .select("*")
+            .eq("user_id", pipelineTargetId)
+            .eq("period_type", "weekly")
+            .eq("period_start", getWeekStartOffset(0))
+            .maybeSingle(),
+          supabase
+            .from("pipeline_periods")
+            .select("*")
+            .eq("user_id", pipelineTargetId)
+            .eq("period_type", "daily")
+            .gte("period_start", getDateOffset(DAILY_WINDOW_DAYS - 1)),
+          supabase
+            .from("pipeline_periods")
+            .select("*")
+            .eq("user_id", pipelineTargetId)
+            .eq("period_type", "weekly")
+            .in("period_start", weekStarts),
+          supabase
+            .from("pipeline_periods")
+            .select("*")
+            .eq("user_id", pipelineTargetId)
+            .eq("period_type", "monthly")
+            .eq("period_start", getMonthStartOffset(0))
+            .maybeSingle(),
+          supabase
+            .from("streak_days")
+            .select("day,read,listen,daily_update,story_share")
+            .eq("user_id", streakTargetId)
+            .gte("day", weekStarts[0]),
+        ]);
+      if (cancelled) return;
       setCurrentWeekRow((currentWeek as PipelinePeriod) ?? null);
       setDailyRows((daily as PipelinePeriod[]) ?? []);
       setWeeklyRows((weekly as PipelinePeriod[]) ?? []);
       setMonthlyRow((monthly as PipelinePeriod) ?? null);
       setStreakDays((streak as StreakDayRow[]) ?? []);
-      setHasDownline(((downlineIds as { user_id: string }[]) ?? []).length > 0);
       setLoading(false);
     }
     load();
@@ -159,12 +188,14 @@ function InsightsPageInner() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user.id, ownerId]);
+  }, [pipelineTargetId, streakTargetId]);
 
-  // Separate from the load above - get_downline_pipeline_totals has no
-  // range variant, so this is WEEK_TREND_COUNT of its own round trips.
-  // No reason to block the rest of the page (which is all one query each)
-  // on that, so it loads independently and fills in once it's back.
+  // Downline Trend always reflects the real logged-in user's own downline
+  // rollup, regardless of who's selected in the "Viewing" picker above -
+  // a distinct concept (your team's combined numbers) from "peek at one
+  // person's individual numbers." get_downline_pipeline_totals has no
+  // range variant, so this is WEEK_TREND_COUNT of its own round trips,
+  // loaded independently so it doesn't block the rest of the page.
   useEffect(() => {
     if (!hasDownline) return;
     let cancelled = false;
@@ -191,10 +222,20 @@ function InsightsPageInner() {
 
   const dailyTotals = useMemo(() => sumStageTotals(dailyRows), [dailyRows]);
 
-  const digest = useMemo(() => {
+  // Two clear stat tiles (Questions + Launches, last week vs. the week
+  // before) instead of one auto-written sentence - the sentence version
+  // read as a wall of text that was more work to parse than the numbers
+  // it was summarizing.
+  const digestStats = useMemo(() => {
     const lastWeek = weeklyRows.find((r) => r.period_start === weekStarts[WEEK_TREND_COUNT - 1]);
+    if (!lastWeek) return null;
     const weekBefore = weeklyRows.find((r) => r.period_start === weekStarts[WEEK_TREND_COUNT - 2]);
-    return buildDigest(lastWeek, weekBefore);
+    const keys: PipelineStageKey[] = ["questions", "launches"];
+    return keys.map((key) => {
+      const value = lastWeek[key];
+      const delta = value - (weekBefore?.[key] ?? 0);
+      return { key, label: stageLabel(key), value, delta };
+    });
   }, [weeklyRows, weekStarts]);
 
   const paceProjection = useMemo(() => {
@@ -205,7 +246,7 @@ function InsightsPageInner() {
     const keys: PipelineStageKey[] = ["questions", "yeses", "qi1", "launches"];
     return keys.map((key) => ({
       key,
-      label: PIPELINE_STAGES.find((s) => s.key === key)!.label,
+      label: stageLabel(key),
       soFar: monthlyRow?.[key] ?? 0,
       projected: Math.round((monthlyRow?.[key] ?? 0) * factor),
     }));
@@ -223,15 +264,15 @@ function InsightsPageInner() {
     return weekStarts.map((ws) => ({
       weekStart: ws,
       coreRuns: coreRunCounts[ws],
-      launches: weeklyByStart.get(ws)?.launches ?? 0,
+      value: weeklyByStart.get(ws)?.[correlationStage] ?? 0,
     }));
-  }, [streakDays, weeklyRows, weekStarts]);
+  }, [streakDays, weeklyRows, weekStarts, correlationStage]);
 
   const correlationSummary = useMemo(() => {
     const high = correlationWeeks.filter((w) => w.coreRuns >= HIGH_CORE_RUN_THRESHOLD);
     const low = correlationWeeks.filter((w) => w.coreRuns < HIGH_CORE_RUN_THRESHOLD);
     if (high.length === 0 || low.length === 0) return null;
-    const avg = (arr: typeof correlationWeeks) => arr.reduce((s, w) => s + w.launches, 0) / arr.length;
+    const avg = (arr: typeof correlationWeeks) => arr.reduce((s, w) => s + w.value, 0) / arr.length;
     return { highAvg: avg(high), lowAvg: avg(low) };
   }, [correlationWeeks]);
 
@@ -274,16 +315,34 @@ function InsightsPageInner() {
     <>
       <PageHeader title="Insights" subtitle="Your numbers, trends, and what they mean" />
       <main className="page-main">
+        {hasDownline && (
+          <div className="card space-y-1.5">
+            <p className="section-title">Viewing</p>
+            <SearchablePicker
+              value={viewingId}
+              onChange={setViewingId}
+              placeholder="Me (and household)"
+              searchPlaceholder="Search your downline…"
+              options={[
+                { value: "", label: "Me (and household)" },
+                ...downlineMembers.map((m) => ({ value: m.id, label: m.name })),
+              ]}
+            />
+          </div>
+        )}
+
         {loading ? (
           <SkeletonList cards={4} />
         ) : (
           <>
             <div className="card space-y-2">
               <div className="flex items-center justify-between">
-                <p className="section-title">Your KPIs</p>
-                <button className="chip-btn" onClick={editingPins ? savePins : startEditingPins} disabled={savingPins}>
-                  {editingPins ? (savingPins ? "Saving…" : "Save") : "Customize"}
-                </button>
+                <p className="section-title">{viewingSelf ? "Your KPIs" : `${viewingName}'s KPIs`}</p>
+                {viewingSelf && (
+                  <button className="chip-btn" onClick={editingPins ? savePins : startEditingPins} disabled={savingPins}>
+                    {editingPins ? (savingPins ? "Saving…" : "Save") : "Customize"}
+                  </button>
+                )}
               </div>
               {editingPins ? (
                 <div className="flex flex-wrap gap-1.5">
@@ -302,19 +361,32 @@ function InsightsPageInner() {
                   {pinnedKpis.map((key) => (
                     <div key={key} className="rounded-lg bg-navy p-2.5">
                       <p className="text-2xl font-bold text-white">{currentWeekRow?.[key] ?? 0}</p>
-                      <p className="text-xs text-slate-400">
-                        {PIPELINE_STAGES.find((s) => s.key === key)?.label} this week
-                      </p>
+                      <p className="text-xs text-slate-400">{stageLabel(key)} this week</p>
                     </div>
                   ))}
                 </div>
               )}
             </div>
 
-            {digest && (
-              <div className="card space-y-1">
+            {digestStats && (
+              <div className="card space-y-2">
                 <p className="section-title">Weekly Digest</p>
-                <p className="text-sm text-slate-300">{digest}</p>
+                <p className="text-xs text-slate-500">Last week vs. the week before</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {digestStats.map((s) => (
+                    <div key={s.key} className="rounded-lg bg-navy p-2.5">
+                      <p className="text-2xl font-bold text-white">{s.value}</p>
+                      <p className="text-xs text-slate-400">{s.label}</p>
+                      <p
+                        className={`text-xs font-medium ${
+                          s.delta > 0 ? "text-amber-light" : s.delta < 0 ? "text-red-300" : "text-slate-500"
+                        }`}
+                      >
+                        {deltaArrow(s.delta)} {Math.abs(s.delta)} vs. last week
+                      </p>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -340,7 +412,7 @@ function InsightsPageInner() {
             <div className="card space-y-2">
               <p className="section-title">Stage Conversion (last {DAILY_WINDOW_DAYS} days)</p>
               {dailyTotals.questions === 0 ? (
-                <p className="empty-state">Log some Questions to see your funnel.</p>
+                <p className="empty-state">Log some Questions to see the funnel.</p>
               ) : (
                 <div className="space-y-1.5">
                   {PIPELINE_STAGES.map((stage) => {
@@ -365,12 +437,26 @@ function InsightsPageInner() {
             </div>
 
             <div className="card space-y-2">
-              <p className="section-title">Core Run vs. Launches</p>
+              <div className="flex items-center justify-between">
+                <p className="section-title">Core Run vs. {stageLabel(correlationStage)}</p>
+                <select
+                  className="input !w-auto !py-1 text-xs"
+                  value={correlationStage}
+                  onChange={(e) => setCorrelationStage(e.target.value as PipelineStageKey)}
+                >
+                  {PIPELINE_STAGES.map((stage) => (
+                    <option key={stage.key} value={stage.key}>
+                      {stage.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
               {correlationSummary ? (
                 <p className="text-sm text-slate-300">
-                  On weeks you completed {HIGH_CORE_RUN_THRESHOLD}+ Core Runs, you averaged{" "}
-                  <span className="text-amber-light">{correlationSummary.highAvg.toFixed(1)}</span> launches — vs{" "}
-                  {correlationSummary.lowAvg.toFixed(1)} on weeks below that.
+                  On weeks with {HIGH_CORE_RUN_THRESHOLD}+ Core Runs, {viewingSelf ? "you" : viewingName} averaged{" "}
+                  <span className="text-amber-light">{correlationSummary.highAvg.toFixed(1)}</span>{" "}
+                  {stageLabel(correlationStage).toLowerCase()} — vs {correlationSummary.lowAvg.toFixed(1)} on weeks
+                  below that.
                 </p>
               ) : (
                 <p className="text-sm text-slate-400">
@@ -383,7 +469,7 @@ function InsightsPageInner() {
                   <div key={w.weekStart} className="flex items-center justify-between text-xs">
                     <span className="text-slate-400">{formatShortDateLabel(w.weekStart)}</span>
                     <span className="text-slate-300">
-                      {w.coreRuns}/7 Core Runs · {w.launches} launch{w.launches === 1 ? "" : "es"}
+                      {w.coreRuns}/7 Core Runs · {w.value} {stageLabel(correlationStage).toLowerCase()}
                     </span>
                   </div>
                 ))}

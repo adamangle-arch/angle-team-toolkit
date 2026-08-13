@@ -5823,6 +5823,47 @@ alter table profiles add constraint profiles_pinned_kpis_check check (
 );
 ```
 
+### Fixed: Insights feedback (viewing picker, unhelpful digest sentence, hardcoded Launches)
+
+Three pieces of live feedback on the Insights tab above:
+
+- **"I should also have a search bar and dropdown where I can search any of
+  my downlines numbers"** - Insights only ever showed the viewer's own
+  numbers. Added a **Viewing** picker at the top (only rendered when the
+  viewer actually has a downline) using the existing `SearchablePicker`
+  component, defaulting to "Me (and household)". Picking a downline member
+  re-scopes Your KPIs/Weekly Digest/Pace/Stage Conversion/Core Run
+  correlation to that person's own `pipeline_periods`/`streak_days` rows -
+  no new RPC needed, since both tables' existing RLS already lets an
+  upline read a downline's rows directly (`is_upline_of(auth.uid(),
+  user_id)`), the same policy the rest of the app already relies on for
+  "fill in for your downline." **Downline Trend** is deliberately left
+  alone - it's the viewer's own team rollup, a different concept from
+  "peek at one person's individual numbers," so it keeps reading the real
+  logged-in user's downline regardless of who's selected in the picker.
+  Pinned KPI customization also stays tied to the viewer's own profile -
+  editing it while viewing someone else still edits *your* preference,
+  just displayed against whichever target is currently selected.
+- **"I don't like this" (Core Run vs. Launches)** - for a rep who rarely
+  launches, "0.0 vs 0.0" told them nothing. The comparison stat is now a
+  dropdown (any `PIPELINE_STAGES` key, matching Downline Trend's own
+  picker), defaulting to Questions instead of Launches - a metric that's
+  actually nonzero most weeks - so the correlation has something real to
+  show out of the box, with Launches still one tap away for anyone who
+  does have volume there.
+- **"I don't understand this section... doesn't seem helpful" (Weekly
+  Digest)** - was one auto-written run-on sentence ("Last week you logged
+  29 questions (up 12 from the week before) and 0 launchs (flat vs. 0)")
+  that buried two numbers in a wall of text, with an actual pluralization
+  bug on top (`launch` + `"s"` = "launchs" instead of "launches" - a naive
+  `${n} ${word}${n === 1 ? "" : "s"}` helper instead of just reusing
+  `PIPELINE_STAGES`' own already-correct plural labels). Rebuilt as two
+  stat tiles (Questions, Launches) in the same visual style as the Pinned
+  KPIs/Pace cards elsewhere on this page, each with a plain ▲/▼ delta
+  instead of a sentence - same "numbers people can scan, not a paragraph
+  to parse" fix as the Weekly Digest's own name would suggest it should
+  have been from the start.
+
 ### Leaderboard: Spotlight + Arena tabs
 
 Two more of the same feature-brainstorming round's tabs (Spotlight, Arena),
