@@ -158,23 +158,38 @@ function LikeButton({
   likes: LikeInfo;
   onToggle: (entryKey: string, targetUserId?: string) => void;
 }) {
+  // Names used to render permanently under every single row (truncated,
+  // hover-title as the only way to see the rest - useless on mobile),
+  // which turned a page with several rows each having a handful of
+  // likers into a wall of clipped text. Collapsed behind an on-demand
+  // "who?" tap instead - the heart button's own like/unlike behavior is
+  // unchanged, this is a separate tap target next to it.
+  const [showNames, setShowNames] = useState(false);
   return (
     <div className="flex shrink-0 flex-col items-end gap-0.5">
-      <button
-        onClick={() => onToggle(entryKey, targetUserId)}
-        className={`flex items-center gap-1 text-xs transition active:scale-90 ${
-          likes.likedByMe ? "text-amber-light" : "text-slate-500"
-        }`}
-        aria-label={likes.likedByMe ? "Unlike" : "Like"}
-      >
-        <span>{likes.likedByMe ? "❤️" : "🤍"}</span>
-        {likes.count > 0 && <span>{likes.count}</span>}
-      </button>
-      {likes.names.length > 0 && (
-        <p
-          className="max-w-[120px] truncate text-right text-[10px] text-slate-500"
-          title={likes.names.join(", ")}
+      <div className="flex items-center gap-1.5">
+        <button
+          onClick={() => onToggle(entryKey, targetUserId)}
+          className={`flex items-center gap-1 text-xs transition active:scale-90 ${
+            likes.likedByMe ? "text-amber-light" : "text-slate-500"
+          }`}
+          aria-label={likes.likedByMe ? "Unlike" : "Like"}
         >
+          <span>{likes.likedByMe ? "❤️" : "🤍"}</span>
+          {likes.count > 0 && <span>{likes.count}</span>}
+        </button>
+        {likes.names.length > 0 && (
+          <button
+            onClick={() => setShowNames((v) => !v)}
+            className="text-[10px] text-slate-500 underline"
+            aria-label={showNames ? "Hide who liked this" : "Show who liked this"}
+          >
+            who?
+          </button>
+        )}
+      </div>
+      {showNames && likes.names.length > 0 && (
+        <p className="max-w-[160px] text-right text-[10px] text-slate-400">
           {likes.names.join(", ")}
         </p>
       )}

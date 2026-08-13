@@ -5630,6 +5630,18 @@ tap-to-reveal "Bio" button instead, but showing it inline needs zero
 extra taps and the option list already scrolls, so there's no real
 space cost to always showing it.
 
+### Leaderboard likes: names collapsed behind "who?"
+
+`LikeButton`'s liker names used to render permanently under every single
+liked row - truncated to one line with a hover `title` as the only way to
+see the rest, which does nothing on a touch device. On a page where
+several rows can each have a handful of likers, that's a wall of clipped
+text just from opening the tab. The names are now collapsed behind a
+small "who?" tap target next to the heart count (local `showNames` state,
+per row) - tapping it reveals the full list, tapping again hides it. The
+heart button itself still toggles like/unlike exactly as before; "who?"
+is a separate tap target next to it, not layered onto the same button.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)
