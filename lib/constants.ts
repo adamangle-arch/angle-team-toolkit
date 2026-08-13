@@ -77,6 +77,8 @@ export const NOTIFICATION_KINDS = [
   { kind: "streak_break_downline", label: "Downline streak ended" },
   { kind: "admin_weekly_report", label: "Weekly team report" },
   { kind: "engagement_filler", label: "Book/audio recommendations" },
+  { kind: "story_liked", label: "Story liked" },
+  { kind: "story_commented", label: "New comment on your story" },
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number]["kind"];
 export const NOTIFICATION_KIND_LABELS = Object.fromEntries(

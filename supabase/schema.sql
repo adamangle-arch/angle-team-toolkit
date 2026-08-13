@@ -6792,3 +6792,93 @@ as $$
 $$;
 
 grant execute on function public.get_personal_bests(uuid) to authenticated;
+
+-- 18. STORIES: LAST ACTIVE + LIKES/COMMENTS ------------------------------
+-- Live-only presence made Pulse's "Active Now" list empty almost all the
+-- time in practice - the odds of two specific people having the app open
+-- in the exact same moment are low. A persisted last_active_at closes
+-- that gap with a "Recently Active" list underneath it.
+alter table profiles add column if not exists last_active_at timestamptz;
+
+-- Same "column list keeps growing, drop first" note get_badge_metrics'
+-- own definition already carries - Postgres won't let create-or-replace
+-- change an existing return-table shape.
+drop function if exists public.get_all_team_members();
+create or replace function public.get_all_team_members()
+returns table (user_id uuid, first_name text, last_name text, team text, last_active_at timestamptz)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select id, first_name, last_name, team, last_active_at from profiles where team is not null order by id;
+$$;
+
+grant execute on function public.get_all_team_members() to authenticated;
+
+-- Story comments - a real thread, not just likes. Same select-open,
+-- insert-own, delete-own-or-admin shape as story_posts' own "Take Down"
+-- pattern, since a comment is exactly as public as the story it's on
+-- (get_active_stories() has no team/upline restriction at all).
+create table if not exists story_comments (
+  id uuid primary key default gen_random_uuid(),
+  story_id uuid not null references story_posts(id) on delete cascade,
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  body text not null,
+  created_at timestamptz not null default now()
+);
+
+alter table story_comments enable row level security;
+
+drop policy if exists "story_comments_select_all" on story_comments;
+create policy "story_comments_select_all" on story_comments for select using (true);
+
+drop policy if exists "story_comments_insert_own" on story_comments;
+create policy "story_comments_insert_own" on story_comments for insert with check (user_id = auth.uid());
+
+drop policy if exists "story_comments_delete_own_or_admin" on story_comments;
+create policy "story_comments_delete_own_or_admin" on story_comments for delete using (
+  user_id = auth.uid() or public.is_app_admin()
+);
+
+-- Joins in the commenter's name/team, same reason get_likers already
+-- does this instead of a plain PostgREST select - there's no FK
+-- PostgREST can walk from story_comments to profiles (only to auth.users).
+create or replace function public.get_story_comments(p_story_id uuid)
+returns table (
+  id uuid, user_id uuid, first_name text, last_name text, team text, body text, created_at timestamptz
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select c.id, c.user_id, p.first_name, p.last_name, p.team, c.body, c.created_at
+  from story_comments c
+  join profiles p on p.id = c.user_id
+  where c.story_id = p_story_id
+  order by c.created_at asc;
+$$;
+
+grant execute on function public.get_story_comments(uuid) to authenticated;
+
+-- Story likes reuse the existing leaderboard_likes table (entry_key is
+-- already a free-form string, nothing leaderboard-specific about its
+-- schema) with entry_key = 'story:' || story_id, instead of a second
+-- near-identical likes table - get_likers(p_entry_keys) already works
+-- unchanged for any entry_key shape.
+alter table sent_notifications drop constraint if exists sent_notifications_kind_check;
+alter table sent_notifications add constraint sent_notifications_kind_check check (
+  kind in (
+    'daily_stat_leaders', 'weekly_stat_leaders', 'monthly_stat_leaders', 'core_run_reminder',
+    'calendar_reminder', 'calendar_event_added', 'call_rating_submitted', 'core_run_completed',
+    'pipeline_5plus', 'onboarding_unlocked', 'games_unlocked', 'badge_earned',
+    'mission_reminder', 'volume_reminder', 'goals_reminder',
+    'leaderboard_liked', 'story_posted', 'candidate_launched', 'candidate_resource_completed',
+    'prospect_link_visited', 'member_resource_sent', 'library_resource_added', 'streak_milestone_reached',
+    'downline_signup_linked', 'trivia_streak_reminder', 'app_inactive_reminder', 'streak_break_downline',
+    'admin_weekly_report', 'engagement_filler',
+    'candidate_filtered_out', 'customer_sale_logged', 'onboarding_completed',
+    'story_liked', 'story_commented'
+  )
+);

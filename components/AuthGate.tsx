@@ -276,6 +276,14 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
       .subscribe(async (status) => {
         if (status === "SUBSCRIBED") {
           await channel.track({ online_at: new Date().toISOString() });
+          // Persisted, unlike the presence roster itself - so Pulse's
+          // "Recently Active" list still has something to show once this
+          // session disconnects and drops out of the live "Active Now"
+          // one. Once per app session (this effect only re-runs when
+          // fullyAuthed/user actually change) is enough resolution for
+          // "last active," not worth updating continuously while a tab
+          // just sits open.
+          await supabase.from("profiles").update({ last_active_at: new Date().toISOString() }).eq("id", user.id);
         }
       });
     return () => {

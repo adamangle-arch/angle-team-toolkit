@@ -34,7 +34,9 @@ type Body =
   | { kind: "streak_milestone_reached"; days: number; label: string }
   | { kind: "downline_signup_linked"; firstName: string; lastName: string }
   | { kind: "customer_sale_logged" }
-  | { kind: "onboarding_completed"; targetUserId: string };
+  | { kind: "onboarding_completed"; targetUserId: string }
+  | { kind: "story_liked"; targetUserId: string }
+  | { kind: "story_commented"; targetUserId: string; commentPreview: string };
 
 function fullName(p: { first_name: string | null; last_name: string | null } | null): string {
   if (!p) return "Someone";
@@ -182,6 +184,40 @@ export async function POST(request: Request) {
           title: "❤️ Someone liked your ranking",
           body: `${fullName(liker)} liked one of your Leaderboard rankings!`,
           url: "/leaderboard",
+        });
+        return NextResponse.json(result);
+      }
+
+      case "story_liked": {
+        const { data: liker } = await admin
+          .from("profiles")
+          .select("first_name,last_name")
+          .eq("id", userId)
+          .maybeSingle();
+
+        const result = await notifyUsers({
+          userIds: [body.targetUserId],
+          kind: "story_liked",
+          title: "❤️ Someone liked your story",
+          body: `${fullName(liker)} liked your story!`,
+          url: "/stories",
+        });
+        return NextResponse.json(result);
+      }
+
+      case "story_commented": {
+        const { data: commenter } = await admin
+          .from("profiles")
+          .select("first_name,last_name")
+          .eq("id", userId)
+          .maybeSingle();
+
+        const result = await notifyUsers({
+          userIds: [body.targetUserId],
+          kind: "story_commented",
+          title: "💬 New comment on your story",
+          body: `${fullName(commenter)}: "${body.commentPreview}"`,
+          url: "/stories",
         });
         return NextResponse.json(result);
       }

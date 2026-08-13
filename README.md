@@ -6012,6 +6012,46 @@ had a picker at all. The Team Leaders mini-lists next to each stat stay
 company-wide regardless of who's selected, same as before - those were
 never about "you," only about who's leading overall.
 
+### Stories: Recently Active + likes/comments on posts
+
+Two pieces of live feedback on Stories:
+
+- **"If someone's been active in the last 24 hours it should show when
+  they were last active"** - live Presence alone left Active Now empty
+  almost all the time (the odds of two specific people having the app
+  open in the exact same instant are low). Added `profiles.
+  last_active_at timestamptz`, written once per app session right after
+  `AuthGate`'s Presence channel subscribes (not continuously while a tab
+  sits open - once-per-session resolution is enough for "last active").
+  `get_all_team_members()` (already built for Leaderboard's Spotlight
+  tab) now also returns it - extended in place via `drop function` +
+  `create or replace` (same "return-table shape changed" note
+  `get_badge_metrics` already carries) rather than adding a second RPC.
+  Pulse gained a **Recently Active** card under Active Now: everyone with
+  `last_active_at` inside the last 24h, excluding anyone already shown
+  live in Active Now, each with a relative "2h ago"-style label reusing
+  the same `timeAgoLabel()` Stories already had for post timestamps.
+- **"You should be able to like and comment on stories"** - likes reuse
+  the existing `leaderboard_likes` table and `get_likers(p_entry_keys)`
+  RPC (`entry_key` was already a free-form string, nothing leaderboard-
+  specific about the schema) with `entry_key = 'story:' || story_id`,
+  instead of a second near-identical likes table. Comments are new -
+  `story_comments` (story_id, user_id, body) with the same select-open/
+  insert-own/delete-own-or-admin shape `story_posts`' own "Take Down"
+  already uses, since a comment is exactly as public as the story it's
+  on (`get_active_stories()` has no team/upline restriction at all).
+  `get_story_comments(story_id)` joins in the commenter's name the same
+  way `get_likers` already does (no FK PostgREST can walk from
+  story_comments to profiles, only to auth.users). Comment threads are
+  collapsed by default per story and only fetched the first time one's
+  actually opened. Two new notification kinds, `story_liked` and
+  `story_commented`, both self-targeted to the story's owner (skipped
+  client-side when liking/commenting on your own story, same guard
+  `leaderboard_liked` already uses).
+
+Run once in the Supabase SQL editor - `supabase/schema.sql`'s
+"18. STORIES: LAST ACTIVE + LIKES/COMMENTS" section.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

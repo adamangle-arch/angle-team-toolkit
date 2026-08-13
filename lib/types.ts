@@ -31,6 +31,7 @@ export type Profile = {
   timezone: string | null;
   theme_color: ThemeColor;
   pinned_kpis: PipelineStageKey[];
+  last_active_at: string | null;
   created_at: string;
 };
 
@@ -129,6 +130,7 @@ export type TeamMemberBasic = {
   first_name: string | null;
   last_name: string | null;
   team: string | null;
+  last_active_at: string | null;
 };
 
 export type TeamChallenge = {
@@ -722,5 +724,15 @@ export type StoryPost = {
   media_url: string;
   media_type: "photo" | "video";
   caption: string;
+  created_at: string;
+};
+
+export type StoryComment = {
+  id: string;
+  user_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  team: string | null;
+  body: string;
   created_at: string;
 };

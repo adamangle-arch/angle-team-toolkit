@@ -22,7 +22,9 @@ type NotifyBody =
   | { kind: "streak_milestone_reached"; days: number; label: string }
   | { kind: "downline_signup_linked"; firstName: string; lastName: string }
   | { kind: "customer_sale_logged" }
-  | { kind: "onboarding_completed"; targetUserId: string };
+  | { kind: "onboarding_completed"; targetUserId: string }
+  | { kind: "story_liked"; targetUserId: string }
+  | { kind: "story_commented"; targetUserId: string; commentPreview: string };
 
 // Fire-and-forget: every call site here is a side effect tacked onto an
 // action that already succeeded (a broadcast event sent, a rating saved,
