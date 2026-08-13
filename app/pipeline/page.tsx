@@ -161,7 +161,7 @@ function PipelinePageInner() {
   const initialTab = searchParams.get("tab");
   const { user, ownerId } = useAuth();
   const [tab, setTab] = useState<Tab>(isTab(initialTab) ? initialTab : "tally");
-  const [periodType, setPeriodType] = useState<PeriodType>("weekly");
+  const [periodType, setPeriodType] = useState<PeriodType>("daily");
   // 0 = current day/week/month, 1 = one back, etc. - the three period
   // types' offsets aren't comparable, so switching type resets this.
   const [periodOffset, setPeriodOffset] = useState(0);
