@@ -5672,6 +5672,82 @@ uploads/deletes to the owner - a reasonable tradeoff for profile/story
 photos specifically, not a bug. This fix is about cleanup on deletion,
 not about locking the buckets down.
 
+### Free platform upgrades: Realtime, full-text search, voice notes
+
+Three additions picked specifically because they ride on infrastructure
+already paid for - no new service, no new bill, unlike the Assistant
+(metered Claude calls) or an SMS integration (per-message cost) also
+considered and set aside for now.
+
+- **Live unread notification badge** - `AuthGate.tsx` previously only
+  refetched `get_unread_notification_count()` once per app open, so a
+  push that arrived while the app was already open didn't touch the nav
+  badge until next launch. A Supabase Realtime subscription on
+  `sent_notifications` INSERTs now calls the same refresh live. No
+  manual filter needed - RLS already restricts a row to its own
+  recipient or a broadcast, and Realtime respects that.
+- **Live Leaderboard like counts** - same idea, subscribed to
+  `leaderboard_likes` (`event: "*"`, so both like and unlike). Re-runs
+  the existing `get_likers()` load on any change rather than patching
+  the map from the event payload directly, since a delete payload only
+  carries the row's primary key by default (would need `REPLICA
+  IDENTITY FULL` to include `entry_key`) - a full refetch is simpler and
+  this table sees low enough traffic that the extra round trip doesn't
+  matter. Also fires on your own optimistic toggle's own insert/delete;
+  harmless redundant refetch, not a bug.
+- **Real full-text search on candidates** - `candidates.search_vector`,
+  a generated `tsvector` column (name weighted `'A'`, notes weighted
+  `'B'`) with a GIN index, replacing the Search page's two separate
+  `ilike` queries with one `.textSearch(..., { type: "websearch" })`
+  call. Gets word-stemming and multi-word AND-matching for free, and
+  removes the earlier reason for two queries instead of one `.or()`
+  filter (a search term with a comma/parenthesis colliding with
+  PostgREST's filter syntax) entirely, since `.textSearch()` doesn't
+  build its query that way.
+- **Voice-to-text candidate notes** - new `components/DictateButton.tsx`
+  wraps the Web Speech API (`SpeechRecognition`/
+  `webkitSpeechRecognition`, Safari needs the prefixed one), wired next
+  to the Notes textarea on a Candidate Roadmap card. Fully free -
+  browser-native, no backend, no API key. Renders nothing if the browser
+  doesn't support it, checked via `useSyncExternalStore` (a
+  `useState`+`useEffect` check would either mismatch server vs. client
+  render or trip the `react-hooks/set-state-in-effect` lint rule by
+  calling `setState` synchronously in an effect body -
+  `useSyncExternalStore`'s `getServerSnapshot`/`getSnapshot` split is
+  the documented pattern for exactly this: reading an environment value
+  that legitimately differs between server and client). Appends the
+  transcript to the existing note and saves immediately, since dictation
+  has no natural "blur" event to hang the existing save-on-blur logic
+  off of.
+
+Run once in the Supabase SQL editor:
+
+```sql
+alter table candidates add column if not exists search_vector tsvector
+  generated always as (
+    setweight(to_tsvector('english', coalesce(name, '')), 'A') ||
+    setweight(to_tsvector('english', coalesce(notes, '')), 'B')
+  ) stored;
+
+create index if not exists candidates_search_vector_idx on candidates using gin (search_vector);
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and tablename = 'sent_notifications'
+  ) then
+    alter publication supabase_realtime add table sent_notifications;
+  end if;
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and tablename = 'leaderboard_likes'
+  ) then
+    alter publication supabase_realtime add table leaderboard_likes;
+  end if;
+end $$;
+```
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

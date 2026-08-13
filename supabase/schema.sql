@@ -6481,3 +6481,45 @@ grant execute on function public.get_active_stories() to authenticated;
 -- Admin SDK access), so this just tracks "has the rep marked this done"
 -- for the reminder card shown on a launched candidate's card.
 alter table candidates add column if not exists gemini_group_added boolean not null default false;
+
+-- ============================================================
+-- 13. FREE PLATFORM UPGRADES (Realtime + full-text search)
+-- Three additions that ride entirely on infrastructure already paid
+-- for - Supabase Realtime (same Postgres database, just a different
+-- read mode) and Postgres full-text search (native to Postgres) - no
+-- new service, no new bill, unlike the Assistant/SMS-style additions
+-- discussed but not built.
+-- ============================================================
+
+-- Real full-text search on candidates (name + notes), replacing the
+-- Search page's two separate ilike queries. A generated column instead
+-- of a trigger - stays in sync automatically, no trigger function to
+-- maintain. Name weighted 'A' (matches rank higher) over notes 'B'.
+alter table candidates add column if not exists search_vector tsvector
+  generated always as (
+    setweight(to_tsvector('english', coalesce(name, '')), 'A') ||
+    setweight(to_tsvector('english', coalesce(notes, '')), 'B')
+  ) stored;
+
+create index if not exists candidates_search_vector_idx on candidates using gin (search_vector);
+
+-- Realtime: lets the client subscribe to live changes on these two
+-- tables (unread notification badge, live Leaderboard like counts)
+-- instead of only refreshing on next load. Guarded with an existence
+-- check since re-adding an already-published table errors rather than
+-- no-ops, unlike every other statement in this file.
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and tablename = 'sent_notifications'
+  ) then
+    alter publication supabase_realtime add table sent_notifications;
+  end if;
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and tablename = 'leaderboard_likes'
+  ) then
+    alter publication supabase_realtime add table leaderboard_likes;
+  end if;
+end $$;

@@ -559,8 +559,28 @@ export default function LeaderboardPage() {
     }
 
     load();
+
+    // Live counts via Supabase Realtime - re-runs the same load() on any
+    // insert/delete on leaderboard_likes rather than trying to patch the
+    // map from the event payload directly (a delete payload only
+    // includes the row's primary key by default, not entry_key, without
+    // also setting REPLICA IDENTITY FULL on the table). A full refetch
+    // is simple and correct; this table is low-volume enough that the
+    // extra round trip doesn't matter. Also fires on our own optimistic
+    // toggle's own insert/delete - a harmless redundant refetch, not a
+    // bug.
+    const channel = supabase
+      .channel("leaderboard_likes_live")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "leaderboard_likes" },
+        () => load()
+      )
+      .subscribe();
+
     return () => {
       cancelled = true;
+      supabase.removeChannel(channel);
     };
   }, [allEntryKeys, user.id]);
 

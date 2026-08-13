@@ -53,22 +53,18 @@ export default function SearchPage() {
     if (trimmed.length < 2) return;
     let cancelled = false;
     const timer = setTimeout(async () => {
-      const [{ data: candidatesByName }, { data: candidatesByNotes }, { data: contacts }, { data: people }] =
-        await Promise.all([
+      const [{ data: candidates }, { data: contacts }, { data: people }] = await Promise.all([
+        // Real Postgres full-text search (candidates.search_vector, a
+        // generated tsvector over name + notes) instead of two separate
+        // ilike queries - one query instead of two, word-stemming and
+        // multi-word AND-matching for free, and no risk of a search term
+        // colliding with PostgREST's own filter-syntax delimiters the way
+        // a hand-built .or() would.
         supabase
           .from("candidates")
           .select("id,name,current_step,launched,filtered_out,notes")
           .eq("user_id", ownerId)
-          .ilike("name", `%${trimmed}%`)
-          .limit(8),
-        // Separate query rather than a single .or() filter - a search term
-        // containing a comma or parenthesis would otherwise collide with
-        // PostgREST's own filter-syntax delimiters.
-        supabase
-          .from("candidates")
-          .select("id,name,current_step,launched,filtered_out,notes")
-          .eq("user_id", ownerId)
-          .ilike("notes", `%${trimmed}%`)
+          .textSearch("search_vector", trimmed, { type: "websearch", config: "english" })
           .limit(8),
         supabase
           .from("contacts")
@@ -82,10 +78,7 @@ export default function SearchPage() {
         supabase.rpc("search_profiles_by_name", { p_query: trimmed }),
       ]);
       if (cancelled) return;
-      const candidatesById = new Map<string, Candidate>();
-      for (const c of (candidatesByName as Candidate[]) ?? []) candidatesById.set(c.id, c);
-      for (const c of (candidatesByNotes as Candidate[]) ?? []) candidatesById.set(c.id, c);
-      const candidateResults: SearchResult[] = Array.from(candidatesById.values()).map((c) => ({
+      const candidateResults: SearchResult[] = ((candidates as Candidate[]) ?? []).map((c) => ({
         title: c.name,
         snippet: candidateSnippet(c, trimmed),
         href: "/pipeline",

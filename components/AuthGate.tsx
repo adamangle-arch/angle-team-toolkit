@@ -228,6 +228,28 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     refreshUnreadCount();
   }, [fullyAuthed]);
 
+  // Live badge updates via Supabase Realtime - without this, a push
+  // notification that arrives while the app is already open doesn't
+  // touch the nav badge until the next full app open (the effect above
+  // only runs once per mount). RLS on sent_notifications already
+  // restricts what a given client's session receives here to rows
+  // addressed to them or broadcasts, same as the table's normal select
+  // policy - no extra filter needed.
+  useEffect(() => {
+    if (!fullyAuthed) return;
+    const channel = supabase
+      .channel("sent_notifications_unread")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "sent_notifications" },
+        () => refreshUnreadCount()
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fullyAuthed]);
+
   // /prospect is a public, unauthenticated view (a candidate enters their
   // access code, no account involved) - it renders standalone rather than
   // behind the normal sign-in wall. /reset-password is similar: arriving
