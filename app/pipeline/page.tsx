@@ -8,7 +8,6 @@ import { useAuth } from "@/components/AuthGate";
 import FeatureGate from "@/components/FeatureGate";
 import LibraryResourcePicker from "@/components/LibraryResourcePicker";
 import SearchablePicker from "@/components/SearchablePicker";
-import DictateButton from "@/components/DictateButton";
 import FirstVisitTip from "@/components/FirstVisitTip";
 import { SkeletonList, SkeletonRows } from "@/components/Skeleton";
 import AverageLeaders from "@/components/AverageLeaders";
@@ -1635,24 +1634,15 @@ function CandidateCard({
             </div>
           )}
 
-          <div className="flex items-start gap-2">
-            <textarea
-              className="textarea flex-1"
-              placeholder="Notes…"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              onBlur={() => {
-                if (notes !== candidate.notes) onUpdate(candidate.id, { notes });
-              }}
-            />
-            <DictateButton
-              onTranscript={(text) => {
-                const next = notes ? `${notes} ${text}` : text;
-                setNotes(next);
-                onUpdate(candidate.id, { notes: next });
-              }}
-            />
-          </div>
+          <textarea
+            className="textarea"
+            placeholder="Notes…"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            onBlur={() => {
+              if (notes !== candidate.notes) onUpdate(candidate.id, { notes });
+            }}
+          />
 
           <CandidateQuestions candidateId={candidate.id} />
 

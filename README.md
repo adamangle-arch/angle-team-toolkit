@@ -5704,21 +5704,6 @@ considered and set aside for now.
   filter (a search term with a comma/parenthesis colliding with
   PostgREST's filter syntax) entirely, since `.textSearch()` doesn't
   build its query that way.
-- **Voice-to-text candidate notes** - new `components/DictateButton.tsx`
-  wraps the Web Speech API (`SpeechRecognition`/
-  `webkitSpeechRecognition`, Safari needs the prefixed one), wired next
-  to the Notes textarea on a Candidate Roadmap card. Fully free -
-  browser-native, no backend, no API key. Renders nothing if the browser
-  doesn't support it, checked via `useSyncExternalStore` (a
-  `useState`+`useEffect` check would either mismatch server vs. client
-  render or trip the `react-hooks/set-state-in-effect` lint rule by
-  calling `setState` synchronously in an effect body -
-  `useSyncExternalStore`'s `getServerSnapshot`/`getSnapshot` split is
-  the documented pattern for exactly this: reading an environment value
-  that legitimately differs between server and client). Appends the
-  transcript to the existing note and saves immediately, since dictation
-  has no natural "blur" event to hang the existing save-on-blur logic
-  off of.
 
 Run once in the Supabase SQL editor:
 
@@ -5765,17 +5750,18 @@ Sunday-first label row shifted every date one weekday-letter to the left
 across the entire strip, silently, for every week, for everyone - not a
 one-off or a timezone edge case.
 
-Fixed by adding a second, dedicated helper - `getSundayWeekStart()` /
-`getSundayWeekStartOffset()` - built the same "shift a live `Date`, never
-round-trip through a date-only string" way `getWeekStartOffset()` already
-is, and pointed only the Calendar page's `weekStart` at it.
-`getWeekStart()`/`getWeekStartOffset()` themselves are untouched, so
-Pipeline/Goals/Streak's Monday-anchored weeks (and the DB constraint they
-rely on) are unaffected. To keep this from recurring: any future
-Sunday-first weekly grid should reach for `getSundayWeekStartOffset()`,
-and any future Monday-anchored week logic (pipeline periods, weekly
-goals) should keep using `getWeekStartOffset()` - the two are not
-interchangeable, and the comments on both now say so directly.
+The 7 dates shown ("Aug 10 - 16") were always the correct current week and
+every event was already filed under its own correct date - only the
+weekday-letter lookup for the header row was wrong. Rather than shifting
+which 7 dates count as "this week" (that would have moved the display off
+the actual Monday-Sunday week `getWeekStartOffset()` still needs to match
+elsewhere), the fix keeps `weekStart` exactly as it was and adds a second,
+Monday-first label array - `WEEKDAY_LABELS_WEEK_VIEW = ["M","T","W","T",
+"F","S","S"]` - used only by the Week view's day-strip header, alongside
+the untouched Sunday-first `WEEKDAY_LABELS` the Month view keeps using for
+its own genuinely Sunday-first grid. `getWeekStart()`/`getWeekStartOffset()`
+were never touched, so Pipeline/Goals/Streak's Monday-anchored weeks (and
+the DB constraint they rely on) were never at risk either.
 
 ## Tech stack
 

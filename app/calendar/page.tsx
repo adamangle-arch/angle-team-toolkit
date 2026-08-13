@@ -23,7 +23,7 @@ import {
   getDateOffset,
   formatMonthLabel,
   formatDateLabel,
-  getSundayWeekStartOffset,
+  getWeekStartOffset,
   formatWeekRangeLabel,
 } from "@/lib/dates";
 import { guessTimeZone, zonedInputToUtc, utcToZonedInputValue } from "@/lib/timezones";
@@ -202,7 +202,18 @@ function buildMonthGrid(monthStart: string): MonthCell[] {
   return cells;
 }
 
+// Sunday-first - matches buildMonthGrid's grid (native getDay(), Sunday=0),
+// so only the Month view's header/cells use this.
 const WEEKDAY_LABELS = ["S", "M", "T", "W", "T", "F", "S"];
+
+// Monday-first - matches weekStart/weekDates below, which are built from
+// getWeekStartOffset() (deliberately Monday-anchored, since it also backs
+// Pipeline/Goals/Streak's weekly period_start, constrained in the DB to a
+// Monday). Using the Sunday-first WEEKDAY_LABELS here previously mislabeled
+// every date in the Week view by one weekday letter (e.g. Aug 13, a real
+// Thursday, showed under "W") - the dates themselves were always correct,
+// only this label lookup was wrong.
+const WEEKDAY_LABELS_WEEK_VIEW = ["M", "T", "W", "T", "F", "S", "S"];
 
 // Default business-hours window for the Day view's hourly grid - covers
 // the realistic range for QI1s, team calls, and meetings without needing
@@ -376,9 +387,7 @@ export default function CalendarPage() {
   const [dayOffset, setDayOffset] = useState(0);
   const dayCursor = getDateOffset(dayOffset);
   const [weekOffset, setWeekOffset] = useState(0);
-  // Sunday-anchored (see getSundayWeekStartOffset's own comment) - this
-  // grid is laid out Sunday-first via WEEKDAY_LABELS, same as Month view.
-  const weekStart = getSundayWeekStartOffset(weekOffset);
+  const weekStart = getWeekStartOffset(weekOffset);
   const weekDates = useMemo(() => {
     const start = new Date(`${weekStart}T00:00:00`);
     return Array.from({ length: 7 }, (_, i) => {
@@ -1282,7 +1291,7 @@ export default function CalendarPage() {
                             : "text-slate-200"
                       }`}
                     >
-                      <span className="text-[10px] font-medium opacity-80">{WEEKDAY_LABELS[i]}</span>
+                      <span className="text-[10px] font-medium opacity-80">{WEEKDAY_LABELS_WEEK_VIEW[i]}</span>
                       <span>{Number(date.slice(-2))}</span>
                       <span className="flex h-1.5 items-center gap-0.5">
                         {dayEventsForCell.slice(0, 3).map((e, j) => (
