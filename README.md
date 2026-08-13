@@ -1576,17 +1576,26 @@ schema — this is purely additive gating on top of it):
 
 | Unlocks at session | Tabs |
 | --- | --- |
-| 1 (signup) | Today, Calendar, Leaderboard, Onboarding, My Profile, Search, More |
+| 1 (signup) | Today, Calendar, Leaderboard, Core Run Streak, Onboarding, My Profile, Search, More |
 | 2 (List Building done) | + Contacts, Volume |
 | 3 (Customers done) | *(nothing new)* |
 | 4 (Sharing Your Story done) | + Pipeline, History |
-| 5 (30-Day Core Run done) | + Resources, Run Streak, Goals, Team, Games, Assistant |
+| 5 (30-Day Core Run done) | + Resources, Goals, Team, Games, Assistant |
 
 Resources used to be available from signup, but moved to session 5 once
 its Books/Audios tabs started auto-linking to real PDFs/audio files
 (see below) — it stopped being a safe "browse everything on day one"
 area and became something to earn by actually finishing onboarding
 rather than self-serving ahead of it.
+
+Core Run Streak used to sit at session 5 alongside Resources/Team/
+Games/Assistant, but moved to session 1 (available from signup) since
+it isn't tied to a specific curriculum topic the way Contacts lines up
+with Session 2 or Pipeline waits for Session 4 - it's the daily habit
+tracker (Read/Listen/Daily Update/Story Share) everything else in the
+app treats as foundational (streaks, badges, Games unlocking). Gating
+it behind 4 sessions of onboarding just cost however many days of
+streak-building momentum someone had right when it was highest.
 
 The mapping lives in one place, `lib/onboarding-gate.ts`'s
 `FEATURE_MIN_SESSION`, and is read by three call sites: `BottomNav` and

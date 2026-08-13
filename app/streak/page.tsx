@@ -980,7 +980,7 @@ export default function StreakPage() {
   }
 
   return (
-    <FeatureGate minSession={5}>
+    <FeatureGate minSession={1}>
       <PageHeader
         title="Core Run Streak"
         subtitle="Read • Listen • Daily Update • Story Share"
