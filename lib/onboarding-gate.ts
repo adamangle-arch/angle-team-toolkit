@@ -31,6 +31,7 @@ export const FEATURE_MIN_SESSION: Record<string, number> = {
   "/team": 5,
   "/games": 5,
   "/assistant": 5,
+  "/insights": 5,
 };
 
 export function minSessionFor(path: string): number {

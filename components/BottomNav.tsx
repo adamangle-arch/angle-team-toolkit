@@ -29,6 +29,7 @@ const MORE_ROUTES = [
   "/games",
   "/badges",
   "/events",
+  "/insights",
 ];
 
 export default function BottomNav() {

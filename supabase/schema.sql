@@ -6523,3 +6523,16 @@ begin
     alter publication supabase_realtime add table leaderboard_likes;
   end if;
 end $$;
+
+-- 15. INSIGHTS TAB -------------------------------------------------------
+-- Personal analytics hub - stage conversion rates, live pace projection,
+-- a Core-Run-vs-launches correlation view, a downline rollup trend, and
+-- a user-configurable pinned-KPI row. Every number it shows already
+-- exists in pipeline_periods/streak_days; the only new state needed is
+-- which stage keys someone chose to pin at the top of their own page.
+alter table profiles add column if not exists pinned_kpis text[] not null default array['questions','yeses','qi1','launches'];
+
+alter table profiles drop constraint if exists profiles_pinned_kpis_check;
+alter table profiles add constraint profiles_pinned_kpis_check check (
+  pinned_kpis <@ array['questions','yeses','qi1','qi2','is1','fu1','is2','fu2','questionnaire','launches']
+);

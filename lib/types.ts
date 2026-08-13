@@ -30,6 +30,7 @@ export type Profile = {
   reading_unit: ReadingUnit;
   timezone: string | null;
   theme_color: ThemeColor;
+  pinned_kpis: PipelineStageKey[];
   created_at: string;
 };
 

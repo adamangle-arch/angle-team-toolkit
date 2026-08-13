@@ -27,6 +27,7 @@ const MORE_ITEMS = [
   // sees their own upline chain and downline (RLS scopes it either way).
   { href: "/team", label: "Team", icon: "👥", description: "Downline, upline, totals." },
   { href: "/library", label: "Resources", icon: "📚", description: "Process, scripts, leaders." },
+  { href: "/insights", label: "Insights", icon: "📈", description: "Trends, pace, and your funnel." },
   { href: "/assistant", label: "Assistant", icon: "🤖", description: "Role-play conversations." },
   { href: "/onboarding", label: "Onboarding", icon: "🎓", description: "New member sessions." },
   { href: "/games", label: "Games", icon: "🎮", description: "Diamond Run, Chase, Trivia." },

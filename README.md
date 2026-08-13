@@ -5763,6 +5763,66 @@ its own genuinely Sunday-first grid. `getWeekStart()`/`getWeekStartOffset()`
 were never touched, so Pipeline/Goals/Streak's Monday-anchored weeks (and
 the DB constraint they rely on) were never at risk either.
 
+### Insights tab
+
+The first of five new tabs from a big feature-brainstorming round (Insights,
+Spotlight, Pulse, Arena, Vault) - a personal analytics hub pulling together
+trend/pace/conversion numbers that were previously scattered across
+Pipeline/Goals or not computed anywhere at all. Everything on the page is
+derived from data the app already tracks (`pipeline_periods`, `streak_days`)
+- the only new state is which stage keys someone chose to pin at the top.
+
+- **Pinned KPIs** - a 4-tile row of this week's live numbers for whichever
+  `PIPELINE_STAGES` keys the person picked (`profiles.pinned_kpis text[]`,
+  defaults to Questions/Yeses/QI1/Launches). "Customize" swaps the tiles for
+  a toggle-pill picker capped at 4 selections.
+- **Weekly Digest** - one auto-written sentence comparing the last two
+  *fully completed* weeks ("Last week you logged 12 questions (up 3 from
+  the week before) and 2 launches (flat vs. 2)"). Deliberately skips the
+  current in-progress week, same "don't count an unfinished period"
+  principle `lib/periodAverages.ts` already uses for the Tally/Goals
+  averages - a partial week would always look artificially low next to a
+  finished one.
+- **Pace This Month** - this month's `pipeline_periods` monthly row
+  projected out to month-end (`soFar * daysInMonth / daysElapsed`) for
+  Questions/Yeses/QI1/Launches - "on pace for ~52" instead of a bare
+  running total with no sense of whether that's a good month or not.
+- **Stage Conversion** - sums every `PIPELINE_STAGES` column across the
+  trailing 90 days of *daily* rows (the same 10-stage funnel
+  `pipeline_periods` already tracks event-by-event, not `candidates.
+  current_step`, which only holds one candidate's current position, not a
+  count of how many ever passed through each stage) and renders each
+  stage's percentage of Questions as a bar - where the funnel actually
+  leaks, at a glance.
+- **Core Run vs. Launches** - buckets the last 8 completed weeks'
+  `streak_days` into weekly Core-Run-complete counts (same `read && listen
+  && daily_update && story_share` definition `useCoreRunUnlock` already
+  uses) alongside that week's launches, then compares the average launches
+  on weeks with 4+ Core Runs against weeks below that - a real, if small-
+  sample, answer to "does this habit actually correlate with results,"
+  framed as an average-comparison rather than a formal correlation
+  coefficient, which would overstate confidence at this sample size.
+- **Downline Trend** - only rendered when `get_downline_user_ids` returns
+  at least one person. Reuses `get_downline_pipeline_totals` (previously
+  called for one period at a time on the Today dashboard) across 8 weekly
+  `period_start`s via `Promise.all`, since it has no range variant, fed
+  into the existing `TrendChart` with a stage picker matching Pipeline's
+  own trend-stage dropdown.
+
+Gated at onboarding session 5 (`FEATURE_MIN_SESSION`), same tier as Team/
+Goals/Games/Assistant, and reachable from More (`/insights`, 📈).
+
+Run once in the Supabase SQL editor:
+
+```sql
+alter table profiles add column if not exists pinned_kpis text[] not null default array['questions','yeses','qi1','launches'];
+
+alter table profiles drop constraint if exists profiles_pinned_kpis_check;
+alter table profiles add constraint profiles_pinned_kpis_check check (
+  pinned_kpis <@ array['questions','yeses','qi1','qi2','is1','fu1','is2','fu2','questionnaire','launches']
+);
+```
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)
