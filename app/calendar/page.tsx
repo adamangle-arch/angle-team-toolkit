@@ -23,7 +23,7 @@ import {
   getDateOffset,
   formatMonthLabel,
   formatDateLabel,
-  getWeekStartOffset,
+  getSundayWeekStartOffset,
   formatWeekRangeLabel,
 } from "@/lib/dates";
 import { guessTimeZone, zonedInputToUtc, utcToZonedInputValue } from "@/lib/timezones";
@@ -376,7 +376,9 @@ export default function CalendarPage() {
   const [dayOffset, setDayOffset] = useState(0);
   const dayCursor = getDateOffset(dayOffset);
   const [weekOffset, setWeekOffset] = useState(0);
-  const weekStart = getWeekStartOffset(weekOffset);
+  // Sunday-anchored (see getSundayWeekStartOffset's own comment) - this
+  // grid is laid out Sunday-first via WEEKDAY_LABELS, same as Month view.
+  const weekStart = getSundayWeekStartOffset(weekOffset);
   const weekDates = useMemo(() => {
     const start = new Date(`${weekStart}T00:00:00`);
     return Array.from({ length: 7 }, (_, i) => {

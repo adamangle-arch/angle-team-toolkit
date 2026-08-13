@@ -5748,6 +5748,35 @@ begin
 end $$;
 ```
 
+### Fixed: Calendar Week view showed the wrong weekday under each date
+
+Reported live: "the days are wrong, today is Thursday the 13th" - the
+Week view's 7-day strip was showing Aug 13 (a real Thursday) under the
+"W" column, with the strip's date range and event dots otherwise correct.
+Root cause: `getWeekStartOffset()` (`lib/dates.ts`) deliberately returns
+the **Monday** of the week - that's load-bearing for Pipeline/Goals/
+Streak, which key `pipeline_periods` rows off a DB check constraint
+requiring `period_start` to land on a Monday for weekly rows. But the
+Calendar page's Week view renders its 7-day strip against
+`WEEKDAY_LABELS = ["S","M","T","W","T","F","S"]` - Sunday-first, the same
+array (and the same Sunday-first convention) the Month view's grid
+already uses. Feeding the Week view a Monday-anchored start into a
+Sunday-first label row shifted every date one weekday-letter to the left
+across the entire strip, silently, for every week, for everyone - not a
+one-off or a timezone edge case.
+
+Fixed by adding a second, dedicated helper - `getSundayWeekStart()` /
+`getSundayWeekStartOffset()` - built the same "shift a live `Date`, never
+round-trip through a date-only string" way `getWeekStartOffset()` already
+is, and pointed only the Calendar page's `weekStart` at it.
+`getWeekStart()`/`getWeekStartOffset()` themselves are untouched, so
+Pipeline/Goals/Streak's Monday-anchored weeks (and the DB constraint they
+rely on) are unaffected. To keep this from recurring: any future
+Sunday-first weekly grid should reach for `getSundayWeekStartOffset()`,
+and any future Monday-anchored week logic (pipeline periods, weekly
+goals) should keep using `getWeekStartOffset()` - the two are not
+interchangeable, and the comments on both now say so directly.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

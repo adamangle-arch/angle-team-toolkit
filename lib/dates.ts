@@ -51,6 +51,31 @@ export function formatWeekRangeLabel(weekStartStr: string): string {
   return `${startLabel} - ${endLabel}, ${year}`;
 }
 
+// Sunday-first week start - deliberately separate from getWeekStart()
+// (Monday-first, required by the pipeline_periods weekly DB constraint and
+// used by Pipeline/Goals/Streak). The Calendar page's Week view grid is
+// Sunday-first, sharing the same WEEKDAY_LABELS ("S M T W T F S") as the
+// Month view's Sunday-first grid - feeding it getWeekStartOffset()'s Monday
+// anchor shifted every date one weekday-letter to the left (a Thursday
+// rendered under the "W" column, a Monday rendered under "S"). If Calendar's
+// Week view ever needs a different week-start day again, add another
+// dedicated helper rather than reusing getWeekStart() - it must stay Monday
+// for the DB constraint above.
+export function getSundayWeekStart(date: Date = new Date()): string {
+  const d = new Date(date);
+  d.setDate(d.getDate() - d.getDay());
+  return toDateOnly(d);
+}
+
+// weeksBack = 0 is the current week (Sunday start), 1 is last week, etc.
+// Built directly from a shifted Date, same "never round-trip through a
+// date-only string" reasoning as getWeekStartOffset above.
+export function getSundayWeekStartOffset(weeksBack: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - weeksBack * 7);
+  return getSundayWeekStart(d);
+}
+
 export function getMonthStart(date: Date = new Date()): string {
   const d = new Date(date.getFullYear(), date.getMonth(), 1);
   return toDateOnly(d);
