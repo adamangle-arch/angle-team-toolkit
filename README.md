@@ -5993,6 +5993,25 @@ piece: a live "who's active now" indicator. Stories gets its first tab bar
   time someone taps the tab. Each active person gets a green-dot row
   linking to their profile, "(you)" on your own row.
 
+### Moved: Goals' "Your Averages" → Insights
+
+The Core Run/Pipeline/Volume rolling-window averages + Team Leaders card
+that used to live on Goals moved to Insights - it's an analytics view,
+not a goal-setting one, and Insights already existed for exactly this
+kind of content. Removed from Goals entirely rather than duplicated
+(along with every state/effect/memo/import that existed only to feed
+it - `readingUnit`'s own state stays on Goals since the Reading goal
+still needs it; Insights instead reads `profile.reading_unit` directly,
+since its own profile fetch already pulls the whole row).
+
+Landed as the last card on Insights, and picked up the page's existing
+**Viewing** picker for free - the rolling-window pacing numbers (Core
+Run/Pipeline/Volume averages) now retarget to whichever downline member
+is selected there, something Goals never had a way to do since it never
+had a picker at all. The Team Leaders mini-lists next to each stat stay
+company-wide regardless of who's selected, same as before - those were
+never about "you," only about who's leading overall.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)
