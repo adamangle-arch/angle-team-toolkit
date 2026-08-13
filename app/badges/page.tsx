@@ -15,8 +15,34 @@ import {
 } from "@/lib/levels";
 import LevelAvatar from "@/components/LevelAvatar";
 import { SkeletonList } from "@/components/Skeleton";
-import { ACTIVITY_LOG_KINDS, isBadgeExcluded, type ActivityLogKind } from "@/lib/constants";
-import type { BadgeMetrics, UserBadge } from "@/lib/types";
+import { ACTIVITY_LOG_KINDS, isBadgeExcluded, PIPELINE_STAGES, type ActivityLogKind, type PipelineStageKey } from "@/lib/constants";
+import type { BadgeMetrics, UserBadge, PersonalBestEntry, PipelinePeriod, SentNotification } from "@/lib/types";
+
+type PageTab = "achievements" | "vault";
+
+const VAULT_STAGES: PipelineStageKey[] = ["questions", "yeses", "qi1", "launches"];
+const VAULT_PERIOD_LABELS: Record<PersonalBestEntry["period_type"], string> = {
+  daily: "Best Day",
+  weekly: "Best Week",
+  monthly: "Best Month",
+};
+
+function stageLabel(key: PipelineStageKey): string {
+  return PIPELINE_STAGES.find((s) => s.key === key)?.label ?? key;
+}
+
+// Exactly a year ago, as a local date-only string - built directly from a
+// shifted Date rather than any string math, same "never round-trip
+// through a date-only string" reasoning lib/dates.ts's own offset helpers
+// already document for why that matters.
+function oneYearAgo(): string {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - 1);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+const VAULT_NOTIFICATION_KINDS = ["streak_milestone_reached", "badge_earned"] as const;
 
 const ACTIVITY_METRIC_KEY: Record<ActivityLogKind, keyof BadgeMetrics> = {
   sample_bag_given: "sample_bags_given",
@@ -110,6 +136,7 @@ function BadgeRow({
 export default function BadgesPage() {
   const { ownerId, user } = useAuth();
   const excluded = isBadgeExcluded(user.email);
+  const [pageTab, setPageTab] = useState<PageTab>("achievements");
   const [metrics, setMetrics] = useState<BadgeMetrics | null>(null);
   const [earnedByKey, setEarnedByKey] = useState<Map<string, string>>(new Map());
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
@@ -117,6 +144,14 @@ export default function BadgesPage() {
   const [logging, setLogging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loggingActivity, setLoggingActivity] = useState<ActivityLogKind | null>(null);
+
+  // Vault tab - lazily loaded (null = not fetched yet) the first time
+  // someone actually switches to it, rather than adding three more
+  // queries to every Badges page load whether or not Vault gets opened.
+  const [personalBests, setPersonalBests] = useState<PersonalBestEntry[] | null>(null);
+  const [onThisDay, setOnThisDay] = useState<PipelinePeriod | null>(null);
+  const [milestoneArchive, setMilestoneArchive] = useState<SentNotification[] | null>(null);
+  const [vaultLoading, setVaultLoading] = useState(false);
 
   // Browsing controls - a flat list of 300 badges across 51 categories
   // is unusable without these. Search/filter force every matching
@@ -162,6 +197,41 @@ export default function BadgesPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ownerId, excluded]);
+
+  useEffect(() => {
+    if (pageTab !== "vault" || personalBests !== null) return;
+    let cancelled = false;
+    async function loadVault() {
+      setVaultLoading(true);
+      const [{ data: bests }, { data: lastYear }, { data: milestones }] = await Promise.all([
+        supabase.rpc("get_personal_bests", { p_user_id: ownerId }),
+        supabase
+          .from("pipeline_periods")
+          .select("*")
+          .eq("user_id", ownerId)
+          .eq("period_type", "daily")
+          .eq("period_start", oneYearAgo())
+          .maybeSingle(),
+        supabase
+          .from("sent_notifications")
+          .select("*")
+          .eq("user_id", ownerId)
+          .in("kind", VAULT_NOTIFICATION_KINDS)
+          .order("created_at", { ascending: false })
+          .limit(20),
+      ]);
+      if (cancelled) return;
+      setPersonalBests((bests as PersonalBestEntry[]) ?? []);
+      setOnThisDay((lastYear as PipelinePeriod) ?? null);
+      setMilestoneArchive((milestones as SentNotification[]) ?? []);
+      setVaultLoading(false);
+    }
+    loadVault();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageTab, ownerId]);
 
   async function logBook() {
     setLogging(true);
@@ -218,6 +288,90 @@ export default function BadgesPage() {
     <>
       <PageHeader title="Badges" subtitle={`${earnedCount}/${totalCount} earned`} />
       <main className="page-main">
+        <div className="card flex p-1">
+          <button
+            className={pageTab === "achievements" ? "toggle-pill-active" : "toggle-pill-inactive"}
+            onClick={() => setPageTab("achievements")}
+          >
+            Achievements
+          </button>
+          <button
+            className={pageTab === "vault" ? "toggle-pill-active" : "toggle-pill-inactive"}
+            onClick={() => setPageTab("vault")}
+          >
+            Vault
+          </button>
+        </div>
+
+        {pageTab === "vault" ? (
+          vaultLoading || personalBests === null ? (
+            <SkeletonList cards={3} />
+          ) : (
+            <>
+              <div className="card space-y-2">
+                <p className="section-title">🏆 Personal Bests</p>
+                {personalBests.length === 0 ? (
+                  <p className="empty-state">Log some pipeline activity to start setting records.</p>
+                ) : (
+                  (["daily", "weekly", "monthly"] as const).map((periodType) => {
+                    const rows = VAULT_STAGES.map((key) =>
+                      personalBests.find((b) => b.period_type === periodType && b.stage_key === key)
+                    ).filter((b): b is PersonalBestEntry => Boolean(b) && b!.best_value > 0);
+                    if (rows.length === 0) return null;
+                    return (
+                      <div key={periodType} className="space-y-1">
+                        <p className="text-xs font-semibold text-slate-400">{VAULT_PERIOD_LABELS[periodType]}</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {rows.map((r) => (
+                            <div key={r.stage_key} className="rounded-lg bg-navy p-2">
+                              <p className="text-lg font-bold text-white">{r.best_value}</p>
+                              <p className="text-xs text-slate-400">{stageLabel(r.stage_key)}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              <div className="card space-y-2">
+                <p className="section-title">📆 On This Day</p>
+                {onThisDay ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    {VAULT_STAGES.map((key) => (
+                      <div key={key} className="rounded-lg bg-navy p-2">
+                        <p className="text-lg font-bold text-white">{onThisDay[key]}</p>
+                        <p className="text-xs text-slate-400">{stageLabel(key)}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-400">No logged activity from exactly a year ago today.</p>
+                )}
+              </div>
+
+              <div className="card space-y-2">
+                <p className="section-title">🗂️ Milestone Archive</p>
+                {milestoneArchive === null || milestoneArchive.length === 0 ? (
+                  <p className="empty-state">Streak milestones and badges you earn will show up here.</p>
+                ) : (
+                  milestoneArchive.map((n) => (
+                    <div key={n.id} className="flex items-start justify-between gap-2 text-sm">
+                      <span className="text-slate-200">
+                        {n.kind === "badge_earned" ? "🏅" : "🔥"} {n.title}
+                      </span>
+                      <span className="shrink-0 text-xs text-slate-500">
+                        {new Date(n.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </>
+          )
+        ) : (
+          <>
         {!excluded && !loading && (
           <div className="card relative space-y-3 overflow-hidden">
             <div
@@ -446,6 +600,8 @@ export default function BadgesPage() {
               );
             });
           })()
+        )}
+          </>
         )}
       </main>
     </>

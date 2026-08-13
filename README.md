@@ -5931,6 +5931,38 @@ Run once in the Supabase SQL editor - the full `get_my_rank`,
 live in `supabase/schema.sql`'s "16. LEADERBOARD: SPOTLIGHT + ARENA TABS"
 section - paste that whole section into the SQL editor and run it.
 
+### Badges: Vault tab
+
+The last of the brainstormed tabs (Vault), folded into Badges instead of
+becoming its own nav entry - a personal career-highlight archive belongs
+next to Badges (also personal, also achievement-tracking) rather than off
+on its own. Badges gained its first tab bar (Achievements / Vault) for
+this - previously a single flat page.
+
+- **Personal Bests** - new `get_personal_bests(user_id)` RPC: the single
+  best day/week/month ever logged for Questions/Yeses/QI1/Launches,
+  computed with a plain `UNION ALL` unpivot rather than the `format()`/
+  `execute` dynamic SQL `get_my_rank`/`get_challenge_leaderboard` use
+  elsewhere - only 4 fixed columns are ever needed here, so there's no
+  column name to interpolate and no allowlist to check. Guarded to self/
+  upline/admin for defense in depth, even though the client only ever
+  calls it with its own id today.
+- **On This Day** - this exact calendar date one year ago, read straight
+  from that one `pipeline_periods` daily row if it exists (no new schema
+  or RPC - existing self-read RLS already covers it).
+- **Milestone Archive** - a personal, filtered `sent_notifications` feed
+  (`streak_milestone_reached`/`badge_earned` only, newest first) - same
+  two kinds Leaderboard's Wall of Fame uses and for the same reason
+  (they're the only two where the row's `user_id` is actually the
+  achiever), just scoped to the viewer's own rows via the existing RLS
+  instead of Wall of Fame's security-definer team-wide bypass.
+
+Vault's three queries are lazy - they only fire the first time someone
+actually taps the Vault tab, not on every Badges page load.
+
+Run once in the Supabase SQL editor - `get_personal_bests` lives in
+`supabase/schema.sql`'s "17. BADGES: VAULT TAB" section.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

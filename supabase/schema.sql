@@ -6745,3 +6745,50 @@ end;
 $$;
 
 grant execute on function public.get_challenge_leaderboard(uuid) to authenticated;
+
+-- 17. BADGES: VAULT TAB --------------------------------------------------
+-- The last of the brainstormed tabs (Vault) folded into an existing page
+-- rather than becoming its own nav entry - a personal career-highlight
+-- archive belongs next to Badges (also personal, also achievement-
+-- tracking), not off on its own.
+
+-- Personal Bests: the single best day/week/month ever logged for each of
+-- the four headline stats, unpivoted with a plain UNION ALL rather than
+-- the format()/execute dynamic SQL get_my_rank/get_challenge_leaderboard
+-- use elsewhere - only 4 fixed stage columns are ever needed here, so
+-- there's no column name to interpolate and no allowlist to check.
+-- Guarded to self/upline/admin, same shape as every other per-person RPC
+-- in this file, even though the client only ever calls this with its own
+-- id today.
+create or replace function public.get_personal_bests(p_user_id uuid)
+returns table (period_type text, stage_key text, best_value int, period_start date)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  with unpivoted as (
+    select period_type, period_start, 'questions' as stage_key, questions as value
+    from pipeline_periods where user_id = p_user_id
+    union all
+    select period_type, period_start, 'yeses', yeses from pipeline_periods where user_id = p_user_id
+    union all
+    select period_type, period_start, 'qi1', qi1 from pipeline_periods where user_id = p_user_id
+    union all
+    select period_type, period_start, 'launches', launches from pipeline_periods where user_id = p_user_id
+  ),
+  ranked as (
+    select *, row_number() over (partition by period_type, stage_key order by value desc, period_start desc) as rn
+    from unpivoted
+  )
+  select period_type, stage_key, value, period_start
+  from ranked
+  where rn = 1
+    and (
+      p_user_id = auth.uid()
+      or public.is_upline_of(auth.uid(), p_user_id)
+      or public.is_app_admin()
+    );
+$$;
+
+grant execute on function public.get_personal_bests(uuid) to authenticated;

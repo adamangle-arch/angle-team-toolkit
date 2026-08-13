@@ -149,6 +149,14 @@ export type ChallengeLeaderboardEntry = {
   value: number;
 };
 
+// Badges' Vault tab (get_personal_bests).
+export type PersonalBestEntry = {
+  period_type: "daily" | "weekly" | "monthly";
+  stage_key: PipelineStageKey;
+  best_value: number;
+  period_start: string;
+};
+
 // Household-shareable leaderboard entries (everything except streaks)
 // carry partner_* fields — non-null when this person has a linked
 // spouse, so the Leaderboard can show and link to both profiles.
