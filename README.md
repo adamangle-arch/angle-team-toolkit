@@ -5963,6 +5963,36 @@ actually taps the Vault tab, not on every Badges page load.
 Run once in the Supabase SQL editor - `get_personal_bests` lives in
 `supabase/schema.sql`'s "17. BADGES: VAULT TAB" section.
 
+### Stories: Pulse tab
+
+The last of the five brainstormed tabs (Insights, Spotlight, Arena, Vault,
+Pulse) - all five ended up folded into an existing page instead of adding
+five new nav entries. Pulse was scoped down to its one concretely-picked
+piece: a live "who's active now" indicator. Stories gets its first tab bar
+(Today's Prompt / Pulse) for this - previously a single flat page.
+
+- **Live presence, not a new table** - `AuthGate.tsx` now joins a Supabase
+  Realtime **Presence** channel (`app_presence`, `config.presence.key =
+  user.id`) once someone's fully authed, tracking `{ online_at }` and
+  listening for `sync` events. Presence is a different Realtime primitive
+  than the Postgres Changes subscriptions already used elsewhere in this
+  app (the unread-badge and Leaderboard-likes channels) - it's an
+  ephemeral, in-memory "who's currently connected" roster the Realtime
+  server keeps, gone the instant a tab closes or loses connection. No
+  table, publication, or RLS involved at all. `channel.presenceState()`'s
+  keys are directly the list of active user ids (one entry per person,
+  not per tab, since a second tab from the same person just adds another
+  presence under the same key) - exposed through `useAuth()` as
+  `activeUserIds: string[]`, tracked at the app-shell level so it reflects
+  real app usage everywhere, not just whoever's also looking at Stories'
+  Pulse tab at the same moment.
+- **Pulse tab** - cross-references `activeUserIds` against the same
+  `get_all_team_members()` RPC Leaderboard's Spotlight tab already added
+  (team-wide names, since plain `profiles` reads are scoped to your own
+  upline/downline chain, not the whole company), lazily fetched the first
+  time someone taps the tab. Each active person gets a green-dot row
+  linking to their profile, "(you)" on your own row.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

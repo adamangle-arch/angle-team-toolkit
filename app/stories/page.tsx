@@ -8,7 +8,9 @@ import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import { getTodayStoryPrompt, isPrimaryUser } from "@/lib/constants";
 import { fireNotifyEvent } from "@/lib/notifyClient";
-import type { StoryPost } from "@/lib/types";
+import type { StoryPost, TeamMemberBasic } from "@/lib/types";
+
+type PageTab = "prompt" | "pulse";
 
 function uniqueId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -75,9 +77,12 @@ function expiresLabel(iso: string): string {
 }
 
 export default function StoriesPage() {
-  const { user } = useAuth();
+  const { user, activeUserIds } = useAuth();
   const isAdmin = isPrimaryUser(user.email);
   const prompt = getTodayStoryPrompt();
+
+  const [pageTab, setPageTab] = useState<PageTab>("prompt");
+  const [teamMembers, setTeamMembers] = useState<TeamMemberBasic[] | null>(null);
 
   const [stories, setStories] = useState<StoryPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -113,6 +118,23 @@ export default function StoriesPage() {
       cancelled = true;
     };
   }, []);
+
+  // Lazy - only fetched the first time someone taps Pulse, reusing the
+  // same team-wide roster RPC Leaderboard's Spotlight tab already added
+  // (get_all_team_members). Which of them are actually online comes from
+  // AuthGate's Realtime Presence channel (activeUserIds), not from this.
+  useEffect(() => {
+    if (pageTab !== "pulse" || teamMembers !== null) return;
+    let cancelled = false;
+    supabase.rpc("get_all_team_members").then(({ data }) => {
+      if (!cancelled) setTeamMembers((data as TeamMemberBasic[]) ?? []);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [pageTab, teamMembers]);
+
+  const activeMembers = (teamMembers ?? []).filter((m) => activeUserIds.includes(m.user_id));
 
   async function handleSelectFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -184,6 +206,48 @@ export default function StoriesPage() {
     <>
       <PageHeader title="Stories" subtitle="Today's prompt - posts disappear after 24h" />
       <main className="page-main">
+        <div className="card flex p-1">
+          <button
+            className={pageTab === "prompt" ? "toggle-pill-active" : "toggle-pill-inactive"}
+            onClick={() => setPageTab("prompt")}
+          >
+            Today&apos;s Prompt
+          </button>
+          <button
+            className={pageTab === "pulse" ? "toggle-pill-active" : "toggle-pill-inactive"}
+            onClick={() => setPageTab("pulse")}
+          >
+            Pulse
+          </button>
+        </div>
+
+        {pageTab === "pulse" ? (
+          <div className="card space-y-2">
+            <p className="section-title">🟢 Active Now</p>
+            {teamMembers === null ? (
+              <SkeletonList cards={1} lines={3} />
+            ) : activeMembers.length === 0 ? (
+              <p className="empty-state">No one else has the app open right now.</p>
+            ) : (
+              <div className="space-y-1.5">
+                {activeMembers.map((m) => (
+                  <div key={m.user_id} className="flex items-center gap-2 text-sm">
+                    <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-400" aria-hidden="true" />
+                    <Link
+                      href={`/profile/${m.user_id}`}
+                      className="text-slate-200 underline decoration-dotted underline-offset-2"
+                    >
+                      {[m.first_name, m.last_name].filter(Boolean).join(" ") || "Unnamed"}
+                    </Link>
+                    {m.user_id === user.id && <span className="text-xs text-slate-500">(you)</span>}
+                    <span className="text-xs text-slate-500">{m.team}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <>
         <div className="card space-y-3">
           <p className="section-title">📸 Today&apos;s Prompt</p>
           <p className="text-sm text-slate-200">{prompt}</p>
@@ -311,6 +375,8 @@ export default function StoriesPage() {
               <p className="text-xs text-slate-500">{expiresLabel(story.created_at)}</p>
             </div>
           ))
+        )}
+          </>
         )}
       </main>
     </>

@@ -37,6 +37,13 @@ type AuthContextValue = {
   refreshUnreadCount: () => void;
   refreshProfile: () => void;
   signOut: () => void;
+  // Who else has the app open right now, team-wide - Stories' Pulse tab's
+  // "who's active now" indicator. Pure Realtime Presence (ephemeral,
+  // resets on disconnect, no table/publication involved), tracked here
+  // rather than on the Stories page itself so it reflects real app usage
+  // everywhere, not just whoever happens to also be on Stories at the
+  // same moment.
+  activeUserIds: string[];
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -81,6 +88,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   const [profileLoading, setProfileLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+  const [activeUserIds, setActiveUserIds] = useState<string[]>([]);
 
   useEffect(() => {
     withTimeout(supabase.auth.getSession(), "Timed out checking your session — check your connection.")
@@ -250,6 +258,31 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     };
   }, [fullyAuthed]);
 
+  // Presence, not Postgres Changes - an ephemeral "who's connected to this
+  // channel right now" roster the Realtime server tracks in memory, gone
+  // the instant a tab closes/loses connection. No table or publication
+  // involved, unlike the two channels above. config.presence.key = the
+  // user's own id, so presenceState()'s keys directly are the list of
+  // currently-active user ids - one entry per person, not per tab (a
+  // second tab from the same person just adds another presence under the
+  // same key).
+  useEffect(() => {
+    if (!fullyAuthed || !user) return;
+    const channel = supabase.channel("app_presence", { config: { presence: { key: user.id } } });
+    channel
+      .on("presence", { event: "sync" }, () => {
+        setActiveUserIds(Object.keys(channel.presenceState()));
+      })
+      .subscribe(async (status) => {
+        if (status === "SUBSCRIBED") {
+          await channel.track({ online_at: new Date().toISOString() });
+        }
+      });
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fullyAuthed, user]);
+
   // /prospect is a public, unauthenticated view (a candidate enters their
   // access code, no account involved) - it renders standalone rather than
   // behind the normal sign-in wall. /reset-password is similar: arriving
@@ -341,6 +374,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
         refreshUnreadCount,
         refreshProfile: () => loadProfile(user.id),
         signOut: () => supabase.auth.signOut(),
+        activeUserIds,
       }}
     >
       <ConfigWarning />
