@@ -5642,6 +5642,27 @@ per row) - tapping it reveals the full list, tapping again hides it. The
 heart button itself still toggles like/unlike exactly as before; "who?"
 is a separate tap target next to it, not layered onto the same button.
 
+### Account deletion now also cleans up storage
+
+`delete_downline_account()` deletes from `auth.users`, which cascades
+through every DB row referencing that user - but Storage objects aren't
+rows Postgres's cascade can reach, so a deleted person's avatar photo and
+story photos stayed in the (public) `avatars`/`story-photos` buckets
+forever, still reachable by direct URL, with nothing in the app pointing
+at them anymore. New `POST /api/admin/delete-account-storage` (same
+auth pattern as the other admin routes - `isPrimaryUser()` or
+`is_upline_of()` via the caller's own bearer token) lists and removes
+everything under `<bucket>/<user_id>/` in both buckets. Team's delete
+flow calls it right before the actual `delete_downline_account` RPC,
+best-effort - a failure here doesn't block the account deletion itself,
+it just means a photo stays orphaned the same as it always has until now.
+
+Both buckets are deliberately `public: true` (so teammates can view each
+other's photos without a signed URL) with per-user-folder RLS restricting
+uploads/deletes to the owner - a reasonable tradeoff for profile/story
+photos specifically, not a bug. This fix is about cleanup on deletion,
+not about locking the buckets down.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

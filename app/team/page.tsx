@@ -556,6 +556,21 @@ export default function TeamPage() {
     setDeleting(true);
     setDeleteError("");
     const removedEmail = selectedProfile?.email ?? null;
+    const targetId = selectedId;
+    // Storage objects (avatar photo, story photos) aren't rows the
+    // account-deletion RPC's cascade can reach - clean those up first.
+    // Best-effort: a failure here shouldn't block deleting the account
+    // itself, it just means a photo stays orphaned same as before this
+    // step existed.
+    try {
+      await authedFetch("/api/admin/delete-account-storage", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetUserId: targetId }),
+      });
+    } catch {
+      // Best-effort, see comment above.
+    }
     const { error } = await supabase.rpc("delete_downline_account", {
       p_user_id: selectedId,
     });
