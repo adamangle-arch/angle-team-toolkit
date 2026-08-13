@@ -18,7 +18,7 @@ import {
   formatMonthLabel,
   getToday,
 } from "@/lib/dates";
-import { PIPELINE_STAGES, STREAK_MILESTONES, type PipelineStageKey } from "@/lib/constants";
+import { isPrimaryUser, PIPELINE_STAGES, STREAK_MILESTONES, type PipelineStageKey } from "@/lib/constants";
 import type {
   TeamTotals,
   IndividualLeaderEntry,
@@ -31,7 +31,30 @@ import type {
   NewMember,
   Liker,
   MilestoneEntry,
+  MyRankEntry,
+  RisingStarEntry,
+  WallOfFameEntry,
+  TeamMemberBasic,
+  TeamChallenge,
+  ChallengeLeaderboardEntry,
 } from "@/lib/types";
+
+// A streak this long gets its own callout on Spotlight rather than only
+// showing up buried in the Consistency tab's full streak list.
+const HOT_STREAK_DAYS = 14;
+
+// ISO-ish week number (Sunday-based, matches getWeekStart's own Monday
+// convention closely enough for "deterministic weekly pick" purposes -
+// doesn't need to be calendar-accurate, just stable for 7 days at a time
+// and different from the week before/after).
+function weekNumber(dateStr: string): number {
+  return Math.floor(new Date(`${dateStr}T00:00:00`).getTime() / (7 * 86_400_000));
+}
+
+const WALL_OF_FAME_ICONS: Record<string, string> = {
+  streak_milestone_reached: "🔥",
+  badge_earned: "🏅",
+};
 
 type PeriodType = "daily" | "weekly" | "monthly";
 type LikeInfo = { count: number; likedByMe: boolean; names: string[] };
@@ -45,12 +68,14 @@ const CATEGORIES = PIPELINE_STAGES.filter((s) => s.key !== "questions");
 // screens instead of one undifferentiated stack. Volume only ever applies
 // to the monthly period (Core 300/Ditto are calendar-month numbers), so
 // it's the one tab that can disappear depending on periodType.
-type CategoryTab = "activity" | "leaders" | "consistency" | "volume";
+type CategoryTab = "activity" | "leaders" | "consistency" | "volume" | "spotlight" | "arena";
 const CATEGORY_TABS: { key: CategoryTab; label: string; icon: string }[] = [
   { key: "activity", label: "Activity", icon: "📣" },
   { key: "leaders", label: "Leaders", icon: "🏆" },
   { key: "consistency", label: "Consistency", icon: "🔥" },
   { key: "volume", label: "Volume", icon: "💰" },
+  { key: "spotlight", label: "Spotlight", icon: "✨" },
+  { key: "arena", label: "Arena", icon: "⚔️" },
 ];
 
 function personName(entry: { first_name: string | null; last_name: string | null }): string {
@@ -279,6 +304,26 @@ export default function LeaderboardPage() {
   const [salesFeed, setSalesFeed] = useState<DailySaleEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Spotlight tab
+  const [myRank, setMyRank] = useState<MyRankEntry | null>(null);
+  const [risingStar, setRisingStar] = useState<RisingStarEntry | null>(null);
+  const [wallOfFame, setWallOfFame] = useState<WallOfFameEntry[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMemberBasic[]>([]);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  // Arena tab
+  const [challenges, setChallenges] = useState<TeamChallenge[]>([]);
+  const [selectedChallengeId, setSelectedChallengeId] = useState<string | null>(null);
+  const [challengeLeaderboard, setChallengeLeaderboard] = useState<ChallengeLeaderboardEntry[]>([]);
+  const [challengeLeaderboardLoading, setChallengeLeaderboardLoading] = useState(false);
+  const [showNewChallenge, setShowNewChallenge] = useState(false);
+  const [newChallengeTitle, setNewChallengeTitle] = useState("");
+  const [newChallengeStage, setNewChallengeStage] = useState<PipelineStageKey>("questions");
+  const [newChallengeStart, setNewChallengeStart] = useState(getToday());
+  const [newChallengeEnd, setNewChallengeEnd] = useState(getToday());
+  const [challengeSaving, setChallengeSaving] = useState(false);
+  const [challengeError, setChallengeError] = useState<string | null>(null);
+
   const [myName, setMyName] = useState("You");
   const [likesMap, setLikesMap] = useState<Map<string, LikeInfo>>(new Map());
 
@@ -414,6 +459,87 @@ export default function LeaderboardPage() {
     };
   }, [periodStart]);
 
+  // Your Rank - fixed to Questions rather than a picker, same "one clear
+  // number, not another dropdown" call as the rest of this page's tabs.
+  useEffect(() => {
+    let cancelled = false;
+    supabase
+      .rpc("get_my_rank", { p_period_type: periodType, p_period_start: periodStart, p_stage_key: "questions" })
+      .then(({ data }) => {
+        if (!cancelled) setMyRank(((data as MyRankEntry[]) ?? [])[0] ?? null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [periodType, periodStart]);
+
+  // Rising Star only has a week-over-week comparison to make - daily/
+  // monthly have no equivalent "previous period" this RPC computes.
+  useEffect(() => {
+    // Not reset back to null on leaving Weekly - stale data sitting in
+    // state is harmless since the Rising Star card below only ever
+    // renders while periodType === "weekly" anyway.
+    if (periodType !== "weekly") return;
+    let cancelled = false;
+    supabase.rpc("get_rising_star", { p_period_start: periodStart }).then(({ data }) => {
+      if (!cancelled) setRisingStar(((data as RisingStarEntry[]) ?? [])[0] ?? null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [periodType, periodStart]);
+
+  // Wall of Fame + the team roster for the weekly spotlight pick - neither
+  // depends on periodType/periodStart, so both load once per visit.
+  useEffect(() => {
+    let cancelled = false;
+    supabase.rpc("get_wall_of_fame", { p_limit: 20 }).then(({ data }) => {
+      if (!cancelled) setWallOfFame((data as WallOfFameEntry[]) ?? []);
+    });
+    supabase.rpc("get_all_team_members").then(({ data }) => {
+      if (!cancelled) setTeamMembers((data as TeamMemberBasic[]) ?? []);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Arena's challenge list - independent of periodType/periodStart, so it
+  // also only loads once per visit; individual challenge leaderboards load
+  // on demand when one is tapped (see the effect below).
+  useEffect(() => {
+    let cancelled = false;
+    supabase
+      .from("team_challenges")
+      .select("*")
+      .order("starts_on", { ascending: false })
+      .then(({ data }) => {
+        if (!cancelled) setChallenges((data as TeamChallenge[]) ?? []);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    // Not reset back to [] when deselected - stale data sitting in state
+    // is harmless since the leaderboard below only ever renders while
+    // selectedChallengeId still matches the card it's nested under.
+    if (!selectedChallengeId) return;
+    let cancelled = false;
+    async function load() {
+      setChallengeLeaderboardLoading(true);
+      const { data } = await supabase.rpc("get_challenge_leaderboard", { p_challenge_id: selectedChallengeId });
+      if (cancelled) return;
+      setChallengeLeaderboard((data as ChallengeLeaderboardEntry[]) ?? []);
+      setChallengeLeaderboardLoading(false);
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedChallengeId]);
+
   useEffect(() => {
     let cancelled = false;
     supabase
@@ -461,6 +587,76 @@ export default function LeaderboardPage() {
     return map;
   }, [individualLeaders]);
 
+  // Deterministic by calendar week (see weekNumber's own comment) - the
+  // same person all week for everyone viewing this, not a fresh reroll
+  // on every page load.
+  const weeklySpotlightPick = useMemo(() => {
+    if (teamMembers.length === 0) return null;
+    const idx = weekNumber(getWeekStart()) % teamMembers.length;
+    return teamMembers[idx];
+  }, [teamMembers]);
+
+  const hotStreakLeader =
+    streakLeaders.length > 0 && streakLeaders[0].streak_days >= HOT_STREAK_DAYS ? streakLeaders[0] : null;
+
+  // Only meaningful on the Monthly toggle - teamTotals otherwise reflects
+  // whichever Daily/Weekly period is selected, not the calendar month.
+  const monthlyRecap = useMemo(() => {
+    if (periodType !== "monthly" || teamTotals.length === 0) return null;
+    const totals = {} as Record<PipelineStageKey, number>;
+    for (const c of CATEGORIES) totals[c.key] = 0;
+    for (const t of teamTotals) {
+      for (const c of CATEGORIES) totals[c.key] += t[c.key];
+    }
+    return totals;
+  }, [periodType, teamTotals]);
+
+  async function copyWallOfFameEntry(entry: WallOfFameEntry) {
+    const name = personName(entry);
+    const text = `🎉 ${name}${entry.team ? ` (${entry.team})` : ""}: ${entry.title}`;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedKey(`${entry.user_id}:${entry.created_at}`);
+      setTimeout(() => setCopiedKey(null), 2000);
+    } catch {
+      // Clipboard access can be denied (permissions, insecure context) -
+      // silently no-op rather than surfacing an error for a nice-to-have.
+    }
+  }
+
+  async function createChallenge() {
+    const title = newChallengeTitle.trim();
+    if (!title) return;
+    setChallengeSaving(true);
+    setChallengeError(null);
+    const { data, error } = await supabase
+      .from("team_challenges")
+      .insert({
+        title,
+        stage_key: newChallengeStage,
+        starts_on: newChallengeStart,
+        ends_on: newChallengeEnd,
+        created_by: user.id,
+      })
+      .select("*")
+      .single();
+    setChallengeSaving(false);
+    if (error) {
+      setChallengeError(error.message);
+      return;
+    }
+    setChallenges((prev) => [data as TeamChallenge, ...prev]);
+    setNewChallengeTitle("");
+    setShowNewChallenge(false);
+  }
+
+  async function deleteChallenge(id: string) {
+    if (!window.confirm("Delete this challenge? This can't be undone.")) return;
+    setChallenges((prev) => prev.filter((c) => c.id !== id));
+    if (selectedChallengeId === id) setSelectedChallengeId(null);
+    await supabase.from("team_challenges").delete().eq("id", id);
+  }
+
   // Volume now has content on every period (the sales feed card always
   // renders something for whichever period is selected, on top of Core
   // 300/Ditto for Monthly specifically), so all four tabs are always
@@ -491,6 +687,9 @@ export default function LeaderboardPage() {
       // has Core 300/Ditto as its volume picture, so the sales feed card
       // itself is Daily/Weekly-only (see the JSX below).
       volume: core300.length + ditto.length + (periodType === "monthly" ? 0 : salesFeed.length),
+      spotlight:
+        (myRank ? 1 : 0) + (risingStar ? 1 : 0) + (hotStreakLeader ? 1 : 0) + wallOfFame.length,
+      arena: challenges.length,
     }),
     [
       periodType,
@@ -504,6 +703,11 @@ export default function LeaderboardPage() {
       activeCandidates,
       core300,
       ditto,
+      myRank,
+      risingStar,
+      hotStreakLeader,
+      wallOfFame,
+      challenges,
     ]
   );
 
@@ -1051,6 +1255,211 @@ export default function LeaderboardPage() {
                       })
                     )}
                   </Card>
+                )}
+              </>
+            )}
+
+            {displayTab === "spotlight" && (
+              <>
+                {hotStreakLeader && (
+                  <Card title="🔥 Hot Streak">
+                    <p className="text-sm text-slate-200">
+                      <PersonLink entry={hotStreakLeader} /> is on a{" "}
+                      <span className="text-amber-light">{hotStreakLeader.streak_days}-day</span> Core Run
+                      streak! <span className="text-xs text-slate-500">({hotStreakLeader.team})</span>
+                    </p>
+                  </Card>
+                )}
+
+                <Card title="📊 Your Rank">
+                  {myRank ? (
+                    <p className="text-sm text-slate-200">
+                      You&apos;re <span className="text-amber-light">#{myRank.rank}</span> of {myRank.total}{" "}
+                      in Questions this {periodType === "daily" ? "day" : periodType === "weekly" ? "week" : "month"}{" "}
+                      — top {Math.max(1, Math.round((myRank.rank / myRank.total) * 100))}%.
+                    </p>
+                  ) : (
+                    <p className="text-sm text-slate-400">Log some Questions this period to see your rank.</p>
+                  )}
+                </Card>
+
+                {periodType === "weekly" && (
+                  <Card title="🚀 Rising Star">
+                    {risingStar && risingStar.delta > 0 ? (
+                      <p className="text-sm text-slate-200">
+                        <PersonLink entry={risingStar} /> jumped from {risingStar.last_week} to{" "}
+                        <span className="text-amber-light">{risingStar.this_week}</span> Questions this week{" "}
+                        <span className="text-xs text-slate-500">({risingStar.team})</span>
+                      </p>
+                    ) : (
+                      <p className="text-sm text-slate-400">No one&apos;s improved on last week yet.</p>
+                    )}
+                  </Card>
+                )}
+
+                {weeklySpotlightPick && (
+                  <Card title="⭐ This Week's Spotlight">
+                    <p className="text-sm text-slate-200">
+                      <PersonLink entry={weeklySpotlightPick} />{" "}
+                      <span className="text-xs text-slate-500">({weeklySpotlightPick.team})</span>
+                    </p>
+                  </Card>
+                )}
+
+                {monthlyRecap && (
+                  <Card title="📅 Monthly Recap">
+                    <div className="grid grid-cols-2 gap-2">
+                      {CATEGORIES.map((c) => (
+                        <div key={c.key} className="rounded-lg bg-navy p-2">
+                          <p className="text-lg font-bold text-white">{monthlyRecap[c.key]}</p>
+                          <p className="text-xs text-slate-400">{c.label} (whole team)</p>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                )}
+
+                <Card title="🏛️ Wall of Fame">
+                  {wallOfFame.length === 0 ? (
+                    <p className="text-sm text-slate-400">
+                      Nothing here yet — milestones and badges will show up as they happen.
+                    </p>
+                  ) : (
+                    wallOfFame.map((entry) => {
+                      const copyKey = `${entry.user_id}:${entry.created_at}`;
+                      return (
+                        <div key={copyKey} className="flex items-start justify-between gap-2 text-sm">
+                          <span className="text-slate-200">
+                            {WALL_OF_FAME_ICONS[entry.kind] ?? "🎉"} <PersonLink entry={entry} showAvatar={false} />{" "}
+                            — {entry.title}{" "}
+                            <span className="text-xs text-slate-500">
+                              ({entry.team}) — {formatDateLabel(entry.created_at.slice(0, 10))}
+                            </span>
+                          </span>
+                          <button className="chip-btn shrink-0 text-xs" onClick={() => copyWallOfFameEntry(entry)}>
+                            {copiedKey === copyKey ? "Copied!" : "Share"}
+                          </button>
+                        </div>
+                      );
+                    })
+                  )}
+                </Card>
+              </>
+            )}
+
+            {displayTab === "arena" && (
+              <>
+                {isPrimaryUser(user.email) && (
+                  <div className="card space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="section-title">⚔️ Challenges</p>
+                      <button className="chip-btn" onClick={() => setShowNewChallenge((v) => !v)}>
+                        {showNewChallenge ? "Cancel" : "+ New Challenge"}
+                      </button>
+                    </div>
+                    {showNewChallenge && (
+                      <div className="space-y-2">
+                        <input
+                          className="input"
+                          placeholder='Challenge title (e.g. "August Launch Sprint")'
+                          value={newChallengeTitle}
+                          onChange={(e) => setNewChallengeTitle(e.target.value)}
+                        />
+                        <select
+                          className="input"
+                          value={newChallengeStage}
+                          onChange={(e) => setNewChallengeStage(e.target.value as PipelineStageKey)}
+                        >
+                          {PIPELINE_STAGES.map((s) => (
+                            <option key={s.key} value={s.key}>
+                              {s.label}
+                            </option>
+                          ))}
+                        </select>
+                        <div className="flex gap-2">
+                          <input
+                            type="date"
+                            className="input flex-1"
+                            value={newChallengeStart}
+                            onChange={(e) => setNewChallengeStart(e.target.value)}
+                          />
+                          <input
+                            type="date"
+                            className="input flex-1"
+                            value={newChallengeEnd}
+                            onChange={(e) => setNewChallengeEnd(e.target.value)}
+                          />
+                        </div>
+                        {challengeError && <p className="text-xs text-red-400">{challengeError}</p>}
+                        <button
+                          className="btn-secondary w-full"
+                          onClick={createChallenge}
+                          disabled={challengeSaving || !newChallengeTitle.trim()}
+                        >
+                          {challengeSaving ? "Creating…" : "Create Challenge"}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {challenges.length === 0 ? (
+                  <div className="empty-state">No challenges yet.</div>
+                ) : (
+                  challenges.map((c) => {
+                    const today = getToday();
+                    const status = today < c.starts_on ? "Upcoming" : today > c.ends_on ? "Past" : "Active";
+                    const isSelected = selectedChallengeId === c.id;
+                    return (
+                      <div key={c.id} className="card space-y-2">
+                        <button
+                          className="flex w-full items-center justify-between gap-2 text-left"
+                          onClick={() => setSelectedChallengeId(isSelected ? null : c.id)}
+                        >
+                          <div>
+                            <p className="font-medium text-white">{c.title}</p>
+                            <p className="text-xs text-slate-500">
+                              {PIPELINE_STAGES.find((s) => s.key === c.stage_key)?.label} ·{" "}
+                              {formatDateLabel(c.starts_on)} – {formatDateLabel(c.ends_on)}
+                            </p>
+                          </div>
+                          <span className={status === "Active" ? "pill pill-amber" : "pill"}>{status}</span>
+                        </button>
+                        {isPrimaryUser(user.email) && (
+                          <button
+                            className="text-xs text-red-400 underline"
+                            onClick={() => deleteChallenge(c.id)}
+                          >
+                            Delete
+                          </button>
+                        )}
+                        {isSelected && (
+                          <div className="space-y-1.5 border-t border-white/5 pt-2">
+                            {challengeLeaderboardLoading ? (
+                              <p className="text-sm text-slate-400">Loading…</p>
+                            ) : challengeLeaderboard.filter((e) => e.value > 0).length === 0 ? (
+                              <p className="text-sm text-slate-400">
+                                No one&apos;s logged anything for this challenge yet.
+                              </p>
+                            ) : (
+                              challengeLeaderboard
+                                .filter((e) => e.value > 0)
+                                .slice(0, 15)
+                                .map((e, i) => (
+                                  <div key={e.user_id} className="flex items-center justify-between text-sm">
+                                    <span className="text-slate-200">
+                                      {i + 1}. <PersonLink entry={e} />{" "}
+                                      <span className="text-xs text-slate-500">({e.team})</span>
+                                    </span>
+                                    <span className="pill pill-amber">{e.value}</span>
+                                  </div>
+                                ))
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
                 )}
               </>
             )}

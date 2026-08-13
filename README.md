@@ -5823,6 +5823,73 @@ alter table profiles add constraint profiles_pinned_kpis_check check (
 );
 ```
 
+### Leaderboard: Spotlight + Arena tabs
+
+Two more of the same feature-brainstorming round's tabs (Spotlight, Arena),
+folded into Leaderboard instead of becoming two more nav entries - both
+turned out to be extensions of what Leaderboard already does (rankings,
+milestone celebrations) rather than genuinely separate destinations. Same
+`CATEGORY_TABS` pattern the existing Activity/Leaders/Consistency/Volume
+tabs use, so it's now a 6-tab page.
+
+**Spotlight**:
+- **Your Rank** - new `get_my_rank(period_type, period_start, stage_key)`
+  RPC: rank + percentile among everyone with a `pipeline_periods` row for
+  the period, fixed to Questions rather than adding another stage picker.
+  The stage key has to be interpolated into the query as a column name
+  (no bind parameter for that), so it's validated against the same fixed
+  10-key list every other stage-key check constraint in this file already
+  uses before going anywhere near `format()` - the same allowlist-then-
+  dynamic-SQL pattern the storage-bucket RLS loop earlier in this file
+  uses for table names.
+- **Rising Star** - `get_rising_star(period_start)`, weekly only: the
+  single biggest week-over-week Questions gainer, comparing this week's
+  `pipeline_periods` row to last week's.
+- **Hot Streak** callout - the existing `streakLeaders` list's own top
+  entry, surfaced as a banner when it's 14+ days, instead of only living
+  buried in the Consistency tab's full list.
+- **This Week's Spotlight** - a deterministic-by-week random team member
+  (new `get_all_team_members()` RPC + a week-number-seeded pick client-
+  side), so everyone sees the same featured person all week, not a fresh
+  reroll on every page load.
+- **Monthly Recap** - only shown on the Monthly toggle: the already-
+  fetched `teamTotals` summed across every category into one whole-team
+  recap card.
+- **Wall of Fame** - a real historical feed, not a new log table:
+  `get_wall_of_fame()` reads `sent_notifications` back team-wide (bypassing
+  the normal only-yours-or-broadcast RLS, same security-definer carve-out
+  `get_recent_milestones`/`get_new_members` already use), deliberately
+  limited to `streak_milestone_reached` and `badge_earned` - the only two
+  kinds where `sent_notifications.user_id` is actually the achiever.
+  `candidate_launched` and `onboarding_completed` both notify the
+  achiever's **upline**, not the achiever, so including them here would
+  have credited the wrong person for the milestone - caught before
+  shipping by re-reading `/api/notify`'s actual recipient list for each
+  kind rather than assuming "self-targeted" from the kind name alone.
+  Each entry has a "Share" button that copies a ready-to-paste
+  congratulations line to the clipboard - a real, if simpler, version of
+  the "shareable milestone card" idea from the brainstorm, short of a full
+  canvas-rendered image generator.
+
+**Arena**: admin-created, time-boxed team competitions with their own
+leaderboard - distinct from the evergreen, always-on Leaderboard tabs.
+New `team_challenges` table (title, `stage_key`, `starts_on`/`ends_on`,
+`created_by`; select open to the whole team, insert/update/delete admin-
+only) plus `get_challenge_leaderboard(challenge_id)`, which sums daily
+`pipeline_periods` for the challenge's stage across its date range for
+everyone on a team - same allowlist-then-`format()` dynamic SQL as
+`get_my_rank` above, since `stage_key` again has to be interpolated as a
+column name. Challenges list as Upcoming/Active/Past (computed from
+today vs. `starts_on`/`ends_on`); tapping one loads its leaderboard on
+demand. Admins get an inline "+ New Challenge" form and a Delete button
+on each challenge.
+
+Run once in the Supabase SQL editor - the full `get_my_rank`,
+`get_rising_star`, `get_wall_of_fame`, `get_all_team_members`,
+`team_challenges` (+ RLS), and `get_challenge_leaderboard` definitions
+live in `supabase/schema.sql`'s "16. LEADERBOARD: SPOTLIGHT + ARENA TABS"
+section - paste that whole section into the SQL editor and run it.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

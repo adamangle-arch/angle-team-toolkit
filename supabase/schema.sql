@@ -6536,3 +6536,212 @@ alter table profiles drop constraint if exists profiles_pinned_kpis_check;
 alter table profiles add constraint profiles_pinned_kpis_check check (
   pinned_kpis <@ array['questions','yeses','qi1','qi2','is1','fu1','is2','fu2','questionnaire','launches']
 );
+
+-- 16. LEADERBOARD: SPOTLIGHT + ARENA TABS --------------------------------
+-- Two more brainstormed tabs (Spotlight, Arena) that turned out to overlap
+-- enough with the existing Leaderboard page that they became two more
+-- category tabs on it instead of two more nav entries - Arena is still
+-- ranking-based content, and Spotlight's percentile framing is literally
+-- about the rank display Leaderboard already has.
+
+-- Your Rank: where the caller stands (rank + percentile) among everyone
+-- who logged a pipeline_periods row for a given period/stage. The stage
+-- key has to be interpolated into the query (there's no column-name bind
+-- parameter), so it's validated against the same fixed PIPELINE_STAGES
+-- list as every other stage-key check constraint in this file before
+-- going anywhere near format() - the same dynamic-SQL-with-an-allowlist
+-- pattern the storage-bucket RLS loop earlier in this file already uses.
+create or replace function public.get_my_rank(
+  p_period_type text,
+  p_period_start date,
+  p_stage_key text
+)
+returns table (rank bigint, total bigint, value int)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  v_sql text;
+begin
+  if p_stage_key not in (
+    'questions','yeses','qi1','qi2','is1','fu1','is2','fu2','questionnaire','launches'
+  ) then
+    raise exception 'invalid stage key: %', p_stage_key;
+  end if;
+  v_sql := format(
+    $q$
+      with ranked as (
+        select user_id, %I as value,
+          rank() over (order by %I desc) as rnk,
+          count(*) over () as total
+        from pipeline_periods
+        where period_type = $1 and period_start = $2
+      )
+      select rnk, total, value from ranked where user_id = $3
+    $q$,
+    p_stage_key, p_stage_key
+  );
+  return query execute v_sql using p_period_type, p_period_start, auth.uid();
+end;
+$$;
+
+grant execute on function public.get_my_rank(text, date, text) to authenticated;
+
+-- Rising Star: the single biggest week-over-week Questions gainer -
+-- weekly only (a daily/monthly equivalent would need a different
+-- previous-period offset, and Questions is the one metric everyone logs
+-- regardless of where they are in the pipeline). Ties aren't broken
+-- further - whoever sorts first wins the one row returned, same
+-- "good enough, not worth a tiebreak rule" call as other single-winner
+-- leaderboard rows in this file.
+create or replace function public.get_rising_star(p_period_start date)
+returns table (
+  user_id uuid, first_name text, last_name text, team text,
+  this_week int, last_week int, delta int
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  with cur as (
+    select user_id, questions from pipeline_periods
+    where period_type = 'weekly' and period_start = p_period_start
+  ),
+  prev as (
+    select user_id, questions from pipeline_periods
+    where period_type = 'weekly' and period_start = (p_period_start - interval '7 days')::date
+  )
+  select p.id, p.first_name, p.last_name, p.team,
+    coalesce(c.questions, 0), coalesce(pr.questions, 0),
+    coalesce(c.questions, 0) - coalesce(pr.questions, 0) as delta
+  from profiles p
+  join cur c on c.user_id = p.id
+  left join prev pr on pr.user_id = p.id
+  where p.team is not null
+  order by delta desc
+  limit 1;
+$$;
+
+grant execute on function public.get_rising_star(date) to authenticated;
+
+-- Wall of Fame: a real historical feed, not a new log table - reads back
+-- team-wide (bypassing the normal only-yours-or-broadcast sent_notifications
+-- RLS, same security-definer carve-out get_recent_milestones/get_new_members
+-- already use) instead of logging anything new. Deliberately limited to
+-- streak_milestone_reached and badge_earned - the only two kinds where
+-- sent_notifications.user_id is actually the achiever. candidate_launched
+-- and onboarding_completed both notify the achiever's UPLINE, not the
+-- achiever themselves, so their rows' user_id would credit the wrong
+-- person here.
+create or replace function public.get_wall_of_fame(p_limit int default 30)
+returns table (
+  user_id uuid, first_name text, last_name text, team text,
+  kind text, title text, body text, created_at timestamptz
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select p.id, p.first_name, p.last_name, p.team, sn.kind, sn.title, sn.body, sn.created_at
+  from sent_notifications sn
+  join profiles p on p.id = sn.user_id
+  where sn.kind in ('streak_milestone_reached', 'badge_earned')
+    and p.team is not null
+  order by sn.created_at desc
+  limit p_limit;
+$$;
+
+grant execute on function public.get_wall_of_fame(int) to authenticated;
+
+-- Everyone with a team, for the Spotlight tab's "this week's random
+-- teammate" pick - the actual randomness (seeded by week number, so
+-- everyone sees the same pick all week rather than a new one per reload)
+-- happens client-side over this list, same as how weekStart-based
+-- determinism already works elsewhere in the app.
+create or replace function public.get_all_team_members()
+returns table (user_id uuid, first_name text, last_name text, team text)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select id, first_name, last_name, team from profiles where team is not null order by id;
+$$;
+
+grant execute on function public.get_all_team_members() to authenticated;
+
+-- Arena: admin-created, time-boxed team competitions with their own
+-- leaderboard - distinct from the evergreen period-based Leaderboard
+-- tabs, which never end and always cover the whole team on a fixed
+-- daily/weekly/monthly cadence.
+create table if not exists team_challenges (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  stage_key text not null check (
+    stage_key in ('questions','yeses','qi1','qi2','is1','fu1','is2','fu2','questionnaire','launches')
+  ),
+  starts_on date not null,
+  ends_on date not null check (ends_on >= starts_on),
+  created_by uuid references auth.users(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+alter table team_challenges enable row level security;
+
+-- Visible to the whole team, same as every other Leaderboard tab - only
+-- creating/editing/removing a challenge is admin-only.
+drop policy if exists "team_challenges_select_all" on team_challenges;
+create policy "team_challenges_select_all" on team_challenges for select using (true);
+
+drop policy if exists "team_challenges_admin_insert" on team_challenges;
+create policy "team_challenges_admin_insert" on team_challenges for insert with check (public.is_app_admin());
+
+drop policy if exists "team_challenges_admin_update" on team_challenges;
+create policy "team_challenges_admin_update" on team_challenges for update using (public.is_app_admin());
+
+drop policy if exists "team_challenges_admin_delete" on team_challenges;
+create policy "team_challenges_admin_delete" on team_challenges for delete using (public.is_app_admin());
+
+-- A challenge's own leaderboard: sums daily pipeline_periods for its
+-- stage_key across its date range, for everyone on a team - same
+-- allowlisted-then-format()'d dynamic SQL as get_my_rank above, since
+-- stage_key again has to be interpolated as a column name.
+create or replace function public.get_challenge_leaderboard(p_challenge_id uuid)
+returns table (user_id uuid, first_name text, last_name text, team text, value bigint)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  v_stage text;
+  v_start date;
+  v_end date;
+  v_sql text;
+begin
+  select stage_key, starts_on, ends_on into v_stage, v_start, v_end
+  from team_challenges where id = p_challenge_id;
+  if v_stage is null then
+    return;
+  end if;
+  v_sql := format(
+    $q$
+      select p.id, p.first_name, p.last_name, p.team, coalesce(sum(pp.%I), 0)::bigint as value
+      from profiles p
+      left join pipeline_periods pp on pp.user_id = p.id and pp.period_type = 'daily'
+        and pp.period_start between $1 and $2
+      where p.team is not null
+      group by p.id, p.first_name, p.last_name, p.team
+      order by value desc
+    $q$,
+    v_stage
+  );
+  return query execute v_sql using v_start, v_end;
+end;
+$$;
+
+grant execute on function public.get_challenge_leaderboard(uuid) to authenticated;

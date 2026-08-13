@@ -94,6 +94,61 @@ export type TeamTotals = {
   member_count: number;
 } & Record<PipelineStageKey, number>;
 
+// Leaderboard's Spotlight/Arena tabs (get_my_rank, get_rising_star,
+// get_wall_of_fame, get_all_team_members, team_challenges/
+// get_challenge_leaderboard).
+export type MyRankEntry = {
+  rank: number;
+  total: number;
+  value: number;
+};
+
+export type RisingStarEntry = {
+  user_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  team: string | null;
+  this_week: number;
+  last_week: number;
+  delta: number;
+};
+
+export type WallOfFameEntry = {
+  user_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  team: string | null;
+  kind: string;
+  title: string;
+  body: string;
+  created_at: string;
+};
+
+export type TeamMemberBasic = {
+  user_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  team: string | null;
+};
+
+export type TeamChallenge = {
+  id: string;
+  title: string;
+  stage_key: PipelineStageKey;
+  starts_on: string;
+  ends_on: string;
+  created_by: string | null;
+  created_at: string;
+};
+
+export type ChallengeLeaderboardEntry = {
+  user_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  team: string | null;
+  value: number;
+};
+
 // Household-shareable leaderboard entries (everything except streaks)
 // carry partner_* fields — non-null when this person has a linked
 // spouse, so the Leaderboard can show and link to both profiles.
