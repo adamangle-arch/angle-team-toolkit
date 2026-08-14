@@ -17,6 +17,7 @@ import {
   getMonthStart,
   getMonthStartOffset,
   formatShortDateLabel,
+  formatDateLabel,
 } from "@/lib/dates";
 import { periodStartFor, averagesForPeriods, AVERAGES_WINDOW, AVERAGE_METRICS } from "@/lib/periodAverages";
 import type { PipelinePeriod, Profile, StreakDay, MonthlyPv, AverageLeaderEntry } from "@/lib/types";
@@ -93,6 +94,7 @@ function InsightsPageInner() {
   const [weeklyRows, setWeeklyRows] = useState<PipelinePeriod[]>([]);
   const [monthlyRow, setMonthlyRow] = useState<PipelinePeriod | null>(null);
   const [streakDays, setStreakDays] = useState<StreakDayRow[]>([]);
+  const [currentStreak, setCurrentStreak] = useState(0);
   const [downlineMembers, setDownlineMembers] = useState<DownlineMember[]>([]);
   const [downlineWeekly, setDownlineWeekly] = useState<Record<string, DownlineTotals>>({});
   const [trendStage, setTrendStage] = useState<PipelineStageKey>("launches");
@@ -176,46 +178,54 @@ function InsightsPageInner() {
     let cancelled = false;
     async function load() {
       setLoading(true);
-      const [{ data: currentWeek }, { data: daily }, { data: weekly }, { data: monthly }, { data: streak }] =
-        await Promise.all([
-          supabase
-            .from("pipeline_periods")
-            .select("*")
-            .eq("user_id", pipelineTargetId)
-            .eq("period_type", "weekly")
-            .eq("period_start", getWeekStartOffset(0))
-            .maybeSingle(),
-          supabase
-            .from("pipeline_periods")
-            .select("*")
-            .eq("user_id", pipelineTargetId)
-            .eq("period_type", "daily")
-            .gte("period_start", getDateOffset(DAILY_WINDOW_DAYS - 1)),
-          supabase
-            .from("pipeline_periods")
-            .select("*")
-            .eq("user_id", pipelineTargetId)
-            .eq("period_type", "weekly")
-            .in("period_start", weekStarts),
-          supabase
-            .from("pipeline_periods")
-            .select("*")
-            .eq("user_id", pipelineTargetId)
-            .eq("period_type", "monthly")
-            .eq("period_start", getMonthStartOffset(0))
-            .maybeSingle(),
-          supabase
-            .from("streak_days")
-            .select("day,read,listen,daily_update,story_share")
-            .eq("user_id", streakTargetId)
-            .gte("day", weekStarts[0]),
-        ]);
+      const [
+        { data: currentWeek },
+        { data: daily },
+        { data: weekly },
+        { data: monthly },
+        { data: streak },
+        { data: streakCount },
+      ] = await Promise.all([
+        supabase
+          .from("pipeline_periods")
+          .select("*")
+          .eq("user_id", pipelineTargetId)
+          .eq("period_type", "weekly")
+          .eq("period_start", getWeekStartOffset(0))
+          .maybeSingle(),
+        supabase
+          .from("pipeline_periods")
+          .select("*")
+          .eq("user_id", pipelineTargetId)
+          .eq("period_type", "daily")
+          .gte("period_start", getDateOffset(DAILY_WINDOW_DAYS - 1)),
+        supabase
+          .from("pipeline_periods")
+          .select("*")
+          .eq("user_id", pipelineTargetId)
+          .eq("period_type", "weekly")
+          .in("period_start", weekStarts),
+        supabase
+          .from("pipeline_periods")
+          .select("*")
+          .eq("user_id", pipelineTargetId)
+          .eq("period_type", "monthly")
+          .eq("period_start", getMonthStartOffset(0))
+          .maybeSingle(),
+        supabase
+          .from("streak_days")
+          .select("day,read,listen,daily_update,story_share")
+          .eq("user_id", streakTargetId)
+          .gte("day", weekStarts[0]),
+        supabase.rpc("get_current_streak", { p_user_id: streakTargetId }),
+      ]);
       if (cancelled) return;
       setCurrentWeekRow((currentWeek as PipelinePeriod) ?? null);
       setDailyRows((daily as PipelinePeriod[]) ?? []);
       setWeeklyRows((weekly as PipelinePeriod[]) ?? []);
       setMonthlyRow((monthly as PipelinePeriod) ?? null);
       setStreakDays((streak as StreakDayRow[]) ?? []);
+      setCurrentStreak((streakCount as number) ?? 0);
       setLoading(false);
     }
     load();
@@ -529,6 +539,104 @@ function InsightsPageInner() {
 
   const pinnedKpis = profile?.pinned_kpis ?? ["questions", "yeses", "qi1", "launches"];
 
+  // "Show me your numbers" - a plain-text digest of everything on this
+  // page, formatted to paste straight into a text thread with an upline
+  // rather than screenshot the app. Pulls from state/memos this page
+  // already computes for its own cards - nothing fetched twice.
+  const [copiedSummary, setCopiedSummary] = useState(false);
+
+  const summaryText = useMemo(() => {
+    const name = viewingSelf
+      ? [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "My"
+      : `${viewingName}'s`;
+    const lines: string[] = [];
+    lines.push(`📊 ${name} Numbers — ${formatDateLabel(getDateOffset(0))}`);
+    lines.push("");
+    lines.push(`🔥 Core Run Streak: ${currentStreak} day${currentStreak === 1 ? "" : "s"}`);
+    lines.push("");
+
+    lines.push("PIPELINE");
+    if (currentWeekRow) {
+      lines.push(
+        "This week — " +
+          PIPELINE_STAGES.map((s) => `${s.label}: ${currentWeekRow[s.key] ?? 0}`).join(", ")
+      );
+    } else {
+      lines.push("This week — nothing logged yet.");
+    }
+    if (monthlyRow) {
+      lines.push(
+        "This month — " +
+          PIPELINE_STAGES.map((s) => `${s.label}: ${monthlyRow[s.key] ?? 0}`).join(", ")
+      );
+    } else {
+      lines.push("This month — nothing logged yet.");
+    }
+    if (monthlyRow) {
+      lines.push(
+        "On pace for " + paceProjection.map((p) => `~${p.projected} ${p.label}`).join(", ") + " by month end"
+      );
+    }
+    lines.push("");
+
+    lines.push(`CONVERSION (last ${DAILY_WINDOW_DAYS} days)`);
+    if (dailyTotals.questions === 0) {
+      lines.push("No pipeline activity logged in this window yet.");
+    } else {
+      for (const r of stageConversion.rows) {
+        if (r.stepRate === null) continue;
+        const flag = stageConversion.worst?.key === r.key ? "  ← biggest drop-off" : "";
+        lines.push(`${r.prevLabel} → ${r.label}: ${Math.round(r.stepRate * 100)}%${flag}`);
+      }
+    }
+    lines.push("");
+
+    lines.push("HABITS (rolling averages)");
+    lines.push(
+      `Daily (${dailyAverages.windowCount}d): ` +
+        AVERAGE_METRICS.map((m) => `${dailyAverages[m.key].toFixed(1)} ${m.label}/day`).join(", ")
+    );
+    lines.push(
+      `Weekly (${weeklyAverages.windowCount}wk): ` +
+        AVERAGE_METRICS.map((m) => `${weeklyAverages[m.key].toFixed(1)} ${m.label}/wk`).join(", ")
+    );
+    lines.push(
+      `Monthly (${monthlyAverages.windowCount}mo): ` +
+        AVERAGE_METRICS.map((m) => `${monthlyAverages[m.key].toFixed(1)} ${m.label}/mo`).join(", ")
+    );
+    lines.push(
+      `🎧 ${coreRunAverages.audiosPerDay.toFixed(1)} audios/day · 📖 ${coreRunAverages.readAmountPerDay.toFixed(1)} ${readingUnitLabel.toLowerCase()}/day`
+    );
+
+    return lines.join("\n");
+  }, [
+    viewingSelf,
+    viewingName,
+    profile,
+    currentStreak,
+    currentWeekRow,
+    monthlyRow,
+    paceProjection,
+    dailyTotals,
+    stageConversion,
+    dailyAverages,
+    weeklyAverages,
+    monthlyAverages,
+    coreRunAverages,
+    readingUnitLabel,
+  ]);
+
+  async function copySummary() {
+    try {
+      await navigator.clipboard.writeText(summaryText);
+      setCopiedSummary(true);
+      setTimeout(() => setCopiedSummary(false), 2000);
+    } catch {
+      // Clipboard access can be denied (permissions, insecure context) -
+      // silently no-op rather than surfacing an error for a nice-to-have.
+    }
+  }
+
   return (
     <>
       <PageHeader title="Insights" subtitle="Your numbers, trends, and what they mean" />
@@ -584,6 +692,22 @@ function InsightsPageInner() {
                   ))}
                 </div>
               )}
+            </div>
+
+            <div className="card space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <p className="section-title">📋 Show Me Your Numbers</p>
+                <button className="chip-btn shrink-0" onClick={copySummary}>
+                  {copiedSummary ? "Copied!" : "Copy Summary"}
+                </button>
+              </div>
+              <p className="text-xs text-slate-400">
+                A copy-paste text summary of everything on this page - pipeline, conversion, Core Run streak,
+                and habits - ready to send to your upline.
+              </p>
+              <pre className="max-h-40 overflow-y-auto whitespace-pre-wrap rounded-lg bg-navy p-2.5 text-[11px] leading-relaxed text-slate-300">
+                {summaryText}
+              </pre>
             </div>
 
             <div className="card space-y-2">

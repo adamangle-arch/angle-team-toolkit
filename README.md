@@ -6081,6 +6081,20 @@ Run once in the Supabase SQL editor - `supabase/schema.sql`'s
 "19. STORIES: PULSE AVATAR ROW" section (Insights/Stage Conversion/
 correlation changes are client-only, no SQL needed).
 
+- **"Show Me Your Numbers"** - a "show me your numbers" upline
+  conversation shouldn't require a screenshot or scrolling through the
+  app together, so Insights gained a card that assembles everything else
+  already on the page - this week's and this month's pipeline, the pace
+  projection, the stage-conversion funnel (with the same biggest-drop-off
+  callout as the funnel card), and the rolling daily/weekly/monthly
+  habit averages plus Core Run streak - into one plain-text block with a
+  Copy button, ready to paste into a text thread. No new fetches beyond
+  `get_current_streak` (already existed, just wasn't called from this
+  page yet) - everything else reuses state this page was already loading
+  for its own cards. Respects the Viewing picker, so an upline peeking at
+  a downline's numbers gets that person's summary, not their own. No SQL
+  needed - `get_current_streak` already had its grant.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)
