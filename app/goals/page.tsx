@@ -1,18 +1,29 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
 import FeatureGate from "@/components/FeatureGate";
 import { SkeletonList } from "@/components/Skeleton";
 import { supabase } from "@/lib/supabaseClient";
-import { getWeekStart, getWeekStartOffset, formatWeekRangeLabel, getMonthStart } from "@/lib/dates";
+import {
+  getWeekStart,
+  getWeekStartOffset,
+  formatWeekRangeLabel,
+  getMonthStart,
+  getDateOffset,
+  getToday,
+  daysBetween,
+  formatDateLabel,
+} from "@/lib/dates";
 import {
   GOAL_ITEMS_BY_PERIOD,
   GOAL_PERIODS,
   READING_UNITS,
+  PIPELINE_STAGES,
   type GoalMetric,
   type GoalPeriod,
+  type PipelineStageKey,
   type ReadingUnit,
 } from "@/lib/constants";
 import type { Goal, PipelinePeriod, Profile, Reflection } from "@/lib/types";
@@ -183,6 +194,69 @@ export default function GoalsPage() {
     }
   }
 
+  // Goal-backwards planning - "I want N Launches by this date, what does
+  // that take?" reverse-computed from this person's own real Questions-
+  // to-target conversion rate over their last 90 logged days, not a
+  // generic assumption. planStage picks which funnel stage the target
+  // count is measured in (Launches by default, since that's the metric
+  // that actually drives rank/income) - Questions itself is excluded
+  // from the picker since "questions per questions" is a meaningless 1:1
+  // ratio, not a real target to plan backwards from.
+  const [ninetyDayTotals, setNinetyDayTotals] = useState<Record<PipelineStageKey, number> | null>(null);
+  const [planStage, setPlanStage] = useState<PipelineStageKey>("launches");
+  const [planTarget, setPlanTarget] = useState("1");
+  const [planDate, setPlanDate] = useState(getDateOffset(-90));
+
+  useEffect(() => {
+    supabase
+      .from("pipeline_periods")
+      .select("*")
+      .eq("user_id", ownerId)
+      .eq("period_type", "daily")
+      .gte("period_start", getDateOffset(89))
+      .then(({ data }) => {
+        const rows = (data as PipelinePeriod[]) ?? [];
+        const totals = {} as Record<PipelineStageKey, number>;
+        for (const stage of PIPELINE_STAGES) {
+          totals[stage.key] = rows.reduce((sum, r) => sum + (r[stage.key] ?? 0), 0);
+        }
+        setNinetyDayTotals(totals);
+      });
+  }, [ownerId]);
+
+  const planStageLabel = PIPELINE_STAGES.find((s) => s.key === planStage)?.label ?? planStage;
+  const planResult = useMemo(() => {
+    if (!ninetyDayTotals) return null;
+    const targetNum = parseFloat(planTarget) || 0;
+    const totalQuestions = ninetyDayTotals.questions;
+    const totalAtStage = ninetyDayTotals[planStage];
+    const daysRemaining = daysBetween(getToday(), planDate);
+    if (totalQuestions === 0) {
+      return { kind: "no_data" as const };
+    }
+    if (totalAtStage === 0) {
+      return { kind: "no_conversions" as const };
+    }
+    if (daysRemaining <= 0) {
+      return { kind: "past_date" as const };
+    }
+    if (targetNum <= 0) {
+      return { kind: "no_target" as const };
+    }
+    const ratio = totalAtStage / totalQuestions;
+    const requiredQuestions = targetNum / ratio;
+    const requiredPerDay = requiredQuestions / daysRemaining;
+    const currentPerDay = totalQuestions / 90;
+    return {
+      kind: "ok" as const,
+      ratioPct: ratio * 100,
+      requiredPerDay,
+      requiredPerWeek: requiredPerDay * 7,
+      currentPerDay,
+      onPace: currentPerDay >= requiredPerDay,
+    };
+  }, [ninetyDayTotals, planStage, planTarget, planDate]);
+
   // Which unit the Reading goal (and Core Run's reading input) is tracked
   // in - shared via profiles.reading_unit, so switching it here keeps
   // Core Run in sync too.
@@ -335,6 +409,90 @@ export default function GoalsPage() {
             value={reflectionBody}
             onSave={saveReflection}
           />
+        </div>
+
+        <div className="card space-y-2">
+          <div>
+            <p className="section-title">🎯 Goal-Backwards Planning</p>
+            <p className="text-xs text-slate-400">
+              Pick a target and a date — this works backwards using your own real last-90-day
+              conversion rate, not a generic assumption, to show the daily Questions pace it
+              actually takes.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <input
+              className="input w-20"
+              type="number"
+              min={1}
+              value={planTarget}
+              onChange={(e) => setPlanTarget(e.target.value)}
+            />
+            <select
+              className="select flex-1"
+              value={planStage}
+              onChange={(e) => setPlanStage(e.target.value as PipelineStageKey)}
+            >
+              {PIPELINE_STAGES.filter((s) => s.key !== "questions").map((s) => (
+                <option key={s.key} value={s.key}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="shrink-0 text-sm text-slate-400">by</span>
+            <input
+              className="input"
+              type="date"
+              min={getDateOffset(-1)}
+              value={planDate}
+              onChange={(e) => setPlanDate(e.target.value)}
+            />
+          </div>
+
+          {planResult?.kind === "no_data" && (
+            <p className="text-xs text-slate-400">
+              Log some Questions over the next few days so there&apos;s a real conversion rate to
+              work from.
+            </p>
+          )}
+          {planResult?.kind === "no_conversions" && (
+            <p className="text-xs text-slate-400">
+              You haven&apos;t hit {planStageLabel} yet in your last 90 days, so there&apos;s no
+              real ratio to project from — this fills in once you do.
+            </p>
+          )}
+          {planResult?.kind === "past_date" && (
+            <p className="text-xs text-red-400">Pick a date in the future.</p>
+          )}
+          {planResult?.kind === "no_target" && (
+            <p className="text-xs text-red-400">Enter a target count above 0.</p>
+          )}
+          {planResult?.kind === "ok" && (
+            <div className="space-y-1 rounded-lg bg-navy px-3 py-2">
+              <p className="text-sm text-slate-200">
+                At your own {planResult.ratioPct.toFixed(1)}% Questions→{planStageLabel} rate,
+                that takes about{" "}
+                <span className="font-bold text-amber">{planResult.requiredPerDay.toFixed(1)}</span>{" "}
+                Questions/day (<span className="font-bold text-amber">
+                  {planResult.requiredPerWeek.toFixed(0)}
+                </span>
+                /week) between now and {formatDateLabel(planDate)}.
+              </p>
+              <p className="text-xs text-slate-400">
+                You&apos;re currently averaging {planResult.currentPerDay.toFixed(1)}/day —{" "}
+                {planResult.onPace ? (
+                  <span className="text-emerald-400">already on pace. 🎉</span>
+                ) : (
+                  <span className="text-amber-light">
+                    {(planResult.requiredPerDay - planResult.currentPerDay).toFixed(1)} more/day
+                    needed to get there.
+                  </span>
+                )}
+              </p>
+            </div>
+          )}
         </div>
 
         {loading ? (

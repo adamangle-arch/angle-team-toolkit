@@ -6211,6 +6211,18 @@ section (the `off_day` column, right after `depth_texts`) plus the
   count + results across all-time; clearing it goes back to normal
   month browsing.
 
+- **Goal-Backwards Planning (Goals page).** Pick any funnel stage
+  (Launches by default), a target count, and a target date - it
+  reverse-computes the daily Questions pace that actually takes, using
+  this person's own real last-90-day Questions→target conversion rate
+  (a fresh `pipeline_periods` fetch, no new SQL needed), not a generic
+  assumption everyone gets the same number from. Shows required
+  Questions/day and /week alongside their current 90-day daily average,
+  with a plain "already on pace" vs. "N more/day needed" readout. Handles
+  the edge cases honestly: no Questions logged yet, zero conversions at
+  the target stage yet, a past date, or no target entered all get their
+  own explanation instead of a nonsense number.
+
 - **Insights: swapped Stage Conversion / Core Run correlation for
   Pipeline Tracker's own Conversion, Trend, and Your Averages.** Pipeline
   Tracker already has three cards that cover similar ground in a format
