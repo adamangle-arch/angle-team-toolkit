@@ -4214,12 +4214,19 @@ label sitting over an empty list.
 
 ### Percentile note on every "Your Averages" number
 
-Right below every average on the four "Your Averages" cards (Pipeline
-Tracker, Volume, Core Run, and both cards on Insights) is a small "📊 74th
-percentile (of 38)" line — where that exact number falls against the
-whole team's distribution for the same metric and window, not just
-whether you're top 3. Insights retargets to whichever person the
-Viewing picker has selected, same as everything else on that page.
+Right below every average on the "Your Averages" cards (Pipeline
+Tracker, Volume, Core Run, Insights) is a small "📊 Top 7% (of 38)"
+line — where that exact number falls against the whole team's
+distribution for the same metric and window, not just whether you're
+top 3. Framed as "Top N%" (Spotify Wrapped's "top 1% of listeners"
+style) rather than a raw ordinal ("74th percentile") - "Top 7%" reads
+instantly, where an ordinal takes a beat to work out whether higher is
+even good. `topPercent()` in `components/PercentileNote.tsx` is just the
+mirror image of the percentile the RPC returns (`100 - percentile`,
+floored at 1 so the single best person on the team reads "Top 1%"
+instead of the technically-exact but odd-looking "Top 0%"). Insights
+retargets to whichever person the Viewing picker has selected, same as
+everything else on that page.
 
 Three companion `security definer` RPCs (`get_pipeline_average_percentile`,
 `get_volume_average_percentile`, `get_streak_average_percentile`) mirror
@@ -6247,6 +6254,15 @@ section (the `off_day` column, right after `depth_texts`) plus the
   built entirely from real logged data, not a self-reported claim - belief-
   building that's numbers-backed, safe to paste into a text or LTD
   Messaging without this app building any messaging feature of its own.
+
+- **Insights: removed a duplicate "Your Averages" table.** Porting
+  Pipeline Tracker's Conversion/Trend/Your Averages cards onto Insights
+  (see below) had added a second copy of the exact same daily/weekly/
+  monthly Questions/Yeses/QI1 table Insights' own richer "Your Averages"
+  card (Team Leaders, Core Run, Volume, all in one) already showed
+  further down the page - same numbers, twice. Kept Conversion and Trend
+  from the port; dropped the plain table, since the richer card already
+  covers everything it had.
 
 - **Insights: swapped Stage Conversion / Core Run correlation for
   Pipeline Tracker's own Conversion, Trend, and Your Averages.** Pipeline

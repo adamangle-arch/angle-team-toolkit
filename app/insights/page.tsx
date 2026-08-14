@@ -789,8 +789,13 @@ function InsightsPageInner() {
             </div>
 
             {/* Ported from Pipeline Tracker (still there too, untouched) -
-                Conversion, Trend, and Your Averages, in place of this
-                page's own Stage Conversion / Core Run correlation cards. */}
+                Conversion and Trend, in place of this page's own Stage
+                Conversion / Core Run correlation cards. The third ported
+                card, Your Averages, was dropped again right after - this
+                page already had its own richer "Your Averages" card
+                further down (Team Leaders, Core Run, Volume, all in one),
+                and the plain ported version duplicated its daily/weekly/
+                monthly table exactly. */}
             <div className="card space-y-2">
               <p className="section-title">Conversion (this week)</p>
               <div className="flex items-center gap-2">
@@ -844,56 +849,6 @@ function InsightsPageInner() {
                 </select>
               </div>
               <TrendChart data={personalChartData} />
-            </div>
-
-            <div className="card space-y-2">
-              <p className="section-title">Your Averages</p>
-              <div className="no-scrollbar overflow-x-auto">
-                <table className="w-full min-w-[380px] text-left text-xs">
-                  <thead>
-                    <tr className="text-slate-500">
-                      <th className="pb-1.5 pr-2 font-medium"></th>
-                      <th className="pb-1.5 pr-2 text-right font-medium">
-                        Daily ({dailyAverages.windowCount}d)
-                      </th>
-                      <th className="pb-1.5 pr-2 text-right font-medium">
-                        Weekly ({weeklyAverages.windowCount}w)
-                      </th>
-                      <th className="pb-1.5 text-right font-medium">
-                        Monthly ({monthlyAverages.windowCount}mo)
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {AVERAGE_METRICS.map((metric) => (
-                      <tr key={metric.key} className="border-t border-white/5">
-                        <td className="py-1.5 pr-2 font-medium text-white">{metric.label}</td>
-                        <td className="py-1.5 pr-2 text-right font-bold text-amber">
-                          {dailyAverages[metric.key].toFixed(1)}
-                          <PercentileNote entry={dailyPercentiles.find((p) => p.metric === metric.key)} />
-                        </td>
-                        <td className="py-1.5 pr-2 text-right font-bold text-amber">
-                          {weeklyAverages[metric.key].toFixed(1)}
-                          <PercentileNote entry={weeklyPercentiles.find((p) => p.metric === metric.key)} />
-                        </td>
-                        <td className="py-1.5 text-right font-bold text-amber">
-                          {monthlyAverages[metric.key].toFixed(1)}
-                          <PercentileNote entry={monthlyPercentiles.find((p) => p.metric === metric.key)} />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <p className="text-xs text-slate-400">
-                Averaged across the completed days/weeks/months since you started logging (up to{" "}
-                {AVERAGES_WINDOW.daily} days, {AVERAGES_WINDOW.weekly} weeks, or{" "}
-                {AVERAGES_WINDOW.monthly} months back) — a period with nothing logged still counts
-                as a 0, so this reflects real consistency since you started, not just how much you
-                do on periods you actually engage. The current, still-in-progress day/week/month
-                is never included — it hasn&apos;t finished yet, so it isn&apos;t a fair comparison
-                to a completed one.
-              </p>
             </div>
 
             {hasDownline && (
