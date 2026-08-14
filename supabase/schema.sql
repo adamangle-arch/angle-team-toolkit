@@ -2737,6 +2737,236 @@ $$;
 
 grant execute on function public.get_streak_average_leaders() to authenticated;
 
+-- Percentile companions to the three get_*_average_leaders() functions
+-- above - same distribution, but instead of "who's in the top 3" this
+-- answers "where does one specific person's own average fall against
+-- everyone else's," for the "you're in the Xth percentile" note next to
+-- every Your Averages number (Insights, Pipeline Tracker, Volume, Core
+-- Run Streak). p_target_id is whoever the Viewing picker/page has
+-- selected, not always auth.uid() - the same three-way check every other
+-- "peek at someone else's numbers" RPC in this file already uses (self,
+-- same household, or a real downline member) guards against leaking a
+-- stranger's standing. percent_rank() over an ascending order gives 0 to
+-- the team's lowest average and 1 to its highest (ties share a rank), so
+-- round(...*100) reads naturally as "you're better than N% of the team."
+create or replace function public.can_view_person_stats(p_target_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    p_target_id = auth.uid()
+    or public.is_upline_of(auth.uid(), p_target_id)
+    or exists (
+      select 1 from profiles v
+      where v.id = auth.uid()
+        and coalesce(v.household_id, v.id) = coalesce(
+          (select household_id from profiles where id = p_target_id), p_target_id
+        )
+    );
+$$;
+
+grant execute on function public.can_view_person_stats(uuid) to authenticated;
+
+create or replace function public.get_pipeline_average_percentile(p_target_id uuid, p_period_type text)
+returns table (
+  metric text,
+  value numeric,
+  percentile int,
+  team_size int
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  with window_size as (
+    select case p_period_type
+      when 'daily' then 30
+      when 'weekly' then 12
+      when 'monthly' then 6
+      else 30
+    end as w
+  ),
+  theoretical as (
+    select case p_period_type
+      when 'daily' then current_date - gs
+      when 'weekly' then date_trunc('week', current_date)::date - (gs * 7)
+      else (date_trunc('month', current_date) - (gs || ' months')::interval)::date
+    end as period_start
+    from window_size, generate_series(1, window_size.w) as gs
+  ),
+  member_first as (
+    select pp.user_id, min(pp.period_start) as first_start
+    from pipeline_periods pp
+    where pp.period_type = p_period_type
+    group by pp.user_id
+  ),
+  applicable as (
+    select mf.user_id, t.period_start
+    from member_first mf
+    join theoretical t on t.period_start >= mf.first_start
+  ),
+  totals as (
+    select a.user_id,
+      count(*) as n,
+      sum(coalesce(pp.questions, 0)) as questions,
+      sum(coalesce(pp.yeses, 0)) as yeses,
+      sum(coalesce(pp.qi1, 0)) as qi1
+    from applicable a
+    left join pipeline_periods pp
+      on pp.user_id = a.user_id and pp.period_type = p_period_type and pp.period_start = a.period_start
+    group by a.user_id
+  ),
+  averages as (
+    select t.user_id,
+      (t.questions::numeric / nullif(t.n, 0)) as questions_avg,
+      (t.yeses::numeric / nullif(t.n, 0)) as yeses_avg,
+      (t.qi1::numeric / nullif(t.n, 0)) as qi1_avg
+    from totals t
+  ),
+  ranked as (
+    select 'questions' as metric, questions_avg as value, user_id,
+      percent_rank() over (order by coalesce(questions_avg, 0)) as pr
+    from averages
+    union all
+    select 'yeses', yeses_avg, user_id,
+      percent_rank() over (order by coalesce(yeses_avg, 0))
+    from averages
+    union all
+    select 'qi1', qi1_avg, user_id,
+      percent_rank() over (order by coalesce(qi1_avg, 0))
+    from averages
+  ),
+  team as (select count(*) as n from averages)
+  select r.metric, r.value, round(r.pr * 100)::int, team.n
+  from ranked r, team
+  where r.user_id = p_target_id and public.can_view_person_stats(p_target_id)
+  order by r.metric;
+$$;
+
+grant execute on function public.get_pipeline_average_percentile(uuid, text) to authenticated;
+
+create or replace function public.get_volume_average_percentile(p_target_id uuid)
+returns table (
+  metric text,
+  value numeric,
+  percentile int,
+  team_size int
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  with theoretical as (
+    select (date_trunc('month', current_date) - (gs || ' months')::interval)::date as period_start
+    from generate_series(1, 6) as gs
+  ),
+  member_first as (
+    select mp.user_id, min(mp.period_start) as first_start
+    from monthly_pv mp
+    group by mp.user_id
+  ),
+  applicable as (
+    select mf.user_id, t.period_start
+    from member_first mf
+    join theoretical t on t.period_start >= mf.first_start
+  ),
+  totals as (
+    select a.user_id,
+      count(*) as n,
+      sum(coalesce(mp.pv, 0)) as pv,
+      sum(coalesce(mp.day1_ditto_pv, 0)) as ditto
+    from applicable a
+    left join monthly_pv mp on mp.user_id = a.user_id and mp.period_start = a.period_start
+    group by a.user_id
+  ),
+  averages as (
+    select t.user_id,
+      (t.pv::numeric / nullif(t.n, 0)) as pv_avg,
+      (t.ditto::numeric / nullif(t.n, 0)) as ditto_avg
+    from totals t
+  ),
+  ranked as (
+    select 'pv' as metric, pv_avg as value, user_id,
+      percent_rank() over (order by coalesce(pv_avg, 0)) as pr
+    from averages
+    union all
+    select 'ditto', ditto_avg, user_id,
+      percent_rank() over (order by coalesce(ditto_avg, 0))
+    from averages
+  ),
+  team as (select count(*) as n from averages)
+  select r.metric, r.value, round(r.pr * 100)::int, team.n
+  from ranked r, team
+  where r.user_id = p_target_id and public.can_view_person_stats(p_target_id)
+  order by r.metric;
+$$;
+
+grant execute on function public.get_volume_average_percentile(uuid) to authenticated;
+
+create or replace function public.get_streak_average_percentile(p_target_id uuid)
+returns table (
+  metric text,
+  value numeric,
+  percentile int,
+  team_size int
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  with theoretical as (
+    select (current_date - gs) as day
+    from generate_series(1, 30) as gs
+  ),
+  member_first as (
+    select sd.user_id, min(sd.day) as first_day
+    from streak_days sd
+    group by sd.user_id
+  ),
+  applicable as (
+    select mf.user_id, t.day
+    from member_first mf
+    join theoretical t on t.day >= mf.first_day
+  ),
+  totals as (
+    select a.user_id,
+      count(*) as n,
+      sum(coalesce(sd.listen_count, 0)) as audios,
+      sum(coalesce((substring(trim(sd.read_amount) from '^(\d+(\.\d+)?)'))::numeric, 0)) as read_amount
+    from applicable a
+    left join streak_days sd on sd.user_id = a.user_id and sd.day = a.day
+    group by a.user_id
+  ),
+  averages as (
+    select t.user_id,
+      (t.audios::numeric / nullif(t.n, 0)) as audios_avg,
+      (t.read_amount::numeric / nullif(t.n, 0)) as read_amount_avg
+    from totals t
+  ),
+  ranked as (
+    select 'audios' as metric, audios_avg as value, user_id,
+      percent_rank() over (order by coalesce(audios_avg, 0)) as pr
+    from averages
+    union all
+    select 'read_amount', read_amount_avg, user_id,
+      percent_rank() over (order by coalesce(read_amount_avg, 0))
+    from averages
+  ),
+  team as (select count(*) as n from averages)
+  select r.metric, r.value, round(r.pr * 100)::int, team.n
+  from ranked r, team
+  where r.user_id = p_target_id and public.can_view_person_stats(p_target_id)
+  order by r.metric;
+$$;
+
+grant execute on function public.get_streak_average_percentile(uuid) to authenticated;
+
 -- ============================================================
 -- 8. LEADERBOARD LIKES
 -- Anyone can "like" a specific leaderboard ranking so the team can cheer

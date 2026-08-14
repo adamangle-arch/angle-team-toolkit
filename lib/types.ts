@@ -191,6 +191,16 @@ export type AverageLeaderEntry = {
   user_id: string;
 } & Partial<WithPartner>;
 
+// From get_pipeline_average_percentile / get_volume_average_percentile /
+// get_streak_average_percentile - where one person's own average falls
+// against the whole team's distribution for that same metric/window.
+export type AveragePercentileEntry = {
+  metric: string;
+  value: number;
+  percentile: number;
+  team_size: number;
+};
+
 export type StreakLeaderboardEntry = {
   first_name: string | null;
   last_name: string | null;

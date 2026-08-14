@@ -11,6 +11,7 @@ import SearchablePicker from "@/components/SearchablePicker";
 import FirstVisitTip from "@/components/FirstVisitTip";
 import { SkeletonList, SkeletonRows } from "@/components/Skeleton";
 import AverageLeaders from "@/components/AverageLeaders";
+import PercentileNote from "@/components/PercentileNote";
 import Fab from "@/components/Fab";
 import { supabase } from "@/lib/supabaseClient";
 import {
@@ -55,6 +56,7 @@ import type {
   OptionalResource,
   Profile,
   AverageLeaderEntry,
+  AveragePercentileEntry,
 } from "@/lib/types";
 
 type DownlineOption = { id: string; ownerId: string; name: string; accountNumber: string | null };
@@ -210,6 +212,14 @@ function PipelinePageInner() {
   const [weeklyLeaders, setWeeklyLeaders] = useState<AverageLeaderEntry[]>([]);
   const [monthlyLeaders, setMonthlyLeaders] = useState<AverageLeaderEntry[]>([]);
   const [leadersError, setLeadersError] = useState<string | null>(null);
+
+  // Where effectiveOwnerId's own average falls against the whole team's
+  // distribution for the same metric/window - see get_pipeline_average_percentile
+  // in supabase/schema.sql. Fetched alongside dailyAvgPeriods/etc. below
+  // since both are keyed on the same effectiveOwnerId.
+  const [dailyPercentiles, setDailyPercentiles] = useState<AveragePercentileEntry[]>([]);
+  const [weeklyPercentiles, setWeeklyPercentiles] = useState<AveragePercentileEntry[]>([]);
+  const [monthlyPercentiles, setMonthlyPercentiles] = useState<AveragePercentileEntry[]>([]);
 
   // History tab - reuses the same `candidates` already loaded for the
   // Candidate Roadmap tab (every candidate for this owner, not just
@@ -396,7 +406,14 @@ function PipelinePageInner() {
       const dailyStart = periodStartFor("daily", AVERAGES_WINDOW.daily);
       const weeklyStart = periodStartFor("weekly", AVERAGES_WINDOW.weekly);
       const monthlyStart = periodStartFor("monthly", AVERAGES_WINDOW.monthly);
-      const [{ data: dailyRows }, { data: weeklyRows }, { data: monthlyRows }] = await Promise.all([
+      const [
+        { data: dailyRows },
+        { data: weeklyRows },
+        { data: monthlyRows },
+        { data: dailyPct },
+        { data: weeklyPct },
+        { data: monthlyPct },
+      ] = await Promise.all([
         supabase
           .from("pipeline_periods")
           .select("*")
@@ -415,11 +432,17 @@ function PipelinePageInner() {
           .eq("user_id", effectiveOwnerId)
           .eq("period_type", "monthly")
           .gte("period_start", monthlyStart),
+        supabase.rpc("get_pipeline_average_percentile", { p_target_id: effectiveOwnerId, p_period_type: "daily" }),
+        supabase.rpc("get_pipeline_average_percentile", { p_target_id: effectiveOwnerId, p_period_type: "weekly" }),
+        supabase.rpc("get_pipeline_average_percentile", { p_target_id: effectiveOwnerId, p_period_type: "monthly" }),
       ]);
       if (!cancelled) {
         setDailyAvgPeriods((dailyRows as PipelinePeriod[]) ?? []);
         setWeeklyAvgPeriods((weeklyRows as PipelinePeriod[]) ?? []);
         setMonthlyAvgPeriods((monthlyRows as PipelinePeriod[]) ?? []);
+        setDailyPercentiles((dailyPct as AveragePercentileEntry[]) ?? []);
+        setWeeklyPercentiles((weeklyPct as AveragePercentileEntry[]) ?? []);
+        setMonthlyPercentiles((monthlyPct as AveragePercentileEntry[]) ?? []);
       }
     }
 
@@ -968,12 +991,15 @@ function PipelinePageInner() {
                         <td className="py-1.5 pr-2 font-medium text-white">{metric.label}</td>
                         <td className="py-1.5 pr-2 text-right font-bold text-amber">
                           {dailyAverages[metric.key].toFixed(1)}
+                          <PercentileNote entry={dailyPercentiles.find((p) => p.metric === metric.key)} />
                         </td>
                         <td className="py-1.5 pr-2 text-right font-bold text-amber">
                           {weeklyAverages[metric.key].toFixed(1)}
+                          <PercentileNote entry={weeklyPercentiles.find((p) => p.metric === metric.key)} />
                         </td>
                         <td className="py-1.5 text-right font-bold text-amber">
                           {monthlyAverages[metric.key].toFixed(1)}
+                          <PercentileNote entry={monthlyPercentiles.find((p) => p.metric === metric.key)} />
                         </td>
                       </tr>
                     ))}

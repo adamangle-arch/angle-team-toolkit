@@ -7,11 +7,12 @@ import { SkeletonList, SkeletonRows } from "@/components/Skeleton";
 import { useAuth } from "@/components/AuthGate";
 import FeatureGate from "@/components/FeatureGate";
 import AverageLeaders from "@/components/AverageLeaders";
+import PercentileNote from "@/components/PercentileNote";
 import Fab from "@/components/Fab";
 import { supabase } from "@/lib/supabaseClient";
 import { fireNotifyEvent } from "@/lib/notifyClient";
 import { getMonthStart, getMonthStartOffset, formatMonthLabel, formatShortMonthLabel } from "@/lib/dates";
-import type { MonthlyPv, CustomerSale, SaleCategory, AverageLeaderEntry } from "@/lib/types";
+import type { MonthlyPv, CustomerSale, SaleCategory, AverageLeaderEntry, AveragePercentileEntry } from "@/lib/types";
 
 const CORE_300_TARGET = 300;
 const DITTO_TARGET = 100;
@@ -60,6 +61,9 @@ export default function VolumePage() {
   // in supabase/schema.sql) - not scoped to ownerId, fetched once on mount.
   const [volumeLeaders, setVolumeLeaders] = useState<AverageLeaderEntry[]>([]);
   const [volumeLeadersError, setVolumeLeadersError] = useState<string | null>(null);
+  // Where ownerId's own PV/Ditto average falls against the team - see
+  // get_volume_average_percentile in supabase/schema.sql.
+  const [volumePercentiles, setVolumePercentiles] = useState<AveragePercentileEntry[]>([]);
 
   const [sales, setSales] = useState<CustomerSale[]>([]);
   const [loadingSales, setLoadingSales] = useState(true);
@@ -108,13 +112,19 @@ export default function VolumePage() {
 
     async function load() {
       const since = getMonthStartOffset(VOLUME_AVG_WINDOW);
-      const { data } = await supabase
-        .from("monthly_pv")
-        .select("*")
-        .eq("user_id", ownerId)
-        .gte("period_start", since)
-        .lt("period_start", periodStart);
-      if (!cancelled) setAvgMonthlyRows((data as MonthlyPv[]) ?? []);
+      const [{ data }, { data: pct }] = await Promise.all([
+        supabase
+          .from("monthly_pv")
+          .select("*")
+          .eq("user_id", ownerId)
+          .gte("period_start", since)
+          .lt("period_start", periodStart),
+        supabase.rpc("get_volume_average_percentile", { p_target_id: ownerId }),
+      ]);
+      if (!cancelled) {
+        setAvgMonthlyRows((data as MonthlyPv[]) ?? []);
+        setVolumePercentiles((pct as AveragePercentileEntry[]) ?? []);
+      }
     }
 
     load();
@@ -397,6 +407,7 @@ export default function VolumePage() {
                 {monthlyAverages.pvPerMonth.toFixed(1)}
               </span>
             </div>
+            <PercentileNote entry={volumePercentiles.find((p) => p.metric === "pv")} />
             <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
               🏆 Team Leaders
             </p>
@@ -409,6 +420,7 @@ export default function VolumePage() {
                 {monthlyAverages.dittoPerMonth.toFixed(1)}
               </span>
             </div>
+            <PercentileNote entry={volumePercentiles.find((p) => p.metric === "ditto")} />
             <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
               🏆 Team Leaders
             </p>

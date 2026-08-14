@@ -8,6 +8,7 @@ import { SkeletonList } from "@/components/Skeleton";
 import { useAuth } from "@/components/AuthGate";
 import FeatureGate from "@/components/FeatureGate";
 import AverageLeaders from "@/components/AverageLeaders";
+import PercentileNote from "@/components/PercentileNote";
 import { supabase } from "@/lib/supabaseClient";
 import { getToday, getWeekStart, getMonthStart, formatDateLabel } from "@/lib/dates";
 import {
@@ -29,6 +30,7 @@ import type {
   Profile,
   CalendarEvent,
   AverageLeaderEntry,
+  AveragePercentileEntry,
 } from "@/lib/types";
 
 // LTD Messaging's App Store listing. There's no public custom URL scheme
@@ -249,11 +251,17 @@ export default function StreakPage() {
   // on mount, same as the other pages' team-leaders lists.
   const [streakLeaders, setStreakLeaders] = useState<AverageLeaderEntry[]>([]);
   const [streakLeadersError, setStreakLeadersError] = useState<string | null>(null);
+  // Where you fall against the team's audios/reading-amount distribution
+  // (get_streak_average_percentile in supabase/schema.sql).
+  const [streakPercentiles, setStreakPercentiles] = useState<AveragePercentileEntry[]>([]);
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      const { data, error } = await supabase.rpc("get_streak_average_leaders");
+      const [{ data, error }, { data: pct }] = await Promise.all([
+        supabase.rpc("get_streak_average_leaders"),
+        supabase.rpc("get_streak_average_percentile", { p_target_id: user.id }),
+      ]);
       if (!cancelled) {
         if (error) {
           setStreakLeadersError(error.message);
@@ -261,13 +269,14 @@ export default function StreakPage() {
           setStreakLeadersError(null);
           setStreakLeaders((data as AverageLeaderEntry[]) ?? []);
         }
+        setStreakPercentiles((pct as AveragePercentileEntry[]) ?? []);
       }
     }
     load();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [user.id]);
 
   // Mirrors `history`, but updated synchronously (not on the next render)
   // so back-to-back saveToday() calls each build their patch on top of the
@@ -1178,6 +1187,7 @@ export default function StreakPage() {
                 {last30Averages.audiosPerDay.toFixed(1)}
               </span>
             </div>
+            <PercentileNote entry={streakPercentiles.find((p) => p.metric === "audios")} />
             <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
               🏆 Team Leaders
             </p>
@@ -1190,6 +1200,7 @@ export default function StreakPage() {
                 {last30Averages.readAmountPerDay.toFixed(1)}
               </span>
             </div>
+            <PercentileNote entry={streakPercentiles.find((p) => p.metric === "read_amount")} />
             <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
               🏆 Team Leaders
             </p>

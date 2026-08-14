@@ -5,6 +5,7 @@ import PageHeader from "@/components/PageHeader";
 import FeatureGate from "@/components/FeatureGate";
 import SearchablePicker from "@/components/SearchablePicker";
 import AverageLeaders from "@/components/AverageLeaders";
+import PercentileNote from "@/components/PercentileNote";
 import { SkeletonList } from "@/components/Skeleton";
 import TrendChart from "@/components/TrendChart";
 import { useAuth } from "@/components/AuthGate";
@@ -19,7 +20,14 @@ import {
   formatDateLabel,
 } from "@/lib/dates";
 import { periodStartFor, averagesForPeriods, AVERAGES_WINDOW, AVERAGE_METRICS } from "@/lib/periodAverages";
-import type { PipelinePeriod, Profile, StreakDay, MonthlyPv, AverageLeaderEntry } from "@/lib/types";
+import type {
+  PipelinePeriod,
+  Profile,
+  StreakDay,
+  MonthlyPv,
+  AverageLeaderEntry,
+  AveragePercentileEntry,
+} from "@/lib/types";
 
 const DAILY_WINDOW_DAYS = 90;
 const WEEK_TREND_COUNT = 8;
@@ -117,6 +125,14 @@ function InsightsPageInner() {
   const [avgWeeklyRows, setAvgWeeklyRows] = useState<PipelinePeriod[]>([]);
   const [avgMonthlyRows, setAvgMonthlyRows] = useState<PipelinePeriod[]>([]);
   const [avgVolumeRows, setAvgVolumeRows] = useState<MonthlyPv[]>([]);
+  // Where the currently-viewed person's own averages fall against the
+  // whole team, one per get_*_average_percentile RPC (supabase/schema.sql) -
+  // same three-metric-group split as the leaders lists above.
+  const [dailyPercentiles, setDailyPercentiles] = useState<AveragePercentileEntry[]>([]);
+  const [weeklyPercentiles, setWeeklyPercentiles] = useState<AveragePercentileEntry[]>([]);
+  const [monthlyPercentiles, setMonthlyPercentiles] = useState<AveragePercentileEntry[]>([]);
+  const [streakPercentiles, setStreakPercentiles] = useState<AveragePercentileEntry[]>([]);
+  const [volumePercentiles, setVolumePercentiles] = useState<AveragePercentileEntry[]>([]);
 
   // Empty string = viewing your own (household) numbers - anything else is
   // a downline member's raw user_id, viewed directly rather than through
@@ -214,6 +230,11 @@ function InsightsPageInner() {
         { data: avgWeekly },
         { data: avgMonthly },
         { data: volume },
+        { data: dailyPct },
+        { data: weeklyPct },
+        { data: monthlyPct },
+        { data: streakPct },
+        { data: volumePct },
       ] = await Promise.all([
         supabase
           .from("pipeline_periods")
@@ -272,6 +293,11 @@ function InsightsPageInner() {
           .eq("user_id", pipelineTargetId)
           .gte("period_start", volumeSince)
           .lt("period_start", thisMonth),
+        supabase.rpc("get_pipeline_average_percentile", { p_target_id: pipelineTargetId, p_period_type: "daily" }),
+        supabase.rpc("get_pipeline_average_percentile", { p_target_id: pipelineTargetId, p_period_type: "weekly" }),
+        supabase.rpc("get_pipeline_average_percentile", { p_target_id: pipelineTargetId, p_period_type: "monthly" }),
+        supabase.rpc("get_streak_average_percentile", { p_target_id: streakTargetId }),
+        supabase.rpc("get_volume_average_percentile", { p_target_id: pipelineTargetId }),
       ]);
       if (cancelled) return;
       setCurrentWeekRow((currentWeek as PipelinePeriod) ?? null);
@@ -284,6 +310,11 @@ function InsightsPageInner() {
       setAvgWeeklyRows((avgWeekly as PipelinePeriod[]) ?? []);
       setAvgMonthlyRows((avgMonthly as PipelinePeriod[]) ?? []);
       setAvgVolumeRows((volume as MonthlyPv[]) ?? []);
+      setDailyPercentiles((dailyPct as AveragePercentileEntry[]) ?? []);
+      setWeeklyPercentiles((weeklyPct as AveragePercentileEntry[]) ?? []);
+      setMonthlyPercentiles((monthlyPct as AveragePercentileEntry[]) ?? []);
+      setStreakPercentiles((streakPct as AveragePercentileEntry[]) ?? []);
+      setVolumePercentiles((volumePct as AveragePercentileEntry[]) ?? []);
       setLoading(false);
     }
     load();
@@ -777,12 +808,15 @@ function InsightsPageInner() {
                         <td className="py-1.5 pr-2 font-medium text-white">{metric.label}</td>
                         <td className="py-1.5 pr-2 text-right font-bold text-amber">
                           {dailyAverages[metric.key].toFixed(1)}
+                          <PercentileNote entry={dailyPercentiles.find((p) => p.metric === metric.key)} />
                         </td>
                         <td className="py-1.5 pr-2 text-right font-bold text-amber">
                           {weeklyAverages[metric.key].toFixed(1)}
+                          <PercentileNote entry={weeklyPercentiles.find((p) => p.metric === metric.key)} />
                         </td>
                         <td className="py-1.5 text-right font-bold text-amber">
                           {monthlyAverages[metric.key].toFixed(1)}
+                          <PercentileNote entry={monthlyPercentiles.find((p) => p.metric === metric.key)} />
                         </td>
                       </tr>
                     ))}
@@ -836,6 +870,7 @@ function InsightsPageInner() {
                     {coreRunAverages.audiosPerDay.toFixed(1)}
                   </span>
                 </div>
+                <PercentileNote entry={streakPercentiles.find((p) => p.metric === "audios")} />
                 <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
                   🏆 Team Leaders
                 </p>
@@ -848,6 +883,7 @@ function InsightsPageInner() {
                     {coreRunAverages.readAmountPerDay.toFixed(1)}
                   </span>
                 </div>
+                <PercentileNote entry={streakPercentiles.find((p) => p.metric === "read_amount")} />
                 <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
                   🏆 Team Leaders
                 </p>
@@ -876,12 +912,15 @@ function InsightsPageInner() {
                         <td className="py-1.5 pr-2 font-medium text-white">{metric.label}</td>
                         <td className="py-1.5 pr-2 text-right font-bold text-amber">
                           {dailyAverages[metric.key].toFixed(1)}
+                          <PercentileNote entry={dailyPercentiles.find((p) => p.metric === metric.key)} />
                         </td>
                         <td className="py-1.5 pr-2 text-right font-bold text-amber">
                           {weeklyAverages[metric.key].toFixed(1)}
+                          <PercentileNote entry={weeklyPercentiles.find((p) => p.metric === metric.key)} />
                         </td>
                         <td className="py-1.5 text-right font-bold text-amber">
                           {monthlyAverages[metric.key].toFixed(1)}
+                          <PercentileNote entry={monthlyPercentiles.find((p) => p.metric === metric.key)} />
                         </td>
                       </tr>
                     ))}
@@ -908,6 +947,7 @@ function InsightsPageInner() {
                     {volumeAverages.pvPerMonth.toFixed(1)}
                   </span>
                 </div>
+                <PercentileNote entry={volumePercentiles.find((p) => p.metric === "pv")} />
                 <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
                   🏆 Team Leaders
                 </p>
@@ -920,6 +960,7 @@ function InsightsPageInner() {
                     {volumeAverages.dittoPerMonth.toFixed(1)}
                   </span>
                 </div>
+                <PercentileNote entry={volumePercentiles.find((p) => p.metric === "ditto")} />
                 <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
                   🏆 Team Leaders
                 </p>

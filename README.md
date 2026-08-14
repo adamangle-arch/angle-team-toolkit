@@ -4212,6 +4212,30 @@ window each, so there's nothing to pick there either way. Renders nothing
 for a metric nobody has a nonzero average in yet, rather than a "Top 3"
 label sitting over an empty list.
 
+### Percentile note on every "Your Averages" number
+
+Right below every average on the four "Your Averages" cards (Pipeline
+Tracker, Volume, Core Run, and both cards on Insights) is a small "📊 74th
+percentile (of 38)" line — where that exact number falls against the
+whole team's distribution for the same metric and window, not just
+whether you're top 3. Insights retargets to whichever person the
+Viewing picker has selected, same as everything else on that page.
+
+Three companion `security definer` RPCs (`get_pipeline_average_percentile`,
+`get_volume_average_percentile`, `get_streak_average_percentile`) mirror
+the exact same window/fairness CTEs as their `get_*_average_leaders`
+counterparts above, but instead of returning the top 3 they run
+`percent_rank()` over everyone's average and return just the one row for
+whichever person was asked about (`p_target_id`) — 0 is the team's lowest
+average for that metric, 1 is the highest, so `round(percent_rank * 100)`
+reads naturally as "you're better than N% of the team." A shared
+`can_view_person_stats()` helper guards `p_target_id` the same way every
+other "peek at someone else's numbers" RPC in this app already does (self,
+same household, or a real downline member) — asking about a stranger
+returns nothing. The note itself stays hidden under a 3-person team
+(`components/PercentileNote.tsx`), since "percentile" isn't meaningful
+math against that few people.
+
 ### Reading: minutes or pages, your choice
 
 Reading was always tracked as free text ("How much today?") with no
