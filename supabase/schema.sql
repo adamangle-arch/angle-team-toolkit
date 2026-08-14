@@ -7469,3 +7469,43 @@ end;
 $$;
 
 grant execute on function public.toggle_innovation_vote(uuid) to authenticated;
+
+-- ============================================================
+-- 21. WEEKLY REFLECTION (private, never shared)
+-- Unlike the Daily Update (a real message sent to your upline through
+-- the LTD Messaging App - see the Onboarding guide card), this is
+-- explicitly private: nobody else, not even upline or admin, can read
+-- it. RLS enforces `user_id = auth.uid()` on every operation, with no
+-- security-definer carve-out anywhere else in this file reading it back
+-- for someone else (the household-shared tables all get their household
+-- read explicitly documented elsewhere - this one deliberately has none).
+-- One row per person per week (unique on user_id/week_start), auto-saved
+-- on blur the same way the Goals page's Dream textareas already work.
+-- ============================================================
+create table if not exists reflections (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  week_start date not null,
+  body text not null default '',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (user_id, week_start)
+);
+
+alter table reflections enable row level security;
+
+drop policy if exists "reflections_select_own" on reflections;
+create policy "reflections_select_own" on reflections
+  for select using (user_id = auth.uid());
+
+drop policy if exists "reflections_insert_own" on reflections;
+create policy "reflections_insert_own" on reflections
+  for insert with check (user_id = auth.uid());
+
+drop policy if exists "reflections_update_own" on reflections;
+create policy "reflections_update_own" on reflections
+  for update using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+drop policy if exists "reflections_delete_own" on reflections;
+create policy "reflections_delete_own" on reflections
+  for delete using (user_id = auth.uid());

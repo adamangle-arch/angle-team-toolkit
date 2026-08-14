@@ -6189,6 +6189,17 @@ section (the `off_day` column, right after `depth_texts`) plus the
   can move it, via a one-tap cycle button, since that's the actual signal
   back to whoever posted an idea about whether it's happening.
 
+- **Private Weekly Reflection (Goals page).** A genuinely private
+  journal - distinct from "Your Dreams" right above it on the same page
+  (which upline can already see) and from the real Daily Update sent
+  through LTD Messaging. A new `reflections` table has RLS restricted to
+  `user_id = auth.uid()` on every operation with no exceptions anywhere
+  else in the file reading it back for someone else, unlike the
+  household/team-shared tables everywhere else in this app. One entry
+  per person per week, auto-saved on blur (reusing the Dreams textarea's
+  existing pattern), with the same prior/next week navigation the Team
+  tab and Leaderboard already use to browse past weeks.
+
 - **Insights: swapped Stage Conversion / Core Run correlation for
   Pipeline Tracker's own Conversion, Trend, and Your Averages.** Pipeline
   Tracker already has three cards that cover similar ground in a format

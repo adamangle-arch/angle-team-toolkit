@@ -492,6 +492,17 @@ export type Goal = {
   updated_at: string;
 };
 
+// Private weekly reflection journal - never read back by anyone but its
+// own author, unlike every other household/team-shared table in this file.
+export type Reflection = {
+  id: string;
+  user_id: string;
+  week_start: string;
+  body: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export type CalendarEvent = {
   id: string;
   user_id: string;

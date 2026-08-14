@@ -6,7 +6,7 @@ import { useAuth } from "@/components/AuthGate";
 import FeatureGate from "@/components/FeatureGate";
 import { SkeletonList } from "@/components/Skeleton";
 import { supabase } from "@/lib/supabaseClient";
-import { getWeekStart, getMonthStart } from "@/lib/dates";
+import { getWeekStart, getWeekStartOffset, formatWeekRangeLabel, getMonthStart } from "@/lib/dates";
 import {
   GOAL_ITEMS_BY_PERIOD,
   GOAL_PERIODS,
@@ -15,7 +15,7 @@ import {
   type GoalPeriod,
   type ReadingUnit,
 } from "@/lib/constants";
-import type { Goal, PipelinePeriod, Profile } from "@/lib/types";
+import type { Goal, PipelinePeriod, Profile, Reflection } from "@/lib/types";
 
 function inputKey(metric: GoalMetric, period: GoalPeriod): string {
   return `${metric}:${period}`;
@@ -70,7 +70,7 @@ function DreamTextarea({
 
   return (
     <div className="space-y-1.5">
-      <p className="text-sm font-medium text-slate-200">{label}</p>
+      {label && <p className="text-sm font-medium text-slate-200">{label}</p>}
       <textarea
         className="textarea"
         rows={4}
@@ -134,6 +134,48 @@ export default function GoalsPage() {
   async function saveDream(field: DreamField, value: string) {
     setDreams((prev) => ({ ...prev, [field]: value }));
     const { error } = await supabase.from("profiles").update({ [field]: value }).eq("id", user.id);
+    if (error) {
+      setSaveError(`Couldn't save that: ${error.message}`);
+    } else {
+      setSaveError(null);
+    }
+  }
+
+  // Private weekly reflection - fully separate table from Dreams above
+  // (which upline can see) and from the Daily Update sent through LTD
+  // Messaging - RLS on `reflections` restricts every operation to
+  // user_id = auth.uid(), no exceptions, so this never surfaces anywhere
+  // else in the app. weeksBack mirrors the same back-navigation the
+  // Team tab's Teams view and Leaderboard's monthly nav already use.
+  const [reflectionWeeksBack, setReflectionWeeksBack] = useState(0);
+  const reflectionWeekStart = getWeekStartOffset(reflectionWeeksBack);
+  const [reflectionBody, setReflectionBody] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    supabase
+      .from("reflections")
+      .select("body")
+      .eq("user_id", user.id)
+      .eq("week_start", reflectionWeekStart)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return;
+        setReflectionBody((data as Pick<Reflection, "body"> | null)?.body ?? "");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user.id, reflectionWeekStart]);
+
+  async function saveReflection(value: string) {
+    setReflectionBody(value);
+    const { error } = await supabase
+      .from("reflections")
+      .upsert(
+        { user_id: user.id, week_start: reflectionWeekStart, body: value },
+        { onConflict: "user_id,week_start" }
+      );
     if (error) {
       setSaveError(`Couldn't save that: ${error.message}`);
     } else {
@@ -259,6 +301,40 @@ export default function GoalsPage() {
               onSave={(value) => saveDream(field.key, value)}
             />
           ))}
+        </div>
+
+        <div className="card space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <p className="section-title">📓 Weekly Reflection</p>
+              <p className="text-xs text-slate-400">
+                Private — only you can ever see this, not your upline, not admin.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center justify-between">
+            <button
+              className="chip-btn text-xs"
+              onClick={() => setReflectionWeeksBack((w) => w + 1)}
+            >
+              ◀ Prior week
+            </button>
+            <p className="text-xs font-medium text-slate-300">{formatWeekRangeLabel(reflectionWeekStart)}</p>
+            <button
+              className="chip-btn text-xs disabled:opacity-30"
+              onClick={() => setReflectionWeeksBack((w) => Math.max(0, w - 1))}
+              disabled={reflectionWeeksBack === 0}
+            >
+              Next week ▶
+            </button>
+          </div>
+          <DreamTextarea
+            key={reflectionWeekStart}
+            label=""
+            placeholder="How did this week actually go? What worked, what didn't, what are you carrying into next week…"
+            value={reflectionBody}
+            onSave={saveReflection}
+          />
         </div>
 
         {loading ? (
