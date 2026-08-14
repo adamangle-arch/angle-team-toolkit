@@ -141,6 +141,20 @@ export type HallOfRecordEntry = {
   achieved_on: string;
 };
 
+// From get_innovation_ideas() - the Innovation Box.
+export type InnovationIdea = {
+  id: string;
+  body: string;
+  status: "open" | "planned" | "shipped" | "closed";
+  user_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  team: string | null;
+  created_at: string;
+  vote_count: number;
+  voted_by_me: boolean;
+};
+
 export type TeamMemberBasic = {
   user_id: string;
   first_name: string | null;

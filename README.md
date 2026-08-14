@@ -6176,6 +6176,19 @@ section (the `off_day` column, right after `depth_texts`) plus the
   launched a candidate, for instance) just doesn't render that line
   rather than showing a placeholder.
 
+- **Innovation Box** (`/ideas`, new "More" tile). A fast, low-friction
+  place to submit an idea for the business or the app itself and see
+  what the team actually wants built next - post a short idea, everyone
+  can upvote (one tap to vote, tap again to unvote), sorted highest-voted
+  first. Deliberately simple: no editing a posted idea, no threaded
+  replies. `get_innovation_ideas()` returns every idea with its live vote
+  count and whether the caller's already voted, one round trip; a
+  `toggle_innovation_vote(p_idea_id)` RPC flips a vote the same one-tap
+  way the Leaderboard's like button already does. Status (Open → 🛠️
+  Planned → ✅ Shipped, or Closed) is admin-curated - only Alex's account
+  can move it, via a one-tap cycle button, since that's the actual signal
+  back to whoever posted an idea about whether it's happening.
+
 - **Insights: swapped Stage Conversion / Core Run correlation for
   Pipeline Tracker's own Conversion, Trend, and Your Averages.** Pipeline
   Tracker already has three cards that cover similar ground in a format

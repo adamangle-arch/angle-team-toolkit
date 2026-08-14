@@ -33,6 +33,7 @@ const MORE_ITEMS = [
   { href: "/games", label: "Games", icon: "🎮", description: "Diamond Run, Chase, Trivia." },
   { href: "/badges", label: "Badges", icon: "🏅", description: "Achievements you've earned." },
   { href: "/events", label: "Team Events", icon: "🎉", description: "Photos and videos." },
+  { href: "/ideas", label: "Innovation Box", icon: "💡", description: "Submit and vote on ideas." },
 ];
 
 export default function MorePage() {

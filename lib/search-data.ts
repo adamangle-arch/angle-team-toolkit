@@ -29,6 +29,7 @@ const PAGE_SHORTCUTS: SearchResult[] = [
   { title: "Games", snippet: "Diamond Run, Diamond Chase, Trivia.", href: "/games", source: "Pages" },
   { title: "Badges", snippet: "Achievements earned from your Core Run, PV, pipeline, and reading numbers.", href: "/badges", source: "Pages" },
   { title: "Team Events", snippet: "Photos and videos from our team events.", href: "/events", source: "Pages" },
+  { title: "Innovation Box", snippet: "Submit and vote on ideas for the business or the app.", href: "/ideas", source: "Pages" },
   { title: "Team", snippet: "Your downline's data (or the whole company, for admins).", href: "/team", source: "Pages" },
   { title: "My Profile", snippet: "Account number, spouse/upline linking, public profile.", href: "/profile", source: "Pages" },
 ];
