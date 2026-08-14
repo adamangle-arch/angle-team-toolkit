@@ -6662,6 +6662,17 @@ grant execute on function public.get_wall_of_fame(int) to authenticated;
 -- everyone sees the same pick all week rather than a new one per reload)
 -- happens client-side over this list, same as how weekStart-based
 -- determinism already works elsewhere in the app.
+--
+-- Dropped first even on what was originally this function's first-ever
+-- definition: two later sections in this same file redefine it again
+-- with a wider return shape (last_active_at, then photo_url), and once
+-- a database has run past either of those, re-running the WHOLE file
+-- from the top hits this bare create-or-replace before it ever reaches
+-- either later drop - without this drop, that's the exact
+-- "cannot change return type of existing function" (42P13) Postgres
+-- throws when a create-or-replace tries to narrow an existing
+-- function's columns back down.
+drop function if exists public.get_all_team_members();
 create or replace function public.get_all_team_members()
 returns table (user_id uuid, first_name text, last_name text, team text)
 language sql
