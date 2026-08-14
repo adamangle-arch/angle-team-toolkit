@@ -297,19 +297,33 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
       .subscribe(async (status) => {
         if (status === "SUBSCRIBED") {
           await channel.track({ online_at: new Date().toISOString() });
-          // Persisted, unlike the presence roster itself - so Pulse's
-          // "Recently Active" list still has something to show once this
-          // session disconnects and drops out of the live "Active Now"
-          // one. Once per app session (this effect only re-runs when
-          // fullyAuthed/user actually change) is enough resolution for
-          // "last active," not worth updating continuously while a tab
-          // just sits open.
-          await supabase.from("profiles").update({ last_active_at: new Date().toISOString() }).eq("id", user.id);
         }
       });
     return () => {
       supabase.removeChannel(channel);
     };
+  }, [fullyAuthed, user]);
+
+  // last_active_at - deliberately a plain REST write, not nested inside
+  // the presence channel's SUBSCRIBED callback above. It used to be: that
+  // meant Pulse's "recently active in the last 24h" fallback only ever
+  // got data for someone whose realtime websocket happened to connect
+  // successfully - exactly the case it's supposed to be a fallback FOR,
+  // since a network that blocks/drops websockets (some corporate wifi,
+  // some mobile carriers, some browser extensions) would silently leave
+  // that person with no live presence AND no last_active_at, so they'd
+  // never show up as "around" at all despite actively using the rest of
+  // the app. This fires independently, once per app session, the same
+  // "just a REST call" way the app_opens upsert above does.
+  useEffect(() => {
+    if (!fullyAuthed || !user) return;
+    supabase
+      .from("profiles")
+      .update({ last_active_at: new Date().toISOString() })
+      .eq("id", user.id)
+      .then(({ error }) => {
+        if (error) console.error("Couldn't update last_active_at:", error.message);
+      });
   }, [fullyAuthed, user]);
 
   // /prospect is a public, unauthenticated view (a candidate enters their
