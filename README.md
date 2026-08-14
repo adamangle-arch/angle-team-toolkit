@@ -6143,17 +6143,24 @@ section (the `off_day` column, right after `depth_texts`) plus the
   biggest-drop-off line, it just no longer has its own visible card.
   Client-only change, no SQL needed.
 
-- **Onboarding: "Finding Audios in the LTD Media App" reference card.**
-  A standing card at the top of Onboarding (not tied to any one session,
-  same as "Sent To You" right below it) with the three annotated
-  screenshots the user provided - home screen, the menu, and the Gifts
-  list - showing where the LTD Media App keeps its audio content: Sales
-  & Profitability Hub and My First 90 Days on the home screen, or
-  menu → Gifts → Received Gifts as Member for whatever podcasts a
-  mentor has gifted. Images live in `public/onboarding/` and render via
-  `next/image` at their real 1170×2532 screenshot size, capped to 60vh
-  each so three stacked portrait screenshots don't turn the card into
-  an endless scroll. Client-only, no SQL needed.
+- **Onboarding: "Finding Audios in the LTD Media App" reference card,
+  plus "Sending a Daily Update on the LTD Messaging App."** Two standing
+  cards at the top of Onboarding (not tied to any one session, same as
+  "Sent To You" right below them), each collapsed by default behind the
+  same expand/collapse chevron button Badges and Pipeline Tracker
+  already use - both are reference material with several full
+  screenshots each, so leaving them open by default would make them the
+  tallest things on the page on every single visit. The Media App card
+  covers where the LTD Media App keeps its audio content: Sales &
+  Profitability Hub and My First 90 Days on the home screen, or
+  menu → Gifts → Received Gifts as Member for whatever a mentor's
+  gifted. The Messaging App card covers the actual send flow: copy the
+  Daily Update Summary from Core Run Streak, open the LTD Messaging
+  App's compose screen, paste it in and fill in the subject, then add
+  the upline groups (My Sponsor, My First Uplines, and their Secondary
+  counterparts) as recipients. All seven screenshots live in
+  `public/onboarding/` and render via `next/image` at their real
+  1170×2532 size, capped to 60vh each. Client-only, no SQL needed.
 
 ## Tech stack
 

@@ -39,6 +39,7 @@ export default function OnboardingPage() {
   // Collapsed by default - three full screenshots made this the tallest
   // thing on the page even though most visits don't need it open.
   const [showLtdMediaGuide, setShowLtdMediaGuide] = useState(false);
+  const [showLtdMessagingGuide, setShowLtdMessagingGuide] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -196,6 +197,89 @@ export default function OnboardingPage() {
                 />
                 <p className="text-xs text-slate-500">
                   Gifts screen — tap Received Gifts as Member.
+                </p>
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="card space-y-3">
+          <button
+            className="flex w-full items-center justify-between gap-2 text-left"
+            onClick={() => setShowLtdMessagingGuide((prev) => !prev)}
+            aria-expanded={showLtdMessagingGuide}
+          >
+            <p className="section-title">
+              ✉️ Sending a Daily Update on the LTD Messaging App
+            </p>
+            <span className="shrink-0 text-slate-500">{showLtdMessagingGuide ? "▾" : "▸"}</span>
+          </button>
+
+          {showLtdMessagingGuide && (
+            <>
+              <ol className="space-y-1.5 pl-4 text-sm text-slate-300 marker:text-amber-light" style={{ listStyleType: "decimal" }}>
+                <li>Copy your daily update once you&apos;ve filled in your Core Run info</li>
+                <li>
+                  Go to the LTD Messaging App and tap the blue circle in the bottom right corner
+                </li>
+                <li>Paste the update and fill in the subject</li>
+                <li>Tap the green circle and add everyone in your upline</li>
+              </ol>
+
+              <div className="space-y-1.5">
+                <Image
+                  src="/onboarding/ltd-messaging-copy-update.jpg"
+                  alt="Core Run Streak page with the Copy Daily Update button circled"
+                  width={1170}
+                  height={2532}
+                  className="w-full rounded-xl object-contain"
+                  style={{ maxHeight: "60vh" }}
+                />
+                <p className="text-xs text-slate-500">
+                  Core Run Streak — tap Copy Daily Update once today&apos;s info is filled in.
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <Image
+                  src="/onboarding/ltd-messaging-compose.jpg"
+                  alt="LTD Messaging App inbox with the compose (pencil) button circled"
+                  width={1170}
+                  height={2532}
+                  className="w-full rounded-xl object-contain"
+                  style={{ maxHeight: "60vh" }}
+                />
+                <p className="text-xs text-slate-500">
+                  LTD Messaging App inbox — tap the blue compose button.
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <Image
+                  src="/onboarding/ltd-messaging-add-recipients.jpg"
+                  alt="LTD Messaging App compose screen with the green add-recipient button circled"
+                  width={1170}
+                  height={2532}
+                  className="w-full rounded-xl object-contain"
+                  style={{ maxHeight: "60vh" }}
+                />
+                <p className="text-xs text-slate-500">
+                  Paste the update, fill in the Subject, then tap the green + to add recipients.
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <Image
+                  src="/onboarding/ltd-messaging-groups.jpg"
+                  alt="LTD Messaging App Groups screen with My Sponsor and My First Uplines groups selected"
+                  width={1170}
+                  height={2532}
+                  className="w-full rounded-xl object-contain"
+                  style={{ maxHeight: "60vh" }}
+                />
+                <p className="text-xs text-slate-500">
+                  Select your upline groups (My Sponsor, My First Uplines, and their Secondary
+                  counterparts).
                 </p>
               </div>
             </>
