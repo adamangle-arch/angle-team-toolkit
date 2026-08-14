@@ -96,6 +96,7 @@ function InsightsPageInner() {
   const [dailyRows, setDailyRows] = useState<PipelinePeriod[]>([]);
   const [weeklyRows, setWeeklyRows] = useState<PipelinePeriod[]>([]);
   const [monthlyRow, setMonthlyRow] = useState<PipelinePeriod | null>(null);
+  const [monthlyGoals, setMonthlyGoals] = useState<{ metric: string; target: number }[]>([]);
   const [currentStreak, setCurrentStreak] = useState(0);
   const [downlineMembers, setDownlineMembers] = useState<DownlineMember[]>([]);
   const [downlineWeekly, setDownlineWeekly] = useState<Record<string, DownlineTotals>>({});
@@ -235,6 +236,7 @@ function InsightsPageInner() {
         { data: monthlyPct },
         { data: streakPct },
         { data: volumePct },
+        { data: goalsData },
       ] = await Promise.all([
         supabase
           .from("pipeline_periods")
@@ -298,6 +300,7 @@ function InsightsPageInner() {
         supabase.rpc("get_pipeline_average_percentile", { p_target_id: pipelineTargetId, p_period_type: "monthly" }),
         supabase.rpc("get_streak_average_percentile", { p_target_id: streakTargetId }),
         supabase.rpc("get_volume_average_percentile", { p_target_id: pipelineTargetId }),
+        supabase.from("goals").select("metric,target").eq("user_id", streakTargetId).eq("period", "monthly"),
       ]);
       if (cancelled) return;
       setCurrentWeekRow((currentWeek as PipelinePeriod) ?? null);
@@ -315,6 +318,7 @@ function InsightsPageInner() {
       setMonthlyPercentiles((monthlyPct as AveragePercentileEntry[]) ?? []);
       setStreakPercentiles((streakPct as AveragePercentileEntry[]) ?? []);
       setVolumePercentiles((volumePct as AveragePercentileEntry[]) ?? []);
+      setMonthlyGoals((goalsData as { metric: string; target: number }[]) ?? []);
       setLoading(false);
     }
     load();
@@ -479,6 +483,38 @@ function InsightsPageInner() {
       projected: Math.round((monthlyRow?.[key] ?? 0) * factor),
     }));
   }, [monthlyRow]);
+
+  // Predictive Pipeline Health - before month-end, not after: whichever
+  // Monthly goals (Goals page only supports Yeses/QI1s at that period)
+  // are set get compared against this same month-end projection above,
+  // instead of only being able to look back once the month's already
+  // over. goals.metric uses the plural "qi1s"/"yeses" GoalMetric keys
+  // (lib/constants.ts) while pipeline_periods/PIPELINE_STAGES use
+  // singular "qi1"/"yeses" - goalMetricToStageKey bridges the two. The
+  // bottleneck named is stageConversion.worst (already computed above
+  // for the funnel view) - the single step-to-step conversion furthest
+  // below 100% over the last 90 days, i.e. this person's own weakest
+  // link, not a generic "work harder" nudge.
+  const pipelineHealth = useMemo(() => {
+    const goalMetricToStageKey: Record<string, PipelineStageKey> = { yeses: "yeses", qi1s: "qi1" };
+    const flags = monthlyGoals
+      .map((g) => {
+        const stageKey = goalMetricToStageKey[g.metric];
+        if (!stageKey || g.target <= 0) return null;
+        const projection = paceProjection.find((p) => p.key === stageKey);
+        if (!projection) return null;
+        return {
+          metric: g.metric,
+          label: stageLabel(stageKey),
+          target: g.target,
+          projected: projection.projected,
+          soFar: projection.soFar,
+          offPace: projection.projected < g.target,
+        };
+      })
+      .filter((f): f is NonNullable<typeof f> => f !== null);
+    return { flags, hasGoals: flags.length > 0, anyOffPace: flags.some((f) => f.offPace) };
+  }, [monthlyGoals, paceProjection]);
 
   // Ported from Pipeline Tracker's own Conversion/Trend/Your Averages
   // cards (same underlying data this page already loads - no new
@@ -658,6 +694,32 @@ function InsightsPageInner() {
           <SkeletonList cards={4} />
         ) : (
           <>
+            {pipelineHealth.hasGoals && (
+              <div
+                className={`card space-y-1.5 ${
+                  pipelineHealth.anyOffPace ? "border border-red-400/40 bg-red-500/5" : ""
+                }`}
+              >
+                <p className="section-title">
+                  {pipelineHealth.anyOffPace ? "⚠️ Off Pace for Month-End" : "✅ On Pace for Month-End"}
+                </p>
+                {pipelineHealth.flags.map((f) => (
+                  <p key={f.metric} className="text-sm text-slate-200">
+                    {f.offPace ? "⚠️" : "✅"} Monthly {f.label}: projected{" "}
+                    <span className="font-bold text-amber">{f.projected}</span> of a{" "}
+                    <span className="font-bold text-white">{f.target}</span> target ({f.soFar} so far)
+                  </p>
+                ))}
+                {pipelineHealth.anyOffPace && stageConversion.worst && (
+                  <p className="text-xs text-slate-400">
+                    Biggest drop-off over the last 90 days: {stageConversion.worst.prevLabel} →{" "}
+                    {stageConversion.worst.label} ({(stageConversion.worst.stepRate * 100).toFixed(0)}%) —
+                    that&apos;s the step most worth focusing on to catch up.
+                  </p>
+                )}
+              </div>
+            )}
+
             <div className="card space-y-2">
               <div className="flex items-center justify-between">
                 <p className="section-title">{viewingSelf ? "Your KPIs" : `${viewingName}'s KPIs`}</p>

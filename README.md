@@ -6223,6 +6223,19 @@ section (the `off_day` column, right after `depth_texts`) plus the
   the target stage yet, a past date, or no target entered all get their
   own explanation instead of a nonsense number.
 
+- **Predictive Pipeline Health (Insights).** Flags whether someone's on
+  pace for their Monthly Yeses/QI1s goal *before* the month ends, not
+  after - reuses the month-end projection Insights already computed
+  (`paceProjection`) and compares it against whatever target's set on
+  the Goals page, no new fetch beyond the goals themselves. When off
+  pace, names the specific bottleneck using `stageConversion.worst` (also
+  already computed, for the funnel view further down) - this person's
+  own biggest step-to-step drop-off over their last 90 days, so the flag
+  says which stage is actually worth focusing on instead of a generic
+  "you're behind." Retargets with the Viewing picker the same as
+  everything else on this page. Renders nothing for someone with no
+  Monthly goal set - there's nothing to project against yet.
+
 - **Insights: swapped Stage Conversion / Core Run correlation for
   Pipeline Tracker's own Conversion, Trend, and Your Averages.** Pipeline
   Tracker already has three cards that cover similar ground in a format
