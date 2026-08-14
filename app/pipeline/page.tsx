@@ -758,6 +758,23 @@ function PipelinePageInner() {
     [candidates, historyMonthStart, historyNextMonthStart]
   );
 
+  // Archive search - `candidates` is already every candidate this person
+  // has ever added, all-time, no date bound (see the fetch above), so a
+  // name/notes match here reaches years back with no extra round trip -
+  // the month browser below is capped at 11 months back specifically so
+  // it stays a fast scroll through *recent* activity, but that shouldn't
+  // also be the only way to find someone from 2 years ago.
+  const [archiveQuery, setArchiveQuery] = useState("");
+  const archiveResults = useMemo(() => {
+    const q = archiveQuery.trim().toLowerCase();
+    if (!q) return [];
+    return candidates
+      .filter((c) => c.name.toLowerCase().includes(q) || c.notes.toLowerCase().includes(q))
+      .sort((a, b) => b.connected_date.localeCompare(a.connected_date));
+  }, [candidates, archiveQuery]);
+  const searching = archiveQuery.trim().length > 0;
+  const displayedCandidates = searching ? archiveResults : candidatesThisMonth;
+
   return (
     <FeatureGate minSession={4}>
       <PageHeader
@@ -1177,25 +1194,42 @@ function PipelinePageInner() {
 
         {tab === "history" && !actingFor && (
           <>
-            <div className="card flex items-center justify-between">
-              <button
-                className="btn-icon"
-                onClick={() => setMonthsBack((m) => Math.min(11, m + 1))}
-                disabled={monthsBack >= 11}
-                aria-label="Previous month"
-              >
-                ←
-              </button>
-              <span className="text-sm font-medium text-white">{formatMonthLabel(historyMonthStart)}</span>
-              <button
-                className="btn-icon"
-                onClick={() => setMonthsBack((m) => Math.max(0, m - 1))}
-                disabled={monthsBack <= 0}
-                aria-label="Next month"
-              >
-                →
-              </button>
+            <div className="card space-y-2">
+              <input
+                className="input"
+                placeholder="🔍 Search your whole candidate archive, any year…"
+                value={archiveQuery}
+                onChange={(e) => setArchiveQuery(e.target.value)}
+              />
+              {searching && (
+                <p className="text-xs text-slate-400">
+                  {archiveResults.length} match{archiveResults.length === 1 ? "" : "es"} across your
+                  entire history — not just this month.
+                </p>
+              )}
             </div>
+
+            {!searching && (
+              <div className="card flex items-center justify-between">
+                <button
+                  className="btn-icon"
+                  onClick={() => setMonthsBack((m) => Math.min(11, m + 1))}
+                  disabled={monthsBack >= 11}
+                  aria-label="Previous month"
+                >
+                  ←
+                </button>
+                <span className="text-sm font-medium text-white">{formatMonthLabel(historyMonthStart)}</span>
+                <button
+                  className="btn-icon"
+                  onClick={() => setMonthsBack((m) => Math.max(0, m - 1))}
+                  disabled={monthsBack <= 0}
+                  aria-label="Next month"
+                >
+                  →
+                </button>
+              </div>
+            )}
 
             {updateError && (
               <div className="card">
@@ -1207,11 +1241,13 @@ function PipelinePageInner() {
               <div className="card">
                 <SkeletonRows rows={4} />
               </div>
-            ) : candidatesThisMonth.length === 0 ? (
+            ) : displayedCandidates.length === 0 ? (
               <div className="empty-state">
-                {candidates.length === 0
-                  ? "No candidates yet. Add one from the Candidate Roadmap tab."
-                  : `No candidates connected in ${formatMonthLabel(historyMonthStart)}.`}
+                {searching
+                  ? `Nothing in your archive matches "${archiveQuery.trim()}".`
+                  : candidates.length === 0
+                    ? "No candidates yet. Add one from the Candidate Roadmap tab."
+                    : `No candidates connected in ${formatMonthLabel(historyMonthStart)}.`}
               </div>
             ) : (
               <div className="card space-y-2">
@@ -1228,7 +1264,7 @@ function PipelinePageInner() {
                       </tr>
                     </thead>
                     <tbody>
-                      {candidatesThisMonth.map((c) => {
+                      {displayedCandidates.map((c) => {
                         const step = CANDIDATE_STEPS[c.current_step];
                         return (
                           <tr key={c.id} className="border-t border-white/5">

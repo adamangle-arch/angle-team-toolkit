@@ -6200,6 +6200,17 @@ section (the `off_day` column, right after `depth_texts`) plus the
   existing pattern), with the same prior/next week navigation the Team
   tab and Leaderboard already use to browse past weeks.
 
+- **Candidate archive search (Pipeline Tracker's History tab).** The
+  month-by-month browser there is capped at 11 months back by design (a
+  fast scroll through *recent* activity), so it was never how you'd find
+  someone you connected with two years ago. A search box above it now
+  filters the same `candidates` list the tab already has loaded in full
+  (every candidate this person has ever added, no date bound - no new
+  query needed) by name or notes, reaching the entire history instead of
+  one month at a time. Typing a query swaps the month nav out for match
+  count + results across all-time; clearing it goes back to normal
+  month browsing.
+
 - **Insights: swapped Stage Conversion / Core Run correlation for
   Pipeline Tracker's own Conversion, Trend, and Your Averages.** Pipeline
   Tracker already has three cards that cover similar ground in a format
