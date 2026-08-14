@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import { SkeletonList } from "@/components/Skeleton";
@@ -124,6 +125,68 @@ export default function OnboardingPage() {
         subtitle={`${unlockedCount}/${ONBOARDING_SESSIONS.length} sessions unlocked`}
       />
       <main className="page-main">
+        <div className="card space-y-3">
+          <p className="section-title">🎧 Finding Audios in the LTD Media App</p>
+          <p className="text-sm text-slate-300">
+            There are three places in the LTD Media App where you&apos;ll find a lot of helpful
+            audios:
+          </p>
+          <ol className="space-y-1.5 pl-4 text-sm text-slate-300 marker:text-amber-light" style={{ listStyleType: "decimal" }}>
+            <li>
+              <span className="font-semibold text-white">Sales &amp; Profitability Hub</span> on
+              the home screen
+            </li>
+            <li>
+              <span className="font-semibold text-white">My First 90 Days</span>, also on the home
+              screen
+            </li>
+            <li>
+              Tap the <span className="font-semibold text-white">••• menu → Gifts → Received
+              Gifts as Member</span> to see every podcast/audio your mentor has gifted you
+            </li>
+          </ol>
+
+          <div className="space-y-1.5">
+            <Image
+              src="/onboarding/ltd-media-home.jpg"
+              alt="LTD Media App home screen with Sales & Profitability Hub and My First 90 Days circled"
+              width={1170}
+              height={2532}
+              className="w-full rounded-xl object-contain"
+              style={{ maxHeight: "60vh" }}
+            />
+            <p className="text-xs text-slate-500">
+              Home screen — tap Sales &amp; Profitability Hub or My First 90 Days.
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Image
+              src="/onboarding/ltd-media-menu.jpg"
+              alt="LTD Media App menu with the Gifts item circled"
+              width={1170}
+              height={2532}
+              className="w-full rounded-xl object-contain"
+              style={{ maxHeight: "60vh" }}
+            />
+            <p className="text-xs text-slate-500">Menu — tap Gifts.</p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Image
+              src="/onboarding/ltd-media-gifts-list.jpg"
+              alt="LTD Media App Gifts screen with Received Gifts as Member circled"
+              width={1170}
+              height={2532}
+              className="w-full rounded-xl object-contain"
+              style={{ maxHeight: "60vh" }}
+            />
+            <p className="text-xs text-slate-500">
+              Gifts screen — tap Received Gifts as Member.
+            </p>
+          </div>
+        </div>
+
         {sentResources.length > 0 && (
           <div className="card space-y-1.5">
             <p className="section-title">🎁 Sent To You</p>

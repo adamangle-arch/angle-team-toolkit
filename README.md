@@ -6143,6 +6143,18 @@ section (the `off_day` column, right after `depth_texts`) plus the
   biggest-drop-off line, it just no longer has its own visible card.
   Client-only change, no SQL needed.
 
+- **Onboarding: "Finding Audios in the LTD Media App" reference card.**
+  A standing card at the top of Onboarding (not tied to any one session,
+  same as "Sent To You" right below it) with the three annotated
+  screenshots the user provided - home screen, the menu, and the Gifts
+  list - showing where the LTD Media App keeps its audio content: Sales
+  & Profitability Hub and My First 90 Days on the home screen, or
+  menu → Gifts → Received Gifts as Member for whatever podcasts a
+  mentor has gifted. Images live in `public/onboarding/` and render via
+  `next/image` at their real 1170×2532 screenshot size, capped to 60vh
+  each so three stacked portrait screenshots don't turn the card into
+  an endless scroll. Client-only, no SQL needed.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)
