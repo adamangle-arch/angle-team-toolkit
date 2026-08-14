@@ -6161,6 +6161,21 @@ section (the `off_day` column, right after `depth_texts`) plus the
   save, since logging today or backfilling yesterday can flip it right
   away rather than waiting for the next app open.
 
+- **Hall of Records on the Leaderboard.** Team Leaders (rolling-window
+  averages) and Wall of Fame (a feed of individual milestone events) both
+  already existed, but neither one is "the single best day/month/streak
+  anyone's ever logged, permanently" - a record that never ages out of a
+  window and isn't tied to one specific moment being posted. A new
+  `get_hall_of_records()` RPC computes six: longest Core Run Streak ever
+  (the same gaps-and-islands trick `get_longest_streak` already uses
+  per-person, just run across every `user_id` at once to find the single
+  best), most Questions/Yeses/QI1s in one day, fastest Launch (shortest
+  `launched_at - connected_date`), and highest PV in one month. Shows as
+  a new "📜 Hall of Records" card right above Wall of Fame, one line per
+  record with who holds it and when - a record nobody's hit yet (nobody's
+  launched a candidate, for instance) just doesn't render that line
+  rather than showing a placeholder.
+
 - **Insights: swapped Stage Conversion / Core Run correlation for
   Pipeline Tracker's own Conversion, Trend, and Your Averages.** Pipeline
   Tracker already has three cards that cover similar ground in a format

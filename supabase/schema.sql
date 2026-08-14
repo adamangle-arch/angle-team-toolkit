@@ -6974,6 +6974,118 @@ $$;
 
 grant execute on function public.get_wall_of_fame(int) to authenticated;
 
+-- Hall of Records: permanent all-time company bests, one row per record -
+-- distinct from Wall of Fame above (a feed of individual milestone
+-- *events*) and from the Team Leaders lists elsewhere (rolling-window
+-- averages) - this is the single best day/month/streak/launch ever
+-- logged, company-wide, that never gets bumped by a rolling window
+-- aging out. Only the streak record needs the "islands" gaps-and-islands
+-- trick get_longest_streak already uses per-person - here it runs across
+-- every user_id at once (partitioned, not filtered to one) to find the
+-- single best streak anyone has ever hit. A record with no qualifying
+-- data yet (nobody's launched a candidate, for instance) simply
+-- contributes no row rather than a placeholder.
+create or replace function public.get_hall_of_records()
+returns table (
+  record_key text,
+  title text,
+  icon text,
+  value numeric,
+  unit text,
+  first_name text,
+  last_name text,
+  team text,
+  user_id uuid,
+  achieved_on date
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  with streak_record as (
+    with qualifying as (
+      select sd.user_id, sd.day from streak_days sd
+      where sd.read and sd.listen and sd.daily_update and sd.story_share or sd.off_day
+    ),
+    islands as (
+      select q.user_id, q.day,
+        q.day - (row_number() over (partition by q.user_id order by q.day))::int * interval '1 day' as grp
+      from qualifying q
+    ),
+    lengths as (
+      select i.user_id, count(*) as cnt, max(i.day) as end_day
+      from islands i
+      group by i.user_id, i.grp
+    )
+    select l.user_id, l.cnt::numeric as value, l.end_day as achieved_on
+    from lengths l
+    order by l.cnt desc
+    limit 1
+  ),
+  questions_record as (
+    select pp.user_id, pp.questions::numeric as value, pp.period_start as achieved_on
+    from pipeline_periods pp
+    where pp.period_type = 'daily'
+    order by pp.questions desc nulls last
+    limit 1
+  ),
+  yeses_record as (
+    select pp.user_id, pp.yeses::numeric as value, pp.period_start as achieved_on
+    from pipeline_periods pp
+    where pp.period_type = 'daily'
+    order by pp.yeses desc nulls last
+    limit 1
+  ),
+  qi1_record as (
+    select pp.user_id, pp.qi1::numeric as value, pp.period_start as achieved_on
+    from pipeline_periods pp
+    where pp.period_type = 'daily'
+    order by pp.qi1 desc nulls last
+    limit 1
+  ),
+  launch_record as (
+    select c.user_id, (c.launched_at::date - c.connected_date)::numeric as value, c.launched_at::date as achieved_on
+    from candidates c
+    where c.launched and c.launched_at is not null
+    order by (c.launched_at::date - c.connected_date) asc
+    limit 1
+  ),
+  pv_record as (
+    select mp.user_id, mp.pv::numeric as value, mp.period_start as achieved_on
+    from monthly_pv mp
+    order by mp.pv desc nulls last
+    limit 1
+  ),
+  combined as (
+    select 'streak' as record_key, 'Longest Core Run Streak' as title, '🔥' as icon,
+      value, 'days' as unit, user_id, achieved_on
+    from streak_record
+    union all
+    select 'questions', 'Most Questions in a Day', '❓', value, 'in one day', user_id, achieved_on
+    from questions_record
+    union all
+    select 'yeses', 'Most Yeses in a Day', '✅', value, 'in one day', user_id, achieved_on
+    from yeses_record
+    union all
+    select 'qi1', 'Most QI1s in a Day', '🎯', value, 'in one day', user_id, achieved_on
+    from qi1_record
+    union all
+    select 'launch', 'Fastest Launch', '⚡', value, 'days from connect to launch', user_id, achieved_on
+    from launch_record
+    union all
+    select 'pv', 'Highest PV in a Month', '🚀', value, 'PV', user_id, achieved_on
+    from pv_record
+  )
+  select c.record_key, c.title, c.icon, c.value, c.unit,
+    pr.first_name, pr.last_name, pr.team, c.user_id, c.achieved_on
+  from combined c
+  join profiles pr on pr.id = c.user_id
+  where c.value > 0;
+$$;
+
+grant execute on function public.get_hall_of_records() to authenticated;
+
 -- Everyone with a team, for the Spotlight tab's "this week's random
 -- teammate" pick - the actual randomness (seeded by week number, so
 -- everyone sees the same pick all week rather than a new one per reload)

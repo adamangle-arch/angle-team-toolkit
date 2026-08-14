@@ -34,6 +34,7 @@ import type {
   MyRankEntry,
   RisingStarEntry,
   WallOfFameEntry,
+  HallOfRecordEntry,
   TeamMemberBasic,
   TeamChallenge,
   ChallengeLeaderboardEntry,
@@ -308,6 +309,7 @@ export default function LeaderboardPage() {
   const [myRank, setMyRank] = useState<MyRankEntry | null>(null);
   const [risingStar, setRisingStar] = useState<RisingStarEntry | null>(null);
   const [wallOfFame, setWallOfFame] = useState<WallOfFameEntry[]>([]);
+  const [hallOfRecords, setHallOfRecords] = useState<HallOfRecordEntry[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMemberBasic[]>([]);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
@@ -495,6 +497,9 @@ export default function LeaderboardPage() {
     let cancelled = false;
     supabase.rpc("get_wall_of_fame", { p_limit: 20 }).then(({ data }) => {
       if (!cancelled) setWallOfFame((data as WallOfFameEntry[]) ?? []);
+    });
+    supabase.rpc("get_hall_of_records").then(({ data }) => {
+      if (!cancelled) setHallOfRecords((data as HallOfRecordEntry[]) ?? []);
     });
     supabase.rpc("get_all_team_members").then(({ data }) => {
       if (!cancelled) setTeamMembers((data as TeamMemberBasic[]) ?? []);
@@ -1291,6 +1296,28 @@ export default function LeaderboardPage() {
                       <PersonLink entry={weeklySpotlightPick} />{" "}
                       <span className="text-xs text-slate-500">({weeklySpotlightPick.team})</span>
                     </p>
+                  </Card>
+                )}
+
+                {hallOfRecords.length > 0 && (
+                  <Card title="📜 Hall of Records">
+                    <div className="space-y-2">
+                      {hallOfRecords.map((r) => (
+                        <div key={r.record_key} className="flex items-start justify-between gap-2 text-sm">
+                          <span className="text-slate-200">
+                            {r.icon} {r.title} —{" "}
+                            <span className="font-bold text-amber-light">
+                              {r.value % 1 === 0 ? r.value : r.value.toFixed(1)} {r.unit}
+                            </span>
+                            <br />
+                            <span className="text-xs text-slate-500">
+                              <PersonLink entry={r} showAvatar={false} /> ({r.team}) —{" "}
+                              {formatDateLabel(r.achieved_on)}
+                            </span>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   </Card>
                 )}
 

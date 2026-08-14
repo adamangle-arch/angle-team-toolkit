@@ -125,6 +125,22 @@ export type WallOfFameEntry = {
   created_at: string;
 };
 
+// From get_hall_of_records() - permanent all-time company bests, one row
+// per record (distinct from WallOfFameEntry above, which is a feed of
+// individual milestone events).
+export type HallOfRecordEntry = {
+  record_key: string;
+  title: string;
+  icon: string;
+  value: number;
+  unit: string;
+  first_name: string | null;
+  last_name: string | null;
+  team: string | null;
+  user_id: string;
+  achieved_on: string;
+};
+
 export type TeamMemberBasic = {
   user_id: string;
   first_name: string | null;
