@@ -5893,9 +5893,6 @@ tabs use, so it's now a 6-tab page.
   (new `get_all_team_members()` RPC + a week-number-seeded pick client-
   side), so everyone sees the same featured person all week, not a fresh
   reroll on every page load.
-- **Monthly Recap** - only shown on the Monthly toggle: the already-
-  fetched `teamTotals` summed across every category into one whole-team
-  recap card.
 - **Wall of Fame** - a real historical feed, not a new log table:
   `get_wall_of_fame()` reads `sent_notifications` back team-wide (bypassing
   the normal only-yours-or-broadcast RLS, same security-definer carve-out

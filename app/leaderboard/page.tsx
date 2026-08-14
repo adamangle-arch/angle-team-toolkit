@@ -599,18 +599,6 @@ export default function LeaderboardPage() {
   const hotStreakLeader =
     streakLeaders.length > 0 && streakLeaders[0].streak_days >= HOT_STREAK_DAYS ? streakLeaders[0] : null;
 
-  // Only meaningful on the Monthly toggle - teamTotals otherwise reflects
-  // whichever Daily/Weekly period is selected, not the calendar month.
-  const monthlyRecap = useMemo(() => {
-    if (periodType !== "monthly" || teamTotals.length === 0) return null;
-    const totals = {} as Record<PipelineStageKey, number>;
-    for (const c of CATEGORIES) totals[c.key] = 0;
-    for (const t of teamTotals) {
-      for (const c of CATEGORIES) totals[c.key] += t[c.key];
-    }
-    return totals;
-  }, [periodType, teamTotals]);
-
   async function copyWallOfFameEntry(entry: WallOfFameEntry) {
     const name = personName(entry);
     const text = `🎉 ${name}${entry.team ? ` (${entry.team})` : ""}: ${entry.title}`;
@@ -1303,19 +1291,6 @@ export default function LeaderboardPage() {
                       <PersonLink entry={weeklySpotlightPick} />{" "}
                       <span className="text-xs text-slate-500">({weeklySpotlightPick.team})</span>
                     </p>
-                  </Card>
-                )}
-
-                {monthlyRecap && (
-                  <Card title="📅 Monthly Recap">
-                    <div className="grid grid-cols-2 gap-2">
-                      {CATEGORIES.map((c) => (
-                        <div key={c.key} className="rounded-lg bg-navy p-2">
-                          <p className="text-lg font-bold text-white">{monthlyRecap[c.key]}</p>
-                          <p className="text-xs text-slate-400">{c.label} (whole team)</p>
-                        </div>
-                      ))}
-                    </div>
                   </Card>
                 )}
 
