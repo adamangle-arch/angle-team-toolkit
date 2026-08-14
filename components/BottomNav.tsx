@@ -32,11 +32,23 @@ const MORE_ROUTES = [
   "/insights",
 ];
 
+// Core Run tab's little status dot - done (green)/at-risk (red, pulses)/
+// off-day (blue) are worth a glance from anywhere in the app; the
+// ordinary "haven't logged today yet, still plenty of time" state isn't,
+// so 'pending' (and null, before the first fetch resolves) renders
+// nothing rather than a dot that's lit almost every morning.
+const CORE_RUN_DOT_STYLE: Record<string, string> = {
+  done: "bg-emerald-400",
+  off_day: "bg-sky-400",
+  at_risk: "bg-red-500 animate-pulse",
+};
+
 export default function BottomNav() {
   const pathname = usePathname();
-  const { unlockedThrough, unreadNotificationCount } = useAuth();
+  const { unlockedThrough, unreadNotificationCount, coreRunStatus } = useAuth();
   const moreActive = MORE_ROUTES.some((r) => pathname?.startsWith(r)) || pathname?.startsWith("/more");
   const visibleItems = NAV_ITEMS.filter((item) => unlockedThrough >= minSessionFor(item.href));
+  const coreRunDotClass = coreRunStatus ? CORE_RUN_DOT_STYLE[coreRunStatus] : undefined;
 
   return (
     <nav
@@ -67,7 +79,15 @@ export default function BottomNav() {
                   : undefined
               }
             >
-              <span className="text-lg leading-none">{item.icon}</span>
+              <span className="relative text-lg leading-none">
+                {item.icon}
+                {item.href === "/streak" && coreRunDotClass && (
+                  <span
+                    className={`absolute -right-1 -top-0.5 h-2.5 w-2.5 rounded-full border border-navy ${coreRunDotClass}`}
+                    aria-label={`Core Run status: ${coreRunStatus?.replace("_", " ")}`}
+                  />
+                )}
+              </span>
               <span>{item.label}</span>
             </Link>
           );

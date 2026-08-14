@@ -243,7 +243,7 @@ function Counter({
 }
 
 export default function StreakPage() {
-  const { user, ownerId } = useAuth();
+  const { user, ownerId, refreshCoreRunStatus } = useAuth();
   const [history, setHistory] = useState<Record<string, StreakDay>>({});
   const [loading, setLoading] = useState(true);
   // Company-wide top 3 for audios/reading per day
@@ -701,6 +701,11 @@ export default function StreakPage() {
         // mount - otherwise a badge earned here (e.g. 5 Audios in a Day) sits
         // un-awarded until something else happens to trigger a re-check.
         checkAndAwardBadges(ownerId);
+        // A save today, yesterday, or the day before could all flip the
+        // nav dot (today's own status, or the at-risk lookback) - cheap
+        // enough to just always refresh rather than special-case which
+        // day was touched.
+        refreshCoreRunStatus();
       }
     };
     saveQueueRef.current = saveQueueRef.current.then(run, run);

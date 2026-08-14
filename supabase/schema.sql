@@ -1377,6 +1377,81 @@ $$;
 
 grant execute on function public.get_longest_streak(uuid) to authenticated;
 
+-- One-word status for the sticky Core Run nav chip (BottomNav, every tab)
+-- - the same "today qualifies / off day / grace-period at-risk" logic
+-- app/streak/page.tsx already computes client-side for its own "Current
+-- Streak" card and at-risk banner, condensed into a single RPC so the
+-- nav doesn't need to fetch/replay someone's whole streak_days history
+-- just to show one dot. Always the caller's own status - Core Run Streak
+-- is personal, never household-shared (see profiles.household_id notes).
+-- 'at_risk' specifically means: neither today nor yesterday is logged
+-- yet, but a real streak was still intact as of the day before yesterday
+-- - exactly the narrow, easy-to-miss gap streakAtRisk's banner flags,
+-- not just "haven't done today yet" (that's 'pending', no urgency, still
+-- all day left).
+create or replace function public.get_core_run_status()
+returns text
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  v_today_off boolean;
+  v_today_ok boolean;
+  v_yesterday_ok boolean;
+  v_prior_streak int;
+begin
+  select off_day, coalesce(read and listen and daily_update and story_share, false)
+    into v_today_off, v_today_ok
+  from streak_days where user_id = auth.uid() and day = current_date;
+
+  if coalesce(v_today_off, false) then
+    return 'off_day';
+  end if;
+  if coalesce(v_today_ok, false) then
+    return 'done';
+  end if;
+
+  select coalesce(read and listen and daily_update and story_share or off_day, false)
+    into v_yesterday_ok
+  from streak_days where user_id = auth.uid() and day = current_date - 1;
+
+  if coalesce(v_yesterday_ok, false) then
+    return 'pending';
+  end if;
+
+  with recursive w(day, ok, n) as (
+    select (current_date - 2) as day,
+      exists (
+        select 1 from streak_days sd
+        where sd.user_id = auth.uid() and sd.day = current_date - 2
+          and (sd.read and sd.listen and sd.daily_update and sd.story_share or sd.off_day)
+      ),
+      0
+    union all
+    select w.day - 1,
+      exists (
+        select 1 from streak_days sd
+        where sd.user_id = auth.uid() and sd.day = w.day - 1
+          and (sd.read and sd.listen and sd.daily_update and sd.story_share or sd.off_day)
+      ),
+      w.n + 1
+    from w
+    where w.ok and w.n < 3650
+  )
+  select coalesce(count(*) filter (where ok), 0) into v_prior_streak from w;
+
+  if v_prior_streak > 0 then
+    return 'at_risk';
+  end if;
+
+  return 'pending';
+end;
+$$;
+
+grant execute on function public.get_core_run_status() to authenticated;
+
 -- Public-safe profile view for the "tap a name on the Leaderboard" page.
 -- Security definer so it can read any profile row, but only ever returns
 -- the fields meant to be shared — never email or anything private.

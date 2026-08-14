@@ -35,6 +35,12 @@ type AuthContextValue = {
   // instead of waiting for the next app open.
   unreadNotificationCount: number;
   refreshUnreadCount: () => void;
+  // Small status dot on the Core Run tab (BottomNav) so it's visible from
+  // every page, not just the Streak page itself - see get_core_run_status
+  // in supabase/schema.sql for what each value means. null until the
+  // first fetch resolves (renders no dot in the meantime).
+  coreRunStatus: "done" | "off_day" | "at_risk" | "pending" | null;
+  refreshCoreRunStatus: () => void;
   refreshProfile: () => void;
   signOut: () => void;
   // Who else has the app open right now, team-wide - Stories' Pulse tab's
@@ -89,6 +95,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   const [authError, setAuthError] = useState<string | null>(null);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const [activeUserIds, setActiveUserIds] = useState<string[]>([]);
+  const [coreRunStatus, setCoreRunStatus] = useState<AuthContextValue["coreRunStatus"]>(null);
 
   useEffect(() => {
     withTimeout(supabase.auth.getSession(), "Timed out checking your session — check your connection.")
@@ -236,6 +243,20 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     refreshUnreadCount();
   }, [fullyAuthed]);
 
+  function refreshCoreRunStatus() {
+    supabase.rpc("get_core_run_status").then(({ data, error }) => {
+      if (!error) setCoreRunStatus((data as AuthContextValue["coreRunStatus"]) ?? null);
+    });
+  }
+
+  // Same "once per app open" cadence as the notifications badge above -
+  // the Streak page calls refreshCoreRunStatus directly after a save so
+  // the dot updates immediately instead of waiting for the next app open.
+  useEffect(() => {
+    if (!fullyAuthed) return;
+    refreshCoreRunStatus();
+  }, [fullyAuthed]);
+
   // Live badge updates via Supabase Realtime - without this, a push
   // notification that arrives while the app is already open doesn't
   // touch the nav badge until the next full app open (the effect above
@@ -380,6 +401,8 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
         onboardingComplete,
         unreadNotificationCount,
         refreshUnreadCount,
+        coreRunStatus,
+        refreshCoreRunStatus,
         refreshProfile: () => loadProfile(user.id),
         signOut: () => supabase.auth.signOut(),
         activeUserIds,

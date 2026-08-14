@@ -6145,6 +6145,22 @@ section (the `off_day` column, right after `depth_texts`) plus the
 `get_current_streak`/`get_longest_streak`/`get_streak_leaderboard`/
 `get_badge_metrics` redefinitions later in the file that now check it.
 
+- **Sticky Core Run status dot on the bottom nav.** The at-risk banner
+  above only helps if you actually open the Streak page - this puts the
+  same signal on the 🔥 Core Run tab itself, visible from every screen in
+  the app: green once today's done, blue for an Off Day, and a pulsing
+  red dot for the exact same narrow "neither today nor yesterday logged,
+  but a real streak is still recoverable" gap the at-risk banner already
+  flags - not "haven't logged today yet" in general, which is normal
+  almost every morning and not worth a dot. A new `get_core_run_status()`
+  RPC computes it server-side (always the caller's own status - Core Run
+  Streak is personal, never household-shared) so the nav doesn't need to
+  fetch and replay someone's whole `streak_days` history just to light up
+  one dot. Fetched once per app open (`AuthGate`, same pattern as the
+  Notifications badge count) and refreshed immediately after any Core Run
+  save, since logging today or backfilling yesterday can flip it right
+  away rather than waiting for the next app open.
+
 - **Insights: swapped Stage Conversion / Core Run correlation for
   Pipeline Tracker's own Conversion, Trend, and Your Averages.** Pipeline
   Tracker already has three cards that cover similar ground in a format
