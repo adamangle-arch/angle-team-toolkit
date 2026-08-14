@@ -95,6 +95,7 @@ export default function StoriesPage() {
 
   const [pageTab, setPageTab] = useState<PageTab>("prompt");
   const [teamMembers, setTeamMembers] = useState<TeamMemberBasic[] | null>(null);
+  const [pulseError, setPulseError] = useState<string | null>(null);
 
   const [stories, setStories] = useState<StoryPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -198,8 +199,13 @@ export default function StoriesPage() {
   useEffect(() => {
     if (pageTab !== "pulse" || teamMembers !== null) return;
     let cancelled = false;
-    supabase.rpc("get_all_team_members").then(({ data }) => {
-      if (!cancelled) setTeamMembers((data as TeamMemberBasic[]) ?? []);
+    supabase.rpc("get_all_team_members").then(({ data, error }) => {
+      if (cancelled) return;
+      if (error) {
+        setPulseError(error.message);
+        return;
+      }
+      setTeamMembers((data as TeamMemberBasic[]) ?? []);
     });
     return () => {
       cancelled = true;
@@ -378,6 +384,11 @@ export default function StoriesPage() {
 
         {pageTab === "pulse" ? (
           <>
+            {pulseError && (
+              <div className="card">
+                <p className="text-xs text-red-400">{pulseError}</p>
+              </div>
+            )}
             <div className="card space-y-2">
               <p className="section-title">🟢 Active Now</p>
               {teamMembers === null ? (
