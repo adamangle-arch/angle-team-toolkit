@@ -6124,6 +6124,25 @@ section (the `off_day` column, right after `depth_texts`) plus the
 `get_current_streak`/`get_longest_streak`/`get_streak_leaderboard`/
 `get_badge_metrics` redefinitions later in the file that now check it.
 
+- **Insights: swapped Stage Conversion / Core Run correlation for
+  Pipeline Tracker's own Conversion, Trend, and Your Averages.** Pipeline
+  Tracker already has three cards that cover similar ground in a format
+  that had already proven itself there - a two-stage conversion picker,
+  a single-stage trend line, and a plain daily/weekly/monthly averages
+  table - so rather than keep maintaining two different takes on the
+  same idea, Insights' own Stage Conversion (last 90 days) and Core Run
+  vs. Stage correlation cards were swapped out for ported copies of
+  those three. Pipeline Tracker keeps its own versions untouched - nothing
+  was removed from there, only duplicated onto Insights. The ported
+  Conversion card reads from this week's numbers (Insights has no
+  day/week/month tab like Pipeline's to anchor it to otherwise); Trend
+  and Your Averages reuse data this page already had loaded (`weeklyRows`,
+  `dailyAverages`/`weeklyAverages`/`monthlyAverages`), so nothing new was
+  fetched. The underlying stage-conversion math itself wasn't deleted -
+  "Show Me Your Numbers"'s copy-paste summary still references it for its
+  biggest-drop-off line, it just no longer has its own visible card.
+  Client-only change, no SQL needed.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

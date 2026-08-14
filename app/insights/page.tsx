@@ -12,7 +12,6 @@ import { supabase } from "@/lib/supabaseClient";
 import { PIPELINE_STAGES, READING_UNITS, type PipelineStageKey } from "@/lib/constants";
 import {
   getDateOffset,
-  getWeekStart,
   getWeekStartOffset,
   getMonthStart,
   getMonthStartOffset,
@@ -25,9 +24,6 @@ import type { PipelinePeriod, Profile, StreakDay, MonthlyPv, AverageLeaderEntry 
 const DAILY_WINDOW_DAYS = 90;
 const WEEK_TREND_COUNT = 8;
 const MAX_PINNED_KPIS = 4;
-// Out of a possible 7 - the threshold used to split "high Core Run" weeks
-// from "low" ones in the correlation view below.
-const HIGH_CORE_RUN_THRESHOLD = 4;
 // Your Averages section - moved here from the Goals page verbatim, just
 // retargeted to whichever person the Viewing picker above has selected
 // instead of always being the viewer's own numbers.
@@ -43,18 +39,17 @@ function leadingNumber(text: string): number {
   return match ? parseFloat(match[1]) : 0;
 }
 
-type StreakDayRow = {
-  day: string;
-  read: boolean;
-  listen: boolean;
-  daily_update: boolean;
-  story_share: boolean;
-};
-
 type DownlineMember = { id: string; name: string };
 
 function stageLabel(key: PipelineStageKey): string {
   return PIPELINE_STAGES.find((s) => s.key === key)?.label ?? key;
+}
+
+// Same as Pipeline Tracker's own pct() - shared shape, not shared code,
+// since this file has no lib module of its own to put it in.
+function pct(numerator: number, denominator: number): string {
+  if (!denominator) return "—";
+  return `${Math.round((numerator / denominator) * 100)}%`;
 }
 
 function emptyStageTotals(): Record<PipelineStageKey, number> {
@@ -93,7 +88,6 @@ function InsightsPageInner() {
   const [dailyRows, setDailyRows] = useState<PipelinePeriod[]>([]);
   const [weeklyRows, setWeeklyRows] = useState<PipelinePeriod[]>([]);
   const [monthlyRow, setMonthlyRow] = useState<PipelinePeriod | null>(null);
-  const [streakDays, setStreakDays] = useState<StreakDayRow[]>([]);
   const [currentStreak, setCurrentStreak] = useState(0);
   const [downlineMembers, setDownlineMembers] = useState<DownlineMember[]>([]);
   const [downlineWeekly, setDownlineWeekly] = useState<Record<string, DownlineTotals>>({});
@@ -101,7 +95,12 @@ function InsightsPageInner() {
   const [editingPins, setEditingPins] = useState(false);
   const [pinDraft, setPinDraft] = useState<PipelineStageKey[]>([]);
   const [savingPins, setSavingPins] = useState(false);
-  const [correlationStage, setCorrelationStage] = useState<PipelineStageKey>("questions");
+  // Ported Conversion/Trend pickers (see the cards further down) - kept
+  // independent of trendStage above, which drives Downline Trend, so
+  // picking a stage for one doesn't also flip the other.
+  const [personalTrendStage, setPersonalTrendStage] = useState<PipelineStageKey>("questions");
+  const [ratioFromKey, setRatioFromKey] = useState<PipelineStageKey>("questions");
+  const [ratioToKey, setRatioToKey] = useState<PipelineStageKey>("launches");
 
   // Your Averages - company-wide Team Leaders are independent of who's
   // selected in the Viewing picker (always the real leaders), but the
@@ -183,7 +182,6 @@ function InsightsPageInner() {
         { data: daily },
         { data: weekly },
         { data: monthly },
-        { data: streak },
         { data: streakCount },
       ] = await Promise.all([
         supabase
@@ -212,11 +210,6 @@ function InsightsPageInner() {
           .eq("period_type", "monthly")
           .eq("period_start", getMonthStartOffset(0))
           .maybeSingle(),
-        supabase
-          .from("streak_days")
-          .select("day,read,listen,daily_update,story_share")
-          .eq("user_id", streakTargetId)
-          .gte("day", weekStarts[0]),
         supabase.rpc("get_current_streak", { p_user_id: streakTargetId }),
       ]);
       if (cancelled) return;
@@ -224,7 +217,6 @@ function InsightsPageInner() {
       setDailyRows((daily as PipelinePeriod[]) ?? []);
       setWeeklyRows((weekly as PipelinePeriod[]) ?? []);
       setMonthlyRow((monthly as PipelinePeriod) ?? null);
-      setStreakDays((streak as StreakDayRow[]) ?? []);
       setCurrentStreak((streakCount as number) ?? 0);
       setLoading(false);
     }
@@ -475,34 +467,26 @@ function InsightsPageInner() {
     }));
   }, [monthlyRow]);
 
-  const correlationWeeks = useMemo(() => {
-    const coreRunCounts: Record<string, number> = {};
-    for (const ws of weekStarts) coreRunCounts[ws] = 0;
-    for (const d of streakDays) {
-      if (!(d.read && d.listen && d.daily_update && d.story_share)) continue;
-      const bucket = getWeekStart(new Date(`${d.day}T00:00:00`));
-      if (bucket in coreRunCounts) coreRunCounts[bucket] += 1;
-    }
-    const weeklyByStart = new Map(weeklyRows.map((r) => [r.period_start, r]));
-    return weekStarts.map((ws) => ({
-      weekStart: ws,
-      coreRuns: coreRunCounts[ws],
-      value: weeklyByStart.get(ws)?.[correlationStage] ?? 0,
-    }));
-  }, [streakDays, weeklyRows, weekStarts, correlationStage]);
+  // Ported from Pipeline Tracker's own Conversion/Trend/Your Averages
+  // cards (same underlying data this page already loads - no new
+  // fetches) - Pipeline keeps its own copies of all three untouched,
+  // this is a duplicate view for whoever's on Insights and wants them
+  // without switching pages.
+  const weeklyByStart = useMemo(() => new Map(weeklyRows.map((r) => [r.period_start, r])), [weeklyRows]);
 
-  const correlationMax = useMemo(
-    () => Math.max(1, ...correlationWeeks.map((w) => w.value)),
-    [correlationWeeks]
+  const personalChartData = useMemo(
+    () =>
+      weekStarts.map((ws) => ({
+        label: formatShortDateLabel(ws),
+        value: weeklyByStart.get(ws)?.[personalTrendStage] ?? 0,
+      })),
+    [weekStarts, weeklyByStart, personalTrendStage]
   );
 
-  const correlationSummary = useMemo(() => {
-    const high = correlationWeeks.filter((w) => w.coreRuns >= HIGH_CORE_RUN_THRESHOLD);
-    const low = correlationWeeks.filter((w) => w.coreRuns < HIGH_CORE_RUN_THRESHOLD);
-    if (high.length === 0 || low.length === 0) return null;
-    const avg = (arr: typeof correlationWeeks) => arr.reduce((s, w) => s + w.value, 0) / arr.length;
-    return { highAvg: avg(high), lowAvg: avg(low) };
-  }, [correlationWeeks]);
+  const ratioFromLabel = stageLabel(ratioFromKey);
+  const ratioToLabel = stageLabel(ratioToKey);
+  const ratioFromValue = currentWeekRow?.[ratioFromKey] ?? 0;
+  const ratioToValue = currentWeekRow?.[ratioToKey] ?? 0;
 
   const downlineChartData = useMemo(
     () =>
@@ -729,115 +713,109 @@ function InsightsPageInner() {
               )}
             </div>
 
+            {/* Ported from Pipeline Tracker (still there too, untouched) -
+                Conversion, Trend, and Your Averages, in place of this
+                page's own Stage Conversion / Core Run correlation cards. */}
             <div className="card space-y-2">
-              <p className="section-title">Stage Conversion (last {DAILY_WINDOW_DAYS} days)</p>
-              {dailyTotals.questions === 0 ? (
-                <p className="empty-state">Log some Questions to see the funnel.</p>
-              ) : (
-                <>
-                  {stageConversion.worst && (
-                    <div className="rounded-lg bg-navy p-2.5">
-                      <p className="text-xs text-slate-500">Biggest drop-off</p>
-                      <p className="text-sm text-white">
-                        <span className="font-semibold">{stageConversion.worst.prevLabel}</span>
-                        {" → "}
-                        <span className="font-semibold">{stageConversion.worst.label}</span>{" "}
-                        <span className="text-red-300">
-                          ({Math.round(stageConversion.worst.stepRate * 100)}% convert)
-                        </span>
-                      </p>
-                    </div>
-                  )}
-                  <div className="space-y-2">
-                    {stageConversion.rows.map((r) => (
-                      <div key={r.key} className="space-y-0.5">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-slate-300">{r.label}</span>
-                          <span className="flex items-center gap-2">
-                            {r.stepRate !== null && (
-                              <span className={r.stepRate < 0.25 ? "text-red-300" : "text-slate-500"}>
-                                {Math.round(r.stepRate * 100)}% of {r.prevLabel}
-                              </span>
-                            )}
-                            <span className="text-slate-300">{r.value}</span>
-                          </span>
-                        </div>
-                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/5">
-                          <div
-                            className="h-full rounded-full bg-amber"
-                            style={{ width: `${Math.min(100, r.pctOfQuestions * 100)}%` }}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-
-            <div className="card space-y-2">
-              <div className="flex items-center justify-between">
-                <p className="section-title">Core Run vs. {stageLabel(correlationStage)}</p>
+              <p className="section-title">Conversion (this week)</p>
+              <div className="flex items-center gap-2">
                 <select
-                  className="input !w-auto !py-1 text-xs"
-                  value={correlationStage}
-                  onChange={(e) => setCorrelationStage(e.target.value as PipelineStageKey)}
+                  className="select flex-1"
+                  value={ratioFromKey}
+                  onChange={(e) => setRatioFromKey(e.target.value as PipelineStageKey)}
+                  aria-label="From stage"
                 >
-                  {PIPELINE_STAGES.map((stage) => (
-                    <option key={stage.key} value={stage.key}>
-                      {stage.label}
+                  {PIPELINE_STAGES.map((s) => (
+                    <option key={s.key} value={s.key}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
+                <span className="shrink-0 text-slate-500">→</span>
+                <select
+                  className="select flex-1"
+                  value={ratioToKey}
+                  onChange={(e) => setRatioToKey(e.target.value as PipelineStageKey)}
+                  aria-label="To stage"
+                >
+                  {PIPELINE_STAGES.map((s) => (
+                    <option key={s.key} value={s.key}>
+                      {s.label}
                     </option>
                   ))}
                 </select>
               </div>
-              {correlationSummary ? (
-                <p className="text-sm text-slate-300">
-                  On weeks with {HIGH_CORE_RUN_THRESHOLD}+ Core Runs, {viewingSelf ? "you" : viewingName} averaged{" "}
-                  <span className="text-amber-light">{correlationSummary.highAvg.toFixed(1)}</span>{" "}
-                  {stageLabel(correlationStage).toLowerCase()} — vs {correlationSummary.lowAvg.toFixed(1)} on weeks
-                  below that.
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-slate-400">
+                  {ratioFromLabel} → {ratioToLabel}
                 </p>
-              ) : (
-                <p className="text-sm text-slate-400">
-                  Keep logging both to see how they connect — needs weeks on both sides of {HIGH_CORE_RUN_THRESHOLD}{" "}
-                  Core Runs to compare.
-                </p>
-              )}
-              <div className="flex items-center gap-3 text-[11px] text-slate-500">
-                <span className="flex items-center gap-1">
-                  <span className="h-1.5 w-3 rounded-full bg-amber" aria-hidden="true" /> Core Run days
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="h-1.5 w-3 rounded-full bg-slate-400" aria-hidden="true" />{" "}
-                  {stageLabel(correlationStage)}
-                </span>
+                <p className="text-3xl font-bold text-amber">{pct(ratioToValue, ratioFromValue)}</p>
               </div>
-              <div className="space-y-2">
-                {correlationWeeks.map((w) => (
-                  <div key={w.weekStart} className="space-y-1">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-slate-400">{formatShortDateLabel(w.weekStart)}</span>
-                      <span className="text-slate-300">
-                        {w.coreRuns}/7 · {w.value} {stageLabel(correlationStage).toLowerCase()}
-                      </span>
-                    </div>
-                    <div className="flex gap-1">
-                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/5">
-                        <div
-                          className="h-full rounded-full bg-amber"
-                          style={{ width: `${(w.coreRuns / 7) * 100}%` }}
-                        />
-                      </div>
-                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/5">
-                        <div
-                          className="h-full rounded-full bg-slate-400"
-                          style={{ width: `${Math.min(100, (w.value / correlationMax) * 100)}%` }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ))}
+            </div>
+
+            <div className="card space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <p className="section-title">Trend</p>
+                <select
+                  className="select"
+                  value={personalTrendStage}
+                  onChange={(e) => setPersonalTrendStage(e.target.value as PipelineStageKey)}
+                >
+                  {PIPELINE_STAGES.map((s) => (
+                    <option key={s.key} value={s.key}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
               </div>
+              <TrendChart data={personalChartData} />
+            </div>
+
+            <div className="card space-y-2">
+              <p className="section-title">Your Averages</p>
+              <div className="no-scrollbar overflow-x-auto">
+                <table className="w-full min-w-[380px] text-left text-xs">
+                  <thead>
+                    <tr className="text-slate-500">
+                      <th className="pb-1.5 pr-2 font-medium"></th>
+                      <th className="pb-1.5 pr-2 text-right font-medium">
+                        Daily ({dailyAverages.windowCount}d)
+                      </th>
+                      <th className="pb-1.5 pr-2 text-right font-medium">
+                        Weekly ({weeklyAverages.windowCount}w)
+                      </th>
+                      <th className="pb-1.5 text-right font-medium">
+                        Monthly ({monthlyAverages.windowCount}mo)
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {AVERAGE_METRICS.map((metric) => (
+                      <tr key={metric.key} className="border-t border-white/5">
+                        <td className="py-1.5 pr-2 font-medium text-white">{metric.label}</td>
+                        <td className="py-1.5 pr-2 text-right font-bold text-amber">
+                          {dailyAverages[metric.key].toFixed(1)}
+                        </td>
+                        <td className="py-1.5 pr-2 text-right font-bold text-amber">
+                          {weeklyAverages[metric.key].toFixed(1)}
+                        </td>
+                        <td className="py-1.5 text-right font-bold text-amber">
+                          {monthlyAverages[metric.key].toFixed(1)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-xs text-slate-400">
+                Averaged across the completed days/weeks/months since you started logging (up to{" "}
+                {AVERAGES_WINDOW.daily} days, {AVERAGES_WINDOW.weekly} weeks, or{" "}
+                {AVERAGES_WINDOW.monthly} months back) — a period with nothing logged still counts
+                as a 0, so this reflects real consistency since you started, not just how much you
+                do on periods you actually engage. The current, still-in-progress day/week/month
+                is never included — it hasn&apos;t finished yet, so it isn&apos;t a fair comparison
+                to a completed one.
+              </p>
             </div>
 
             {hasDownline && (
