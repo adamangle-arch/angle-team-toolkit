@@ -4215,18 +4215,20 @@ label sitting over an empty list.
 ### Percentile note on every "Your Averages" number
 
 Right below every average on the "Your Averages" cards (Pipeline
-Tracker, Volume, Core Run, Insights) is a small "📊 Top 7% (of 38)"
-line — where that exact number falls against the whole team's
-distribution for the same metric and window, not just whether you're
-top 3. Framed as "Top N%" (Spotify Wrapped's "top 1% of listeners"
-style) rather than a raw ordinal ("74th percentile") - "Top 7%" reads
-instantly, where an ordinal takes a beat to work out whether higher is
-even good. `topPercent()` in `components/PercentileNote.tsx` is just the
-mirror image of the percentile the RPC returns (`100 - percentile`,
-floored at 1 so the single best person on the team reads "Top 1%"
-instead of the technically-exact but odd-looking "Top 0%"). Insights
-retargets to whichever person the Viewing picker has selected, same as
-everything else on that page.
+Tracker, Volume, Core Run, Insights) is a small "📊 Top 7%" line — where
+that exact number falls against the whole team's distribution for the
+same metric and window, not just whether you're top 3. Framed as "Top
+N%" (Spotify Wrapped's "top 1% of listeners" style) rather than a raw
+ordinal ("74th percentile") - "Top 7%" reads instantly, where an ordinal
+takes a beat to work out whether higher is even good. `topPercent()` in
+`components/PercentileNote.tsx` is just the mirror image of the
+percentile the RPC returns (`100 - percentile`, floored at 1 so the
+single best person on the team reads "Top 1%" instead of the
+technically-exact but odd-looking "Top 0%"). Team size isn't shown -
+`team_size` is still used to gate the note off entirely under a
+3-person team, just not printed next to it. Insights retargets to
+whichever person the Viewing picker has selected, same as everything
+else on that page.
 
 Three companion `security definer` RPCs (`get_pipeline_average_percentile`,
 `get_volume_average_percentile`, `get_streak_average_percentile`) mirror

@@ -25,9 +25,5 @@ export default function PercentileNote({
   entry: { percentile: number; team_size: number } | null | undefined;
 }) {
   if (!entry || entry.team_size < MIN_TEAM_SIZE) return null;
-  return (
-    <p className="text-[10px] text-slate-500">
-      📊 Top {topPercent(entry.percentile)}% <span className="text-slate-600">(of {entry.team_size})</span>
-    </p>
-  );
+  return <p className="text-[10px] text-slate-500">📊 Top {topPercent(entry.percentile)}%</p>;
 }
