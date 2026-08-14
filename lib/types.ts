@@ -131,6 +131,7 @@ export type TeamMemberBasic = {
   last_name: string | null;
   team: string | null;
   last_active_at: string | null;
+  photo_url: string | null;
 };
 
 export type TeamChallenge = {

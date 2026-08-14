@@ -74,10 +74,6 @@ function sumStageTotals(rows: PipelinePeriod[]): Record<PipelineStageKey, number
   return totals;
 }
 
-function deltaArrow(delta: number): string {
-  return delta > 0 ? "▲" : delta < 0 ? "▼" : "—";
-}
-
 type DownlineTotals = Record<PipelineStageKey, number>;
 
 export default function InsightsPage() {
@@ -432,21 +428,28 @@ function InsightsPageInner() {
 
   const dailyTotals = useMemo(() => sumStageTotals(dailyRows), [dailyRows]);
 
-  // Two clear stat tiles (Questions + Launches, last week vs. the week
-  // before) instead of one auto-written sentence - the sentence version
-  // read as a wall of text that was more work to parse than the numbers
-  // it was summarizing.
-  const digestStats = useMemo(() => {
-    const lastWeek = weeklyRows.find((r) => r.period_start === weekStarts[WEEK_TREND_COUNT - 1]);
-    if (!lastWeek) return null;
-    const weekBefore = weeklyRows.find((r) => r.period_start === weekStarts[WEEK_TREND_COUNT - 2]);
-    const keys: PipelineStageKey[] = ["questions", "launches"];
-    return keys.map((key) => {
-      const value = lastWeek[key];
-      const delta = value - (weekBefore?.[key] ?? 0);
-      return { key, label: stageLabel(key), value, delta };
+  // Percent-of-Questions alone (the old version of this card) makes every
+  // stage past Yeses look like a flat, indistinguishable near-zero line,
+  // since each one is being compared all the way back to the top of a
+  // 9-step funnel instead of to whatever actually feeds it - it shows
+  // shape but never says WHERE the funnel is actually leaking. Step
+  // conversion (this stage over the one right before it) is the number
+  // that answers that, so a single "biggest drop-off" step gets called
+  // out above the funnel instead of making someone eyeball ten bars for it.
+  const stageConversion = useMemo(() => {
+    const rows = PIPELINE_STAGES.map((stage, i) => {
+      const value = dailyTotals[stage.key];
+      const prevStage = i === 0 ? null : PIPELINE_STAGES[i - 1];
+      const prevValue = prevStage ? dailyTotals[prevStage.key] : null;
+      const stepRate = prevValue && prevValue > 0 ? value / prevValue : null;
+      const pctOfQuestions = dailyTotals.questions > 0 ? value / dailyTotals.questions : 0;
+      return { key: stage.key, label: stage.label, prevLabel: prevStage?.label ?? null, value, stepRate, pctOfQuestions };
     });
-  }, [weeklyRows, weekStarts]);
+    const withStep = rows.filter((r) => r.stepRate !== null) as ((typeof rows)[number] & { stepRate: number })[];
+    const worst =
+      withStep.length > 0 ? withStep.reduce((a, b) => (b.stepRate < a.stepRate ? b : a)) : null;
+    return { rows, worst };
+  }, [dailyTotals]);
 
   const paceProjection = useMemo(() => {
     const now = new Date();
@@ -477,6 +480,11 @@ function InsightsPageInner() {
       value: weeklyByStart.get(ws)?.[correlationStage] ?? 0,
     }));
   }, [streakDays, weeklyRows, weekStarts, correlationStage]);
+
+  const correlationMax = useMemo(
+    () => Math.max(1, ...correlationWeeks.map((w) => w.value)),
+    [correlationWeeks]
+  );
 
   const correlationSummary = useMemo(() => {
     const high = correlationWeeks.filter((w) => w.coreRuns >= HIGH_CORE_RUN_THRESHOLD);
@@ -578,28 +586,6 @@ function InsightsPageInner() {
               )}
             </div>
 
-            {digestStats && (
-              <div className="card space-y-2">
-                <p className="section-title">Weekly Digest</p>
-                <p className="text-xs text-slate-500">Last week vs. the week before</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {digestStats.map((s) => (
-                    <div key={s.key} className="rounded-lg bg-navy p-2.5">
-                      <p className="text-2xl font-bold text-white">{s.value}</p>
-                      <p className="text-xs text-slate-400">{s.label}</p>
-                      <p
-                        className={`text-xs font-medium ${
-                          s.delta > 0 ? "text-amber-light" : s.delta < 0 ? "text-red-300" : "text-slate-500"
-                        }`}
-                      >
-                        {deltaArrow(s.delta)} {Math.abs(s.delta)} vs. last week
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
             <div className="card space-y-2">
               <p className="section-title">Pace This Month</p>
               {monthlyRow ? (
@@ -624,25 +610,44 @@ function InsightsPageInner() {
               {dailyTotals.questions === 0 ? (
                 <p className="empty-state">Log some Questions to see the funnel.</p>
               ) : (
-                <div className="space-y-1.5">
-                  {PIPELINE_STAGES.map((stage) => {
-                    const value = dailyTotals[stage.key];
-                    const pct = Math.min(100, (value / dailyTotals.questions) * 100);
-                    return (
-                      <div key={stage.key} className="space-y-0.5">
+                <>
+                  {stageConversion.worst && (
+                    <div className="rounded-lg bg-navy p-2.5">
+                      <p className="text-xs text-slate-500">Biggest drop-off</p>
+                      <p className="text-sm text-white">
+                        <span className="font-semibold">{stageConversion.worst.prevLabel}</span>
+                        {" → "}
+                        <span className="font-semibold">{stageConversion.worst.label}</span>{" "}
+                        <span className="text-red-300">
+                          ({Math.round(stageConversion.worst.stepRate * 100)}% convert)
+                        </span>
+                      </p>
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    {stageConversion.rows.map((r) => (
+                      <div key={r.key} className="space-y-0.5">
                         <div className="flex items-center justify-between text-xs">
-                          <span className="text-slate-300">{stage.label}</span>
-                          <span className="text-slate-500">
-                            {value} · {pct.toFixed(0)}%
+                          <span className="text-slate-300">{r.label}</span>
+                          <span className="flex items-center gap-2">
+                            {r.stepRate !== null && (
+                              <span className={r.stepRate < 0.25 ? "text-red-300" : "text-slate-500"}>
+                                {Math.round(r.stepRate * 100)}% of {r.prevLabel}
+                              </span>
+                            )}
+                            <span className="text-slate-300">{r.value}</span>
                           </span>
                         </div>
                         <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/5">
-                          <div className="h-full rounded-full bg-amber" style={{ width: `${pct}%` }} />
+                          <div
+                            className="h-full rounded-full bg-amber"
+                            style={{ width: `${Math.min(100, r.pctOfQuestions * 100)}%` }}
+                          />
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
+                    ))}
+                  </div>
+                </>
               )}
             </div>
 
@@ -674,13 +679,38 @@ function InsightsPageInner() {
                   Core Runs to compare.
                 </p>
               )}
-              <div className="space-y-1">
+              <div className="flex items-center gap-3 text-[11px] text-slate-500">
+                <span className="flex items-center gap-1">
+                  <span className="h-1.5 w-3 rounded-full bg-amber" aria-hidden="true" /> Core Run days
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="h-1.5 w-3 rounded-full bg-slate-400" aria-hidden="true" />{" "}
+                  {stageLabel(correlationStage)}
+                </span>
+              </div>
+              <div className="space-y-2">
                 {correlationWeeks.map((w) => (
-                  <div key={w.weekStart} className="flex items-center justify-between text-xs">
-                    <span className="text-slate-400">{formatShortDateLabel(w.weekStart)}</span>
-                    <span className="text-slate-300">
-                      {w.coreRuns}/7 Core Runs · {w.value} {stageLabel(correlationStage).toLowerCase()}
-                    </span>
+                  <div key={w.weekStart} className="space-y-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-slate-400">{formatShortDateLabel(w.weekStart)}</span>
+                      <span className="text-slate-300">
+                        {w.coreRuns}/7 · {w.value} {stageLabel(correlationStage).toLowerCase()}
+                      </span>
+                    </div>
+                    <div className="flex gap-1">
+                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/5">
+                        <div
+                          className="h-full rounded-full bg-amber"
+                          style={{ width: `${(w.coreRuns / 7) * 100}%` }}
+                        />
+                      </div>
+                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/5">
+                        <div
+                          className="h-full rounded-full bg-slate-400"
+                          style={{ width: `${Math.min(100, (w.value / correlationMax) * 100)}%` }}
+                        />
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>

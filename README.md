@@ -6052,6 +6052,35 @@ Two pieces of live feedback on Stories:
 Run once in the Supabase SQL editor - `supabase/schema.sql`'s
 "18. STORIES: LAST ACTIVE + LIKES/COMMENTS" section.
 
+- **Pulse folded into an always-visible avatar row.** A separate tab that
+  had to be tapped into to see who was around didn't get looked at - the
+  "Active Now"/"Recently Active" cards moved out from behind the Pulse tab
+  into a single "Who's Around" row of faces pinned at the very top of
+  Stories, above the prompt/feed, visible no matter which part of the page
+  you're on. One combined list (active-now people first with a green dot,
+  then anyone else active in the last 24h) instead of two separate cards -
+  tap a face to jump to their profile. Needs `get_all_team_members()`
+  bumped once more to actually return `photo_url` (it only had name/team/
+  last_active_at before), otherwise there's nothing to put in the avatar.
+- **Insights: cut Weekly Digest, redid Stage Conversion and Core Run vs.
+  correlation.** Weekly Digest (two stat tiles, Questions/Launches vs. the
+  week before) duplicated Pace This Month right above it without adding
+  anything - removed outright. Stage Conversion compared every one of the
+  10 stages back to Questions alone, which makes every stage past Yeses
+  read as a flat near-zero bar and never says *where* the funnel actually
+  leaks - it now calls out the single biggest drop-off (the adjacent-stage
+  pair with the lowest conversion) above the funnel, and each row shows
+  its step conversion (% of the stage right before it, not all the way
+  back to Questions) alongside the existing bar. Core Run vs. Stage
+  correlation's week-by-week breakdown was a wall of plain text - each
+  week now gets a small paired bar (Core Run days out of 7, and the
+  selected stage's value) so the correlation is something you can see at
+  a glance instead of read line by line.
+
+Run once in the Supabase SQL editor - `supabase/schema.sql`'s
+"19. STORIES: PULSE AVATAR ROW" section (Insights/Stage Conversion/
+correlation changes are client-only, no SQL needed).
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

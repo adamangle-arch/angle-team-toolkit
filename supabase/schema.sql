@@ -6882,3 +6882,25 @@ alter table sent_notifications add constraint sent_notifications_kind_check chec
     'story_liked', 'story_commented'
   )
 );
+
+-- 19. STORIES: PULSE AVATAR ROW -------------------------------------------
+-- Pulse dropped from its own tab to an always-visible avatar row at the
+-- top of Stories - needs the actual photo to show a face, not just a
+-- name, so get_all_team_members grows photo_url on top of its existing
+-- columns. Same "shape changed, drop first" note as its last two bumps.
+drop function if exists public.get_all_team_members();
+create or replace function public.get_all_team_members()
+returns table (
+  user_id uuid, first_name text, last_name text, team text,
+  last_active_at timestamptz, photo_url text
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select id, first_name, last_name, team, last_active_at, photo_url
+  from profiles where team is not null order by id;
+$$;
+
+grant execute on function public.get_all_team_members() to authenticated;

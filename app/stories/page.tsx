@@ -4,13 +4,12 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import { SkeletonList } from "@/components/Skeleton";
+import LevelAvatar from "@/components/LevelAvatar";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import { getTodayStoryPrompt, isPrimaryUser } from "@/lib/constants";
 import { fireNotifyEvent } from "@/lib/notifyClient";
 import type { StoryPost, StoryComment, TeamMemberBasic, Liker } from "@/lib/types";
-
-type PageTab = "prompt" | "pulse";
 
 // A day's worth of staleness - long enough to still be useful ("seen this
 // morning") without listing someone who hasn't opened the app in a week.
@@ -93,7 +92,6 @@ export default function StoriesPage() {
   const isAdmin = isPrimaryUser(user.email);
   const prompt = getTodayStoryPrompt();
 
-  const [pageTab, setPageTab] = useState<PageTab>("prompt");
   const [teamMembers, setTeamMembers] = useState<TeamMemberBasic[] | null>(null);
   const [pulseError, setPulseError] = useState<string | null>(null);
 
@@ -190,14 +188,14 @@ export default function StoriesPage() {
     };
   }, [stories, user.id]);
 
-  // Lazy - only fetched the first time someone taps Pulse, reusing the
-  // same team-wide roster RPC Leaderboard's Spotlight tab already added
-  // (get_all_team_members). Which of them are actually online comes from
-  // AuthGate's Realtime Presence channel (activeUserIds), not from this -
-  // last_active_at (also on this same row) backs the Recently Active list
-  // below Active Now.
+  // Always-visible avatar row at the top of the page now (not a separate
+  // tab) - fetches once on mount instead of lazily on a tab switch. Reuses
+  // the same team-wide roster RPC Leaderboard's Spotlight tab already
+  // added (get_all_team_members). Which of them are actually online comes
+  // from AuthGate's Realtime Presence channel (activeUserIds), not from
+  // this - last_active_at (also on this same row) backs the "recently
+  // active but not online right now" half of the row.
   useEffect(() => {
-    if (pageTab !== "pulse" || teamMembers !== null) return;
     let cancelled = false;
     supabase.rpc("get_all_team_members").then(({ data, error }) => {
       if (cancelled) return;
@@ -210,15 +208,21 @@ export default function StoriesPage() {
     return () => {
       cancelled = true;
     };
-  }, [pageTab, teamMembers]);
+  }, []);
 
   const activeMembers = (teamMembers ?? []).filter((m) => activeUserIds.includes(m.user_id));
-  // Excludes anyone already shown live in Active Now - being both
-  // currently online and "recently" active is redundant to say twice.
+  // Excludes anyone already counted live in activeMembers - being both
+  // currently online and "recently" active is redundant to show twice.
   const recentlyActiveMembers = (teamMembers ?? [])
     .filter((m) => !activeUserIds.includes(m.user_id) && m.last_active_at)
     .filter((m) => hoursSince(m.last_active_at as string) <= RECENTLY_ACTIVE_HOURS)
     .sort((a, b) => (b.last_active_at as string).localeCompare(a.last_active_at as string));
+  // One combined row - active-now people first (green dot), then anyone
+  // else active in the last 24h, faces only, tap through to their profile.
+  const pulseMembers = [
+    ...activeMembers.map((m) => ({ ...m, isActiveNow: true })),
+    ...recentlyActiveMembers.map((m) => ({ ...m, isActiveNow: false })),
+  ];
 
   async function handleSelectFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -367,86 +371,48 @@ export default function StoriesPage() {
     <>
       <PageHeader title="Stories" subtitle="Today's prompt - posts disappear after 24h" />
       <main className="page-main">
-        <div className="card flex p-1">
-          <button
-            className={pageTab === "prompt" ? "toggle-pill-active" : "toggle-pill-inactive"}
-            onClick={() => setPageTab("prompt")}
-          >
-            Today&apos;s Prompt
-          </button>
-          <button
-            className={pageTab === "pulse" ? "toggle-pill-active" : "toggle-pill-inactive"}
-            onClick={() => setPageTab("pulse")}
-          >
-            Pulse
-          </button>
+        <div className="card space-y-2">
+          <p className="section-title">🟢 Who&apos;s Around</p>
+          {pulseError ? (
+            <p className="text-xs text-red-400">{pulseError}</p>
+          ) : teamMembers === null ? (
+            <SkeletonList cards={1} lines={2} />
+          ) : pulseMembers.length === 0 ? (
+            <p className="empty-state">No one else has been active in the last 24 hours.</p>
+          ) : (
+            <div className="no-scrollbar flex gap-3 overflow-x-auto pb-0.5">
+              {pulseMembers.map((m) => (
+                <Link
+                  key={m.user_id}
+                  href={`/profile/${m.user_id}`}
+                  className="flex w-14 shrink-0 flex-col items-center gap-1 text-center"
+                >
+                  <div className="relative">
+                    <LevelAvatar
+                      photoUrl={m.photo_url}
+                      level={1}
+                      showLevelChip={false}
+                      size="sm"
+                      name={personName(m)}
+                    />
+                    {m.isActiveNow && (
+                      <span
+                        className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-400 ring-2 ring-navy"
+                        aria-hidden="true"
+                      />
+                    )}
+                  </div>
+                  <span className="w-full truncate text-[10px] text-slate-300">
+                    {m.user_id === user.id ? "You" : m.first_name || "Unnamed"}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
 
-        {pageTab === "pulse" ? (
-          <>
-            {pulseError && (
-              <div className="card">
-                <p className="text-xs text-red-400">{pulseError}</p>
-              </div>
-            )}
-            <div className="card space-y-2">
-              <p className="section-title">🟢 Active Now</p>
-              {teamMembers === null ? (
-                <SkeletonList cards={1} lines={3} />
-              ) : activeMembers.length === 0 ? (
-                <p className="empty-state">No one else has the app open right now.</p>
-              ) : (
-                <div className="space-y-1.5">
-                  {activeMembers.map((m) => (
-                    <div key={m.user_id} className="flex items-center gap-2 text-sm">
-                      <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-400" aria-hidden="true" />
-                      <Link
-                        href={`/profile/${m.user_id}`}
-                        className="text-slate-200 underline decoration-dotted underline-offset-2"
-                      >
-                        {[m.first_name, m.last_name].filter(Boolean).join(" ") || "Unnamed"}
-                      </Link>
-                      {m.user_id === user.id && <span className="text-xs text-slate-500">(you)</span>}
-                      <span className="text-xs text-slate-500">{m.team}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {teamMembers !== null && (
-              <div className="card space-y-2">
-                <p className="section-title">🕓 Recently Active</p>
-                {recentlyActiveMembers.length === 0 ? (
-                  <p className="empty-state">No one else has been active in the last 24 hours.</p>
-                ) : (
-                  <div className="space-y-1.5">
-                    {recentlyActiveMembers.map((m) => (
-                      <div key={m.user_id} className="flex items-center justify-between gap-2 text-sm">
-                        <span className="flex items-center gap-2">
-                          <span className="h-2 w-2 shrink-0 rounded-full bg-slate-600" aria-hidden="true" />
-                          <Link
-                            href={`/profile/${m.user_id}`}
-                            className="text-slate-200 underline decoration-dotted underline-offset-2"
-                          >
-                            {[m.first_name, m.last_name].filter(Boolean).join(" ") || "Unnamed"}
-                          </Link>
-                          <span className="text-xs text-slate-500">{m.team}</span>
-                        </span>
-                        <span className="shrink-0 text-xs text-slate-500">
-                          {timeAgoLabel(m.last_active_at as string)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </>
-        ) : (
-          <>
-            <div className="card space-y-3">
-              <p className="section-title">📸 Today&apos;s Prompt</p>
+        <div className="card space-y-3">
+          <p className="section-title">📸 Today&apos;s Prompt</p>
               <p className="text-sm text-slate-200">{prompt}</p>
 
               {pendingMedia ? (
@@ -630,8 +596,6 @@ export default function StoriesPage() {
                 );
               })
             )}
-          </>
-        )}
       </main>
     </>
   );
