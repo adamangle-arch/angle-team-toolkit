@@ -73,7 +73,7 @@ function pct(numerator: number, denominator: number): string {
 }
 
 function qualifies(day: StreakDay): boolean {
-  return day.read && day.listen && day.daily_update && day.story_share;
+  return (day.read && day.listen && day.daily_update && day.story_share) || day.off_day;
 }
 
 function addDays(dateStr: string, delta: number): string {

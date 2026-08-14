@@ -622,6 +622,18 @@ end $$;
 -- Free-standing counter with no other existing analog in the app.
 alter table streak_days add column if not exists depth_texts int not null default 0;
 
+-- A deliberate "streak freeze" (vacation, sick day, etc.) - a day marked
+-- off_day counts as a qualifying Core Run day everywhere a day's 4
+-- booleans are checked (get_current_streak, get_longest_streak,
+-- get_streak_leaderboard, every streak-run badge metric) without the
+-- app claiming read/listen/daily_update/story_share actually happened,
+-- so it doesn't fabricate real-looking activity in anyone's history -
+-- see the "or off_day"/"or sd.off_day" added to every one of those
+-- checks. The rolling 3-per-30-days cap lives client-side (app/streak/
+-- page.tsx already has every day's row in state for the last 120 days,
+-- so it's a plain count over what's already loaded - no RPC needed).
+alter table streak_days add column if not exists off_day boolean not null default false;
+
 -- ============================================================
 -- 4b. PERSONAL CIRCLE PV
 -- One row per calendar month per user, self-reported. Core 300 means
@@ -1309,7 +1321,7 @@ as $$
     select case when exists (
       select 1 from streak_days sd
       where sd.user_id = p_user_id and sd.day = current_date
-        and sd.read and sd.listen and sd.daily_update and sd.story_share
+        and (sd.read and sd.listen and sd.daily_update and sd.story_share or sd.off_day)
     ) then current_date else current_date - 1 end as day
   ),
   w(day, ok, n) as (
@@ -1318,7 +1330,7 @@ as $$
       exists (
         select 1 from streak_days sd
         where sd.user_id = p_user_id and sd.day = s.day
-          and sd.read and sd.listen and sd.daily_update and sd.story_share
+          and (sd.read and sd.listen and sd.daily_update and sd.story_share or sd.off_day)
       ),
       0
     from start_day s
@@ -1328,7 +1340,7 @@ as $$
       exists (
         select 1 from streak_days sd
         where sd.user_id = p_user_id and sd.day = w.day - 1
-          and sd.read and sd.listen and sd.daily_update and sd.story_share
+          and (sd.read and sd.listen and sd.daily_update and sd.story_share or sd.off_day)
       ),
       w.n + 1
     from w
@@ -1353,7 +1365,7 @@ as $$
   with qualifying as (
     select day from streak_days
     where user_id = p_user_id
-      and read and listen and daily_update and story_share
+      and (read and listen and daily_update and story_share or off_day)
   ),
   islands as (
     select day - (row_number() over (order by day))::int * interval '1 day' as grp
@@ -1745,7 +1757,7 @@ as $$
   with recursive qualifying as (
     select user_id, day
     from streak_days
-    where read and listen and daily_update and story_share
+    where (read and listen and daily_update and story_share or off_day)
   ),
   walk(user_id, day, streak_days) as (
     select q.user_id, q.day, 1
@@ -5549,7 +5561,7 @@ as $$
             count(*) as qualifying_days,
             extract(day from (date_trunc('month', day) + interval '1 month' - interval '1 day'))::int as days_in_month
           from streak_days
-          where user_id = p_user_id and read and listen and daily_update and story_share
+          where user_id = p_user_id and (read and listen and daily_update and story_share or off_day)
           group by date_trunc('month', day)
         ) t
         where qualifying_days >= days_in_month
@@ -5560,7 +5572,7 @@ as $$
         select count(*) as cnt from (
           select day - (row_number() over (order by day))::int * interval '1 day' as grp
           from streak_days
-          where user_id = p_user_id and read and listen and daily_update and story_share
+          where user_id = p_user_id and (read and listen and daily_update and story_share or off_day)
         ) islands
         group by grp
       ) runs
@@ -5596,7 +5608,7 @@ as $$
           and (
             select count(*) from streak_days sd
             where sd.user_id = p_user_id
-              and sd.read and sd.listen and sd.daily_update and sd.story_share
+              and (sd.read and sd.listen and sd.daily_update and sd.story_share or sd.off_day)
               and date_trunc('month', sd.day) = mp.period_start
           ) >= extract(day from (mp.period_start + interval '1 month' - interval '1 day'))::int
       )
@@ -5870,7 +5882,7 @@ as $$
             select date_trunc('week', day)::date as week_start
             from streak_days
             where user_id = p_user_id
-              and read and listen and daily_update and story_share
+              and (read and listen and daily_update and story_share or off_day)
               and extract(isodow from day) between 1 and 5
             group by date_trunc('week', day)
             having count(*) = 5
@@ -6227,7 +6239,7 @@ as $$
           and (
             select count(*) from streak_days sd
             where sd.user_id = p_user_id and date_trunc('month', sd.day) = mp.period_start
-              and sd.read and sd.listen and sd.daily_update and sd.story_share
+              and (sd.read and sd.listen and sd.daily_update and sd.story_share or sd.off_day)
           ) >= extract(day from (mp.period_start + interval '1 month' - interval '1 day'))::int
       )
     ),
@@ -6236,7 +6248,7 @@ as $$
         select count(*) as cnt from (
           select day - (row_number() over (order by day))::int * interval '1 day' as grp
           from streak_days
-          where user_id = p_user_id and read and listen and daily_update and story_share
+          where user_id = p_user_id and (read and listen and daily_update and story_share or off_day)
         ) islands
         group by grp
       ) runs

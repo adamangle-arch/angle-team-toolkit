@@ -19,7 +19,7 @@ function today(): string {
 }
 
 function qualifies(day: StreakDay | undefined): boolean {
-  return Boolean(day && day.read && day.listen && day.daily_update && day.story_share);
+  return Boolean(day && ((day.read && day.listen && day.daily_update && day.story_share) || day.off_day));
 }
 
 export async function GET(request: Request) {

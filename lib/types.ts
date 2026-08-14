@@ -440,6 +440,7 @@ export type StreakDay = {
   meeting_items: string[];
   read_minutes: number;
   depth_texts: number;
+  off_day: boolean;
 };
 
 export type Goal = {

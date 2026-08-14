@@ -318,7 +318,7 @@ export default function DashboardPage() {
   }
 
   if (showStreak) {
-    const missingChecks = STREAK_CHECKS.filter((c) => !streakToday?.[c.key]);
+    const missingChecks = streakToday?.off_day ? [] : STREAK_CHECKS.filter((c) => !streakToday?.[c.key]);
     if (missingChecks.length > 0) {
       missionItems.push({
         key: "core-run",
@@ -459,13 +459,17 @@ export default function DashboardPage() {
                   <p className="section-title">🔥 Core Run Streak</p>
                   <span className="pill pill-amber">{currentStreak}d</span>
                 </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {STREAK_CHECKS.map((c) => (
-                    <span key={c.key} className={streakToday?.[c.key] ? "pill-amber" : "pill"}>
-                      {streakToday?.[c.key] ? "✅" : "⬜"} {c.label}
-                    </span>
-                  ))}
-                </div>
+                {streakToday?.off_day ? (
+                  <span className="pill pill-amber">🏖️ Off Day - streak protected</span>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {STREAK_CHECKS.map((c) => (
+                      <span key={c.key} className={streakToday?.[c.key] ? "pill-amber" : "pill"}>
+                        {streakToday?.[c.key] ? "✅" : "⬜"} {c.label}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </Link>
             )}
 

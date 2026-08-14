@@ -59,7 +59,22 @@ function fullName(p: { first_name: string | null; last_name: string | null }): s
 }
 
 function qualifies(day: StreakDay): boolean {
-  return day.read && day.listen && day.daily_update && day.story_share;
+  return (day.read && day.listen && day.daily_update && day.story_share) || day.off_day;
+}
+
+// A deliberate "streak freeze" for vacation/sick days - generous enough
+// for one real trip a month, capped so it can't quietly become a way to
+// never actually do the Core Run. Checked client-side against whatever
+// history is already loaded (the last 120 days), not a server-side
+// count, since there's nothing security-sensitive about it - worst case
+// someone edits the request and marks a 4th day, which costs nothing
+// but an honest number on their own streak.
+const OFF_DAY_CAP = 3;
+const OFF_DAY_WINDOW_DAYS = 30;
+
+function offDaysUsedInWindow(history: Record<string, StreakDay>, endDay: string): number {
+  const start = addDays(endDay, -(OFF_DAY_WINDOW_DAYS - 1));
+  return Object.values(history).filter((d) => d.off_day && d.day >= start && d.day <= endDay).length;
 }
 
 // read_amount is free text ("20 pages", "30 min", "a couple chapters") -
@@ -109,6 +124,7 @@ function normalizeRow(row: StreakDay): StreakDay {
     meeting_items: row.meeting_items ?? [],
     read_minutes: row.read_minutes ?? 0,
     depth_texts: row.depth_texts ?? 0,
+    off_day: row.off_day ?? false,
   };
 }
 
@@ -134,6 +150,7 @@ function emptyDay(userId: string, day: string): StreakDay {
     meeting_items: [],
     read_minutes: 0,
     depth_texts: 0,
+    off_day: false,
   };
 }
 
@@ -646,6 +663,7 @@ export default function StreakPage() {
             meetings: merged.meetings,
             meeting_items: merged.meeting_items,
             depth_texts: merged.depth_texts,
+            off_day: merged.off_day,
           },
           { onConflict: "user_id,day" }
         )
@@ -803,6 +821,24 @@ export default function StreakPage() {
 
   const streak = useMemo(() => computeStreakAsOf(history, today), [history, today]);
 
+  // Neither today nor yesterday has to be logged to keep a streak alive -
+  // computeStreakAsOf already rolls back to yesterday when today isn't
+  // done yet, so a real streak sitting on the day before yesterday is
+  // still fully recoverable by backfilling yesterday any time before
+  // today ends (the 24-hour grace the Current Streak number itself
+  // doesn't make obvious, since it just reads 0 in the meantime like the
+  // streak's already gone). This is purely a heads-up banner - it
+  // doesn't change what counts, just surfaces that there's still time to
+  // act instead of letting someone assume it's already too late.
+  const streakAtRisk = useMemo(() => {
+    const yesterday = addDays(today, -1);
+    if (qualifies(history[today] ?? emptyDay(user.id, today))) return null;
+    if (qualifies(history[yesterday] ?? emptyDay(user.id, yesterday))) return null;
+    const priorStreak = computeStreakAsOf(history, addDays(today, -2));
+    if (priorStreak === 0) return null;
+    return { yesterday, priorStreak };
+  }, [history, today, user.id]);
+
   // How much someone typically reads/listens on an average day, not just
   // whether they hit the qualifying minimum - audios counted the same way
   // the Audios badges are (listen_count), reading counted as whatever
@@ -853,6 +889,16 @@ export default function StreakPage() {
     selectedRow.daily_update,
     selectedRow.story_share,
   ].filter(Boolean).length;
+
+  const offDaysUsed = useMemo(
+    () => offDaysUsedInWindow(history, selectedDay),
+    [history, selectedDay]
+  );
+  const offDayAvailable = offDaysUsed < OFF_DAY_CAP;
+
+  function markOffDay() {
+    saveToday({ off_day: true });
+  }
 
   const summaryText = useMemo(() => {
     // A plain single blank line between sections read as jumbled once
@@ -1012,14 +1058,31 @@ export default function StreakPage() {
 
         <FirstVisitTip id="core-run-streak">
           💡 Complete all four — Read, Listen, Daily Update, Story Share — to count today toward
-          your streak. Miss a day and it resets, so a quick partial log still beats skipping it
-          entirely.
+          your streak. Miss a day? You have until the end of the next day to go back and log it
+          before the streak actually breaks. Away on vacation or sick? Use an Off Day (up to 3
+          every 30 days) to keep the streak without logging anything.
         </FirstVisitTip>
+
+        {streakAtRisk && (
+          <div className="card space-y-1.5 border border-red-400/40 bg-red-500/5">
+            <p className="text-sm font-semibold text-red-300">
+              ⚠️ Your {streakAtRisk.priorStreak}-day streak is at risk
+            </p>
+            <p className="text-xs text-slate-300">
+              Neither today nor {formatDateLabel(streakAtRisk.yesterday)} is logged yet. Log{" "}
+              {formatDateLabel(streakAtRisk.yesterday)}&apos;s Core Run before today ends to keep it
+              going.
+            </p>
+            <button className="btn-secondary text-xs" onClick={() => setSelectedDay(streakAtRisk.yesterday)}>
+              Log {formatDateLabel(streakAtRisk.yesterday)}
+            </button>
+          </div>
+        )}
 
         <div className="card flex items-center justify-between">
           <div>
             <p className="section-title">Current Streak</p>
-            <p className="text-xs text-slate-400">All 4 done counts as a streak day</p>
+            <p className="text-xs text-slate-400">All 4 done (or an Off Day) counts as a streak day</p>
           </div>
           <p className="text-3xl font-bold text-amber">🔥 {streak}</p>
         </div>
@@ -1030,9 +1093,29 @@ export default function StreakPage() {
               {selectedDay === today ? "Today" : formatDateLabel(selectedDay)}
             </p>
             <span className={selectedQualifies ? "pill-amber" : "pill"}>
-              {selectedDoneCount}/4 done
+              {selectedRow.off_day ? "🏖️ Off Day" : `${selectedDoneCount}/4 done`}
             </span>
           </div>
+          {selectedRow.off_day ? (
+            <p className="text-xs text-slate-400">
+              Marked as an Off Day — counts toward your streak without needing anything logged.
+            </p>
+          ) : !selectedQualifies ? (
+            <div className="flex items-center justify-between gap-2 rounded-lg bg-navy p-2.5">
+              <p className="text-xs text-slate-400">
+                On vacation or sick? {offDayAvailable
+                  ? `${OFF_DAY_CAP - offDaysUsed} of ${OFF_DAY_CAP} Off Days left in the last ${OFF_DAY_WINDOW_DAYS} days.`
+                  : `You've used all ${OFF_DAY_CAP} Off Days available in the last ${OFF_DAY_WINDOW_DAYS} days.`}
+              </p>
+              <button
+                className="chip-btn shrink-0 text-xs"
+                onClick={markOffDay}
+                disabled={!offDayAvailable}
+              >
+                🏖️ Off Day
+              </button>
+            </div>
+          ) : null}
           <div className="flex gap-2">
             <input
               type="date"

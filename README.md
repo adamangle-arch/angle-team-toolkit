@@ -6095,6 +6095,35 @@ correlation changes are client-only, no SQL needed).
   a downline's numbers gets that person's summary, not their own. No SQL
   needed - `get_current_streak` already had its grant.
 
+- **Core Run Streak: 24-hour grace period made visible, plus Off Days.**
+  The grace period itself already existed (`get_current_streak` and the
+  client's `computeStreakAsOf` both already roll back to yesterday when
+  today isn't logged yet, and the date picker lets you backfill any of
+  the last 120 days) - the gap was that nothing on the page said so. If
+  you open Core Run Streak with neither today nor yesterday logged, the
+  streak number reads 0 even when yesterday is still fully recoverable
+  by logging it before today ends, so there's now a red "your streak is
+  at risk" banner with a one-tap jump straight to yesterday's entry, and
+  the first-visit tip spells out the window instead of just saying "miss
+  a day and it resets."
+
+  Off Days are new: mark a day (vacation, sick, whatever) as an Off Day
+  and it counts as a full qualifying streak day without claiming any
+  actual Read/Listen/Daily Update/Story Share happened - capped at 3
+  every rolling 30 days so it stays a real "life happens" allowance, not
+  a way to stop doing Core Run altogether. `off_day` is a genuinely new
+  qualifying path, not a shortcut that fakes the other four booleans, so
+  every place that already checked "all 4 done" - `get_current_streak`,
+  `get_longest_streak`, `get_streak_leaderboard`, every streak-run badge
+  metric, the Team dashboard, the streak-broke push-notification check -
+  got `or off_day` added rather than being routed through something new,
+  so an Off Day is honored everywhere a normal streak day already was.
+
+Run once in the Supabase SQL editor - `supabase/schema.sql`'s streak_days
+section (the `off_day` column, right after `depth_texts`) plus the
+`get_current_streak`/`get_longest_streak`/`get_streak_leaderboard`/
+`get_badge_metrics` redefinitions later in the file that now check it.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)
