@@ -152,6 +152,27 @@ export default function BadgesPage() {
   const [onThisDay, setOnThisDay] = useState<PipelinePeriod | null>(null);
   const [milestoneArchive, setMilestoneArchive] = useState<SentNotification[] | null>(null);
   const [vaultLoading, setVaultLoading] = useState(false);
+  const [copiedMilestoneId, setCopiedMilestoneId] = useState<string | null>(null);
+
+  // Belief-building via verified results, not testimonials - every entry
+  // here already came from real logged data (a badge threshold actually
+  // hit, a streak length actually reached), so a copy-paste card of it is
+  // proof, not a vague "trust me" claim, safe to paste anywhere (a text
+  // to an upline, LTD Messaging) without building a competing chat
+  // feature of our own.
+  async function copyMilestone(n: SentNotification) {
+    const text = `${n.kind === "badge_earned" ? "🏅" : "🔥"} ${n.title}\n${n.body}\nVerified ${new Date(
+      n.created_at
+    ).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })} — Angle Team`;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedMilestoneId(n.id);
+      setTimeout(() => setCopiedMilestoneId(null), 2000);
+    } catch {
+      // Clipboard access can be denied (permissions, insecure context) -
+      // silently no-op rather than surfacing an error for a nice-to-have.
+    }
+  }
 
   // Browsing controls - a flat list of 300 badges across 51 categories
   // is unusable without these. Search/filter force every matching
@@ -352,7 +373,12 @@ export default function BadgesPage() {
               </div>
 
               <div className="card space-y-2">
-                <p className="section-title">🗂️ Milestone Archive</p>
+                <div>
+                  <p className="section-title">🗂️ Milestone Archive</p>
+                  <p className="text-xs text-slate-400">
+                    Real, verified results — share one as proof, not a testimonial.
+                  </p>
+                </div>
                 {milestoneArchive === null || milestoneArchive.length === 0 ? (
                   <p className="empty-state">Streak milestones and badges you earn will show up here.</p>
                 ) : (
@@ -360,10 +386,17 @@ export default function BadgesPage() {
                     <div key={n.id} className="flex items-start justify-between gap-2 text-sm">
                       <span className="text-slate-200">
                         {n.kind === "badge_earned" ? "🏅" : "🔥"} {n.title}
+                        <span className="ml-1.5 text-xs text-slate-500">
+                          {new Date(n.created_at).toLocaleDateString(undefined, {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })}
+                        </span>
                       </span>
-                      <span className="shrink-0 text-xs text-slate-500">
-                        {new Date(n.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
-                      </span>
+                      <button className="chip-btn shrink-0 text-xs" onClick={() => copyMilestone(n)}>
+                        {copiedMilestoneId === n.id ? "Copied!" : "Share"}
+                      </button>
                     </div>
                   ))
                 )}

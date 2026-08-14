@@ -6236,6 +6236,18 @@ section (the `off_day` column, right after `depth_texts`) plus the
   everything else on this page. Renders nothing for someone with no
   Monthly goal set - there's nothing to project against yet.
 
+- **Shareable Milestone Archive (Badges → Vault tab).** "First QI1,"
+  "First Launch," and every streak milestone already existed as real
+  badges and already had their own permanent Milestone Archive listing
+  (`sent_notifications` filtered to `badge_earned`/`streak_milestone_reached`,
+  scoped to just this person) - the piece that was missing was a way to
+  actually hand one to someone. Each entry now gets the same one-tap
+  "Share" → clipboard pattern as Show Me Your Numbers and Wall of Fame,
+  copying a plain-text card (milestone + verified date + "Angle Team")
+  built entirely from real logged data, not a self-reported claim - belief-
+  building that's numbers-backed, safe to paste into a text or LTD
+  Messaging without this app building any messaging feature of its own.
+
 - **Insights: swapped Stage Conversion / Core Run correlation for
   Pipeline Tracker's own Conversion, Trend, and Your Averages.** Pipeline
   Tracker already has three cards that cover similar ground in a format
