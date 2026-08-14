@@ -173,16 +173,47 @@ function InsightsPageInner() {
     };
   }, [user.id]);
 
+  // Everything scoped to whichever person is currently selected lives in
+  // this one effect/Promise.all, gated by the same `loading` flag that
+  // hides the whole page below it - the averages/volume queries used to
+  // be their own separate effects, each on its own async clock, which
+  // meant switching the Viewing picker could flip `loading` back to
+  // false (this fetch resolving first) while a slower averages fetch was
+  // still mid-flight and its state still held the PREVIOUS person's
+  // numbers - "Show Me Your Numbers" and Your Averages would briefly
+  // show someone else's real activity captioned with the new person's
+  // name. Merging them into one Promise.all means every number on the
+  // page is guaranteed to belong to the same target by the time `loading`
+  // ever goes false again.
   useEffect(() => {
     let cancelled = false;
     async function load() {
       setLoading(true);
+      // Today is never counted in coreRunAverages below, so this needs to
+      // reach one day further back to still cover CORE_RUN_WINDOW
+      // completed days.
+      const streakSince = getDateOffset(CORE_RUN_WINDOW);
+      const today = getDateOffset(0);
+      // +1 further back than each window size - the current (in-progress)
+      // period is never counted (see averagesForPeriods), so this still
+      // needs to reach far enough back for a full window of *completed*
+      // periods.
+      const dailyStart = periodStartFor("daily", AVERAGES_WINDOW.daily);
+      const weeklyStart = periodStartFor("weekly", AVERAGES_WINDOW.weekly);
+      const monthlyStart = periodStartFor("monthly", AVERAGES_WINDOW.monthly);
+      const volumeSince = getMonthStartOffset(VOLUME_WINDOW);
+      const thisMonth = getMonthStart();
       const [
         { data: currentWeek },
         { data: daily },
         { data: weekly },
         { data: monthly },
         { data: streakCount },
+        { data: streakRows },
+        { data: avgDaily },
+        { data: avgWeekly },
+        { data: avgMonthly },
+        { data: volume },
       ] = await Promise.all([
         supabase
           .from("pipeline_periods")
@@ -211,6 +242,36 @@ function InsightsPageInner() {
           .eq("period_start", getMonthStartOffset(0))
           .maybeSingle(),
         supabase.rpc("get_current_streak", { p_user_id: streakTargetId }),
+        supabase
+          .from("streak_days")
+          .select("day,read_amount,listen_count")
+          .eq("user_id", streakTargetId)
+          .gte("day", streakSince)
+          .lt("day", today),
+        supabase
+          .from("pipeline_periods")
+          .select("*")
+          .eq("user_id", pipelineTargetId)
+          .eq("period_type", "daily")
+          .gte("period_start", dailyStart),
+        supabase
+          .from("pipeline_periods")
+          .select("*")
+          .eq("user_id", pipelineTargetId)
+          .eq("period_type", "weekly")
+          .gte("period_start", weeklyStart),
+        supabase
+          .from("pipeline_periods")
+          .select("*")
+          .eq("user_id", pipelineTargetId)
+          .eq("period_type", "monthly")
+          .gte("period_start", monthlyStart),
+        supabase
+          .from("monthly_pv")
+          .select("*")
+          .eq("user_id", pipelineTargetId)
+          .gte("period_start", volumeSince)
+          .lt("period_start", thisMonth),
       ]);
       if (cancelled) return;
       setCurrentWeekRow((currentWeek as PipelinePeriod) ?? null);
@@ -218,6 +279,11 @@ function InsightsPageInner() {
       setWeeklyRows((weekly as PipelinePeriod[]) ?? []);
       setMonthlyRow((monthly as PipelinePeriod) ?? null);
       setCurrentStreak((streakCount as number) ?? 0);
+      setAvgStreakRows((streakRows as Pick<StreakDay, "day" | "read_amount" | "listen_count">[]) ?? []);
+      setAvgDailyRows((avgDaily as PipelinePeriod[]) ?? []);
+      setAvgWeeklyRows((avgWeekly as PipelinePeriod[]) ?? []);
+      setAvgMonthlyRows((avgMonthly as PipelinePeriod[]) ?? []);
+      setAvgVolumeRows((volume as MonthlyPv[]) ?? []);
       setLoading(false);
     }
     load();
@@ -288,90 +354,6 @@ function InsightsPageInner() {
       cancelled = true;
     };
   }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      // Today is never counted (see coreRunAverages below), so this needs
-      // to reach one day further back to still cover CORE_RUN_WINDOW
-      // completed days.
-      const since = getDateOffset(CORE_RUN_WINDOW);
-      const today = getDateOffset(0);
-      const { data } = await supabase
-        .from("streak_days")
-        .select("day,read_amount,listen_count")
-        .eq("user_id", streakTargetId)
-        .gte("day", since)
-        .lt("day", today);
-      if (!cancelled) {
-        setAvgStreakRows((data as Pick<StreakDay, "day" | "read_amount" | "listen_count">[]) ?? []);
-      }
-    }
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [streakTargetId]);
-
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      // +1 further back than each window size - the current (in-progress)
-      // period is never counted (see averagesForPeriods), so this still
-      // needs to reach far enough back for a full window of *completed*
-      // periods.
-      const dailyStart = periodStartFor("daily", AVERAGES_WINDOW.daily);
-      const weeklyStart = periodStartFor("weekly", AVERAGES_WINDOW.weekly);
-      const monthlyStart = periodStartFor("monthly", AVERAGES_WINDOW.monthly);
-      const [{ data: d }, { data: w }, { data: m }] = await Promise.all([
-        supabase
-          .from("pipeline_periods")
-          .select("*")
-          .eq("user_id", pipelineTargetId)
-          .eq("period_type", "daily")
-          .gte("period_start", dailyStart),
-        supabase
-          .from("pipeline_periods")
-          .select("*")
-          .eq("user_id", pipelineTargetId)
-          .eq("period_type", "weekly")
-          .gte("period_start", weeklyStart),
-        supabase
-          .from("pipeline_periods")
-          .select("*")
-          .eq("user_id", pipelineTargetId)
-          .eq("period_type", "monthly")
-          .gte("period_start", monthlyStart),
-      ]);
-      if (cancelled) return;
-      setAvgDailyRows((d as PipelinePeriod[]) ?? []);
-      setAvgWeeklyRows((w as PipelinePeriod[]) ?? []);
-      setAvgMonthlyRows((m as PipelinePeriod[]) ?? []);
-    }
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [pipelineTargetId]);
-
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      const since = getMonthStartOffset(VOLUME_WINDOW);
-      const thisMonth = getMonthStart();
-      const { data } = await supabase
-        .from("monthly_pv")
-        .select("*")
-        .eq("user_id", pipelineTargetId)
-        .gte("period_start", since)
-        .lt("period_start", thisMonth);
-      if (!cancelled) setAvgVolumeRows((data as MonthlyPv[]) ?? []);
-    }
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [pipelineTargetId]);
 
   // Today isn't counted, on top of the usual fairness clamp - a day
   // that isn't over yet will always look emptier than a finished one
