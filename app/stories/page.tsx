@@ -56,6 +56,16 @@ function personName(entry: { first_name: string | null; last_name: string | null
   return name || "Unnamed";
 }
 
+// "Sarah" / "Sarah and Mike" / "Sarah, Mike, and Jordan" - so Who's
+// Around reads as a real sentence naming people, not just a row of
+// avatars someone has to squint at (or tap through) to identify.
+function joinNames(names: string[]): string {
+  if (names.length === 0) return "";
+  if (names.length === 1) return names[0];
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+  return `${names.slice(0, -1).join(", ")}, and ${names[names.length - 1]}`;
+}
+
 // "Posted 4h ago" / "Expires in 6h" - both derived from the same
 // created_at, so there's no separate "expires_at" to keep in sync; a
 // story just stops coming back from get_active_stories() once its own
@@ -380,34 +390,54 @@ export default function StoriesPage() {
           ) : pulseMembers.length === 0 ? (
             <p className="empty-state">No one else has been active in the last 24 hours.</p>
           ) : (
-            <div className="no-scrollbar flex gap-3 overflow-x-auto pb-0.5">
-              {pulseMembers.map((m) => (
-                <Link
-                  key={m.user_id}
-                  href={`/profile/${m.user_id}`}
-                  className="flex w-14 shrink-0 flex-col items-center gap-1 text-center"
-                >
-                  <div className="relative">
-                    <LevelAvatar
-                      photoUrl={m.photo_url}
-                      level={1}
-                      showLevelChip={false}
-                      size="sm"
-                      name={personName(m)}
-                    />
-                    {m.isActiveNow && (
-                      <span
-                        className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-400 ring-2 ring-navy"
-                        aria-hidden="true"
+            <>
+              <p className="text-sm text-slate-200">
+                {activeMembers.length > 0 && (
+                  <>
+                    🟢{" "}
+                    {joinNames(activeMembers.map((m) => (m.user_id === user.id ? "You" : personName(m))))}{" "}
+                    {activeMembers.length === 1 ? "is" : "are"} active right now
+                    {recentlyActiveMembers.length > 0 ? "; " : "."}
+                  </>
+                )}
+                {recentlyActiveMembers.length > 0 && (
+                  <>
+                    {joinNames(
+                      recentlyActiveMembers.map((m) => (m.user_id === user.id ? "You" : personName(m)))
+                    )}{" "}
+                    {recentlyActiveMembers.length === 1 ? "was" : "were"} active in the last 24h.
+                  </>
+                )}
+              </p>
+              <div className="no-scrollbar flex gap-3 overflow-x-auto pb-0.5">
+                {pulseMembers.map((m) => (
+                  <Link
+                    key={m.user_id}
+                    href={`/profile/${m.user_id}`}
+                    className="flex w-14 shrink-0 flex-col items-center gap-1 text-center"
+                  >
+                    <div className="relative">
+                      <LevelAvatar
+                        photoUrl={m.photo_url}
+                        level={1}
+                        showLevelChip={false}
+                        size="sm"
+                        name={personName(m)}
                       />
-                    )}
-                  </div>
-                  <span className="w-full truncate text-[10px] text-slate-300">
-                    {m.user_id === user.id ? "You" : m.first_name || "Unnamed"}
-                  </span>
-                </Link>
-              ))}
-            </div>
+                      {m.isActiveNow && (
+                        <span
+                          className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-400 ring-2 ring-navy"
+                          aria-hidden="true"
+                        />
+                      )}
+                    </div>
+                    <span className="w-full truncate text-[10px] text-slate-300">
+                      {m.user_id === user.id ? "You" : m.first_name || "Unnamed"}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </>
           )}
         </div>
 
