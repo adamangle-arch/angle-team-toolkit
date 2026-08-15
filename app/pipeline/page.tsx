@@ -50,6 +50,7 @@ import {
 } from "@/lib/constants";
 import { guessTimeZone, zonedInputToUtc } from "@/lib/timezones";
 import {
+  getToday,
   getMonthStartOffset,
   isoDaysAgo,
   formatDateLabel,
@@ -204,6 +205,12 @@ function PipelinePageInner() {
   // throughout this codebase, not state, since it needs no re-render timer.
   const staleThresholdIso = isoDaysAgo(STALE_CANDIDATE_DAYS);
   const [newName, setNewName] = useState("");
+  // Defaults to today (the common case) but is a real field on the Add
+  // Candidate card itself, not a silent DB default - connected_date
+  // matters for "who's stale" and the candidate archive's month
+  // browsing, so it shouldn't require a separate follow-up edit on the
+  // card just to fix a date that wasn't actually today.
+  const [newConnectedDate, setNewConnectedDate] = useState(getToday());
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
@@ -647,7 +654,7 @@ function PipelinePageInner() {
     setAddError(null);
     const { data, error } = await supabase
       .from("candidates")
-      .insert({ name, user_id: ownerId })
+      .insert({ name, user_id: ownerId, connected_date: newConnectedDate })
       .select("*")
       .single();
     if (error) {
@@ -655,6 +662,7 @@ function PipelinePageInner() {
     } else if (data) {
       setCandidates((prev) => [data as Candidate, ...prev]);
       setNewName("");
+      setNewConnectedDate(getToday());
     }
     setAdding(false);
   }
@@ -1146,6 +1154,15 @@ function PipelinePageInner() {
                     Add
                   </button>
                 </div>
+                <label className="flex items-center gap-2 text-xs text-slate-400">
+                  <span className="shrink-0 font-medium text-slate-300">Connected:</span>
+                  <input
+                    type="date"
+                    className="input"
+                    value={newConnectedDate}
+                    onChange={(e) => setNewConnectedDate(e.target.value)}
+                  />
+                </label>
                 {addError && <p className="text-xs text-red-400">{addError}</p>}
               </div>
 
@@ -2519,6 +2536,7 @@ function DownlineCandidateResources({ actingFor }: { actingFor: DownlineOption }
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [stepFilter, setStepFilter] = useState<"all" | number>("all");
   const [newName, setNewName] = useState("");
+  const [newConnectedDate, setNewConnectedDate] = useState(getToday());
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
   const staleThresholdIso = isoDaysAgo(STALE_CANDIDATE_DAYS);
@@ -2533,7 +2551,7 @@ function DownlineCandidateResources({ actingFor }: { actingFor: DownlineOption }
     setAddError(null);
     const { data, error } = await supabase
       .from("candidates")
-      .insert({ name, user_id: actingFor.ownerId })
+      .insert({ name, user_id: actingFor.ownerId, connected_date: newConnectedDate })
       .select("*")
       .single();
     if (error) {
@@ -2541,6 +2559,7 @@ function DownlineCandidateResources({ actingFor }: { actingFor: DownlineOption }
     } else if (data) {
       setCandidates((prev) => [data as Candidate, ...prev]);
       setNewName("");
+      setNewConnectedDate(getToday());
     }
     setAdding(false);
   }
@@ -2632,6 +2651,15 @@ function DownlineCandidateResources({ actingFor }: { actingFor: DownlineOption }
             Add
           </button>
         </div>
+        <label className="flex items-center gap-2 text-xs text-slate-400">
+          <span className="shrink-0 font-medium text-slate-300">Connected:</span>
+          <input
+            type="date"
+            className="input"
+            value={newConnectedDate}
+            onChange={(e) => setNewConnectedDate(e.target.value)}
+          />
+        </label>
         {addError && <p className="text-xs text-red-400">{addError}</p>}
       </div>
 

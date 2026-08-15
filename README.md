@@ -6490,6 +6490,24 @@ section (the `off_day` column, right after `depth_texts`) plus the
   broken anywhere between it and the app shell. Client-only change, no
   SQL needed.
 
+- **Fix: Add Candidate silently assumed "today" for Connected date.**
+  A new candidate's `connected_date` came entirely from the database's
+  own default (`current_date`) - there was no way to set it while
+  actually adding someone, only a follow-up edit afterward on the
+  card's own "Connected" field. Both Add Candidate forms (your own
+  Candidate Roadmap, and the upline "Add Candidate for {name}" fill-in
+  form) now show that same date field right on the add card itself,
+  defaulting to today but editable before you tap Add, so a candidate
+  connected on an earlier date doesn't need a second trip to fix it.
+
+- **Fix: Core Run's Story Shares no longer auto-follows Questions.**
+  Logging a Questions count used to silently bump Story Shares by that
+  same amount too (the original idea being "asking a question is the
+  story-sharing moment"), so entering Questions always changed Story
+  Shares as a visible side effect with no obvious cause. Story Shares
+  is its own real count with its own +/- buttons on the page - it only
+  changes now when someone actually touches it.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

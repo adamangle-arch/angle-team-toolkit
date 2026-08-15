@@ -728,20 +728,15 @@ export default function StreakPage() {
 
   // Questions/Yeses are shared with the Pipeline Tracker's Daily Tally -
   // logging one here also bumps that same day's Daily/Weekly/Monthly
-  // pipeline totals (bump_pipeline_stage). Story Shares tracks Questions
-  // specifically (asking the question is the story-sharing moment) - it
-  // used to also bump on every Yeses change, which double-counted since a
-  // yes only ever follows a question that was already counted, so Story
-  // Shares would silently climb past Questions with no visible cause.
-  // Story Shares' own +/- buttons still edit it directly and that edit
-  // sticks - this delta only re-syncs it when Questions itself changes.
+  // pipeline totals (bump_pipeline_stage). Story Shares used to
+  // auto-follow Questions (on the theory that asking a question is the
+  // story-sharing moment), but that meant every Questions edit silently
+  // changed Story Shares too, with no visible cause - Story Shares is
+  // its own real count with its own +/- buttons, so it only changes when
+  // someone actually touches it.
   function logActivityCount(key: "questions" | "yeses", next: number) {
     const delta = next - (selectedRow[key] as number);
-    const updates: Partial<StreakDay> =
-      key === "questions"
-        ? { [key]: next, story_shares: Math.max(0, selectedRow.story_shares + delta) }
-        : { [key]: next };
-    saveToday(updates);
+    saveToday({ [key]: next });
     if (delta !== 0) {
       supabase.rpc("bump_pipeline_stage", {
         p_owner_id: ownerId,
