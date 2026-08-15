@@ -7,22 +7,24 @@ import { minSessionFor } from "@/lib/onboarding-gate";
 
 // Home is the landing screen (AuthGate sends first-open-of-the-session
 // traffic straight here) and doubles as the hub for everything not on
-// this bar (see app/home/page.tsx) - it owns the house icon and the
-// unread-notifications badge, both moved off Today, which now gets its
-// own icon since it's a normal tab again rather than the entry point.
-// Swiping a scrollable nav row to find a tab wasn't intuitive, so this is
-// deliberately short enough to never need horizontal scrolling.
+// this bar (see app/home/page.tsx) - it owns the house icon, the
+// unread-notifications badge, and the Core Run status dot (all three
+// below). Pipeline, Core Run, and Leaderboard lost their own tabs once
+// Home started leading with big cards for exactly those three - a
+// second, smaller entry point to the same pages would've been
+// redundant, so this bar is down to the three things that don't already
+// have a home-page presence. Today keeps its own icon since it's still
+// a normal tab, just no longer the entry point.
 const NAV_ITEMS = [
   { href: "/home", label: "Home", icon: "🏠" },
   { href: "/dashboard", label: "Today", icon: "☀️" },
-  { href: "/pipeline", label: "Pipeline", icon: "📊" },
   { href: "/calendar", label: "Calendar", icon: "📅" },
-  { href: "/streak", label: "Core Run", icon: "🔥" },
-  { href: "/leaderboard", label: "Leaderboard", icon: "🏆" },
 ];
 
 // Everything reached through the Home hub, rather than its own bar tab -
 // visiting any of these should still highlight Home as the active tab.
+// Includes the three hero-card pages (Pipeline, Core Run, Leaderboard)
+// on top of the grid tiles, now that none of them has its own tab.
 const HOME_HUB_ROUTES = [
   "/goals",
   "/contacts",
@@ -38,13 +40,17 @@ const HOME_HUB_ROUTES = [
   "/stories",
   "/notifications",
   "/ideas",
+  "/pipeline",
+  "/streak",
+  "/leaderboard",
 ];
 
-// Core Run tab's little status dot - done (green)/at-risk (red, pulses)/
+// Core Run's little status dot - done (green)/at-risk (red, pulses)/
 // off-day (blue) are worth a glance from anywhere in the app; the
 // ordinary "haven't logged today yet, still plenty of time" state isn't,
 // so 'pending' (and null, before the first fetch resolves) renders
-// nothing rather than a dot that's lit almost every morning.
+// nothing rather than a dot that's lit almost every morning. Lives on
+// the Home tab now that Core Run doesn't have its own.
 const CORE_RUN_DOT_STYLE: Record<string, string> = {
   done: "bg-emerald-400",
   off_day: "bg-sky-400",
@@ -90,9 +96,9 @@ export default function BottomNav() {
             >
               <span className="relative text-lg leading-none">
                 {item.icon}
-                {item.href === "/streak" && coreRunDotClass && (
+                {item.href === "/home" && coreRunDotClass && (
                   <span
-                    className={`absolute -right-1 -top-0.5 h-2.5 w-2.5 rounded-full border border-navy ${coreRunDotClass}`}
+                    className={`absolute -bottom-0.5 -right-1 h-2.5 w-2.5 rounded-full border border-navy ${coreRunDotClass}`}
                     aria-label={`Core Run status: ${coreRunStatus?.replace("_", " ")}`}
                   />
                 )}

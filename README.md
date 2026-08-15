@@ -6380,6 +6380,19 @@ section (the `off_day` column, right after `depth_texts`) plus the
   cards always show. Client-only change, no SQL needed - all three RPCs
   already existed for their own pages.
 
+- **Pipeline, Core Run, and Leaderboard dropped from the bottom nav.**
+  With all three now leading Home as big cards (see above), keeping
+  them as their own tabs too was a second, smaller entry point to
+  exactly the same three pages - `BottomNav`'s `NAV_ITEMS` is back down
+  to Home, Today, and Calendar. `HOME_HUB_ROUTES` (used to keep Home
+  highlighted as the active tab while on a page reached through it)
+  picked up `/pipeline`, `/streak`, and `/leaderboard` to match. The
+  Core Run status dot - previously on the Streak tab's icon - moved
+  onto the Home tab's icon alongside the unread-notifications badge
+  (bottom-right corner for the dot, top-right for the badge, so the two
+  don't collide when both are showing at once). Client-only change, no
+  SQL needed.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

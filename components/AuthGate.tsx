@@ -36,7 +36,7 @@ type AuthContextValue = {
   // instead of waiting for the next app open.
   unreadNotificationCount: number;
   refreshUnreadCount: () => void;
-  // Small status dot on the Core Run tab (BottomNav) so it's visible from
+  // Small status dot on the Home tab (BottomNav) so it's visible from
   // every page, not just the Streak page itself - see get_core_run_status
   // in supabase/schema.sql for what each value means. null until the
   // first fetch resolves (renders no dot in the meantime).
