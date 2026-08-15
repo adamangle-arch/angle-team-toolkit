@@ -6467,6 +6467,29 @@ section (the `off_day` column, right after `depth_texts`) plus the
   people type, and casual mid-sentence flourishes. Client-only change,
   no SQL needed - just the new `lucide-react` dependency.
 
+- **Instagram-style pull-to-refresh.** Dragging down from the very top
+  of any page's scrollable area now reloads that page's data, with a
+  spinning arrow indicator that follows the drag and keeps spinning
+  through the reload (`components/PullToRefresh.tsx`, wrapped around
+  `{children}` in `AuthGate` - so it covers every page for free, no
+  per-page wiring). There's no server-rendered data here to re-fetch
+  (every page is a client component that loads via its own `useEffect`
+  on mount), so "refresh" means remounting the page subtree - bumping a
+  `key` on the wrapper around `{children}` unmounts and remounts the
+  current page, re-running every mount effect underneath it exactly
+  like a real reload would, without the white-flash and lost app state
+  a `location.reload()` would cause. `BottomNav` and the overlay
+  components sit outside the wrapper (untouched by the remount). Only
+  triggers when the drag starts at `.page-main`'s own scroll top - it
+  won't fire from partway down a long page, matching the standard
+  pull-to-refresh feel. Had to make the wrapper's own two `<div>`s
+  transparent flex passthroughs (`flex min-h-0 flex-1 flex-col`) to
+  avoid breaking `.page-main`'s "flex-1 inside a bounded flex column"
+  scrolling setup documented on `.app-shell` in `globals.css` - the
+  exact bug that setup's own comment warns re-emerges if that chain is
+  broken anywhere between it and the app shell. Client-only change, no
+  SQL needed.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

@@ -12,6 +12,7 @@ import ProfileDetailsGate from "./ProfileDetailsGate";
 import QuoteOverlay from "./QuoteOverlay";
 import WelcomeVideoOverlay from "./WelcomeVideoOverlay";
 import RatingJobsProvider from "./RatingJobsProvider";
+import PullToRefresh from "./PullToRefresh";
 import { ONBOARDING_SESSIONS, isPrimaryUser } from "@/lib/constants";
 import type { Profile } from "@/lib/types";
 
@@ -434,7 +435,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
         <QuoteOverlay />
       )}
       <RatingJobsProvider>
-        {children}
+        <PullToRefresh>{children}</PullToRefresh>
         <BottomNav />
       </RatingJobsProvider>
     </AuthContext.Provider>
