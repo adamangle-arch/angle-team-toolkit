@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Home as HomeIcon, Sun, Calendar as CalendarIcon, type LucideIcon } from "lucide-react";
 import { useAuth } from "./AuthGate";
 import { minSessionFor } from "@/lib/onboarding-gate";
 
@@ -15,10 +16,10 @@ import { minSessionFor } from "@/lib/onboarding-gate";
 // redundant, so this bar is down to the three things that don't already
 // have a home-page presence. Today keeps its own icon since it's still
 // a normal tab, just no longer the entry point.
-const NAV_ITEMS = [
-  { href: "/home", label: "Home", icon: "🏠" },
-  { href: "/dashboard", label: "Today", icon: "☀️" },
-  { href: "/calendar", label: "Calendar", icon: "📅" },
+const NAV_ITEMS: { href: string; label: string; icon: LucideIcon }[] = [
+  { href: "/home", label: "Home", icon: HomeIcon },
+  { href: "/dashboard", label: "Today", icon: Sun },
+  { href: "/calendar", label: "Calendar", icon: CalendarIcon },
 ];
 
 // Everything reached through the Home hub, rather than its own bar tab -
@@ -94,8 +95,8 @@ export default function BottomNav() {
                   : undefined
               }
             >
-              <span className="relative text-lg leading-none">
-                {item.icon}
+              <span className="relative flex h-5 w-5 items-center justify-center">
+                <item.icon className="h-5 w-5" strokeWidth={2} aria-hidden />
                 {item.href === "/home" && coreRunDotClass && (
                   <span
                     className={`absolute -bottom-0.5 -right-1 h-2.5 w-2.5 rounded-full border border-navy ${coreRunDotClass}`}

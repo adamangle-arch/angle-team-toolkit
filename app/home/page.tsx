@@ -2,6 +2,26 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import {
+  BarChart3,
+  Trophy,
+  Flame,
+  Bot,
+  GraduationCap,
+  Camera,
+  Bell,
+  Target,
+  Contact,
+  Package,
+  Users,
+  Library,
+  TrendingUp,
+  Gamepad2,
+  Medal,
+  PartyPopper,
+  Lightbulb,
+  type LucideIcon,
+} from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { SkeletonList } from "@/components/Skeleton";
 import { useAuth } from "@/components/AuthGate";
@@ -15,8 +35,8 @@ import type { MyRankEntry } from "@/lib/types";
 // this reads as a sentence in a big card, not a glanceable dot, so it
 // can afford to spell out what to do next.
 const CORE_RUN_STATUS_COPY: Record<string, string> = {
-  done: "Today's Core Run is done ✅",
-  off_day: "Off Day — streak protected 🏖️",
+  done: "Today's Core Run is done",
+  off_day: "Off Day — streak protected",
   at_risk: "At risk — log today or yesterday",
   pending: "Not logged yet today",
 };
@@ -33,24 +53,34 @@ const TILE_COLORS: { from: string; to: string }[] = [
   { from: "#fde68a", to: "#b45309" }, // amber
 ];
 
-const HOME_ITEMS = [
-  { href: "/stories", label: "Stories", icon: "📸", description: "Today's prompt - gone in 24h." },
-  { href: "/notifications", label: "Notifications", icon: "🔔", description: "Every push we've sent you." },
-  { href: "/goals", label: "Goals", icon: "🎯", description: "Targets and your dreams." },
-  { href: "/contacts", label: "Contacts", icon: "📇", description: "Your A/B/Customer list." },
-  { href: "/volume", label: "Volume", icon: "📦", description: "Personal PV and Ditto." },
+const HOME_ITEMS: { href: string; label: string; icon: LucideIcon; description: string }[] = [
+  { href: "/stories", label: "Stories", icon: Camera, description: "Today's prompt - gone in 24h." },
+  { href: "/notifications", label: "Notifications", icon: Bell, description: "Every push we've sent you." },
+  { href: "/goals", label: "Goals", icon: Target, description: "Targets and your dreams." },
+  { href: "/contacts", label: "Contacts", icon: Contact, description: "Your A/B/Customer list." },
+  { href: "/volume", label: "Volume", icon: Package, description: "Personal PV and Ditto." },
   // Visible to everyone: admins see the whole company, everyone else
   // sees their own upline chain and downline (RLS scopes it either way).
-  { href: "/team", label: "Team", icon: "👥", description: "Downline, upline, totals." },
-  { href: "/library", label: "Resources", icon: "📚", description: "Process, scripts, leaders." },
-  { href: "/insights", label: "Insights", icon: "📈", description: "Trends, pace, and your funnel." },
-  { href: "/games", label: "Games", icon: "🎮", description: "Diamond Run, Chase, Trivia." },
-  { href: "/badges", label: "Badges", icon: "🏅", description: "Achievements you've earned." },
-  { href: "/events", label: "Team Events", icon: "🎉", description: "Photos and videos." },
-  { href: "/ideas", label: "Innovation Box", icon: "💡", description: "Submit and vote on ideas." },
+  { href: "/team", label: "Team", icon: Users, description: "Downline, upline, totals." },
+  { href: "/library", label: "Resources", icon: Library, description: "Process, scripts, leaders." },
+  { href: "/insights", label: "Insights", icon: TrendingUp, description: "Trends, pace, and your funnel." },
+  { href: "/games", label: "Games", icon: Gamepad2, description: "Diamond Run, Chase, Trivia." },
+  { href: "/badges", label: "Badges", icon: Medal, description: "Achievements you've earned." },
+  { href: "/events", label: "Team Events", icon: PartyPopper, description: "Photos and videos." },
+  { href: "/ideas", label: "Innovation Box", icon: Lightbulb, description: "Submit and vote on ideas." },
 ];
 
-function HeroCard({ href, icon, label, subtitle }: { href: string; icon: string; label: string; subtitle: string }) {
+function HeroCard({
+  href,
+  icon: Icon,
+  label,
+  subtitle,
+}: {
+  href: string;
+  icon: LucideIcon;
+  label: string;
+  subtitle: string;
+}) {
   return (
     <Link
       href={href}
@@ -61,7 +91,7 @@ function HeroCard({ href, icon, label, subtitle }: { href: string; icon: string;
         boxShadow: "0 0 24px -8px rgb(var(--amber-rgb) / 0.4)",
       }}
     >
-      <span className="text-4xl leading-none">{icon}</span>
+      <Icon className="h-9 w-9 shrink-0 text-amber-light" strokeWidth={1.75} aria-hidden />
       <div className="min-w-0 flex-1">
         <p className="text-lg font-extrabold text-white">{label}</p>
         <p className="truncate text-sm text-slate-300">{subtitle}</p>
@@ -133,7 +163,7 @@ export default function HomePage() {
             {showPipeline && (
               <HeroCard
                 href="/pipeline"
-                icon="📊"
+                icon={BarChart3}
                 label="Pipeline"
                 subtitle={
                   activePipelineCount > 0
@@ -145,30 +175,25 @@ export default function HomePage() {
 
             <HeroCard
               href="/leaderboard"
-              icon="🏆"
+              icon={Trophy}
               label="Leaderboard"
               subtitle={myRank ? `#${myRank.rank} of ${myRank.total} this week` : "Log Questions this week to rank"}
             />
 
             <HeroCard
               href="/streak"
-              icon="🔥"
+              icon={Flame}
               label="Core Run"
               subtitle={`${streakCount}-day streak${coreRunStatus ? ` · ${CORE_RUN_STATUS_COPY[coreRunStatus]}` : ""}`}
             />
 
             {showAssistant && (
-              <HeroCard
-                href="/assistant"
-                icon="🤖"
-                label="Assistant"
-                subtitle="Practice a role-play conversation"
-              />
+              <HeroCard href="/assistant" icon={Bot} label="Assistant" subtitle="Practice a role-play conversation" />
             )}
 
             <HeroCard
               href="/onboarding"
-              icon="🎓"
+              icon={GraduationCap}
               label="Classroom"
               subtitle={`${classroomUnlocked}/${ONBOARDING_SESSIONS.length} sessions unlocked`}
             />
@@ -189,12 +214,11 @@ export default function HomePage() {
                   boxShadow: "0 10px 24px -12px rgba(0,0,0,0.55)",
                 }}
               >
-                <span
-                  className="pointer-events-none absolute -right-3 -top-3 text-7xl leading-none opacity-25"
+                <item.icon
+                  className="pointer-events-none absolute -right-3 -top-3 h-24 w-24 text-white opacity-25"
+                  strokeWidth={1.5}
                   aria-hidden
-                >
-                  {item.icon}
-                </span>
+                />
                 <div className="relative z-10">
                   <p className="text-base font-extrabold leading-tight text-white drop-shadow-sm">
                     {item.label}
