@@ -6443,6 +6443,30 @@ section (the `off_day` column, right after `depth_texts`) plus the
   gating rule the grid and nav already apply to it. Client-only change,
   no SQL needed.
 
+- **Emoji replaced with real icons ([lucide-react](https://lucide.dev))
+  across the whole app.** Every emoji functioning as a UI icon - bottom
+  nav, Home's hero cards and hub grid, section-title headers, buttons,
+  pills, status/checklist toggles, medal ranks, like buttons - now
+  renders as an actual `lucide-react` SVG component instead of a raw
+  emoji character. Icons default to `currentColor`, so anywhere an icon
+  sits inside amber-colored text it automatically follows the account's
+  chosen theme color the same way text already did - no extra work
+  needed per icon. Colored status dots (the small green/red/amber/blue
+  circles used for online/cron-job/pace indicators) became plain
+  `rounded-full` spans rather than lucide icons, matching the dot
+  `components/BottomNav.tsx` already used for the Core Run status
+  indicator, rather than introducing a second visual language for the
+  same idea. Deliberately **not** touched: the 300-badge catalog in
+  `lib/badges.ts` (each badge's emoji is its own collectible identity,
+  not a UI icon - a from-scratch icon set for 300 badges is a distinct,
+  much larger project), gameplay content (the collectible/card-face
+  emoji drawn inside Diamond Run/Chase/Match/Toss and PV Pop - those are
+  the games' own visual content, not chrome), and emoji embedded in
+  prose - copy/paste summaries (Core Run's Daily Update, Insights'
+  upline recap), placeholder text showing the literal label format
+  people type, and casual mid-sentence flourishes. Client-only change,
+  no SQL needed - just the new `lucide-react` dependency.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

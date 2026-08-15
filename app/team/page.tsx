@@ -899,7 +899,7 @@ export default function TeamPage() {
                           {job.active ? (
                             <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-emerald-400" aria-hidden />
                           ) : (
-                            <Circle className="h-2.5 w-2.5 shrink-0 text-slate-500" aria-hidden />
+                            <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-slate-500" aria-hidden />
                           )}
                           {job.jobname} — {job.schedule}
                         </p>
