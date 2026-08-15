@@ -53,7 +53,7 @@ type Section =
 const SECTIONS: { key: Section; label: string }[] = [
   { key: "process", label: "Process" },
   { key: "candidate_resources", label: "Candidate Resources" },
-  { key: "onboarding_resources", label: "Onboarding Resources" },
+  { key: "onboarding_resources", label: "Classroom Resources" },
   { key: "first_month", label: "Perfect First Month" },
   { key: "audios", label: "Audios" },
   { key: "books", label: "Books" },
@@ -1015,9 +1015,9 @@ function OnboardingResourcesSection() {
   return (
     <>
       <div className="card space-y-1">
-        <p className="section-title">Onboarding Resources</p>
+        <p className="section-title">Classroom Resources</p>
         <p className="text-xs text-slate-400">
-          What every new team member sees on their Onboarding page, at each of the 5 sessions.
+          What every new team member sees on their Classroom page, at each of the 5 sessions.
           These are the team-wide defaults — hide any you don&apos;t want new people to see, or add
           your own; either way it only affects your own downline&apos;s onboarding, not anyone
           else&apos;s.

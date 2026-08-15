@@ -6420,6 +6420,29 @@ section (the `off_day` column, right after `depth_texts`) plus the
   Run once in the Supabase SQL editor - the new
   `onboarding_resource_completions` table and its three RLS policies.
 
+- **Onboarding renamed to Classroom, plus Assistant and Classroom join
+  the Home hero cards.** Every user-facing "Onboarding" label became
+  "Classroom" - the page's own title, the Team admin panel's unlock
+  card, the Resources hub's management tab ("Classroom Resources"), and
+  Pipeline Tracker's "Send a Resource Directly" description. The route
+  (`/onboarding`), the `ONBOARDING_SESSIONS` data, and every internal
+  identifier (`onboarding_unlocked_through`, `onboarding-gate.ts`,
+  `onboarding_resource_completions`, etc.) are untouched - only the
+  words a person actually reads changed. Home's hero section (Pipeline,
+  Leaderboard, Core Run) grew to five: Assistant and Classroom now lead
+  the page as big cards too, alongside a new shared `HeroCard` component
+  (the three-card version's near-identical markup was worth factoring
+  out once it doubled). Classroom's card shows the same "X/5 sessions
+  unlocked" count the page itself does (reusing `unlockedThrough`, no
+  extra fetch); Assistant's is a static "Practice a role-play
+  conversation" - there's no obvious live stat for it the way there is
+  for the other four. Both were removed from the "Everything else" grid
+  below to avoid a duplicate entry point, same call already made for
+  Pipeline/Leaderboard/Core Run when they were promoted. Assistant's
+  card only shows once Assistant itself is unlocked (session 5), same
+  gating rule the grid and nav already apply to it. Client-only change,
+  no SQL needed.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

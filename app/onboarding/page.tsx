@@ -204,7 +204,7 @@ export default function OnboardingPage() {
   return (
     <>
       <PageHeader
-        title="Onboarding"
+        title="Classroom"
         subtitle={`${unlockedCount}/${ONBOARDING_SESSIONS.length} sessions unlocked`}
       />
       <main className="page-main">

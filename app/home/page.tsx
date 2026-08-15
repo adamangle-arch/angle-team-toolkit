@@ -8,6 +8,7 @@ import { useAuth } from "@/components/AuthGate";
 import { minSessionFor } from "@/lib/onboarding-gate";
 import { supabase } from "@/lib/supabaseClient";
 import { getWeekStart } from "@/lib/dates";
+import { ONBOARDING_SESSIONS } from "@/lib/constants";
 import type { MyRankEntry } from "@/lib/types";
 
 // Plain wording, not a status enum lookup like BottomNav's dot colors -
@@ -43,21 +44,45 @@ const HOME_ITEMS = [
   { href: "/team", label: "Team", icon: "👥", description: "Downline, upline, totals." },
   { href: "/library", label: "Resources", icon: "📚", description: "Process, scripts, leaders." },
   { href: "/insights", label: "Insights", icon: "📈", description: "Trends, pace, and your funnel." },
-  { href: "/assistant", label: "Assistant", icon: "🤖", description: "Role-play conversations." },
-  { href: "/onboarding", label: "Onboarding", icon: "🎓", description: "New member sessions." },
   { href: "/games", label: "Games", icon: "🎮", description: "Diamond Run, Chase, Trivia." },
   { href: "/badges", label: "Badges", icon: "🏅", description: "Achievements you've earned." },
   { href: "/events", label: "Team Events", icon: "🎉", description: "Photos and videos." },
   { href: "/ideas", label: "Innovation Box", icon: "💡", description: "Submit and vote on ideas." },
 ];
 
+function HeroCard({ href, icon, label, subtitle }: { href: string; icon: string; label: string; subtitle: string }) {
+  return (
+    <Link
+      href={href}
+      className="relative flex items-center gap-4 rounded-2xl border p-4 transition active:scale-[0.98]"
+      style={{
+        background: "rgb(var(--amber-rgb) / 0.1)",
+        borderColor: "rgb(var(--amber-rgb) / 0.3)",
+        boxShadow: "0 0 24px -8px rgb(var(--amber-rgb) / 0.4)",
+      }}
+    >
+      <span className="text-4xl leading-none">{icon}</span>
+      <div className="min-w-0 flex-1">
+        <p className="text-lg font-extrabold text-white">{label}</p>
+        <p className="truncate text-sm text-slate-300">{subtitle}</p>
+      </div>
+      <span className="text-2xl text-amber-light" aria-hidden>
+        ›
+      </span>
+    </Link>
+  );
+}
+
 export default function HomePage() {
   const { user, unlockedThrough, coreRunStatus } = useAuth();
   const visibleItems = HOME_ITEMS.filter((item) => unlockedThrough >= minSessionFor(item.href));
-  // Pipeline is session-4-gated everywhere else (BottomNav, the old More
-  // grid) - the hero card follows the same rule rather than teasing a
-  // page that isn't unlocked yet.
+  // Pipeline and Assistant are session-gated everywhere else (BottomNav,
+  // the old More grid) - their hero cards follow the same rule rather
+  // than teasing a page that isn't unlocked yet. Classroom (Onboarding)
+  // isn't gated - it's available from signup - so its card always shows.
   const showPipeline = unlockedThrough >= minSessionFor("/pipeline");
+  const showAssistant = unlockedThrough >= minSessionFor("/assistant");
+  const classroomUnlocked = Math.min(unlockedThrough, ONBOARDING_SESSIONS.length);
 
   const [heroLoading, setHeroLoading] = useState(true);
   const [streakCount, setStreakCount] = useState(0);
@@ -102,76 +127,51 @@ export default function HomePage() {
       <PageHeader title="Home" subtitle="Your most important numbers, plus everything else" />
       <main className="page-main">
         {heroLoading ? (
-          <SkeletonList cards={showPipeline ? 3 : 2} lines={1} />
+          <SkeletonList cards={3 + (showPipeline ? 1 : 0) + (showAssistant ? 1 : 0)} lines={1} />
         ) : (
           <div className="space-y-3">
             {showPipeline && (
-              <Link
+              <HeroCard
                 href="/pipeline"
-                className="relative flex items-center gap-4 rounded-2xl border p-4 transition active:scale-[0.98]"
-                style={{
-                  background: "rgb(var(--amber-rgb) / 0.1)",
-                  borderColor: "rgb(var(--amber-rgb) / 0.3)",
-                  boxShadow: "0 0 24px -8px rgb(var(--amber-rgb) / 0.4)",
-                }}
-              >
-                <span className="text-4xl leading-none">📊</span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-lg font-extrabold text-white">Pipeline</p>
-                  <p className="truncate text-sm text-slate-300">
-                    {activePipelineCount > 0
-                      ? `${activePipelineCount} active candidate${activePipelineCount === 1 ? "" : "s"}`
-                      : "No active candidates yet — let's fill it"}
-                  </p>
-                </div>
-                <span className="text-2xl text-amber-light" aria-hidden>
-                  ›
-                </span>
-              </Link>
+                icon="📊"
+                label="Pipeline"
+                subtitle={
+                  activePipelineCount > 0
+                    ? `${activePipelineCount} active candidate${activePipelineCount === 1 ? "" : "s"}`
+                    : "No active candidates yet — let's fill it"
+                }
+              />
             )}
 
-            <Link
+            <HeroCard
               href="/leaderboard"
-              className="relative flex items-center gap-4 rounded-2xl border p-4 transition active:scale-[0.98]"
-              style={{
-                background: "rgb(var(--amber-rgb) / 0.1)",
-                borderColor: "rgb(var(--amber-rgb) / 0.3)",
-                boxShadow: "0 0 24px -8px rgb(var(--amber-rgb) / 0.4)",
-              }}
-            >
-              <span className="text-4xl leading-none">🏆</span>
-              <div className="min-w-0 flex-1">
-                <p className="text-lg font-extrabold text-white">Leaderboard</p>
-                <p className="truncate text-sm text-slate-300">
-                  {myRank ? `#${myRank.rank} of ${myRank.total} this week` : "Log Questions this week to rank"}
-                </p>
-              </div>
-              <span className="text-2xl text-amber-light" aria-hidden>
-                ›
-              </span>
-            </Link>
+              icon="🏆"
+              label="Leaderboard"
+              subtitle={myRank ? `#${myRank.rank} of ${myRank.total} this week` : "Log Questions this week to rank"}
+            />
 
-            <Link
+            <HeroCard
               href="/streak"
-              className="relative flex items-center gap-4 rounded-2xl border p-4 transition active:scale-[0.98]"
-              style={{
-                background: "rgb(var(--amber-rgb) / 0.1)",
-                borderColor: "rgb(var(--amber-rgb) / 0.3)",
-                boxShadow: "0 0 24px -8px rgb(var(--amber-rgb) / 0.4)",
-              }}
-            >
-              <span className="text-4xl leading-none">🔥</span>
-              <div className="min-w-0 flex-1">
-                <p className="text-lg font-extrabold text-white">Core Run</p>
-                <p className="truncate text-sm text-slate-300">
-                  {streakCount}-day streak
-                  {coreRunStatus && ` · ${CORE_RUN_STATUS_COPY[coreRunStatus]}`}
-                </p>
-              </div>
-              <span className="text-2xl text-amber-light" aria-hidden>
-                ›
-              </span>
-            </Link>
+              icon="🔥"
+              label="Core Run"
+              subtitle={`${streakCount}-day streak${coreRunStatus ? ` · ${CORE_RUN_STATUS_COPY[coreRunStatus]}` : ""}`}
+            />
+
+            {showAssistant && (
+              <HeroCard
+                href="/assistant"
+                icon="🤖"
+                label="Assistant"
+                subtitle="Practice a role-play conversation"
+              />
+            )}
+
+            <HeroCard
+              href="/onboarding"
+              icon="🎓"
+              label="Classroom"
+              subtitle={`${classroomUnlocked}/${ONBOARDING_SESSIONS.length} sessions unlocked`}
+            />
           </div>
         )}
 

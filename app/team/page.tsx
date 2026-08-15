@@ -1324,7 +1324,7 @@ export default function TeamPage() {
                 {selectedId !== user.id && (
                   <div className="card space-y-2">
                     <div>
-                      <p className="section-title">🎓 Onboarding</p>
+                      <p className="section-title">🎓 Classroom</p>
                       <p className="text-xs text-slate-400">
                         {Math.min(
                           selectedProfile?.onboarding_unlocked_through ?? 1,
@@ -1342,7 +1342,7 @@ export default function TeamPage() {
                           </p>
                           <p className={`text-xs ${readingRequirementMet ? "text-slate-500" : "text-amber-light"}`}>
                             {readingRequirementMet ? "✓" : "○"} Read {SESSION_4_READING_REQUIREMENT}{" "}
-                            (self-reported on their Onboarding page).
+                            (self-reported on their Classroom page).
                           </p>
                         </div>
                       )}

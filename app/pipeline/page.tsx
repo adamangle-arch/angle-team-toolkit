@@ -2362,7 +2362,7 @@ function MemberResourceSender({ recipientId, recipientName }: { recipientId: str
       <p className="section-title">Send a Resource to {recipientName} Directly</p>
       <p className="text-xs text-slate-400">
         For {recipientName} themselves — not one of their prospects. Shows up on their own
-        Onboarding page under &quot;Sent To You,&quot; any time, not tied to a session.
+        Classroom page under &quot;Sent To You,&quot; any time, not tied to a session.
       </p>
       {error && <p className="text-xs text-red-400">{error}</p>}
       {!loading &&
