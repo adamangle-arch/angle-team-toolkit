@@ -6271,21 +6271,25 @@ section (the `off_day` column, right after `depth_texts`) plus the
   suppressed while the welcome video hasn't been watched yet so the two
   full-screen overlays never stack on someone's very first open.
 
-  There's only ever one file, so there's no admin management table like
-  the Info Session flyer or Optional Resources library get - the client
-  just reads a hardcoded path (`WELCOME_VIDEO_PATH` in
-  `WelcomeVideoOverlay.tsx`) from a new public-read, admin-write
-  `welcome-video` storage bucket. To replace the video later: upload the
-  new file to that bucket in the Supabase dashboard (Storage →
-  welcome-video) under the same filename the constant points to, and
-  it's live immediately - no redeploy needed.
+  The video itself is an unlisted YouTube upload, embedded via the
+  YouTube IFrame Player API (`WELCOME_VIDEO_YOUTUBE_ID` in
+  `WelcomeVideoOverlay.tsx`) - it plays right inside the app, never
+  navigating to YouTube. Not Supabase Storage: an 11-minute video is
+  routinely 100MB+, well past the 50MB upload cap Supabase's free tier
+  enforces (raising it requires Pro, a recurring cost that isn't worth
+  it for hosting one file), and YouTube already streams arbitrarily
+  large video for free with no quality tradeoff. "Unlisted" means it's
+  playable by link/embed but doesn't show up in search or on the
+  channel. There's only ever one video, so there's no admin management
+  table like the Info Session flyer or Optional Resources library get -
+  to replace it later, upload the new cut to YouTube as unlisted and
+  swap the id constant.
 
   Run once in the Supabase SQL editor - the new
-  `profiles.welcome_video_watched_at` column, the one-time backfill that
-  marks every account that existed before this shipped as already-watched
-  (so it's shown to people launching from here forward, not replayed for
-  the whole existing team), and the `welcome-video` bucket + its RLS
-  policies.
+  `profiles.welcome_video_watched_at` column and the one-time backfill
+  that marks every account that existed before this shipped as
+  already-watched (so it's shown to people launching from here forward,
+  not replayed for the whole existing team).
 
 - **Insights: removed a duplicate "Your Averages" table.** Porting
   Pipeline Tracker's Conversion/Trend/Your Averages cards onto Insights

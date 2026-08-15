@@ -7515,11 +7515,13 @@ create policy "reflections_delete_own" on reflections
 -- A single, permanent welcome video (from the team's founders) that
 -- every new team member sees exactly once, the first time they open the
 -- real app after finishing signup - before Onboarding Session 1, not
--- gated behind it. Deliberately not a per-candidate resource like the
--- Info Session flyer or Optional Resources library: there's only ever
--- one file, admin-replaceable, so a hardcoded storage path in the client
--- (WelcomeVideoOverlay.tsx) is simpler than building an admin management
--- table for an asset that changes rarely if ever.
+-- gated behind it. The video itself is an unlisted YouTube upload
+-- embedded via the IFrame Player API (WelcomeVideoOverlay.tsx), not
+-- Supabase Storage - an 11-minute video is well over the 50MB Storage
+-- upload cap on the free tier, and YouTube already hosts/streams it for
+-- free with no size limit. No table needed here beyond the one column
+-- below: there's only ever one video, swapped by changing a single id
+-- constant in the component, not something an admin manages in-app.
 -- ============================================================
 alter table profiles add column if not exists welcome_video_watched_at timestamptz;
 
@@ -7535,25 +7537,3 @@ alter table profiles add column if not exists welcome_video_watched_at timestamp
 -- signup as watched on the next re-run.
 update profiles set welcome_video_watched_at = created_at
 where welcome_video_watched_at is null and created_at < '2026-08-15'::date;
-
--- Public-read storage bucket for the video file, admin-only upload -
--- same pattern as info-session-flyer/event-media.
-insert into storage.buckets (id, name, public)
-values ('welcome-video', 'welcome-video', true)
-on conflict (id) do nothing;
-
-drop policy if exists "welcome_video_bucket_public_read" on storage.objects;
-create policy "welcome_video_bucket_public_read" on storage.objects for select
-using (bucket_id = 'welcome-video');
-
-drop policy if exists "welcome_video_bucket_insert_admin" on storage.objects;
-create policy "welcome_video_bucket_insert_admin" on storage.objects for insert
-with check (bucket_id = 'welcome-video' and public.is_app_admin());
-
-drop policy if exists "welcome_video_bucket_update_admin" on storage.objects;
-create policy "welcome_video_bucket_update_admin" on storage.objects for update
-using (bucket_id = 'welcome-video' and public.is_app_admin());
-
-drop policy if exists "welcome_video_bucket_delete_admin" on storage.objects;
-create policy "welcome_video_bucket_delete_admin" on storage.objects for delete
-using (bucket_id = 'welcome-video' and public.is_app_admin());
