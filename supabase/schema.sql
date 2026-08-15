@@ -7509,3 +7509,51 @@ create policy "reflections_update_own" on reflections
 drop policy if exists "reflections_delete_own" on reflections;
 create policy "reflections_delete_own" on reflections
   for delete using (user_id = auth.uid());
+
+-- ============================================================
+-- 22. WELCOME VIDEO
+-- A single, permanent welcome video (from the team's founders) that
+-- every new team member sees exactly once, the first time they open the
+-- real app after finishing signup - before Onboarding Session 1, not
+-- gated behind it. Deliberately not a per-candidate resource like the
+-- Info Session flyer or Optional Resources library: there's only ever
+-- one file, admin-replaceable, so a hardcoded storage path in the client
+-- (WelcomeVideoOverlay.tsx) is simpler than building an admin management
+-- table for an asset that changes rarely if ever.
+-- ============================================================
+alter table profiles add column if not exists welcome_video_watched_at timestamptz;
+
+-- One-time backfill: without this, every existing team member's column
+-- is null exactly the same as a genuinely brand-new signup's, and the
+-- whole team would see the welcome overlay once this ships - it's meant
+-- for people launching from here forward, not a retroactive replay for
+-- everyone already on the team. Filtered by created_at against this
+-- feature's ship date rather than "where welcome_video_watched_at is
+-- null" - the column is null for a real new signup too until they
+-- actually watch it, and this file is safe to re-run any time, so a
+-- plain IS NULL filter would wrongly mark every not-yet-watched new
+-- signup as watched on the next re-run.
+update profiles set welcome_video_watched_at = created_at
+where welcome_video_watched_at is null and created_at < '2026-08-15'::date;
+
+-- Public-read storage bucket for the video file, admin-only upload -
+-- same pattern as info-session-flyer/event-media.
+insert into storage.buckets (id, name, public)
+values ('welcome-video', 'welcome-video', true)
+on conflict (id) do nothing;
+
+drop policy if exists "welcome_video_bucket_public_read" on storage.objects;
+create policy "welcome_video_bucket_public_read" on storage.objects for select
+using (bucket_id = 'welcome-video');
+
+drop policy if exists "welcome_video_bucket_insert_admin" on storage.objects;
+create policy "welcome_video_bucket_insert_admin" on storage.objects for insert
+with check (bucket_id = 'welcome-video' and public.is_app_admin());
+
+drop policy if exists "welcome_video_bucket_update_admin" on storage.objects;
+create policy "welcome_video_bucket_update_admin" on storage.objects for update
+using (bucket_id = 'welcome-video' and public.is_app_admin());
+
+drop policy if exists "welcome_video_bucket_delete_admin" on storage.objects;
+create policy "welcome_video_bucket_delete_admin" on storage.objects for delete
+using (bucket_id = 'welcome-video' and public.is_app_admin());

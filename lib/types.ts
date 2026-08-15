@@ -32,6 +32,7 @@ export type Profile = {
   theme_color: ThemeColor;
   pinned_kpis: PipelineStageKey[];
   last_active_at: string | null;
+  welcome_video_watched_at: string | null;
   created_at: string;
 };
 

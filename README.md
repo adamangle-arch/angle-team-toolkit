@@ -6257,6 +6257,36 @@ section (the `off_day` column, right after `depth_texts`) plus the
   building that's numbers-backed, safe to paste into a text or LTD
   Messaging without this app building any messaging feature of its own.
 
+- **Welcome video, shown once on first app open.** A single video from
+  the team's founders that plays automatically the first time someone
+  opens the real app after finishing signup - before Onboarding Session
+  1, not gated behind it (`components/WelcomeVideoOverlay.tsx`, wired
+  into `AuthGate`). Skippable rather than a hard block: a video with
+  sound can't autoplay in a mobile browser without a tap anyway, so
+  trapping someone behind "must finish watching" would just be a dead
+  end on the devices where autoplay silently fails - the button reads
+  "Skip for now" until the video actually ends, then "Continue." Shown
+  exactly once per account (`profiles.welcome_video_watched_at`), then
+  never again; `QuoteOverlay` (which shows on every app open) is
+  suppressed while the welcome video hasn't been watched yet so the two
+  full-screen overlays never stack on someone's very first open.
+
+  There's only ever one file, so there's no admin management table like
+  the Info Session flyer or Optional Resources library get - the client
+  just reads a hardcoded path (`WELCOME_VIDEO_PATH` in
+  `WelcomeVideoOverlay.tsx`) from a new public-read, admin-write
+  `welcome-video` storage bucket. To replace the video later: upload the
+  new file to that bucket in the Supabase dashboard (Storage →
+  welcome-video) under the same filename the constant points to, and
+  it's live immediately - no redeploy needed.
+
+  Run once in the Supabase SQL editor - the new
+  `profiles.welcome_video_watched_at` column, the one-time backfill that
+  marks every account that existed before this shipped as already-watched
+  (so it's shown to people launching from here forward, not replayed for
+  the whole existing team), and the `welcome-video` bucket + its RLS
+  policies.
+
 - **Insights: removed a duplicate "Your Averages" table.** Porting
   Pipeline Tracker's Conversion/Trend/Your Averages cards onto Insights
   (see below) had added a second copy of the exact same daily/weekly/

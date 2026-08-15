@@ -10,6 +10,7 @@ import ConfigWarning from "./ConfigWarning";
 import ProfileGate from "./ProfileGate";
 import ProfileDetailsGate from "./ProfileDetailsGate";
 import QuoteOverlay from "./QuoteOverlay";
+import WelcomeVideoOverlay from "./WelcomeVideoOverlay";
 import RatingJobsProvider from "./RatingJobsProvider";
 import { ONBOARDING_SESSIONS, isPrimaryUser } from "@/lib/constants";
 import type { Profile } from "@/lib/types";
@@ -405,6 +406,10 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   }
 
   const ownerId = profile.household_id ?? user.id;
+  // QuoteOverlay would otherwise stack on top of the welcome video on
+  // someone's very first app open (both are unconditional full-screen
+  // overlays) - the welcome video takes priority until it's been shown.
+  const needsWelcomeVideo = !profile.welcome_video_watched_at;
 
   return (
     <AuthContext.Provider
@@ -423,7 +428,11 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
       }}
     >
       <ConfigWarning />
-      <QuoteOverlay />
+      {needsWelcomeVideo ? (
+        <WelcomeVideoOverlay profile={profile} userId={user.id} onWatched={() => loadProfile(user.id)} />
+      ) : (
+        <QuoteOverlay />
+      )}
       <RatingJobsProvider>
         {children}
         <BottomNav />
