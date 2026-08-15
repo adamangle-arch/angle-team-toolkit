@@ -25,6 +25,32 @@ function isInternalLink(url: string): boolean {
   return url.startsWith("/");
 }
 
+// One icon + gradient per session, index-matched to ONBOARDING_SESSIONS
+// - same "colorful module card" language the Home hub's tiles already
+// use, just five fixed entries instead of a cycled palette since there
+// are always exactly five sessions.
+const SESSION_STYLE: { icon: string; from: string; to: string }[] = [
+  { icon: "💰", from: "#6ee7b7", to: "#047857" }, // Budget Session
+  { icon: "📋", from: "#7dd3fc", to: "#0369a1" }, // List Building
+  { icon: "🛍️", from: "#c4b5fd", to: "#6d28d9" }, // Customers
+  { icon: "💬", from: "#fda4af", to: "#be123c" }, // Sharing Your Story
+  { icon: "🔥", from: "#fde68a", to: "#b45309" }, // 30-Day Core Run
+];
+
+function ProgressBar({ pct }: { pct: number }) {
+  return (
+    <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
+      <div
+        className="h-full rounded-full transition-all duration-300"
+        style={{
+          width: `${Math.max(0, Math.min(100, pct))}%`,
+          background: "linear-gradient(135deg, var(--color-amber-light), var(--color-amber))",
+        }}
+      />
+    </div>
+  );
+}
+
 export default function OnboardingPage() {
   const { user, ownerId, onboardingComplete } = useAuth();
   const isAdmin = isPrimaryUser(user.email);
@@ -35,6 +61,11 @@ export default function OnboardingPage() {
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [resourceOverrides, setResourceOverrides] = useState<OnboardingResourceOverrideEntry[]>([]);
   const [sentResources, setSentResources] = useState<MemberResource[]>([]);
+  // Keyed "session:label" rather than just the label - unlike the
+  // candidate flow (one resource list at a time), a member can have the
+  // same label reused across different sessions in theory, and this
+  // avoids assuming otherwise.
+  const [completedKeys, setCompletedKeys] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   // Collapsed by default - three full screenshots made this the tallest
   // thing on the page even though most visits don't need it open.
@@ -45,7 +76,7 @@ export default function OnboardingPage() {
     let cancelled = false;
 
     async function load() {
-      const [{ data: profileData }, { count }, { data: overrideRows }, { data: sentRows }] =
+      const [{ data: profileData }, { count }, { data: overrideRows }, { data: sentRows }, { data: completionRows }] =
         await Promise.all([
           supabase
             .from("profiles")
@@ -63,6 +94,7 @@ export default function OnboardingPage() {
             .select("*")
             .eq("recipient_id", user.id)
             .order("created_at", { ascending: true }),
+          supabase.from("onboarding_resource_completions").select("session,resource_label").eq("user_id", user.id),
         ]);
       if (!cancelled) {
         setUnlockedThrough(profileData?.onboarding_unlocked_through ?? 1);
@@ -70,6 +102,13 @@ export default function OnboardingPage() {
         setNetworkContactCount(count ?? 0);
         setResourceOverrides((overrideRows as OnboardingResourceOverrideEntry[]) ?? []);
         setSentResources((sentRows as MemberResource[]) ?? []);
+        setCompletedKeys(
+          new Set(
+            ((completionRows as { session: number; resource_label: string }[]) ?? []).map(
+              (r) => `${r.session}:${r.resource_label}`
+            )
+          )
+        );
         setLoading(false);
       }
     }
@@ -105,9 +144,49 @@ export default function OnboardingPage() {
     setConfirmingChapters(false);
   }
 
+  async function toggleResourceComplete(session: number, label: string) {
+    const key = `${session}:${label}`;
+    const wasDone = completedKeys.has(key);
+    const previous = completedKeys;
+    const next = new Set(completedKeys);
+    if (wasDone) next.delete(key);
+    else next.add(key);
+    setCompletedKeys(next);
+
+    const { error } = wasDone
+      ? await supabase
+          .from("onboarding_resource_completions")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("session", session)
+          .eq("resource_label", label)
+      : await supabase
+          .from("onboarding_resource_completions")
+          .insert({ user_id: user.id, session, resource_label: label });
+    if (error) setCompletedKeys(previous);
+  }
+
   const unlockedCount = isAdmin
     ? ONBOARDING_SESSIONS.length
     : Math.min(unlockedThrough, ONBOARDING_SESSIONS.length);
+
+  // Resource-level completion across everything actually reachable right
+  // now (not the still-locked sessions further down) - the top-of-page
+  // progress bar, distinct from the "X/Y sessions unlocked" subtitle
+  // which is about gating, not how much of what's unlocked is done.
+  let overallTotal = 0;
+  let overallDone = 0;
+  for (let i = 0; i < unlockedCount; i++) {
+    const sessionNumber = i + 1;
+    const resources = effectiveResourcesForSession(
+      sessionNumber,
+      ONBOARDING_SESSIONS[i].resources,
+      resourceOverrides
+    );
+    overallTotal += resources.length;
+    overallDone += resources.filter((r) => completedKeys.has(`${sessionNumber}:${r.label}`)).length;
+  }
+  const overallPct = overallTotal > 0 ? Math.round((overallDone / overallTotal) * 100) : 0;
 
   // TEMPORARY: lets an admin preview a locked-down onboarding tier in
   // their own browser (see AuthGate's atk_debug_unlock sessionStorage
@@ -129,6 +208,19 @@ export default function OnboardingPage() {
         subtitle={`${unlockedCount}/${ONBOARDING_SESSIONS.length} sessions unlocked`}
       />
       <main className="page-main">
+        {!loading && overallTotal > 0 && (
+          <div className="card space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="section-title">🚀 Your Onboarding Progress</p>
+              <span className="text-xs font-semibold text-amber-light">{overallPct}%</span>
+            </div>
+            <ProgressBar pct={overallPct} />
+            <p className="text-xs text-slate-400">
+              {overallDone}/{overallTotal} resources completed across your unlocked sessions.
+            </p>
+          </div>
+        )}
+
         <div className="card space-y-3">
           <button
             className="flex w-full items-center justify-between gap-2 text-left"
@@ -378,44 +470,96 @@ export default function OnboardingPage() {
               session.resources,
               resourceOverrides
             );
+            const style = SESSION_STYLE[i];
+            const doneCount = resources.filter((r) => completedKeys.has(`${sessionNumber}:${r.label}`)).length;
+            const sessionPct = resources.length > 0 ? Math.round((doneCount / resources.length) * 100) : 0;
             return (
-              <div key={session.title} className="card space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="section-title">{session.title}</p>
-                  <span className={unlocked ? "pill-amber" : "pill"}>
+              <div key={session.title} className="card space-y-3">
+                <div className="flex items-center gap-3">
+                  <div
+                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-2xl"
+                    style={{
+                      background: `linear-gradient(135deg, ${style.from}, ${style.to})`,
+                      boxShadow: "0 6px 16px -8px rgba(0,0,0,0.6)",
+                      opacity: unlocked ? 1 : 0.45,
+                    }}
+                    aria-hidden
+                  >
+                    {style.icon}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-white">{session.title}</p>
+                    <p className="text-xs text-slate-400">{session.description}</p>
+                  </div>
+                  <span className={`shrink-0 ${unlocked ? "pill-amber" : "pill"}`}>
                     {unlocked ? "Unlocked" : "🔒 Locked"}
                   </span>
                 </div>
-                <p className="text-sm text-slate-400">{session.description}</p>
+
+                {unlocked && resources.length > 0 && (
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-xs text-slate-400">
+                      <span>
+                        {doneCount}/{resources.length} done
+                      </span>
+                      <span>{sessionPct}%</span>
+                    </div>
+                    <ProgressBar pct={sessionPct} />
+                  </div>
+                )}
+
                 {unlocked ? (
                   <div className="space-y-1.5">
-                    {resources.map((r) => (
-                      <div key={r.label} className="rounded-lg bg-navy px-3 py-2">
-                        {r.url && isInternalLink(r.url) ? (
-                          <Link
-                            href={r.url}
-                            className="text-sm font-medium text-amber-light underline decoration-dotted underline-offset-2"
+                    {resources.map((r) => {
+                      const done = completedKeys.has(`${sessionNumber}:${r.label}`);
+                      return (
+                        <div key={r.label} className="flex items-start gap-2.5 rounded-lg bg-navy px-3 py-2">
+                          <button
+                            type="button"
+                            onClick={() => toggleResourceComplete(sessionNumber, r.label)}
+                            className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 text-[11px] font-bold transition ${
+                              done
+                                ? "border-emerald-400 bg-emerald-400 text-navy"
+                                : "border-slate-600 text-transparent"
+                            }`}
+                            aria-label={done ? `Mark ${r.label} as not done` : `Mark ${r.label} as done`}
                           >
-                            {r.label}
-                          </Link>
-                        ) : r.url ? (
-                          <a
-                            href={r.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm font-medium text-amber-light underline decoration-dotted underline-offset-2"
-                          >
-                            {r.label}
-                          </a>
-                        ) : (
-                          <p className="text-sm font-medium text-white">{r.label}</p>
-                        )}
-                        <p className="text-xs text-slate-400">
-                          {r.detail}
-                          {r.estimate && <span> · {r.estimate}</span>}
-                        </p>
-                      </div>
-                    ))}
+                            ✓
+                          </button>
+                          <div className="min-w-0 flex-1">
+                            {r.url && isInternalLink(r.url) ? (
+                              <Link
+                                href={r.url}
+                                className={`text-sm font-medium underline decoration-dotted underline-offset-2 ${
+                                  done ? "text-slate-500" : "text-amber-light"
+                                }`}
+                              >
+                                {r.label}
+                              </Link>
+                            ) : r.url ? (
+                              <a
+                                href={r.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={`text-sm font-medium underline decoration-dotted underline-offset-2 ${
+                                  done ? "text-slate-500" : "text-amber-light"
+                                }`}
+                              >
+                                {r.label}
+                              </a>
+                            ) : (
+                              <p className={`text-sm font-medium ${done ? "text-slate-400 line-through" : "text-white"}`}>
+                                {r.label}
+                              </p>
+                            )}
+                            <p className="text-xs text-slate-400">
+                              {r.detail}
+                              {r.estimate && <span> · {r.estimate}</span>}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 ) : (
                   <>

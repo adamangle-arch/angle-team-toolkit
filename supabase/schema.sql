@@ -490,6 +490,42 @@ create table if not exists onboarding_resource_overrides (
   created_at timestamptz not null default now()
 );
 
+-- Lets a member check off each onboarding resource (audio, worksheet,
+-- video) as they finish it, same idea as candidate_resource_completions
+-- further up but for their own onboarding sessions - gives the
+-- Onboarding page a real per-session progress bar instead of "unlocked"
+-- being the only signal. Keyed by session + the resource's label rather
+-- than a foreign key, same label-as-identifier convention
+-- onboarding_resource_overrides above already uses (resources are plain
+-- data in ONBOARDING_SESSIONS, not table rows). A real authenticated
+-- user here (unlike the anon-accessible candidate flow), so the client
+-- reads/writes this table directly under RLS - no RPC needed.
+create table if not exists onboarding_resource_completions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  session int not null check (session between 1 and 5),
+  resource_label text not null,
+  completed_at timestamptz not null default now(),
+  unique (user_id, session, resource_label)
+);
+
+alter table onboarding_resource_completions enable row level security;
+
+drop policy if exists "onboarding_resource_completions_select_own" on onboarding_resource_completions;
+create policy "onboarding_resource_completions_select_own" on onboarding_resource_completions for select using (
+  user_id = auth.uid()
+);
+
+drop policy if exists "onboarding_resource_completions_insert_own" on onboarding_resource_completions;
+create policy "onboarding_resource_completions_insert_own" on onboarding_resource_completions for insert with check (
+  user_id = auth.uid()
+);
+
+drop policy if exists "onboarding_resource_completions_delete_own" on onboarding_resource_completions;
+create policy "onboarding_resource_completions_delete_own" on onboarding_resource_completions for delete using (
+  user_id = auth.uid()
+);
+
 -- member_resources (a one-off resource sent directly to an already-
 -- onboarded team member) is defined further down, right after
 -- is_upline_of() - its RLS policies call that function directly (not

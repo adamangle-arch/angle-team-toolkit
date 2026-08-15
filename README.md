@@ -6393,6 +6393,33 @@ section (the `off_day` column, right after `depth_texts`) plus the
   don't collide when both are showing at once). Client-only change, no
   SQL needed.
 
+- **Onboarding: redesigned to look like a real course, with checkable
+  resources and real progress bars.** Each of the five sessions was a
+  plain text card before - now it leads with a colorful icon badge (one
+  fixed gradient + emoji per session, same "module tile" visual language
+  the Home hub's grid already uses) and, once unlocked, a real progress
+  bar showing resources done vs. total for that session. Every resource
+  - audio, worksheet, video - got a tappable checkmark circle so someone
+  can check things off as they actually finish them, not just see
+  "Unlocked" as the only signal. A new "🚀 Your Onboarding Progress" card
+  at the top of the page rolls all of that up into one overall bar and
+  percentage across every session currently unlocked. Completions persist
+  per person in a new `onboarding_resource_completions` table (keyed by
+  session + the resource's label, same label-as-identifier convention
+  `onboarding_resource_overrides` already uses, since resources are plain
+  data in `ONBOARDING_SESSIONS` rather than table rows) - RLS-scoped to
+  the caller themselves, read/written directly from the client the same
+  way `reflections` is, no RPC needed since this is a real authenticated
+  member rather than the anon-accessible candidate flow. Toggling is a
+  plain optimistic add/delete, correctable either direction, same pattern
+  `candidate_resource_completions` established for the /prospect side.
+  Locked sessions and the Session 4 unlock requirements (contact count,
+  chapter-read confirmation) are untouched - this only changes what an
+  unlocked session looks like once you're in it.
+
+  Run once in the Supabase SQL editor - the new
+  `onboarding_resource_completions` table and its three RLS policies.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)
