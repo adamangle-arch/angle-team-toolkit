@@ -3,6 +3,24 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import {
+  Check,
+  Circle,
+  ClipboardList,
+  Flame,
+  FlaskConical,
+  Gift,
+  Headphones,
+  Lock,
+  Mail,
+  MessageCircle,
+  PiggyBank,
+  Rocket,
+  ShoppingBag,
+  Unlock,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { SkeletonList } from "@/components/Skeleton";
 import { useAuth } from "@/components/AuthGate";
@@ -29,12 +47,12 @@ function isInternalLink(url: string): boolean {
 // - same "colorful module card" language the Home hub's tiles already
 // use, just five fixed entries instead of a cycled palette since there
 // are always exactly five sessions.
-const SESSION_STYLE: { icon: string; from: string; to: string }[] = [
-  { icon: "💰", from: "#6ee7b7", to: "#047857" }, // Budget Session
-  { icon: "📋", from: "#7dd3fc", to: "#0369a1" }, // List Building
-  { icon: "🛍️", from: "#c4b5fd", to: "#6d28d9" }, // Customers
-  { icon: "💬", from: "#fda4af", to: "#be123c" }, // Sharing Your Story
-  { icon: "🔥", from: "#fde68a", to: "#b45309" }, // 30-Day Core Run
+const SESSION_STYLE: { icon: LucideIcon; from: string; to: string }[] = [
+  { icon: PiggyBank, from: "#6ee7b7", to: "#047857" }, // Budget Session
+  { icon: ClipboardList, from: "#7dd3fc", to: "#0369a1" }, // List Building
+  { icon: ShoppingBag, from: "#c4b5fd", to: "#6d28d9" }, // Customers
+  { icon: MessageCircle, from: "#fda4af", to: "#be123c" }, // Sharing Your Story
+  { icon: Flame, from: "#fde68a", to: "#b45309" }, // 30-Day Core Run
 ];
 
 function ProgressBar({ pct, size = "sm" }: { pct: number; size?: "sm" | "lg" }) {
@@ -218,8 +236,9 @@ export default function OnboardingPage() {
             }}
           >
             <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-bold uppercase tracking-wider text-amber-light">
-                🚀 Your Onboarding Progress
+              <p className="flex items-center gap-1.5 text-sm font-bold uppercase tracking-wider text-amber-light">
+                <Rocket className="h-3.5 w-3.5" aria-hidden />
+                Your Onboarding Progress
               </p>
               <span className="text-4xl font-extrabold leading-none text-amber-light">{overallPct}%</span>
             </div>
@@ -236,7 +255,10 @@ export default function OnboardingPage() {
             onClick={() => setShowLtdMediaGuide((prev) => !prev)}
             aria-expanded={showLtdMediaGuide}
           >
-            <p className="section-title">🎧 Finding Audios in the LTD Media App</p>
+            <p className="section-title flex items-center gap-1.5">
+              <Headphones className="h-4 w-4" aria-hidden />
+              Finding Audios in the LTD Media App
+            </p>
             <span className="shrink-0 text-slate-500">{showLtdMediaGuide ? "▾" : "▸"}</span>
           </button>
 
@@ -310,8 +332,9 @@ export default function OnboardingPage() {
             onClick={() => setShowLtdMessagingGuide((prev) => !prev)}
             aria-expanded={showLtdMessagingGuide}
           >
-            <p className="section-title">
-              ✉️ Sending a Daily Update on the LTD Messaging App
+            <p className="section-title flex items-center gap-1.5">
+              <Mail className="h-4 w-4" aria-hidden />
+              Sending a Daily Update on the LTD Messaging App
             </p>
             <span className="shrink-0 text-slate-500">{showLtdMessagingGuide ? "▾" : "▸"}</span>
           </button>
@@ -389,7 +412,10 @@ export default function OnboardingPage() {
 
         {sentResources.length > 0 && (
           <div className="card space-y-1.5">
-            <p className="section-title">🎁 Sent To You</p>
+            <p className="section-title flex items-center gap-1.5">
+              <Gift className="h-4 w-4" aria-hidden />
+              Sent To You
+            </p>
             <p className="text-xs text-slate-400">
               Resources your upline has sent you directly — not tied to any session.
             </p>
@@ -420,7 +446,7 @@ export default function OnboardingPage() {
                   onClick={() => dismissSentResource(r.id)}
                   aria-label={`Dismiss ${r.label}`}
                 >
-                  ✕
+                  <X className="h-5 w-5" aria-hidden />
                 </button>
               </div>
             ))}
@@ -429,7 +455,10 @@ export default function OnboardingPage() {
 
         {!isAdmin && !onboardingComplete && (
           <div className="card space-y-2 !border-amber bg-amber/10">
-            <p className="section-title">🔓 More to Unlock</p>
+            <p className="section-title flex items-center gap-1.5">
+              <Unlock className="h-4 w-4" aria-hidden />
+              More to Unlock
+            </p>
             <p className="text-sm text-slate-300">
               The app opens up as you go — Contacts and Volume unlock after
               List Building, Pipeline and Candidate History after Sharing
@@ -442,7 +471,10 @@ export default function OnboardingPage() {
 
         {isAdmin && (
           <div className="card space-y-2">
-            <p className="section-title">🧪 Preview Onboarding Tier</p>
+            <p className="section-title flex items-center gap-1.5">
+              <FlaskConical className="h-4 w-4" aria-hidden />
+              Preview Onboarding Tier
+            </p>
             <p className="text-xs text-slate-400">
               Switches what tabs you see, as if you were at that tier — only
               affects this browser tab, doesn&apos;t touch your real progress
@@ -486,7 +518,7 @@ export default function OnboardingPage() {
               <div key={session.title} className="card space-y-3">
                 <div className="flex items-center gap-3">
                   <div
-                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-2xl"
+                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl"
                     style={{
                       background: `linear-gradient(135deg, ${style.from}, ${style.to})`,
                       boxShadow: "0 6px 16px -8px rgba(0,0,0,0.6)",
@@ -494,14 +526,21 @@ export default function OnboardingPage() {
                     }}
                     aria-hidden
                   >
-                    {style.icon}
+                    <style.icon className="h-6 w-6 text-white" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-bold text-white">{session.title}</p>
                     <p className="text-xs text-slate-400">{session.description}</p>
                   </div>
-                  <span className={`shrink-0 ${unlocked ? "pill-amber" : "pill"}`}>
-                    {unlocked ? "Unlocked" : "🔒 Locked"}
+                  <span className={`shrink-0 gap-1 ${unlocked ? "pill-amber" : "pill"}`}>
+                    {unlocked ? (
+                      "Unlocked"
+                    ) : (
+                      <>
+                        <Lock className="h-3 w-3" aria-hidden />
+                        Locked
+                      </>
+                    )}
                   </span>
                 </div>
 
@@ -574,8 +613,12 @@ export default function OnboardingPage() {
                   <>
                     {sessionNumber === 4 && (
                       <div className="space-y-1.5">
-                        <p className="text-xs text-amber-light">
-                          {networkContactCount >= SESSION_4_CONTACT_MINIMUM ? "✓" : "○"}{" "}
+                        <p className="flex items-center gap-1 text-xs text-amber-light">
+                          {networkContactCount >= SESSION_4_CONTACT_MINIMUM ? (
+                            <Check className="h-3 w-3 shrink-0" aria-hidden />
+                          ) : (
+                            <Circle className="h-3 w-3 shrink-0 text-slate-500" aria-hidden />
+                          )}
                           {SESSION_4_CONTACT_MINIMUM}+ names in your Contact Builder&apos;s A/B
                           list — you have {networkContactCount}/{SESSION_4_CONTACT_MINIMUM}.
                         </p>

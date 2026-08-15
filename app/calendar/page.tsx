@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type TouchEvent } from "react";
+import { Repeat, Pencil, X, Megaphone } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { SkeletonList } from "@/components/Skeleton";
 import { useAuth } from "@/components/AuthGate";
@@ -269,8 +270,12 @@ function EventRow({
             <p className={muted ? "text-sm text-slate-300" : "font-medium text-white"}>
               {event.title}
               {event.recurrence_freq !== "none" && (
-                <span className="ml-1 text-xs text-slate-400" title="Repeats" aria-label="Repeats">
-                  🔁
+                <span
+                  className="ml-1 inline-flex items-center text-slate-400"
+                  title="Repeats"
+                  aria-label="Repeats"
+                >
+                  <Repeat className="h-3 w-3" aria-hidden />
                 </span>
               )}
             </p>
@@ -285,20 +290,25 @@ function EventRow({
             onClick={() => onEdit(event)}
             aria-label={`Edit ${event.title}`}
           >
-            ✏️
+            <Pencil className="h-3 w-3" aria-hidden />
           </button>
           <button
             className="btn-icon !h-6 !w-6 text-xs"
             onClick={() => onDelete(event)}
             aria-label={`Remove ${event.title}`}
           >
-            ✕
+            <X className="h-3 w-3" aria-hidden />
           </button>
         </div>
       </div>
       {candidateLabel && <p className="text-xs text-slate-400">Candidate: {candidateLabel}</p>}
       {event.notes && <p className="text-xs text-slate-400">{event.notes}</p>}
-      {creatorLabel && <span className="pill pill-amber">📢 From {creatorLabel}</span>}
+      {creatorLabel && (
+        <span className="pill pill-amber gap-1">
+          <Megaphone className="h-3 w-3" aria-hidden />
+          From {creatorLabel}
+        </span>
+      )}
     </div>
   );
 }
@@ -1222,7 +1232,9 @@ export default function CalendarPage() {
                     >
                       <span className="font-medium">
                         {e.title}
-                        {e.recurrence_freq !== "none" && <span className="ml-0.5 opacity-80">🔁</span>}
+                        {e.recurrence_freq !== "none" && (
+                          <Repeat className="ml-0.5 inline h-3 w-3 opacity-80" aria-hidden />
+                        )}
                       </span>
                       <span className="ml-1 opacity-80">{formatTimeLabel(e.event_at)}</span>
                     </button>
@@ -1358,7 +1370,9 @@ export default function CalendarPage() {
                     >
                       <span className="font-medium">
                         {e.title}
-                        {e.recurrence_freq !== "none" && <span className="ml-0.5 opacity-80">🔁</span>}
+                        {e.recurrence_freq !== "none" && (
+                          <Repeat className="ml-0.5 inline h-3 w-3 opacity-80" aria-hidden />
+                        )}
                       </span>
                       <span className="ml-1 opacity-80">{formatTimeLabel(e.event_at)}</span>
                     </button>
@@ -1406,7 +1420,7 @@ export default function CalendarPage() {
                   onClick={() => setShowAddModal(false)}
                   aria-label="Close"
                 >
-                  ✕
+                  <X className="h-3.5 w-3.5" aria-hidden />
                 </button>
               </div>
               <input
@@ -1648,7 +1662,7 @@ export default function CalendarPage() {
                           onClick={() => removeCompanyEvent(e.id)}
                           aria-label={`Remove recurring event ${e.title}`}
                         >
-                          ✕
+                          <X className="h-3 w-3" aria-hidden />
                         </button>
                       </div>
                     ))}

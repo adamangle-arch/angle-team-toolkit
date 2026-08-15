@@ -1,6 +1,22 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import {
+  Trophy,
+  CalendarDays,
+  FolderOpen,
+  BookOpen,
+  ClipboardList,
+  CheckCircle2,
+  Lock,
+  Search,
+  Medal,
+  Flame,
+  ShieldCheck,
+  Gem,
+  Crown,
+  type LucideIcon,
+} from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
@@ -53,12 +69,12 @@ const ACTIVITY_METRIC_KEY: Record<ActivityLogKind, keyof BadgeMetrics> = {
   story_practiced: "has_story_practiced",
 };
 
-const TIER_ICONS: Record<FrameTier, string> = {
-  none: "🔰",
-  bronze: "🥉",
-  silver: "🥈",
-  gold: "🥇",
-  diamond: "💎",
+const TIER_ICONS: Record<FrameTier, { Icon: LucideIcon; className: string }> = {
+  none: { Icon: ShieldCheck, className: "" },
+  bronze: { Icon: Medal, className: "text-amber-700" },
+  silver: { Icon: Medal, className: "text-slate-300" },
+  gold: { Icon: Medal, className: "text-amber-400" },
+  diamond: { Icon: Gem, className: "" },
 };
 
 type FilterMode = "all" | "earned" | "locked";
@@ -113,7 +129,13 @@ function BadgeRow({
           <p className="text-xs text-slate-500">{badge.description}</p>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-0.5">
-          <span className="text-lg leading-none">{earned ? "✅" : "🔒"}</span>
+          <span className="text-lg leading-none">
+            {earned ? (
+              <CheckCircle2 className="h-5 w-5 text-emerald-400" aria-hidden />
+            ) : (
+              <Lock className="h-5 w-5 text-slate-500" aria-hidden />
+            )}
+          </span>
           <span className="text-[10px] font-semibold text-slate-500">+{badge.points}</span>
         </div>
       </div>
@@ -330,7 +352,9 @@ export default function BadgesPage() {
           ) : (
             <>
               <div className="card space-y-2">
-                <p className="section-title">🏆 Personal Bests</p>
+                <p className="section-title flex items-center gap-1.5">
+                  <Trophy className="h-4 w-4" aria-hidden /> Personal Bests
+                </p>
                 {personalBests.length === 0 ? (
                   <p className="empty-state">Log some pipeline activity to start setting records.</p>
                 ) : (
@@ -357,7 +381,9 @@ export default function BadgesPage() {
               </div>
 
               <div className="card space-y-2">
-                <p className="section-title">📆 On This Day</p>
+                <p className="section-title flex items-center gap-1.5">
+                  <CalendarDays className="h-4 w-4" aria-hidden /> On This Day
+                </p>
                 {onThisDay ? (
                   <div className="grid grid-cols-2 gap-2">
                     {VAULT_STAGES.map((key) => (
@@ -374,7 +400,9 @@ export default function BadgesPage() {
 
               <div className="card space-y-2">
                 <div>
-                  <p className="section-title">🗂️ Milestone Archive</p>
+                  <p className="section-title flex items-center gap-1.5">
+                    <FolderOpen className="h-4 w-4" aria-hidden /> Milestone Archive
+                  </p>
                   <p className="text-xs text-slate-400">
                     Real, verified results — share one as proof, not a testimonial.
                   </p>
@@ -384,14 +412,21 @@ export default function BadgesPage() {
                 ) : (
                   milestoneArchive.map((n) => (
                     <div key={n.id} className="flex items-start justify-between gap-2 text-sm">
-                      <span className="text-slate-200">
-                        {n.kind === "badge_earned" ? "🏅" : "🔥"} {n.title}
-                        <span className="ml-1.5 text-xs text-slate-500">
-                          {new Date(n.created_at).toLocaleDateString(undefined, {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                          })}
+                      <span className="flex items-start gap-1.5 text-slate-200">
+                        {n.kind === "badge_earned" ? (
+                          <Medal className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400" aria-hidden />
+                        ) : (
+                          <Flame className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber" aria-hidden />
+                        )}
+                        <span>
+                          {n.title}
+                          <span className="ml-1.5 text-xs text-slate-500">
+                            {new Date(n.created_at).toLocaleDateString(undefined, {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            })}
+                          </span>
                         </span>
                       </span>
                       <button className="chip-btn shrink-0 text-xs" onClick={() => copyMilestone(n)}>
@@ -417,8 +452,12 @@ export default function BadgesPage() {
               <div className="min-w-0 flex-1 space-y-1.5">
                 <div className="flex items-center justify-between gap-2">
                   <p className="section-title">Level {myLevel.level}</p>
-                  <span className="pill-amber shrink-0">
-                    {TIER_ICONS[myTier]} {FRAME_TIER_LABELS[myTier]}
+                  <span className="pill-amber shrink-0 inline-flex items-center gap-1">
+                    {(() => {
+                      const { Icon: TierIcon, className: tierIconClassName } = TIER_ICONS[myTier];
+                      return <TierIcon className={`h-3 w-3 ${tierIconClassName}`} aria-hidden />;
+                    })()}
+                    {FRAME_TIER_LABELS[myTier]}
                   </span>
                 </div>
                 <div className="relative h-2.5 w-full overflow-hidden rounded-full bg-navy">
@@ -464,7 +503,9 @@ export default function BadgesPage() {
               style={{ background: "radial-gradient(circle, var(--color-amber), transparent 70%)" }}
               aria-hidden="true"
             />
-            <p className="section-title relative">🔥 Almost There</p>
+            <p className="section-title relative flex items-center gap-1.5">
+              <Flame className="h-4 w-4" aria-hidden /> Almost There
+            </p>
             <div className="relative space-y-1.5">
               {nearlyThere.map(({ badge, progress }) => (
                 <div key={badge.key} className="flex items-center gap-2 rounded-lg bg-navy px-3 py-2">
@@ -486,7 +527,9 @@ export default function BadgesPage() {
         )}
 
         <div className="card space-y-2">
-          <p className="section-title">📚 Log a Finished Book</p>
+          <p className="section-title flex items-center gap-1.5">
+            <BookOpen className="h-4 w-4" aria-hidden /> Log a Finished Book
+          </p>
           <p className="text-xs text-slate-400">
             There&apos;s no way to auto-detect a book you&apos;ve read, so tap this each time you finish
             one - it counts toward the Books badges below.
@@ -499,7 +542,9 @@ export default function BadgesPage() {
 
         {!loading && metrics && (
           <div className="card space-y-2">
-            <p className="section-title">📋 Log Activity</p>
+            <p className="section-title flex items-center gap-1.5">
+              <ClipboardList className="h-4 w-4" aria-hidden /> Log Activity
+            </p>
             <p className="text-xs text-slate-400">
               Same idea as books - there&apos;s no way to auto-detect these, so log them here as
               you do them.
@@ -517,7 +562,9 @@ export default function BadgesPage() {
                       {count !== null && <span className="text-slate-500"> ({count})</span>}
                     </span>
                     {done ? (
-                      <span className="pill-amber shrink-0 text-xs">✅ Done</span>
+                      <span className="pill-amber shrink-0 inline-flex items-center gap-1 text-xs">
+                        <CheckCircle2 className="h-3 w-3" aria-hidden /> Done
+                      </span>
                     ) : (
                       <button
                         className="btn-secondary shrink-0 text-xs"
@@ -536,20 +583,36 @@ export default function BadgesPage() {
 
         {!loading && metrics && (
           <div className="card space-y-2">
-            <input
-              className="input"
-              placeholder="🔍 Search all 300 badges…"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+            <div className="relative">
+              <Search
+                className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500"
+                aria-hidden
+              />
+              <input
+                className="input pl-9"
+                placeholder="Search all 300 badges…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
             <div className="flex gap-1.5">
               {(["all", "earned", "locked"] as FilterMode[]).map((mode) => (
                 <button
                   key={mode}
-                  className={filterMode === mode ? "toggle-pill-active" : "toggle-pill-inactive"}
+                  className={`${filterMode === mode ? "toggle-pill-active" : "toggle-pill-inactive"} gap-1`}
                   onClick={() => setFilterMode(mode)}
                 >
-                  {mode === "all" ? "All" : mode === "earned" ? "✅ Earned" : "🔒 Locked"}
+                  {mode === "all" ? (
+                    "All"
+                  ) : mode === "earned" ? (
+                    <>
+                      <CheckCircle2 className="h-3.5 w-3.5" aria-hidden /> Earned
+                    </>
+                  ) : (
+                    <>
+                      <Lock className="h-3.5 w-3.5" aria-hidden /> Locked
+                    </>
+                  )}
                 </button>
               ))}
             </div>
@@ -599,9 +662,9 @@ export default function BadgesPage() {
                     aria-expanded={expanded}
                   >
                     <div className="min-w-0 flex-1 space-y-1">
-                      <p className="section-title truncate">
-                        {isComplete && "👑 "}
-                        {category}
+                      <p className="section-title flex items-center gap-1 truncate">
+                        {isComplete && <Crown className="h-4 w-4 shrink-0" aria-hidden />}
+                        <span className="truncate">{category}</span>
                       </p>
                       <div className="h-1 w-full max-w-32 overflow-hidden rounded-full bg-navy">
                         <div

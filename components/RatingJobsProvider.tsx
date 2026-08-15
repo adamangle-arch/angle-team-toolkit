@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { CheckCircle2, AlertTriangle } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { fireNotifyEvent } from "@/lib/notifyClient";
 import type { CallRatingType } from "@/lib/constants";
@@ -223,15 +224,21 @@ function RatingJobRow({ job, onDismiss }: { job: RatingJob; onDismiss: (id: stri
         </>
       )}
       {job.status === "done" && (
-        <span className="text-xs text-slate-200">
-          ✅ Rated {job.candidateName}&apos;s {job.callType} call
-          {job.result?.overall_score != null ? ` — ${job.result.overall_score.toFixed(1)}/10` : ""}
-        </span>
+        <>
+          <CheckCircle2 className="h-3 w-3 shrink-0" aria-hidden />
+          <span className="text-xs text-slate-200">
+            Rated {job.candidateName}&apos;s {job.callType} call
+            {job.result?.overall_score != null ? ` — ${job.result.overall_score.toFixed(1)}/10` : ""}
+          </span>
+        </>
       )}
       {job.status === "error" && (
-        <span className="text-xs text-red-400">
-          ⚠️ Couldn&apos;t rate {job.candidateName}&apos;s {job.callType} call — {job.error}
-        </span>
+        <>
+          <AlertTriangle className="h-3 w-3 shrink-0" aria-hidden />
+          <span className="text-xs text-red-400">
+            Couldn&apos;t rate {job.candidateName}&apos;s {job.callType} call — {job.error}
+          </span>
+        </>
       )}
     </button>
   );

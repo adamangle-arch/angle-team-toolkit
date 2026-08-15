@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Camera, Heart, MessageCircle, Video } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { SkeletonList } from "@/components/Skeleton";
 import LevelAvatar from "@/components/LevelAvatar";
@@ -382,7 +383,10 @@ export default function StoriesPage() {
       <PageHeader title="Stories" subtitle="Today's prompt - posts disappear after 24h" />
       <main className="page-main">
         <div className="card space-y-2">
-          <p className="section-title">🟢 Who&apos;s Around</p>
+          <p className="section-title flex items-center gap-1.5">
+            <span className="inline-block h-2 w-2 rounded-full bg-emerald-400" aria-hidden />
+            Who&apos;s Around
+          </p>
           {pulseError ? (
             <p className="text-xs text-red-400">{pulseError}</p>
           ) : teamMembers === null ? (
@@ -394,7 +398,7 @@ export default function StoriesPage() {
               <p className="text-sm text-slate-200">
                 {activeMembers.length > 0 && (
                   <>
-                    🟢{" "}
+                    <span className="inline-block h-2 w-2 rounded-full bg-emerald-400" aria-hidden />{" "}
                     {joinNames(activeMembers.map((m) => (m.user_id === user.id ? "You" : personName(m))))}{" "}
                     {activeMembers.length === 1 ? "is" : "are"} active right now
                     {recentlyActiveMembers.length > 0 ? "; " : "."}
@@ -442,7 +446,10 @@ export default function StoriesPage() {
         </div>
 
         <div className="card space-y-3">
-          <p className="section-title">📸 Today&apos;s Prompt</p>
+          <p className="section-title flex items-center gap-1.5">
+            <Camera className="h-4 w-4" aria-hidden />
+            Today&apos;s Prompt
+          </p>
               <p className="text-sm text-slate-200">{prompt}</p>
 
               {pendingMedia ? (
@@ -489,7 +496,14 @@ export default function StoriesPage() {
                       an existing photo or video, not just shooting a new one. */}
                   <div className="flex gap-2">
                     <label className="btn-primary flex-1 cursor-pointer text-center">
-                      {uploading ? "Uploading…" : "📷 Post a Photo"}
+                      {uploading ? (
+                        "Uploading…"
+                      ) : (
+                        <>
+                          <Camera className="h-3.5 w-3.5" aria-hidden />
+                          Post a Photo
+                        </>
+                      )}
                       <input
                         type="file"
                         accept="image/*"
@@ -499,7 +513,14 @@ export default function StoriesPage() {
                       />
                     </label>
                     <label className="btn-secondary flex-1 cursor-pointer text-center">
-                      {uploading ? "Uploading…" : "🎥 Post a Video"}
+                      {uploading ? (
+                        "Uploading…"
+                      ) : (
+                        <>
+                          <Video className="h-3.5 w-3.5" aria-hidden />
+                          Post a Video
+                        </>
+                      )}
                       <input
                         type="file"
                         accept="video/*"
@@ -575,14 +596,15 @@ export default function StoriesPage() {
                         }`}
                         aria-label={likes.likedByMe ? "Unlike" : "Like"}
                       >
-                        <span>{likes.likedByMe ? "❤️" : "🤍"}</span>
+                        <Heart className={`h-3.5 w-3.5 ${likes.likedByMe ? "fill-current" : ""}`} aria-hidden />
                         {likes.count > 0 && <span>{likes.count}</span>}
                       </button>
                       <button
                         onClick={() => toggleComments(story.story_id)}
                         className="flex items-center gap-1 text-sm text-slate-400"
                       >
-                        💬 {comments.length > 0 ? comments.length : "Comment"}
+                        <MessageCircle className="h-3.5 w-3.5" aria-hidden />
+                        {comments.length > 0 ? comments.length : "Comment"}
                       </button>
                     </div>
 

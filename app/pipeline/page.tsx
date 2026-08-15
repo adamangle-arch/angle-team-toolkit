@@ -2,6 +2,27 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import {
+  Pencil,
+  Trophy,
+  Clock,
+  PartyPopper,
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
+  Building2,
+  Laptop,
+  Key,
+  Check,
+  Link2,
+  HelpCircle,
+  RotateCcw,
+  X,
+  CalendarDays,
+  ClipboardList,
+  Circle,
+  Paperclip,
+} from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import TrendChart from "@/components/TrendChart";
 import { useAuth } from "@/components/AuthGate";
@@ -878,8 +899,9 @@ function PipelinePageInner() {
                   ]}
                 />
                 {actingFor && (
-                  <p className="text-xs text-amber-light">
-                    ✏️ You&apos;re editing {actingFor.name}&apos;s pipeline numbers, not your own.
+                  <p className="flex items-center gap-1 text-xs text-amber-light">
+                    <Pencil className="h-3 w-3 shrink-0" aria-hidden />
+                    You&apos;re editing {actingFor.name}&apos;s pipeline numbers, not your own.
                   </p>
                 )}
               </div>
@@ -1035,8 +1057,9 @@ function PipelinePageInner() {
             </div>
 
             <div className="card space-y-2">
-              <p className="section-title">
-                🏆 Team Leaders (
+              <p className="section-title flex items-center gap-1.5">
+                <Trophy className="h-4 w-4" aria-hidden />
+                Team Leaders (
                 {periodType === "daily" ? "Daily" : periodType === "weekly" ? "Weekly" : "Monthly"})
               </p>
               <p className="text-xs text-slate-400">
@@ -1090,8 +1113,9 @@ function PipelinePageInner() {
                 <p className="section-title">Candidate Roadmap</p>
                 <div className="flex items-center gap-1.5">
                   {staleCount > 0 && (
-                    <span className="pill !border-red-500/25 !bg-red-500/10 !text-red-300">
-                      ⏰ {staleCount} stale
+                    <span className="pill flex items-center gap-1 !border-red-500/25 !bg-red-500/10 !text-red-300">
+                      <Clock className="h-3 w-3" aria-hidden />
+                      {staleCount} stale
                     </span>
                   )}
                   <span className="pill pill-amber">{activeInPipelineCount} active in pipeline</span>
@@ -1168,7 +1192,10 @@ function PipelinePageInner() {
 
                   {launched.length > 0 && (
                     <div className="space-y-2">
-                      <p className="section-title px-1">Launched 🎉</p>
+                      <p className="section-title flex items-center gap-1.5 px-1">
+                        Launched
+                        <PartyPopper className="h-4 w-4" aria-hidden />
+                      </p>
                       {launched.map((candidate) => (
                         <CandidateCard
                           key={candidate.id}
@@ -1217,7 +1244,7 @@ function PipelinePageInner() {
                   disabled={monthsBack >= 11}
                   aria-label="Previous month"
                 >
-                  ←
+                  <ArrowLeft className="h-4 w-4" aria-hidden />
                 </button>
                 <span className="text-sm font-medium text-white">{formatMonthLabel(historyMonthStart)}</span>
                 <button
@@ -1226,7 +1253,7 @@ function PipelinePageInner() {
                   disabled={monthsBack <= 0}
                   aria-label="Next month"
                 >
-                  →
+                  <ArrowRight className="h-4 w-4" aria-hidden />
                 </button>
               </div>
             )}
@@ -1273,11 +1300,15 @@ function PipelinePageInner() {
                             </td>
                             <td className="py-1.5 pr-2 font-medium text-white">{c.name}</td>
                             <td className="py-1.5 pr-2 text-slate-300">
-                              {c.launched
-                                ? "Launched 🎉"
-                                : c.filtered_out
-                                  ? `Filtered Out — ${step.label}`
-                                  : `Active — ${step.label}`}
+                              {c.launched ? (
+                                <>
+                                  Launched <PartyPopper className="inline h-3 w-3 align-[-2px]" aria-hidden />
+                                </>
+                              ) : c.filtered_out ? (
+                                `Filtered Out — ${step.label}`
+                              ) : (
+                                `Active — ${step.label}`
+                              )}
                             </td>
                             <td className="max-w-[160px] truncate py-1.5 pr-2 text-slate-400">
                               {c.notes || "—"}
@@ -1370,20 +1401,30 @@ function InfoSessionPicker({
     <div className="space-y-1.5 rounded-lg bg-navy px-3 py-2">
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold text-slate-200">{label} Info Session</span>
-        {watched && <span className="text-xs text-amber-light">✅ Watched</span>}
+        {watched && (
+          <span className="flex items-center gap-1 text-xs text-amber-light">
+            <CheckCircle2 className="h-3 w-3" aria-hidden /> Watched
+          </span>
+        )}
       </div>
       <div className="flex gap-1 rounded-lg bg-white/5 p-1">
         <button
-          className={mode === "in_person" ? "toggle-pill-active" : "toggle-pill-inactive"}
+          className={`flex items-center justify-center gap-1.5 ${
+            mode === "in_person" ? "toggle-pill-active" : "toggle-pill-inactive"
+          }`}
           onClick={() => onSetMode("in_person")}
         >
-          🏢 In Person
+          <Building2 className="h-3.5 w-3.5" aria-hidden />
+          In Person
         </button>
         <button
-          className={mode === "virtual" ? "toggle-pill-active" : "toggle-pill-inactive"}
+          className={`flex items-center justify-center gap-1.5 ${
+            mode === "virtual" ? "toggle-pill-active" : "toggle-pill-inactive"
+          }`}
           onClick={() => onSetMode("virtual")}
         >
-          💻 Virtual
+          <Laptop className="h-3.5 w-3.5" aria-hidden />
+          Virtual
         </button>
       </div>
       {mode === "virtual" && (
@@ -1424,7 +1465,7 @@ function CandidateCard({
   const [filterReason, setFilterReason] = useState(candidate.filtered_out_reason ?? "");
   const step = CANDIDATE_STEPS[candidate.current_step];
   const isSettled = candidate.launched || candidate.filtered_out;
-  const statusLabel = candidate.launched ? "Launched 🎉" : candidate.filtered_out ? "Filtered Out" : step.label;
+  const statusLabel = candidate.launched ? "Launched" : candidate.filtered_out ? "Filtered Out" : step.label;
 
   function confirmFilteredOut() {
     onUpdate(candidate.id, {
@@ -1491,8 +1532,15 @@ function CandidateCard({
           <p className="truncate font-semibold text-white">{candidate.name}</p>
           <p className="truncate text-xs text-amber-light">
             {statusLabel}
+            {candidate.launched && (
+              <PartyPopper className="inline h-3 w-3 align-[-2px]" aria-hidden />
+            )}
             {!isSettled && isStale && (
-              <span className="text-red-300"> · ⏰ No movement in {STALE_CANDIDATE_DAYS}+ days</span>
+              <span className="text-red-300">
+                {" "}
+                · <Clock className="inline h-3 w-3 align-[-2px]" aria-hidden /> No movement in{" "}
+                {STALE_CANDIDATE_DAYS}+ days
+              </span>
             )}
           </p>
         </div>
@@ -1508,7 +1556,7 @@ function CandidateCard({
                 disabled={candidate.current_step === 0}
                 aria-label={`Move ${candidate.name} back a step`}
               >
-                ←
+                <ArrowLeft className="h-4 w-4" aria-hidden />
               </button>
               <button
                 className="btn-icon"
@@ -1519,7 +1567,7 @@ function CandidateCard({
                 disabled={candidate.current_step === CANDIDATE_STEPS.length - 1}
                 aria-label={`Advance ${candidate.name} a step`}
               >
-                →
+                <ArrowRight className="h-4 w-4" aria-hidden />
               </button>
             </>
           )}
@@ -1532,11 +1580,27 @@ function CandidateCard({
           {candidate.access_code && (
             <div className="space-y-1">
               <div className="flex flex-wrap gap-1.5">
-                <button className="pill" onClick={copyAccessCode}>
-                  {codeCopied ? "✓ Copied!" : `🔑 Copy code: ${candidate.access_code}`}
+                <button className="pill flex items-center gap-1" onClick={copyAccessCode}>
+                  {codeCopied ? (
+                    <>
+                      <Check className="h-3 w-3" aria-hidden /> Copied!
+                    </>
+                  ) : (
+                    <>
+                      <Key className="h-3 w-3" aria-hidden /> Copy code: {candidate.access_code}
+                    </>
+                  )}
                 </button>
-                <button className="pill" onClick={copyAccessLink}>
-                  {linkCopied ? "✓ Copied!" : "🔗 Copy link"}
+                <button className="pill flex items-center gap-1" onClick={copyAccessLink}>
+                  {linkCopied ? (
+                    <>
+                      <Check className="h-3 w-3" aria-hidden /> Copied!
+                    </>
+                  ) : (
+                    <>
+                      <Link2 className="h-3 w-3" aria-hidden /> Copy link
+                    </>
+                  )}
                 </button>
               </div>
               <p className="text-xs text-slate-500">
@@ -1663,14 +1727,15 @@ function CandidateCard({
             <div className="space-y-2">
               {candidate.launched && !candidate.gemini_group_added && isGeminiGroupOwner(user.email) && (
                 <div className="flex items-center justify-between gap-2 rounded-lg bg-navy px-3 py-2">
-                  <p className="text-xs text-slate-300">
-                    🔗 Add {candidate.name} to the Gemini Assistant Google Group
+                  <p className="flex items-center gap-1 text-xs text-slate-300">
+                    <Link2 className="h-3 w-3 shrink-0" aria-hidden />
+                    Add {candidate.name} to the Gemini Assistant Google Group
                   </p>
                   <button
-                    className="pill shrink-0"
+                    className="pill flex shrink-0 items-center gap-1"
                     onClick={() => onUpdate(candidate.id, { gemini_group_added: true })}
                   >
-                    ✓ Done
+                    <Check className="h-3 w-3" aria-hidden /> Done
                   </button>
                 </div>
               )}
@@ -1791,8 +1856,9 @@ function CandidateQuestions({ candidateId }: { candidateId: string }) {
         }}
         aria-expanded={expanded}
       >
-        <span className="text-xs font-semibold text-slate-200">
-          ❓ Questions{openCount > 0 ? `: ${openCount} unanswered` : " — all answered"}
+        <span className="flex items-center gap-1 text-xs font-semibold text-slate-200">
+          <HelpCircle className="h-3 w-3 shrink-0" aria-hidden />
+          Questions{openCount > 0 ? `: ${openCount} unanswered` : " — all answered"}
         </span>
         <span className="text-slate-500">{expanded ? "▾" : "▸"}</span>
       </div>
@@ -1814,14 +1880,18 @@ function CandidateQuestions({ candidateId }: { candidateId: string }) {
                   onClick={() => toggleAnswered(q)}
                   aria-label={q.answered ? `Mark "${q.question}" unanswered` : `Mark "${q.question}" answered`}
                 >
-                  {q.answered ? "↺" : "✓"}
+                  {q.answered ? (
+                    <RotateCcw className="h-3 w-3" aria-hidden />
+                  ) : (
+                    <Check className="h-3 w-3" aria-hidden />
+                  )}
                 </button>
                 <button
                   className="btn-icon !h-6 !w-6 text-xs"
                   onClick={() => removeQuestion(q.id)}
                   aria-label={`Remove question: ${q.question}`}
                 >
-                  ✕
+                  <X className="h-3 w-3" aria-hidden />
                 </button>
               </div>
             </div>
@@ -1916,8 +1986,9 @@ function BookMeetingButton({ candidate }: { candidate: Candidate }) {
 
   return (
     <>
-      <button className="btn-secondary w-full" onClick={openModal}>
-        📅 Book a Meeting
+      <button className="btn-secondary flex w-full items-center justify-center gap-1.5" onClick={openModal}>
+        <CalendarDays className="h-4 w-4" aria-hidden />
+        Book a Meeting
       </button>
 
       {showModal && (
@@ -1936,7 +2007,7 @@ function BookMeetingButton({ candidate }: { candidate: Candidate }) {
                 onClick={() => setShowModal(false)}
                 aria-label="Close"
               >
-                ✕
+                <X className="h-3.5 w-3.5" aria-hidden />
               </button>
             </div>
             <p className="text-xs text-slate-400">
@@ -2062,16 +2133,22 @@ function CandidateResourceProgress({ candidate }: { candidate: Candidate }) {
         }}
         aria-expanded={expanded}
       >
-        <span className="text-xs font-semibold text-slate-200">
-          📋 Resources: {doneCount}/{resources.length} completed
+        <span className="flex items-center gap-1 text-xs font-semibold text-slate-200">
+          <ClipboardList className="h-3 w-3 shrink-0" aria-hidden />
+          Resources: {doneCount}/{resources.length} completed
         </span>
         <span className="text-slate-500">{expanded ? "▾" : "▸"}</span>
       </div>
       {expanded && (
         <div className="space-y-1 pt-1">
           {resources.map((r, i) => (
-            <p key={i} className="text-xs text-slate-400">
-              {completedLabels.has(r.label) ? "✅" : "⬜"} {r.label}
+            <p key={i} className="flex items-center gap-1.5 text-xs text-slate-400">
+              {completedLabels.has(r.label) ? (
+                <CheckCircle2 className="h-3 w-3 shrink-0" aria-hidden />
+              ) : (
+                <Circle className="h-3 w-3 shrink-0 text-slate-600" aria-hidden />
+              )}
+              {r.label}
             </p>
           ))}
         </div>
@@ -2184,7 +2261,10 @@ function CandidateResourceSender({ candidateId }: { candidateId: string }) {
 
   return (
     <div className="space-y-2 border-t border-white/10 pt-3">
-      <p className="section-title">📎 Just For Them</p>
+      <p className="section-title flex items-center gap-1.5">
+        <Paperclip className="h-4 w-4" aria-hidden />
+        Just For Them
+      </p>
       {error && <p className="text-xs text-red-400">{error}</p>}
       {!loading &&
         resources.map((r) => (
@@ -2203,7 +2283,7 @@ function CandidateResourceSender({ candidateId }: { candidateId: string }) {
               onClick={() => remove(r.id)}
               aria-label={`Remove ${r.label}`}
             >
-              ✕
+              <X className="h-4 w-4" aria-hidden />
             </button>
           </div>
         ))}
@@ -2378,7 +2458,7 @@ function MemberResourceSender({ recipientId, recipientName }: { recipientId: str
               )}
             </div>
             <button className="btn-icon shrink-0" onClick={() => remove(r.id)} aria-label={`Remove ${r.label}`}>
-              ✕
+              <X className="h-4 w-4" aria-hidden />
             </button>
           </div>
         ))}
@@ -2596,7 +2676,10 @@ function DownlineCandidateResources({ actingFor }: { actingFor: DownlineOption }
 
           {launched.length > 0 && (
             <div className="space-y-2">
-              <p className="section-title px-1">Launched 🎉</p>
+              <p className="section-title flex items-center gap-1.5 px-1">
+                Launched
+                <PartyPopper className="h-4 w-4" aria-hidden />
+              </p>
               {launched.map((candidate) => (
                 <CandidateCard
                   key={candidate.id}

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Palette, Check, Medal, Globe } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import ProfileForm from "@/components/ProfileForm";
 import { SkeletonList } from "@/components/Skeleton";
@@ -273,7 +274,10 @@ export default function MyProfilePage() {
             </div>
 
             <div className="card space-y-2">
-              <p className="section-title">🎨 App Color</p>
+              <p className="section-title flex items-center gap-1.5">
+                <Palette className="h-4 w-4" aria-hidden />
+                App Color
+              </p>
               <p className="text-xs text-slate-400">
                 Pick an accent color for the whole app — it&apos;s just yours, everyone else keeps
                 whatever they&apos;ve chosen.
@@ -299,7 +303,7 @@ export default function MyProfilePage() {
                             : "none",
                         }}
                       >
-                        {isActive && <span className="text-navy">✓</span>}
+                        {isActive && <Check className="h-3.5 w-3.5 text-navy" aria-hidden />}
                       </span>
                       <span className="text-[11px] text-slate-400">{theme.label}</span>
                     </button>
@@ -311,7 +315,10 @@ export default function MyProfilePage() {
 
             <div className="card space-y-2">
               <Link href="/badges" className="flex items-center justify-between gap-2">
-                <p className="section-title">🏅 My Badges</p>
+                <p className="section-title flex items-center gap-1.5">
+                  <Medal className="h-4 w-4" aria-hidden />
+                  My Badges
+                </p>
                 <span className="pill-amber">
                   {earnedBadges.length}/{BADGE_DEFINITIONS.length}
                 </span>
@@ -367,7 +374,10 @@ export default function MyProfilePage() {
             </div>
 
             <div className="card space-y-2">
-              <p className="section-title">🌐 My Time Zone</p>
+              <p className="section-title flex items-center gap-1.5">
+                <Globe className="h-4 w-4" aria-hidden />
+                My Time Zone
+              </p>
               <p className="text-xs text-slate-400">
                 Used as the default zone when you add a Calendar event, and to auto-fill a
                 candidate&apos;s time when scheduling for them if their own zone hasn&apos;t been

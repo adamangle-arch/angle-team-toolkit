@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Flame, Lock, PartyPopper, Lightbulb, Brain } from "lucide-react";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import { getToday } from "@/lib/dates";
@@ -186,7 +187,11 @@ export default function TriviaGame() {
           </span>
         </span>
         <span className="text-sm text-slate-400">
-          Streak: <span className="font-bold text-amber-light">🔥 {streak}</span>
+          Streak:{" "}
+          <span className="inline-flex items-center gap-1 font-bold text-amber-light">
+            <Flame className="h-3.5 w-3.5" aria-hidden />
+            {streak}
+          </span>
         </span>
       </div>
 
@@ -194,7 +199,10 @@ export default function TriviaGame() {
         <div className="empty-state">Loading…</div>
       ) : !unlocked ? (
         <div className="card space-y-2">
-          <p className="section-title">🔒 Locked for Today</p>
+          <p className="section-title flex items-center gap-1.5">
+            <Lock className="h-4 w-4" aria-hidden />
+            Locked for Today
+          </p>
           <p className="text-sm text-slate-400">
             Complete today&apos;s Core Run - or keep an active streak going - to unlock today&apos;s 5
             trivia questions.
@@ -207,8 +215,15 @@ export default function TriviaGame() {
           </div>
           <div className="flex items-center justify-between text-sm">
             <span className="text-slate-200">Active streak</span>
-            <span className={coreRunStreak > 0 ? "pill-amber" : "pill"}>
-              {coreRunStreak > 0 ? `🔥 ${coreRunStreak}` : "None"}
+            <span className={coreRunStreak > 0 ? "pill-amber gap-1" : "pill"}>
+              {coreRunStreak > 0 ? (
+                <>
+                  <Flame className="h-3 w-3" aria-hidden />
+                  {coreRunStreak}
+                </>
+              ) : (
+                "None"
+              )}
             </span>
           </div>
           <Link href="/streak" className="btn-primary block w-full text-center">
@@ -217,10 +232,15 @@ export default function TriviaGame() {
         </div>
       ) : alreadyPlayedToday && !playing ? (
         <div className="card space-y-2 text-center">
-          <p className="text-lg font-bold text-white">
-            {todayResult!.correct_count === todayResult!.total_count
-              ? "🎉 Perfect!"
-              : "Come back tomorrow"}
+          <p className="flex items-center justify-center gap-1.5 text-lg font-bold text-white">
+            {todayResult!.correct_count === todayResult!.total_count ? (
+              <>
+                <PartyPopper className="h-5 w-5" aria-hidden />
+                Perfect!
+              </>
+            ) : (
+              "Come back tomorrow"
+            )}
           </p>
           <p className="text-sm text-slate-300">
             You got {todayResult!.correct_count}/{todayResult!.total_count} today.
@@ -231,13 +251,19 @@ export default function TriviaGame() {
           {missedQuestion && (
             <div className="rounded-lg bg-navy p-2.5 text-left">
               <p className="text-xs font-medium text-slate-300">{missedQuestion.question}</p>
-              <p className="mt-1 text-xs text-amber-light">💡 {missedQuestion.source}</p>
+              <p className="mt-1 flex items-center gap-1 text-xs text-amber-light">
+                <Lightbulb className="h-3 w-3" aria-hidden />
+                {missedQuestion.source}
+              </p>
             </div>
           )}
         </div>
       ) : !playing ? (
         <div className="card space-y-3 text-center">
-          <p className="text-lg font-bold text-white">🧠 Today&apos;s 5 Questions</p>
+          <p className="flex items-center justify-center gap-1.5 text-lg font-bold text-white">
+            <Brain className="h-5 w-5" aria-hidden />
+            Today&apos;s 5 Questions
+          </p>
           <p className="text-xs text-slate-400">
             This is a fun way to test your LTD knowledge — honor system, no looking up or
             asking someone for the answer. One attempt per day: get a question wrong and
@@ -282,7 +308,10 @@ export default function TriviaGame() {
                 Not quite — that&apos;s it for today. Come back tomorrow for a new set.
               </p>
               {missedQuestion && (
-                <p className="text-xs text-amber-light">💡 {missedQuestion.source}</p>
+                <p className="flex items-center gap-1 text-xs text-amber-light">
+                  <Lightbulb className="h-3 w-3" aria-hidden />
+                  {missedQuestion.source}
+                </p>
               )}
             </>
           )}
@@ -290,7 +319,10 @@ export default function TriviaGame() {
       ) : null}
 
       <div className="card space-y-1.5">
-        <p className="section-title">🔥 Trivia Streak Leaderboard</p>
+        <p className="section-title flex items-center gap-1.5">
+          <Flame className="h-4 w-4" aria-hidden />
+          Trivia Streak Leaderboard
+        </p>
         {leaders.length === 0 ? (
           <p className="text-sm text-slate-400">No one&apos;s gone 5/5 yet — be the first!</p>
         ) : (
@@ -299,7 +331,10 @@ export default function TriviaGame() {
               <span className="text-slate-200">
                 {i + 1}. {[l.first_name, l.last_name].filter(Boolean).join(" ") || "Unnamed"}
               </span>
-              <span className="pill pill-amber">🔥 {l.best_score}d</span>
+              <span className="pill pill-amber gap-1">
+                <Flame className="h-3 w-3" aria-hidden />
+                {l.best_score}d
+              </span>
             </div>
           ))
         )}

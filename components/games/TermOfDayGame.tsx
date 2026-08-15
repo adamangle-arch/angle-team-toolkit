@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { PartyPopper, Lightbulb } from "lucide-react";
 import { useAuth } from "@/components/AuthGate";
 import { getToday } from "@/lib/dates";
 import { useGameScore } from "@/lib/useGameScore";
@@ -147,7 +148,12 @@ export default function TermOfDayGame() {
           )}
         </div>
 
-        {status === "won" && <p className="text-lg font-bold text-white">🎉 Solved it!</p>}
+        {status === "won" && (
+          <p className="flex items-center justify-center gap-1.5 text-lg font-bold text-white">
+            <PartyPopper className="h-5 w-5" aria-hidden />
+            Solved it!
+          </p>
+        )}
         {status === "lost" && (
           <p className="text-sm text-slate-300">The term was {answer}. Come back tomorrow!</p>
         )}
@@ -155,13 +161,17 @@ export default function TermOfDayGame() {
         {status === "playing" && (
           <div>
             {showHint ? (
-              <p className="text-xs italic text-slate-400">💡 {hint}</p>
+              <p className="flex items-center justify-center gap-1 text-xs italic text-slate-400">
+                <Lightbulb className="h-3 w-3" aria-hidden />
+                {hint}
+              </p>
             ) : (
               <button
-                className="text-xs text-slate-400 underline"
+                className="flex items-center justify-center gap-1 text-xs text-slate-400 underline"
                 onClick={() => setShowHint(true)}
               >
-                💡 Need a hint?
+                <Lightbulb className="h-3 w-3" aria-hidden />
+                Need a hint?
               </button>
             )}
           </div>

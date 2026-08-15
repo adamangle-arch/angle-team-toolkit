@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Rocket, Droplet, ShoppingBag, Trophy } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import TrendChart from "@/components/TrendChart";
 import { SkeletonList, SkeletonRows } from "@/components/Skeleton";
@@ -17,10 +18,10 @@ import type { MonthlyPv, CustomerSale, SaleCategory, AverageLeaderEntry, Average
 const CORE_300_TARGET = 300;
 const DITTO_TARGET = 100;
 const VOLUME_AVG_WINDOW = 6;
-const MILESTONES: { threshold: number; emoji: string }[] = [
-  { threshold: 100, emoji: "🟢" },
-  { threshold: 200, emoji: "🟢" },
-  { threshold: 300, emoji: "🏆" },
+const MILESTONES: { threshold: number; dotColor?: string; trophy?: boolean }[] = [
+  { threshold: 100, dotColor: "bg-emerald-400" },
+  { threshold: 200, dotColor: "bg-emerald-400" },
+  { threshold: 300, trophy: true },
 ];
 
 const SALE_CATEGORIES: SaleCategory[] = [
@@ -315,7 +316,10 @@ export default function VolumePage() {
       <PageHeader title="Volume" subtitle={formatMonthLabel(periodStart)} />
       <main className="page-main">
         <div className="card space-y-3">
-          <p className="section-title">🚀 Personal Circle PV</p>
+          <p className="section-title flex items-center gap-1.5">
+            <Rocket className="h-4 w-4" aria-hidden />
+            Personal Circle PV
+          </p>
           <p className="text-xs text-slate-400">
             300+ PV puts you on the Core 300 leaderboard for everyone to see.
           </p>
@@ -363,7 +367,11 @@ export default function VolumePage() {
                   corePv >= m.threshold ? "" : "opacity-30 grayscale"
                 }`}
               >
-                <span className="text-2xl leading-none">{m.emoji}</span>
+                {m.trophy ? (
+                  <Trophy className="h-6 w-6" aria-hidden />
+                ) : (
+                  <span className={`inline-block h-2 w-2 rounded-full ${m.dotColor}`} aria-hidden />
+                )}
                 <span className="text-[10px] text-slate-400">{m.threshold} PV</span>
               </div>
             ))}
@@ -402,27 +410,35 @@ export default function VolumePage() {
           {volumeLeadersError && <p className="text-xs text-red-400">{volumeLeadersError}</p>}
           <div className="space-y-1 rounded-lg bg-navy px-3 py-2">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-slate-200">🚀 PV per month</span>
+              <span className="flex items-center gap-1.5 text-sm text-slate-200">
+                <Rocket className="h-3.5 w-3.5" aria-hidden />
+                PV per month
+              </span>
               <span className="text-lg font-bold text-amber">
                 {monthlyAverages.pvPerMonth.toFixed(1)}
               </span>
             </div>
             <PercentileNote entry={volumePercentiles.find((p) => p.metric === "pv")} />
-            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
-              🏆 Team Leaders
+            <p className="flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-slate-500">
+              <Trophy className="h-3 w-3" aria-hidden />
+              Team Leaders
             </p>
             <AverageLeaders leaders={volumeLeaders} metric="pv" />
           </div>
           <div className="space-y-1 rounded-lg bg-navy px-3 py-2">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-slate-200">💧 Ditto per month</span>
+              <span className="flex items-center gap-1.5 text-sm text-slate-200">
+                <Droplet className="h-3.5 w-3.5" aria-hidden />
+                Ditto per month
+              </span>
               <span className="text-lg font-bold text-amber">
                 {monthlyAverages.dittoPerMonth.toFixed(1)}
               </span>
             </div>
             <PercentileNote entry={volumePercentiles.find((p) => p.metric === "ditto")} />
-            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
-              🏆 Team Leaders
+            <p className="flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-slate-500">
+              <Trophy className="h-3 w-3" aria-hidden />
+              Team Leaders
             </p>
             <AverageLeaders leaders={volumeLeaders} metric="ditto" />
           </div>
@@ -454,7 +470,10 @@ export default function VolumePage() {
         </div>
 
         <div className="card space-y-3">
-          <p className="section-title">💧 Day 1 Ditto</p>
+          <p className="section-title flex items-center gap-1.5">
+            <Droplet className="h-4 w-4" aria-hidden />
+            Day 1 Ditto
+          </p>
           <p className="text-xs text-slate-400">
             How much of this month&apos;s PV came through a Ditto order on day 1. 100+ gets
             recognized on the Leaderboard.
@@ -491,8 +510,9 @@ export default function VolumePage() {
               <span className="absolute right-0">{DITTO_TARGET} PV</span>
             </div>
           </div>
-          <p className="text-sm text-amber-light">
-            {dittoPv} / {DITTO_TARGET} PV {dittoPv >= DITTO_TARGET ? "🏆" : ""}
+          <p className="flex items-center gap-1 text-sm text-amber-light">
+            {dittoPv} / {DITTO_TARGET} PV
+            {dittoPv >= DITTO_TARGET && <Trophy className="h-3.5 w-3.5" aria-hidden />}
           </p>
 
           <p className="text-xs text-slate-500 pt-1">Day 1 Ditto by month, to compare</p>
@@ -500,7 +520,10 @@ export default function VolumePage() {
         </div>
 
         <div id="log-sale" className="card space-y-2">
-          <p className="section-title">🛍️ Customer Sales</p>
+          <p className="section-title flex items-center gap-1.5">
+            <ShoppingBag className="h-4 w-4" aria-hidden />
+            Customer Sales
+          </p>
           <div className="rounded-lg bg-navy p-2 text-center">
             <p className="text-lg font-bold text-amber-light">{highestPv} PV</p>
           </div>

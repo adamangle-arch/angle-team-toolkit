@@ -2,6 +2,20 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import {
+  X,
+  PartyPopper,
+  Lightbulb,
+  AlertTriangle,
+  Flame,
+  Palmtree,
+  Headphones,
+  Trophy,
+  BookOpen,
+  Pencil,
+  NotebookPen,
+  Handshake,
+} from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import FirstVisitTip from "@/components/FirstVisitTip";
 import { SkeletonList } from "@/components/Skeleton";
@@ -1049,7 +1063,10 @@ export default function StreakPage() {
         {showGamesUnlocked && (
           <div className="card flex items-center justify-between gap-2 !border-amber bg-amber/10">
             <div>
-              <p className="section-title">🎉 Games Unlocked!</p>
+              <p className="section-title flex items-center gap-1.5">
+                <PartyPopper className="h-4 w-4" aria-hidden />
+                Games Unlocked!
+              </p>
               <p className="text-xs text-slate-300">
                 Today&apos;s Core Run is done — Diamond Run, Diamond Chase, and Trivia are all
                 unlocked for today.
@@ -1064,23 +1081,25 @@ export default function StreakPage() {
                 onClick={() => setShowGamesUnlocked(false)}
                 aria-label="Dismiss"
               >
-                ✕
+                <X className="h-4 w-4" aria-hidden />
               </button>
             </div>
           </div>
         )}
 
         <FirstVisitTip id="core-run-streak">
-          💡 Complete all four — Read, Listen, Daily Update, Story Share — to count today toward
-          your streak. Miss a day? You have until the end of the next day to go back and log it
-          before the streak actually breaks. Away on vacation or sick? Use an Off Day (up to 3
-          every 30 days) to keep the streak without logging anything.
+          <Lightbulb className="inline h-3.5 w-3.5 align-[-2px]" aria-hidden /> Complete all four
+          — Read, Listen, Daily Update, Story Share — to count today toward your streak. Miss a
+          day? You have until the end of the next day to go back and log it before the streak
+          actually breaks. Away on vacation or sick? Use an Off Day (up to 3 every 30 days) to
+          keep the streak without logging anything.
         </FirstVisitTip>
 
         {streakAtRisk && (
           <div className="card space-y-1.5 border border-red-400/40 bg-red-500/5">
-            <p className="text-sm font-semibold text-red-300">
-              ⚠️ Your {streakAtRisk.priorStreak}-day streak is at risk
+            <p className="flex items-center gap-1.5 text-sm font-semibold text-red-300">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              Your {streakAtRisk.priorStreak}-day streak is at risk
             </p>
             <p className="text-xs text-slate-300">
               Neither today nor {formatDateLabel(streakAtRisk.yesterday)} is logged yet. Log{" "}
@@ -1098,7 +1117,10 @@ export default function StreakPage() {
             <p className="section-title">Current Streak</p>
             <p className="text-xs text-slate-400">All 4 done (or an Off Day) counts as a streak day</p>
           </div>
-          <p className="text-3xl font-bold text-amber">🔥 {streak}</p>
+          <p className="flex items-center gap-1.5 text-3xl font-bold text-amber">
+            <Flame className="h-7 w-7" aria-hidden />
+            {streak}
+          </p>
         </div>
 
         <div className="card space-y-2">
@@ -1106,8 +1128,15 @@ export default function StreakPage() {
             <p className="section-title">
               {selectedDay === today ? "Today" : formatDateLabel(selectedDay)}
             </p>
-            <span className={selectedQualifies ? "pill-amber" : "pill"}>
-              {selectedRow.off_day ? "🏖️ Off Day" : `${selectedDoneCount}/4 done`}
+            <span className={`gap-1 ${selectedQualifies ? "pill-amber" : "pill"}`}>
+              {selectedRow.off_day ? (
+                <>
+                  <Palmtree className="h-3 w-3" aria-hidden />
+                  Off Day
+                </>
+              ) : (
+                `${selectedDoneCount}/4 done`
+              )}
             </span>
           </div>
           {selectedRow.off_day ? (
@@ -1122,11 +1151,12 @@ export default function StreakPage() {
                   : `You've used all ${OFF_DAY_CAP} Off Days available in the last ${OFF_DAY_WINDOW_DAYS} days.`}
               </p>
               <button
-                className="chip-btn shrink-0 text-xs"
+                className="chip-btn flex shrink-0 items-center justify-center gap-1 text-xs"
                 onClick={markOffDay}
                 disabled={!offDayAvailable}
               >
-                🏖️ Off Day
+                <Palmtree className="h-3 w-3" aria-hidden />
+                Off Day
               </button>
             </div>
           ) : null}
@@ -1187,27 +1217,35 @@ export default function StreakPage() {
           {streakLeadersError && <p className="text-xs text-red-400">{streakLeadersError}</p>}
           <div className="space-y-1 rounded-lg bg-navy px-3 py-2">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-slate-200">🎧 Audios per day</span>
+              <span className="flex items-center gap-1.5 text-sm text-slate-200">
+                <Headphones className="h-3.5 w-3.5" aria-hidden />
+                Audios per day
+              </span>
               <span className="text-lg font-bold text-amber">
                 {last30Averages.audiosPerDay.toFixed(1)}
               </span>
             </div>
             <PercentileNote entry={streakPercentiles.find((p) => p.metric === "audios")} />
-            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
-              🏆 Team Leaders
+            <p className="flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-slate-500">
+              <Trophy className="h-3 w-3" aria-hidden />
+              Team Leaders
             </p>
             <AverageLeaders leaders={streakLeaders} metric="audios" />
           </div>
           <div className="space-y-1 rounded-lg bg-navy px-3 py-2">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-slate-200">📖 {readingUnitLabel} per day</span>
+              <span className="flex items-center gap-1.5 text-sm text-slate-200">
+                <BookOpen className="h-3.5 w-3.5" aria-hidden />
+                {readingUnitLabel} per day
+              </span>
               <span className="text-lg font-bold text-amber">
                 {last30Averages.readAmountPerDay.toFixed(1)}
               </span>
             </div>
             <PercentileNote entry={streakPercentiles.find((p) => p.metric === "read_amount")} />
-            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
-              🏆 Team Leaders
+            <p className="flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-slate-500">
+              <Trophy className="h-3 w-3" aria-hidden />
+              Team Leaders
             </p>
             <AverageLeaders leaders={streakLeaders} metric="read_amount" />
           </div>
@@ -1225,8 +1263,9 @@ export default function StreakPage() {
 
         {selectedDay !== today && (
           <div className="card flex items-center justify-between gap-2 !border-amber bg-amber/10">
-            <p className="text-sm text-amber-light">
-              ✏️ Editing {formatDateLabel(selectedDay)}
+            <p className="flex items-center gap-1.5 text-sm text-amber-light">
+              <Pencil className="h-3.5 w-3.5" aria-hidden />
+              Editing {formatDateLabel(selectedDay)}
             </p>
             <button className="btn-primary shrink-0" onClick={() => setSelectedDay(today)}>
               Back to Today
@@ -1239,7 +1278,10 @@ export default function StreakPage() {
         ) : (
           <>
             <div className="card space-y-2">
-              <p className="section-title">📖 Read</p>
+              <p className="section-title flex items-center gap-1.5">
+                <BookOpen className="h-4 w-4" aria-hidden />
+                Read
+              </p>
               {selectedRow.read_items.length > 0 && (
                 <div className="space-y-1.5">
                   {selectedRow.read_items.map((item, i) => (
@@ -1253,7 +1295,7 @@ export default function StreakPage() {
                         onClick={() => removeRead(i)}
                         aria-label={`Remove ${item}`}
                       >
-                        ✕
+                        <X className="h-3 w-3" aria-hidden />
                       </button>
                     </div>
                   ))}
@@ -1320,7 +1362,10 @@ export default function StreakPage() {
             </div>
 
             <div className="card space-y-2">
-              <p className="section-title">🎧 Listen</p>
+              <p className="section-title flex items-center gap-1.5">
+                <Headphones className="h-4 w-4" aria-hidden />
+                Listen
+              </p>
               {selectedRow.listen_items.length > 0 && (
                 <div className="space-y-1.5">
                   {selectedRow.listen_items.map((item, i) => (
@@ -1334,7 +1379,7 @@ export default function StreakPage() {
                         onClick={() => removeAudio(i)}
                         aria-label={`Remove ${item}`}
                       >
-                        ✕
+                        <X className="h-3 w-3" aria-hidden />
                       </button>
                     </div>
                   ))}
@@ -1388,7 +1433,10 @@ export default function StreakPage() {
                     selectedRow.daily_update ? "Mark Daily Update as not done" : "Mark Daily Update as done"
                   }
                 />
-                <span className="section-title">📝 Daily Update</span>
+                <span className="section-title flex items-center gap-1.5">
+                  <NotebookPen className="h-4 w-4" aria-hidden />
+                  Daily Update
+                </span>
               </span>
               <span className={selectedRow.daily_update ? "pill-amber" : "pill"}>
                 {selectedRow.daily_update ? "Done" : "Not yet"}
@@ -1417,7 +1465,10 @@ export default function StreakPage() {
             </div>
 
             <div className="card space-y-2">
-              <p className="section-title">🤝 Meetings</p>
+              <p className="section-title flex items-center gap-1.5">
+                <Handshake className="h-4 w-4" aria-hidden />
+                Meetings
+              </p>
               {selectedRow.meeting_items.length > 0 && (
                 <div className="space-y-1.5">
                   {selectedRow.meeting_items.map((item, i) => (
@@ -1431,7 +1482,7 @@ export default function StreakPage() {
                         onClick={() => removeMeeting(i)}
                         aria-label={`Remove ${item}`}
                       >
-                        ✕
+                        <X className="h-3 w-3" aria-hidden />
                       </button>
                     </div>
                   ))}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { PartyPopper } from "lucide-react";
 import { useAuth } from "@/components/AuthGate";
 import { useGameScore } from "@/lib/useGameScore";
 import GameLockGate from "@/components/games/GameLockGate";
@@ -127,7 +128,10 @@ export default function DiamondMatchGame() {
         <div className="card space-y-2 text-center">
           {finished && (
             <>
-              <p className="text-lg font-bold text-white">🎉 Matched!</p>
+              <p className="flex items-center justify-center gap-1.5 text-lg font-bold text-white">
+                <PartyPopper className="h-5 w-5" aria-hidden />
+                Matched!
+              </p>
               <p className="text-sm text-slate-300">
                 {moves} moves in {elapsedSeconds}s — {finalPoints} points.
               </p>

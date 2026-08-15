@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
+import { Flame, BookOpen, Headphones, Medal } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import BadgePillList from "@/components/BadgePillList";
 import { SkeletonList } from "@/components/Skeleton";
@@ -104,20 +105,24 @@ export default function PublicProfilePage({
               profile.last_listen_what) && (
               <div className="card space-y-2">
                 <div className="flex items-center justify-between">
-                  <p className="section-title">🔥 Core Run</p>
+                  <p className="section-title flex items-center gap-1.5">
+                    <Flame className="h-4 w-4" aria-hidden />
+                    Core Run
+                  </p>
                   <span className={profile.current_streak > 0 ? "pill-amber" : "pill"}>
                     {profile.current_streak} day{profile.current_streak === 1 ? "" : "s"} streak
                   </span>
                 </div>
                 {profile.last_read_what && (
                   <p className="text-sm text-slate-200">
-                    📖 Currently reading <span className="font-medium">{profile.last_read_what}</span>
+                    <BookOpen className="inline h-3.5 w-3.5" aria-hidden /> Currently reading{" "}
+                    <span className="font-medium">{profile.last_read_what}</span>
                     {profile.last_read_amount ? ` — ${profile.last_read_amount}` : ""}
                   </p>
                 )}
                 {profile.last_listen_what && (
                   <p className="text-sm text-slate-200">
-                    🎧 Recently listened to{" "}
+                    <Headphones className="inline h-3.5 w-3.5" aria-hidden /> Recently listened to{" "}
                     <span className="font-medium">{profile.last_listen_what}</span>
                     {profile.last_listen_count
                       ? ` — ${profile.last_listen_count} audio(s)`
@@ -129,11 +134,15 @@ export default function PublicProfilePage({
 
             {STREAK_MILESTONES.some((m) => profile.longest_streak >= m.days) && (
               <div className="card space-y-2">
-                <p className="section-title">🏅 Milestones</p>
+                <p className="section-title flex items-center gap-1.5">
+                  <Medal className="h-4 w-4" aria-hidden />
+                  Milestones
+                </p>
                 <div className="flex flex-wrap gap-1.5">
                   {STREAK_MILESTONES.filter((m) => profile.longest_streak >= m.days).map((m) => (
-                    <span key={m.days} className="pill-amber">
-                      🏅 {m.label}
+                    <span key={m.days} className="pill-amber flex items-center gap-1">
+                      <Medal className="h-3 w-3" aria-hidden />
+                      {m.label}
                     </span>
                   ))}
                 </div>
@@ -142,7 +151,10 @@ export default function PublicProfilePage({
 
             <div className="card space-y-2">
               <div className="flex items-center justify-between gap-2">
-                <p className="section-title">🏅 Badges</p>
+                <p className="section-title flex items-center gap-1.5">
+                  <Medal className="h-4 w-4" aria-hidden />
+                  Badges
+                </p>
                 <span className="pill-amber">
                   {badges.length}/{BADGE_DEFINITIONS.length}
                 </span>

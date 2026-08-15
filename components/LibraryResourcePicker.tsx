@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { Headphones, BookOpen, ClipboardList, type LucideIcon } from "lucide-react";
 import type { OptionalResource, OptionalResourceKind } from "@/lib/types";
 
-const KIND_TABS: { key: OptionalResourceKind; label: string }[] = [
-  { key: "audio", label: "🎧 Audio" },
-  { key: "reading", label: "📖 Reading" },
-  { key: "other", label: "📋 Other" },
+const KIND_TABS: { key: OptionalResourceKind; label: string; icon: LucideIcon }[] = [
+  { key: "audio", label: "Audio", icon: Headphones },
+  { key: "reading", label: "Reading", icon: BookOpen },
+  { key: "other", label: "Other", icon: ClipboardList },
 ];
 
 // The "pick from library" widget shown everywhere a resource can be
@@ -38,13 +39,17 @@ export default function LibraryResourcePicker({
       <div className="flex flex-wrap gap-2">
         {KIND_TABS.map((tab) => {
           const count = resources.filter((r) => r.kind === tab.key).length;
+          const Icon = tab.icon;
           return (
             <button
               key={tab.key}
               type="button"
-              className={kind === tab.key ? "toggle-pill-active" : "toggle-pill-inactive"}
+              className={`flex items-center gap-1 ${
+                kind === tab.key ? "toggle-pill-active" : "toggle-pill-inactive"
+              }`}
               onClick={() => setKind(tab.key)}
             >
+              <Icon className="h-3.5 w-3.5" aria-hidden />
               {tab.label} ({count})
             </button>
           );

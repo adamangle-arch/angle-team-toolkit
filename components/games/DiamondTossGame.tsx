@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { PartyPopper } from "lucide-react";
 import { useAuth } from "@/components/AuthGate";
 import { useGameScore } from "@/lib/useGameScore";
 import GameLockGate from "@/components/games/GameLockGate";
@@ -123,7 +124,10 @@ export default function DiamondTossGame() {
         </div>
       ) : finished ? (
         <div className="card space-y-2 text-center">
-          <p className="text-lg font-bold text-white">🎉 {totalPoints} points</p>
+          <p className="flex items-center justify-center gap-1.5 text-lg font-bold text-white">
+            <PartyPopper className="h-5 w-5" aria-hidden />
+            {totalPoints} points
+          </p>
           <p className="text-sm text-slate-300">Last throw: {lastPoints}pts</p>
           <button className="btn-primary w-full" onClick={startGame}>
             Play Again

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Bell, BellOff } from "lucide-react";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -267,7 +268,10 @@ export default function NotificationOptIn() {
   if (isIOS && !isStandalone) {
     return (
       <div className="card space-y-1.5">
-        <p className="section-title">🔔 Notifications</p>
+        <p className="section-title flex items-center gap-1.5">
+          <Bell className="h-4 w-4" aria-hidden />
+          Notifications
+        </p>
         <p className="text-sm text-slate-300">
           Add this app to your Home Screen to get notifications: tap the Share button, then
           &quot;Add to Home Screen&quot;. They only work once it&apos;s opened from there.
@@ -281,7 +285,10 @@ export default function NotificationOptIn() {
   if (blocked) {
     return (
       <div className="card space-y-1">
-        <p className="section-title">🔕 Notifications are off</p>
+        <p className="section-title flex items-center gap-1.5">
+          <BellOff className="h-4 w-4" aria-hidden />
+          Notifications are off
+        </p>
         <p className="text-xs text-slate-400">
           You&apos;ve blocked notifications for this app in your browser or device settings. Turn
           them back on there to get your Core Run reminder and stat-leader updates.
@@ -295,7 +302,10 @@ export default function NotificationOptIn() {
       <div className="card space-y-2">
         <div className="flex items-center justify-between gap-2">
           <div>
-            <p className="section-title">🔔 Notifications</p>
+            <p className="section-title flex items-center gap-1.5">
+              <Bell className="h-4 w-4" aria-hidden />
+              Notifications
+            </p>
             <p className="text-xs text-slate-400">
               Get a Core Run reminder and daily/weekly/monthly stat-leader updates.
             </p>
@@ -314,7 +324,10 @@ export default function NotificationOptIn() {
       <div className="card space-y-2">
         <div className="flex items-center justify-between gap-2">
           <div>
-            <p className="section-title">🔕 Notifications are off</p>
+            <p className="section-title flex items-center gap-1.5">
+              <BellOff className="h-4 w-4" aria-hidden />
+              Notifications are off
+            </p>
             <p className="text-xs text-slate-400">You turned these off.</p>
           </div>
           <button className="btn-primary shrink-0" onClick={turnOn} disabled={busy}>
@@ -330,7 +343,10 @@ export default function NotificationOptIn() {
     <div className="card space-y-2">
       <div className="flex items-center justify-between gap-2">
         <div>
-          <p className="section-title">🔔 Notifications are on</p>
+          <p className="section-title flex items-center gap-1.5">
+            <Bell className="h-4 w-4" aria-hidden />
+            Notifications are on
+          </p>
           <p className="text-xs text-slate-400">
             You&apos;ll get a Core Run reminder plus daily, weekly, and monthly stat-leader updates.
           </p>

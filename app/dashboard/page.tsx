@@ -2,6 +2,21 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import {
+  ArrowRight,
+  BarChart3,
+  CalendarDays,
+  CheckCircle2,
+  Circle,
+  Flame,
+  Hand,
+  Palmtree,
+  PartyPopper,
+  Sparkles,
+  Target,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { SkeletonList, SkeletonRows } from "@/components/Skeleton";
 import { useAuth } from "@/components/AuthGate";
@@ -51,7 +66,7 @@ type StaleCandidateRow = {
 
 type MissionItem = {
   key: string;
-  icon: string;
+  icon: LucideIcon;
   text: string;
   sub?: string;
   href: string;
@@ -297,7 +312,7 @@ export default function DashboardPage() {
   if (showPipeline && staleCandidate) {
     missionItems.push({
       key: "stale-candidate",
-      icon: "👋",
+      icon: Hand,
       text: `Follow up with ${staleCandidate.name}`,
       sub: `No movement in ${staleCandidate.daysStale} day${staleCandidate.daysStale === 1 ? "" : "s"} — still at ${stepLabel(staleCandidate.current_step)}`,
       href: "/pipeline",
@@ -309,7 +324,7 @@ export default function DashboardPage() {
     const first = todayEvents[0];
     missionItems.push({
       key: "meetings",
-      icon: "📅",
+      icon: CalendarDays,
       text: todayEvents.length === 1 ? first.title : `${todayEvents.length} events today`,
       sub: todayEvents.length === 1 ? formatEventTime(first.event_at) : `First at ${formatEventTime(first.event_at)}`,
       href: "/calendar",
@@ -322,7 +337,7 @@ export default function DashboardPage() {
     if (missingChecks.length > 0) {
       missionItems.push({
         key: "core-run",
-        icon: "🔥",
+        icon: Flame,
         text: "Finish your Core Run",
         sub: `Still need: ${missingChecks.map((c) => c.label).join(", ")}`,
         href: "/streak",
@@ -342,7 +357,7 @@ export default function DashboardPage() {
         const remaining = target - actual;
         missionItems.push({
           key: `goal-${metric}`,
-          icon: "🎯",
+          icon: Target,
           text: `${remaining} more ${noun}${remaining === 1 ? "" : "s"} today`,
           href: "/streak",
           actionLabel: "Log It",
@@ -384,10 +399,14 @@ export default function DashboardPage() {
         ) : (
           <>
             <div className="card space-y-2">
-              <p className="section-title">🎯 Today&apos;s Mission</p>
+              <p className="section-title flex items-center gap-1.5">
+                <Target className="h-4 w-4" aria-hidden />
+                Today&apos;s Mission
+              </p>
               {mission.length === 0 ? (
-                <p className="text-sm text-slate-400">
-                  🎉 You&apos;re all caught up — nothing urgent right now.
+                <p className="flex items-center gap-1.5 text-sm text-slate-400">
+                  <PartyPopper className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                  You&apos;re all caught up — nothing urgent right now.
                 </p>
               ) : (
                 <div className="space-y-1.5">
@@ -398,8 +417,9 @@ export default function DashboardPage() {
                       className="flex items-center justify-between gap-2 rounded-lg bg-navy px-3 py-2"
                     >
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-medium text-white">
-                          {item.icon} {item.text}
+                        <p className="flex items-center gap-1.5 truncate text-sm font-medium text-white">
+                          <item.icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                          {item.text}
                         </p>
                         {item.sub && <p className="truncate text-xs text-slate-400">{item.sub}</p>}
                       </div>
@@ -417,7 +437,10 @@ export default function DashboardPage() {
                   onClick={() => setDreamExpanded((prev) => !prev)}
                   className="flex w-full items-center justify-between gap-2 text-left"
                 >
-                  <p className="section-title">🌟 Remember Your Why</p>
+                  <p className="section-title flex items-center gap-1.5">
+                    <Sparkles className="h-4 w-4" aria-hidden />
+                    Remember Your Why
+                  </p>
                   <span className="text-xs text-slate-400">{dreamExpanded ? "▾" : "▸"}</span>
                 </button>
                 {!dreamExpanded && (
@@ -445,8 +468,9 @@ export default function DashboardPage() {
                         <p className="text-sm text-slate-300">{dreamLifetime}</p>
                       </div>
                     )}
-                    <Link href="/goals" className="inline-block text-xs text-amber underline">
-                      View &amp; edit on Goals →
+                    <Link href="/goals" className="inline-flex items-center gap-1 text-xs text-amber underline">
+                      View &amp; edit on Goals
+                      <ArrowRight className="h-3 w-3" aria-hidden />
                     </Link>
                   </div>
                 )}
@@ -456,16 +480,27 @@ export default function DashboardPage() {
             {showStreak && (
               <Link href="/streak" className="card block space-y-2">
                 <div className="flex items-center justify-between">
-                  <p className="section-title">🔥 Core Run Streak</p>
+                  <p className="section-title flex items-center gap-1.5">
+                    <Flame className="h-4 w-4" aria-hidden />
+                    Core Run Streak
+                  </p>
                   <span className="pill pill-amber">{currentStreak}d</span>
                 </div>
                 {streakToday?.off_day ? (
-                  <span className="pill pill-amber">🏖️ Off Day - streak protected</span>
+                  <span className="pill pill-amber gap-1">
+                    <Palmtree className="h-3 w-3" aria-hidden />
+                    Off Day - streak protected
+                  </span>
                 ) : (
                   <div className="flex flex-wrap gap-1.5">
                     {STREAK_CHECKS.map((c) => (
-                      <span key={c.key} className={streakToday?.[c.key] ? "pill-amber" : "pill"}>
-                        {streakToday?.[c.key] ? "✅" : "⬜"} {c.label}
+                      <span key={c.key} className={`gap-1 ${streakToday?.[c.key] ? "pill-amber" : "pill"}`}>
+                        {streakToday?.[c.key] ? (
+                          <CheckCircle2 className="h-3 w-3" aria-hidden />
+                        ) : (
+                          <Circle className="h-3 w-3 text-slate-600" aria-hidden />
+                        )}
+                        {c.label}
                       </span>
                     ))}
                   </div>
@@ -475,7 +510,10 @@ export default function DashboardPage() {
 
             {showGoals && (
               <Link href="/goals" className="card block space-y-2">
-                <p className="section-title">🎯 Today&apos;s Goals</p>
+                <p className="section-title flex items-center gap-1.5">
+                  <Target className="h-4 w-4" aria-hidden />
+                  Today&apos;s Goals
+                </p>
                 {hasAnyDailyGoal ? (
                   <div className="space-y-1">
                     {GOAL_ITEMS_BY_PERIOD.daily
@@ -496,7 +534,10 @@ export default function DashboardPage() {
             )}
 
             <Link href="/calendar" className="card block space-y-2">
-              <p className="section-title">📅 Today&apos;s Calendar</p>
+              <p className="section-title flex items-center gap-1.5">
+                <CalendarDays className="h-4 w-4" aria-hidden />
+                Today&apos;s Calendar
+              </p>
               {todayEvents.length === 0 ? (
                 <p className="text-sm text-slate-400">Nothing on your calendar today.</p>
               ) : (
@@ -514,7 +555,10 @@ export default function DashboardPage() {
             {showPipeline && (
               <div className="card space-y-2">
                 <Link href="/pipeline" className="block space-y-2">
-                  <p className="section-title">📊 Today&apos;s Stats</p>
+                  <p className="section-title flex items-center gap-1.5">
+                    <BarChart3 className="h-4 w-4" aria-hidden />
+                    Today&apos;s Stats
+                  </p>
                   {todayStats.length === 0 && downlineStats.length === 0 ? (
                     <p className="text-sm text-slate-400">Nothing logged yet today.</p>
                   ) : (
@@ -581,7 +625,7 @@ export default function DashboardPage() {
                 onClick={() => setActiveModal(null)}
                 aria-label="Close"
               >
-                ✕
+                <X className="h-3.5 w-3.5" aria-hidden />
               </button>
             </div>
             {modalLoading ? (

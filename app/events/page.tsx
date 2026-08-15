@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { CheckCircle2, Camera, Play, X, Video } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { SkeletonList } from "@/components/Skeleton";
 import { useAuth } from "@/components/AuthGate";
@@ -297,14 +298,22 @@ export default function EventsPage() {
                     <p className="text-xs text-amber-light">{formatDateLabel(album.event_date)}</p>
                   </div>
                   {attendedAlbumIds.has(album.id) ? (
-                    <span className="pill-amber shrink-0 text-xs">✅ You were there</span>
+                    <span className="pill-amber flex shrink-0 items-center gap-1 text-xs">
+                      <CheckCircle2 className="h-3 w-3" aria-hidden /> You were there
+                    </span>
                   ) : (
                     <button
-                      className="btn-secondary shrink-0 text-xs"
+                      className="btn-secondary flex shrink-0 items-center justify-center gap-1 text-xs"
                       onClick={() => markAttended(album.id)}
                       disabled={markingAttendedFor === album.id}
                     >
-                      {markingAttendedFor === album.id ? "Marking…" : "📸 I Was There"}
+                      {markingAttendedFor === album.id ? (
+                        "Marking…"
+                      ) : (
+                        <>
+                          <Camera className="h-3 w-3" aria-hidden /> I Was There
+                        </>
+                      )}
                     </button>
                   )}
                   {isAdmin && (
@@ -344,8 +353,8 @@ export default function EventsPage() {
                           )}
                         </button>
                         {item.media_type === "video" && (
-                          <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-2xl">
-                            ▶️
+                          <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                            <Play className="h-6 w-6 text-white" aria-hidden fill="currentColor" />
                           </span>
                         )}
                         {isAdmin && (
@@ -354,7 +363,7 @@ export default function EventsPage() {
                             className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-navy/80 text-xs text-white"
                             aria-label="Delete media"
                           >
-                            ✕
+                            <X className="h-3 w-3" aria-hidden />
                           </button>
                         )}
                       </div>
@@ -372,12 +381,19 @@ export default function EventsPage() {
                       time.
                     </p>
                     <div className="flex gap-2">
-                      <label className="btn-secondary flex-1 cursor-pointer text-center">
-                        {uploadingFor === album.id && uploadType === "photo"
-                          ? uploadProgress
-                            ? `Uploading ${uploadProgress.done}/${uploadProgress.total}…`
-                            : "Uploading…"
-                          : "📷 Add Photos"}
+                      <label className="btn-secondary flex flex-1 cursor-pointer items-center justify-center gap-1.5 text-center">
+                        {uploadingFor === album.id && uploadType === "photo" ? (
+                          uploadProgress ? (
+                            `Uploading ${uploadProgress.done}/${uploadProgress.total}…`
+                          ) : (
+                            "Uploading…"
+                          )
+                        ) : (
+                          <>
+                            <Camera className="h-4 w-4" aria-hidden />
+                            Add Photos
+                          </>
+                        )}
                         <input
                           type="file"
                           accept="image/*"
@@ -390,8 +406,15 @@ export default function EventsPage() {
                           }}
                         />
                       </label>
-                      <label className="btn-secondary flex-1 cursor-pointer text-center">
-                        {uploadingFor === album.id && uploadType === "video" ? "Uploading…" : "🎥 Add Video"}
+                      <label className="btn-secondary flex flex-1 cursor-pointer items-center justify-center gap-1.5 text-center">
+                        {uploadingFor === album.id && uploadType === "video" ? (
+                          "Uploading…"
+                        ) : (
+                          <>
+                            <Video className="h-4 w-4" aria-hidden />
+                            Add Video
+                          </>
+                        )}
                         <input
                           type="file"
                           accept="video/*"
@@ -430,7 +453,7 @@ export default function EventsPage() {
             onClick={() => setLightbox(null)}
             aria-label="Close"
           >
-            ✕
+            <X className="h-5 w-5" aria-hidden />
           </button>
 
           {lightboxItems.length > 1 && (

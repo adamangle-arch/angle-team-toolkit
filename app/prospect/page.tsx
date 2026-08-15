@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
+import { CalendarDays, CheckCircle2, ClipboardList, Gift, HelpCircle, Mic, PartyPopper, X } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import {
   VIRTUAL_WEBINAR_SLOTS,
@@ -298,7 +299,10 @@ export default function ProspectPage() {
       <main className="page-main">
         {info.launched && (
           <div className="card space-y-2 text-center !border-amber bg-amber/10">
-            <p className="text-lg font-semibold text-white">🎉 You&apos;re in!</p>
+            <p className="flex items-center justify-center gap-1.5 text-lg font-semibold text-white">
+              <PartyPopper className="h-5 w-5" aria-hidden />
+              You&apos;re in!
+            </p>
             <p className="text-sm text-slate-300">
               Time to create your own account and get full access to the app.
             </p>
@@ -320,7 +324,10 @@ export default function ProspectPage() {
         )}
 
         <div className="card space-y-2">
-          <p className="section-title">❓ Got a Question?</p>
+          <p className="section-title flex items-center gap-1.5">
+            <HelpCircle className="h-4 w-4" aria-hidden />
+            Got a Question?
+          </p>
           <p className="text-xs text-slate-400">
             Jot down anything you&apos;re wondering about as it comes up — {inviterName} will see it
             here and you can talk through it together next time you meet, instead of it slipping
@@ -339,14 +346,19 @@ export default function ProspectPage() {
                     <p className={`text-sm ${q.answered ? "text-slate-400 line-through" : "text-white"}`}>
                       {q.question}
                     </p>
-                    {q.answered && <p className="text-xs text-amber-light">✅ Talked about this</p>}
+                    {q.answered && (
+                      <p className="flex items-center gap-1 text-xs text-amber-light">
+                        <CheckCircle2 className="h-3 w-3" aria-hidden />
+                        Talked about this
+                      </p>
+                    )}
                   </div>
                   <button
                     className="btn-icon !h-6 !w-6 shrink-0 text-xs"
                     onClick={() => removeQuestion(q.id)}
                     aria-label={`Remove question: ${q.question}`}
                   >
-                    ✕
+                    <X className="h-3 w-3" aria-hidden />
                   </button>
                 </div>
               ))}
@@ -378,7 +390,10 @@ export default function ProspectPage() {
 
         {events.length > 0 && (
           <div className="space-y-1.5">
-            <p className="section-title">📅 Upcoming</p>
+            <p className="section-title flex items-center gap-1.5">
+              <CalendarDays className="h-4 w-4" aria-hidden />
+              Upcoming
+            </p>
             {events.map((e) => (
               <div key={e.event_id} className="card space-y-1">
                 <p className="text-sm font-medium text-white">{e.title}</p>
@@ -390,7 +405,10 @@ export default function ProspectPage() {
 
         {specificResources.length > 0 && (
           <div className="space-y-1.5">
-            <p className="section-title">🎁 Just For You</p>
+            <p className="section-title flex items-center gap-1.5">
+              <Gift className="h-4 w-4" aria-hidden />
+              Just For You
+            </p>
             {specificResources.map((r) => (
               <ResourceRow
                 key={r.id}
@@ -407,7 +425,10 @@ export default function ProspectPage() {
 
         {!info.launched && unlockedResources.length > 0 && (
           <div className="card space-y-1.5 !border-amber bg-amber/10">
-            <p className="text-sm font-semibold text-white">📋 Before You Meet Again</p>
+            <p className="flex items-center gap-1.5 text-sm font-semibold text-white">
+              <ClipboardList className="h-3.5 w-3.5" aria-hidden />
+              Before You Meet Again
+            </p>
             <p className="text-xs text-slate-300">
               Make sure you&apos;ve gone through everything below before you catch back up with{" "}
               {inviterName}. You&apos;ll keep getting more resources like these as you move through
@@ -468,7 +489,10 @@ function InfoSessionCard({
   if (watched) {
     return (
       <div className="card text-center">
-        <p className="text-sm font-semibold text-white">✅ Info Session complete</p>
+        <p className="flex items-center justify-center gap-1.5 text-sm font-semibold text-white">
+          <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+          Info Session complete
+        </p>
       </div>
     );
   }
@@ -479,7 +503,10 @@ function InfoSessionCard({
 
   return (
     <div className="card space-y-3">
-      <p className="section-title">🎤 Info Session</p>
+      <p className="section-title flex items-center gap-1.5">
+        <Mic className="h-4 w-4" aria-hidden />
+        Info Session
+      </p>
 
       {mode === "in_person" &&
         (flyer?.image_url ? (
@@ -510,7 +537,8 @@ function InfoSessionCard({
             Join the Webinar
           </a>
           <button className="btn-secondary w-full" onClick={onMarkWatched}>
-            I&apos;ve watched it ✅
+            I&apos;ve watched it
+            <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
           </button>
         </>
       )}

@@ -2,6 +2,23 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import {
+  GraduationCap,
+  User,
+  Droplet,
+  ScrollText,
+  Lock,
+  Link2,
+  Check,
+  Circle,
+  Wrench,
+  Play,
+  FolderOpen,
+  Rocket,
+  Flame,
+  CheckCircle2,
+  X,
+} from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
 import FeatureGate from "@/components/FeatureGate";
@@ -625,12 +642,15 @@ export default function TeamPage() {
       <main className="page-main">
         {lastRemovedEmail && (
           <div className="card flex items-center justify-between gap-2 !border-amber/40">
-            <p className="text-xs text-slate-300">
-              🔗 Don&apos;t forget to remove <span className="font-semibold text-white">{lastRemovedEmail}</span>{" "}
-              from the Gemini Assistant Google Group.
+            <p className="flex items-start gap-1 text-xs text-slate-300">
+              <Link2 className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
+              <span>
+                Don&apos;t forget to remove <span className="font-semibold text-white">{lastRemovedEmail}</span>{" "}
+                from the Gemini Assistant Google Group.
+              </span>
             </p>
-            <button className="pill shrink-0" onClick={() => setLastRemovedEmail(null)}>
-              ✓ Done
+            <button className="pill shrink-0 inline-flex items-center gap-1" onClick={() => setLastRemovedEmail(null)}>
+              <Check className="h-3 w-3" aria-hidden /> Done
             </button>
           </div>
         )}
@@ -816,7 +836,9 @@ export default function TeamPage() {
         {viewMode === "diagnostics" && isAdmin && (
           <div className="space-y-3">
             <div className="card space-y-2">
-              <p className="section-title">🔧 Delivery Config</p>
+              <p className="section-title flex items-center gap-1.5">
+                <Wrench className="h-4 w-4" aria-hidden /> Delivery Config
+              </p>
               <p className="text-xs text-slate-400">
                 Every scheduled push depends on env vars that live only in the actual Vercel
                 deployment (never read from .env.local) and, for calendar reminders, a one-time
@@ -830,14 +852,34 @@ export default function TeamPage() {
                 <div className="space-y-1.5 text-sm">
                   <div className="flex items-center justify-between rounded-lg bg-navy px-3 py-2">
                     <span className="text-slate-200">VAPID keys configured</span>
-                    <span className={diagnostics.vapidConfigured ? "text-emerald-400" : "text-red-400"}>
-                      {diagnostics.vapidConfigured ? "✅ Yes" : "❌ No — pushes fail for everyone"}
+                    <span
+                      className={`inline-flex items-center gap-1 ${diagnostics.vapidConfigured ? "text-emerald-400" : "text-red-400"}`}
+                    >
+                      {diagnostics.vapidConfigured ? (
+                        <>
+                          <CheckCircle2 className="h-3.5 w-3.5" aria-hidden /> Yes
+                        </>
+                      ) : (
+                        <>
+                          <X className="h-3.5 w-3.5" aria-hidden /> No — pushes fail for everyone
+                        </>
+                      )}
                     </span>
                   </div>
                   <div className="flex items-center justify-between rounded-lg bg-navy px-3 py-2">
                     <span className="text-slate-200">CRON_SECRET configured</span>
-                    <span className={diagnostics.cronSecretConfigured ? "text-emerald-400" : "text-red-400"}>
-                      {diagnostics.cronSecretConfigured ? "✅ Yes" : "❌ No — every cron 401s"}
+                    <span
+                      className={`inline-flex items-center gap-1 ${diagnostics.cronSecretConfigured ? "text-emerald-400" : "text-red-400"}`}
+                    >
+                      {diagnostics.cronSecretConfigured ? (
+                        <>
+                          <CheckCircle2 className="h-3.5 w-3.5" aria-hidden /> Yes
+                        </>
+                      ) : (
+                        <>
+                          <X className="h-3.5 w-3.5" aria-hidden /> No — every cron 401s
+                        </>
+                      )}
                     </span>
                   </div>
                   <div className="flex items-center justify-between rounded-lg bg-navy px-3 py-2">
@@ -853,8 +895,13 @@ export default function TeamPage() {
                       </p>
                     ) : (
                       diagnostics.pgCronJobs.map((job) => (
-                        <p key={job.jobname} className="text-xs text-slate-400">
-                          {job.active ? "🟢" : "⚪"} {job.jobname} — {job.schedule}
+                        <p key={job.jobname} className="flex items-center gap-1.5 text-xs text-slate-400">
+                          {job.active ? (
+                            <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-emerald-400" aria-hidden />
+                          ) : (
+                            <Circle className="h-2.5 w-2.5 shrink-0 text-slate-500" aria-hidden />
+                          )}
+                          {job.jobname} — {job.schedule}
                         </p>
                       ))
                     )}
@@ -876,7 +923,9 @@ export default function TeamPage() {
             </div>
 
             <div className="card space-y-2">
-              <p className="section-title">▶️ Run a cron now</p>
+              <p className="section-title flex items-center gap-1.5">
+                <Play className="h-4 w-4" aria-hidden /> Run a cron now
+              </p>
               <p className="text-xs text-slate-400">
                 Fires the route directly with the server&apos;s real CRON_SECRET, bypassing whatever
                 is (or isn&apos;t) supposed to trigger it automatically — isolates &quot;does the route
@@ -904,7 +953,9 @@ export default function TeamPage() {
             </div>
 
             <div className="card space-y-1.5">
-              <p className="section-title">🗂️ Notification kinds — last fired</p>
+              <p className="section-title flex items-center gap-1.5">
+                <FolderOpen className="h-4 w-4" aria-hidden /> Notification kinds — last fired
+              </p>
               <p className="text-xs text-slate-400">
                 Every kind this app can send, oldest/never-fired first. A kind sitting at
                 &quot;Never fired&quot; despite conditions that should&apos;ve triggered it by now
@@ -936,7 +987,9 @@ export default function TeamPage() {
             </div>
 
             <div className="card space-y-1.5">
-              <p className="section-title">📜 Recent sends (all users)</p>
+              <p className="section-title flex items-center gap-1.5">
+                <ScrollText className="h-4 w-4" aria-hidden /> Recent sends (all users)
+              </p>
               {loadingDiagnostics ? (
                 <SkeletonRows rows={3} />
               ) : diagnostics && diagnostics.recentNotifications.length === 0 ? (
@@ -1011,7 +1064,7 @@ export default function TeamPage() {
                 )}
               </p>
               <Link href={`/profile/${selectedId}`} className="btn-secondary shrink-0 px-3 text-xs">
-                👤 View Profile
+                <User className="h-3 w-3" aria-hidden /> View Profile
               </Link>
             </div>
 
@@ -1094,11 +1147,15 @@ export default function TeamPage() {
                   <p className="section-title">Volume — {formatMonthLabel(getMonthStart())}</p>
                   <div className="grid grid-cols-2 gap-1.5">
                     <div className="flex items-center justify-between rounded-lg bg-navy px-2 py-1.5 text-xs">
-                      <span className="text-slate-400">🚀 PV</span>
+                      <span className="inline-flex items-center gap-1 text-slate-400">
+                        <Rocket className="h-3 w-3" aria-hidden /> PV
+                      </span>
                       <span className="font-semibold text-white">{memberData.monthlyPv?.pv ?? 0}</span>
                     </div>
                     <div className="flex items-center justify-between rounded-lg bg-navy px-2 py-1.5 text-xs">
-                      <span className="text-slate-400">💧 Day 1 Ditto</span>
+                      <span className="inline-flex items-center gap-1 text-slate-400">
+                        <Droplet className="h-3 w-3" aria-hidden /> Day 1 Ditto
+                      </span>
                       <span className="font-semibold text-white">
                         {memberData.monthlyPv?.day1_ditto_pv ?? 0}
                       </span>
@@ -1147,8 +1204,8 @@ export default function TeamPage() {
 
                 <div className="card flex items-center justify-between">
                   <p className="section-title">Core Run Streak</p>
-                  <p className="text-2xl font-bold text-amber">
-                    🔥 {computeStreak(memberData.streakDays)}
+                  <p className="flex items-center gap-1 text-2xl font-bold text-amber">
+                    <Flame className="h-6 w-6" aria-hidden /> {computeStreak(memberData.streakDays)}
                   </p>
                 </div>
 
@@ -1324,7 +1381,9 @@ export default function TeamPage() {
                 {selectedId !== user.id && (
                   <div className="card space-y-2">
                     <div>
-                      <p className="section-title">🎓 Classroom</p>
+                      <p className="section-title flex items-center gap-1.5">
+                        <GraduationCap className="h-4 w-4" aria-hidden /> Classroom
+                      </p>
                       <p className="text-xs text-slate-400">
                         {Math.min(
                           selectedProfile?.onboarding_unlocked_through ?? 1,
@@ -1335,14 +1394,30 @@ export default function TeamPage() {
                       {grantError && <p className="text-xs text-red-400">{grantError}</p>}
                       {unlockingSession4 && (
                         <div className="space-y-0.5">
-                          <p className={`text-xs ${contactRequirementMet ? "text-slate-500" : "text-amber-light"}`}>
-                            {contactRequirementMet ? "✓" : "○"} {SESSION_4_CONTACT_MINIMUM}+ names in
-                            the Contact Builder&apos;s A/B list — currently {networkContactCount}/
-                            {SESSION_4_CONTACT_MINIMUM}.
+                          <p
+                            className={`flex items-start gap-1 text-xs ${contactRequirementMet ? "text-slate-500" : "text-amber-light"}`}
+                          >
+                            {contactRequirementMet ? (
+                              <Check className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
+                            ) : (
+                              <Circle className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
+                            )}
+                            <span>
+                              {SESSION_4_CONTACT_MINIMUM}+ names in the Contact Builder&apos;s A/B list — currently{" "}
+                              {networkContactCount}/{SESSION_4_CONTACT_MINIMUM}.
+                            </span>
                           </p>
-                          <p className={`text-xs ${readingRequirementMet ? "text-slate-500" : "text-amber-light"}`}>
-                            {readingRequirementMet ? "✓" : "○"} Read {SESSION_4_READING_REQUIREMENT}{" "}
-                            (self-reported on their Classroom page).
+                          <p
+                            className={`flex items-start gap-1 text-xs ${readingRequirementMet ? "text-slate-500" : "text-amber-light"}`}
+                          >
+                            {readingRequirementMet ? (
+                              <Check className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
+                            ) : (
+                              <Circle className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
+                            )}
+                            <span>
+                              Read {SESSION_4_READING_REQUIREMENT} (self-reported on their Classroom page).
+                            </span>
                           </p>
                         </div>
                       )}
@@ -1355,7 +1430,13 @@ export default function TeamPage() {
                           grantingOnboarding || (selectedProfile?.onboarding_unlocked_through ?? 1) <= 1
                         }
                       >
-                        {grantingOnboarding ? "…" : "🔒 Lock Previous"}
+                        {grantingOnboarding ? (
+                          "…"
+                        ) : (
+                          <>
+                            <Lock className="h-3 w-3" aria-hidden /> Lock Previous
+                          </>
+                        )}
                       </button>
                       <button
                         className="btn-secondary flex-1 whitespace-nowrap px-2 text-xs"

@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
+import { Lightbulb, Trophy, X } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
 import FeatureGate from "@/components/FeatureGate";
@@ -11,12 +13,12 @@ import { NETWORKING_MEMORY_PROMPTS, CUSTOMER_MEMORY_PROMPTS } from "@/lib/contac
 import type { Contact } from "@/lib/types";
 
 const LIST_TARGET = 100;
-const LIST_MILESTONES: { threshold: number; emoji: string }[] = [
-  { threshold: 20, emoji: "🟢" },
-  { threshold: 40, emoji: "🟡" },
-  { threshold: 60, emoji: "🔴" },
-  { threshold: 80, emoji: "🔵" },
-  { threshold: 100, emoji: "🏆" },
+const LIST_MILESTONES: { threshold: number; dotColor?: string; trophy?: boolean }[] = [
+  { threshold: 20, dotColor: "bg-emerald-400" },
+  { threshold: 40, dotColor: "bg-amber-400" },
+  { threshold: 60, dotColor: "bg-red-500" },
+  { threshold: 80, dotColor: "bg-sky-400" },
+  { threshold: 100, trophy: true },
 ];
 
 type ViewMode = "networking" | "customer";
@@ -167,7 +169,7 @@ export default function ContactsPage() {
         </div>
 
         <p className="px-1 text-xs text-slate-500">
-          💡{" "}
+          <Lightbulb className="inline h-3 w-3 align-[-2px]" aria-hidden />{" "}
           {viewMode === "networking"
             ? "Networking prospects are typically in their 20s–30s."
             : "Customers are typically 35+, already spending money on a household."}{" "}
@@ -202,15 +204,21 @@ export default function ContactsPage() {
                     className="absolute flex -translate-x-1/2 flex-col items-center gap-0.5"
                     style={{ left: `${m.threshold}%` }}
                   >
-                    <span>{m.emoji}</span>
+                    {m.trophy ? (
+                      <Trophy className="h-3 w-3" aria-hidden />
+                    ) : (
+                      <span className={`inline-block h-2 w-2 rounded-full ${m.dotColor}`} aria-hidden />
+                    )}
                     <span>{m.threshold}</span>
                   </div>
                 ))}
               </div>
             </div>
-            <p className="pt-4 text-sm text-amber-light">
+            <p className="flex items-center gap-1 pt-4 text-sm text-amber-light">
               {networkingContacts.length} / {LIST_TARGET} contacts
-              {networkingContacts.length >= LIST_TARGET ? " 🏆" : ""}
+              {networkingContacts.length >= LIST_TARGET && (
+                <Trophy className="h-3.5 w-3.5" aria-hidden />
+              )}
             </p>
           </div>
         )}
@@ -238,20 +246,22 @@ export default function ContactsPage() {
           {viewMode === "networking" && (
             <div className="flex gap-2">
               <button
-                className={
+                className={`gap-1.5 ${
                   newCategory === "A" ? "toggle-pill-active flex-1" : "toggle-pill-inactive flex-1 bg-white/5"
-                }
+                }`}
                 onClick={() => setNewCategory("A")}
               >
-                🟢 A (Family/Friends)
+                <span className="inline-block h-2 w-2 rounded-full bg-emerald-400" aria-hidden />
+                A (Family/Friends)
               </button>
               <button
-                className={
+                className={`gap-1.5 ${
                   newCategory === "B" ? "toggle-pill-active flex-1" : "toggle-pill-inactive flex-1 bg-white/5"
-                }
+                }`}
                 onClick={() => setNewCategory("B")}
               >
-                🔵 B (Acquaintances)
+                <span className="inline-block h-2 w-2 rounded-full bg-sky-400" aria-hidden />
+                B (Acquaintances)
               </button>
             </div>
           )}
@@ -295,8 +305,12 @@ export default function ContactsPage() {
           >
             Add Contact
           </button>
-          <p key={promptIndex} className="animate-fade-in text-center text-xs italic text-slate-500">
-            💡 {activePrompts[promptIndex % activePrompts.length]}
+          <p
+            key={promptIndex}
+            className="animate-fade-in flex items-center justify-center gap-1.5 text-center text-xs italic text-slate-500"
+          >
+            <Lightbulb className="h-3 w-3 shrink-0" aria-hidden />
+            {activePrompts[promptIndex % activePrompts.length]}
           </p>
         </div>
 
@@ -317,14 +331,24 @@ export default function ContactsPage() {
         ) : viewMode === "networking" ? (
           <>
             <ContactGroup
-              title={`🟢 A-List Connections (${groupA.length})`}
+              title={
+                <>
+                  <span className="inline-block h-2 w-2 rounded-full bg-emerald-400" aria-hidden />
+                  A-List Connections ({groupA.length})
+                </>
+              }
               contacts={groupA}
               onUpdate={updateContact}
               onDelete={deleteContact}
               statusOptions={CONTACT_STATUSES}
             />
             <ContactGroup
-              title={`🔵 B-List Connections (${groupB.length})`}
+              title={
+                <>
+                  <span className="inline-block h-2 w-2 rounded-full bg-sky-400" aria-hidden />
+                  B-List Connections ({groupB.length})
+                </>
+              }
               contacts={groupB}
               onUpdate={updateContact}
               onDelete={deleteContact}
@@ -352,7 +376,7 @@ function ContactGroup({
   onDelete,
   statusOptions,
 }: {
-  title: string;
+  title: ReactNode;
   contacts: Contact[];
   onUpdate: (id: string, patch: Partial<Contact>) => void;
   onDelete: (id: string) => void;
@@ -361,7 +385,7 @@ function ContactGroup({
   if (contacts.length === 0) return null;
   return (
     <div className="space-y-2">
-      <p className="section-title px-1">{title}</p>
+      <p className="section-title flex items-center gap-1.5 px-1">{title}</p>
       {contacts.map((contact) => (
         <ContactCard
           key={contact.id}
@@ -397,7 +421,7 @@ function ContactCard({
           onClick={() => onDelete(contact.id)}
           aria-label={`Delete ${contact.name}`}
         >
-          ×
+          <X className="h-3.5 w-3.5" aria-hidden />
         </button>
       </div>
       {contact.connection_tags.length > 0 && (

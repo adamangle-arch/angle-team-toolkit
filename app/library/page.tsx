@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
+import { X, Mic, Headphones, BookOpen, ClipboardList, Library, Rocket, CheckCircle2, AlertTriangle } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
 import FeatureGate from "@/components/FeatureGate";
@@ -801,7 +802,7 @@ function CandidateResourcesSection() {
                       onClick={() => hideDefault(step, r.label)}
                       aria-label={`Hide ${r.label}`}
                     >
-                      ✕
+                      <X className="h-5 w-5" aria-hidden />
                     </button>
                   )}
                 </div>
@@ -827,7 +828,7 @@ function CandidateResourcesSection() {
                   onClick={() => deleteOverride(o.id)}
                   aria-label={`Remove ${o.label}`}
                 >
-                  ✕
+                  <X className="h-5 w-5" aria-hidden />
                 </button>
               </div>
             ))}
@@ -1086,7 +1087,7 @@ function OnboardingResourcesSection() {
                       onClick={() => hideDefault(sessionNumber, r.label)}
                       aria-label={`Hide ${r.label}`}
                     >
-                      ✕
+                      <X className="h-5 w-5" aria-hidden />
                     </button>
                   )}
                 </div>
@@ -1112,7 +1113,7 @@ function OnboardingResourcesSection() {
                   onClick={() => deleteOverride(o.id)}
                   aria-label={`Remove ${o.label}`}
                 >
-                  ✕
+                  <X className="h-5 w-5" aria-hidden />
                 </button>
               </div>
             ))}
@@ -1263,7 +1264,9 @@ function InfoSessionSpeakerAdmin() {
   return (
     <div className="card space-y-3">
       <div>
-        <p className="section-title">🎤 Info Session Speaker</p>
+        <p className="section-title flex items-center gap-1.5">
+          <Mic className="h-4 w-4" aria-hidden /> Info Session Speaker
+        </p>
         <p className="text-xs text-slate-400">
           Shown to every IS1/IS2 candidate attending in person. Upload each speaker&apos;s flyer
           once — it&apos;s saved here for good, so picking who&apos;s speaking each week is all
@@ -1300,7 +1303,7 @@ function InfoSessionSpeakerAdmin() {
                 onClick={() => deleteSpeaker(s.id)}
                 aria-label={`Remove ${s.name}`}
               >
-                ✕
+                <X className="h-5 w-5" aria-hidden />
               </button>
             </div>
           ))}
@@ -1327,10 +1330,19 @@ function InfoSessionSpeakerAdmin() {
 }
 
 const KIND_GROUPS: { key: OptionalResourceKind; label: string }[] = [
-  { key: "audio", label: "🎧 Audio" },
-  { key: "reading", label: "📖 Reading" },
-  { key: "other", label: "📋 Other" },
+  { key: "audio", label: "Audio" },
+  { key: "reading", label: "Reading" },
+  { key: "other", label: "Other" },
 ];
+
+// <option> elements can only render plain text, so the icon lives here
+// instead of baked into KIND_GROUPS.label - the label string is shared
+// with the native <select> below, which has no way to show a lucide icon.
+const KIND_ICONS: Record<OptionalResourceKind, typeof Headphones> = {
+  audio: Headphones,
+  reading: BookOpen,
+  other: ClipboardList,
+};
 
 // A shared, admin-managed library of podcasts/articles/etc. any IBO can pick
 // from (see optional_resources in supabase/schema.sql) instead of retyping
@@ -1451,7 +1463,9 @@ function OptionalResourcesAdmin({
     <div className="card space-y-3">
       <div className="space-y-2">
         <div>
-          <p className="section-title">📚 Optional Resources Library</p>
+          <p className="section-title flex items-center gap-1.5">
+            <Library className="h-4 w-4" aria-hidden /> Optional Resources Library
+          </p>
           <p className="text-xs text-slate-400">
             Podcasts, articles, and other resources any IBO can pick from — as a one-off send to a
             candidate, or added to their own automatic defaults — instead of typing the details from
@@ -1462,10 +1476,18 @@ function OptionalResourcesAdmin({
           {checkingLinks ? "Checking links…" : "Check Links"}
         </button>
         {brokenUrls && (
-          <p className="text-xs text-slate-400">
-            {brokenUrls.size === 0
-              ? "✅ All links look good."
-              : `⚠️ ${brokenUrls.size} link${brokenUrls.size === 1 ? "" : "s"} may be broken — flagged below.`}
+          <p className="flex items-center gap-1.5 text-xs text-slate-400">
+            {brokenUrls.size === 0 ? (
+              <>
+                <CheckCircle2 className="h-3 w-3 shrink-0 text-emerald-400" aria-hidden />
+                All links look good.
+              </>
+            ) : (
+              <>
+                <AlertTriangle className="h-3 w-3 shrink-0 text-amber-400" aria-hidden />
+                {brokenUrls.size} link{brokenUrls.size === 1 ? "" : "s"} may be broken — flagged below.
+              </>
+            )}
           </p>
         )}
       </div>
@@ -1473,9 +1495,11 @@ function OptionalResourcesAdmin({
       {KIND_GROUPS.map(({ key, label }) => {
         const group = resources.filter((r) => r.kind === key);
         if (group.length === 0) return null;
+        const KindIcon = KIND_ICONS[key];
         return (
           <div key={key} className="space-y-1.5">
-            <p className="text-xs font-semibold text-slate-400">
+            <p className="flex items-center gap-1 text-xs font-semibold text-slate-400">
+              <KindIcon className="h-3 w-3" aria-hidden />
               {label} ({group.length})
             </p>
             {group.map((r) => (
@@ -1484,7 +1508,9 @@ function OptionalResourcesAdmin({
                   <p className="truncate text-sm font-medium text-white">
                     {r.label}
                     {r.url && brokenUrls?.has(r.url) && (
-                      <span className="ml-1.5 text-xs font-semibold text-red-400">⚠️ broken link?</span>
+                      <span className="ml-1.5 inline-flex items-center gap-1 text-xs font-semibold text-red-400">
+                        <AlertTriangle className="h-3 w-3" aria-hidden /> broken link?
+                      </span>
                     )}
                   </p>
                   {(r.detail || r.estimate) && (
@@ -1507,7 +1533,7 @@ function OptionalResourcesAdmin({
                     ))}
                   </select>
                   <button className="btn-icon" onClick={() => deleteResource(r.id)} aria-label={`Remove ${r.label}`}>
-                    ✕
+                    <X className="h-5 w-5" aria-hidden />
                   </button>
                 </div>
               </div>
@@ -1519,16 +1545,20 @@ function OptionalResourcesAdmin({
       <div className="space-y-1.5 rounded-lg bg-navy px-3 py-2">
         <p className="text-xs font-medium text-slate-300">Add to library</p>
         <div className="flex flex-wrap gap-2">
-          {KIND_GROUPS.map((g) => (
-            <button
-              key={g.key}
-              type="button"
-              className={newKind === g.key ? "toggle-pill-active" : "toggle-pill-inactive"}
-              onClick={() => setNewKind(g.key)}
-            >
-              {g.label}
-            </button>
-          ))}
+          {KIND_GROUPS.map((g) => {
+            const KindIcon = KIND_ICONS[g.key];
+            return (
+              <button
+                key={g.key}
+                type="button"
+                className={`${newKind === g.key ? "toggle-pill-active" : "toggle-pill-inactive"} gap-1`}
+                onClick={() => setNewKind(g.key)}
+              >
+                <KindIcon className="h-3.5 w-3.5" aria-hidden />
+                {g.label}
+              </button>
+            );
+          })}
         </div>
         <input
           className="input"
@@ -1567,7 +1597,9 @@ function OptionalResourcesAdmin({
 function FirstMonthSection() {
   return (
     <div className="card space-y-2">
-      <p className="section-title">🚀 Perfect First Month (New Launch)</p>
+      <p className="section-title flex items-center gap-1.5">
+        <Rocket className="h-4 w-4" aria-hidden /> Perfect First Month (New Launch)
+      </p>
       <p className="text-xs text-slate-400">
         Step by step, in order, for someone who just launched.
       </p>

@@ -1,6 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import {
+  AlertTriangle,
+  BookOpen,
+  CheckCircle2,
+  ClipboardList,
+  Droplet,
+  Headphones,
+  Rocket,
+  Trophy,
+} from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import FeatureGate from "@/components/FeatureGate";
 import SearchablePicker from "@/components/SearchablePicker";
@@ -700,14 +710,31 @@ function InsightsPageInner() {
                   pipelineHealth.anyOffPace ? "border border-red-400/40 bg-red-500/5" : ""
                 }`}
               >
-                <p className="section-title">
-                  {pipelineHealth.anyOffPace ? "⚠️ Off Pace for Month-End" : "✅ On Pace for Month-End"}
+                <p className="section-title flex items-center gap-1.5">
+                  {pipelineHealth.anyOffPace ? (
+                    <>
+                      <AlertTriangle className="h-4 w-4" aria-hidden />
+                      Off Pace for Month-End
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="h-4 w-4" aria-hidden />
+                      On Pace for Month-End
+                    </>
+                  )}
                 </p>
                 {pipelineHealth.flags.map((f) => (
-                  <p key={f.metric} className="text-sm text-slate-200">
-                    {f.offPace ? "⚠️" : "✅"} Monthly {f.label}: projected{" "}
-                    <span className="font-bold text-amber">{f.projected}</span> of a{" "}
-                    <span className="font-bold text-white">{f.target}</span> target ({f.soFar} so far)
+                  <p key={f.metric} className="flex items-start gap-1.5 text-sm text-slate-200">
+                    {f.offPace ? (
+                      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                    ) : (
+                      <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                    )}
+                    <span>
+                      Monthly {f.label}: projected{" "}
+                      <span className="font-bold text-amber">{f.projected}</span> of a{" "}
+                      <span className="font-bold text-white">{f.target}</span> target ({f.soFar} so far)
+                    </span>
                   </p>
                 ))}
                 {pipelineHealth.anyOffPace && stageConversion.worst && (
@@ -755,7 +782,10 @@ function InsightsPageInner() {
 
             <div className="card space-y-2">
               <div className="flex items-center justify-between gap-2">
-                <p className="section-title">📋 Show Me Your Numbers</p>
+                <p className="section-title flex items-center gap-1.5">
+                  <ClipboardList className="h-4 w-4" aria-hidden />
+                  Show Me Your Numbers
+                </p>
                 <button className="chip-btn shrink-0" onClick={copySummary}>
                   {copiedSummary ? "Copied!" : "Copy Summary"}
                 </button>
@@ -882,27 +912,35 @@ function InsightsPageInner() {
               {leadersError && <p className="text-xs text-red-400">{leadersError}</p>}
               <div className="space-y-1 rounded-lg bg-navy px-3 py-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-slate-200">🎧 Audios per day</span>
+                  <span className="flex items-center gap-1.5 text-sm text-slate-200">
+                    <Headphones className="h-3.5 w-3.5" aria-hidden />
+                    Audios per day
+                  </span>
                   <span className="text-lg font-bold text-amber">
                     {coreRunAverages.audiosPerDay.toFixed(1)}
                   </span>
                 </div>
                 <PercentileNote entry={streakPercentiles.find((p) => p.metric === "audios")} />
-                <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
-                  🏆 Team Leaders
+                <p className="flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                  <Trophy className="h-3 w-3" aria-hidden />
+                  Team Leaders
                 </p>
                 <AverageLeaders leaders={streakLeaders} metric="audios" />
               </div>
               <div className="space-y-1 rounded-lg bg-navy px-3 py-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-slate-200">📖 {readingUnitLabel} per day</span>
+                  <span className="flex items-center gap-1.5 text-sm text-slate-200">
+                    <BookOpen className="h-3.5 w-3.5" aria-hidden />
+                    {readingUnitLabel} per day
+                  </span>
                   <span className="text-lg font-bold text-amber">
                     {coreRunAverages.readAmountPerDay.toFixed(1)}
                   </span>
                 </div>
                 <PercentileNote entry={streakPercentiles.find((p) => p.metric === "read_amount")} />
-                <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
-                  🏆 Team Leaders
+                <p className="flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                  <Trophy className="h-3 w-3" aria-hidden />
+                  Team Leaders
                 </p>
                 <AverageLeaders leaders={streakLeaders} metric="read_amount" />
               </div>
@@ -946,8 +984,9 @@ function InsightsPageInner() {
               </div>
 
               <div className="space-y-2 rounded-lg bg-navy px-3 py-2">
-                <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
-                  🏆 Team Leaders (Monthly)
+                <p className="flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                  <Trophy className="h-3 w-3" aria-hidden />
+                  Team Leaders (Monthly)
                 </p>
                 {AVERAGE_METRICS.map((metric) => (
                   <div key={metric.key}>
@@ -959,27 +998,35 @@ function InsightsPageInner() {
 
               <div className="space-y-1 rounded-lg bg-navy px-3 py-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-slate-200">🚀 PV per month</span>
+                  <span className="flex items-center gap-1.5 text-sm text-slate-200">
+                    <Rocket className="h-3.5 w-3.5" aria-hidden />
+                    PV per month
+                  </span>
                   <span className="text-lg font-bold text-amber">
                     {volumeAverages.pvPerMonth.toFixed(1)}
                   </span>
                 </div>
                 <PercentileNote entry={volumePercentiles.find((p) => p.metric === "pv")} />
-                <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
-                  🏆 Team Leaders
+                <p className="flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                  <Trophy className="h-3 w-3" aria-hidden />
+                  Team Leaders
                 </p>
                 <AverageLeaders leaders={volumeLeaders} metric="pv" />
               </div>
               <div className="space-y-1 rounded-lg bg-navy px-3 py-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-slate-200">💧 Ditto per month</span>
+                  <span className="flex items-center gap-1.5 text-sm text-slate-200">
+                    <Droplet className="h-3.5 w-3.5" aria-hidden />
+                    Ditto per month
+                  </span>
                   <span className="text-lg font-bold text-amber">
                     {volumeAverages.dittoPerMonth.toFixed(1)}
                   </span>
                 </div>
                 <PercentileNote entry={volumePercentiles.find((p) => p.metric === "ditto")} />
-                <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
-                  🏆 Team Leaders
+                <p className="flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                  <Trophy className="h-3 w-3" aria-hidden />
+                  Team Leaders
                 </p>
                 <AverageLeaders leaders={volumeLeaders} metric="ditto" />
               </div>

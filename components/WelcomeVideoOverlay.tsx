@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Hand } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import type { Profile } from "@/lib/types";
 
@@ -120,7 +121,7 @@ export default function WelcomeVideoOverlay({
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 overflow-y-auto bg-navy px-4 py-8">
       <div className="w-full max-w-md space-y-1 text-center">
-        <p className="text-2xl">👋</p>
+        <Hand className="mx-auto h-6 w-6 text-white" aria-hidden />
         <p className="text-lg font-bold text-white">Welcome to the Angle Team</p>
         <p className="text-sm text-slate-400">A quick message before you get started.</p>
       </div>

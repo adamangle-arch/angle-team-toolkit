@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { Lock, Flame, Gem } from "lucide-react";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import { useCoreRunUnlock } from "@/lib/useCoreRunUnlock";
@@ -326,7 +327,10 @@ export default function DiamondChaseGame() {
         <div className="empty-state">Loading…</div>
       ) : !unlocked ? (
         <div className="card space-y-2">
-          <p className="section-title">🔒 Locked for Today</p>
+          <p className="section-title flex items-center gap-1.5">
+            <Lock className="h-4 w-4" aria-hidden />
+            Locked for Today
+          </p>
           <p className="text-sm text-slate-400">
             Complete today&apos;s Core Run - or keep an active streak going - to unlock Diamond Chase.
           </p>
@@ -338,8 +342,15 @@ export default function DiamondChaseGame() {
           </div>
           <div className="flex items-center justify-between text-sm">
             <span className="text-slate-200">Active streak</span>
-            <span className={coreRunStreak > 0 ? "pill-amber" : "pill"}>
-              {coreRunStreak > 0 ? `🔥 ${coreRunStreak}` : "None"}
+            <span className={coreRunStreak > 0 ? "pill-amber gap-1" : "pill"}>
+              {coreRunStreak > 0 ? (
+                <>
+                  <Flame className="h-3 w-3" aria-hidden />
+                  {coreRunStreak}
+                </>
+              ) : (
+                "None"
+              )}
             </span>
           </div>
           <Link href="/streak" className="btn-primary block w-full text-center">
@@ -372,7 +383,10 @@ export default function DiamondChaseGame() {
                     <p className="text-sm text-slate-300">Score: {score}</p>
                   </>
                 ) : (
-                  <p className="text-lg font-bold text-white">💎 Tap to Start</p>
+                  <p className="flex items-center gap-1.5 text-lg font-bold text-white">
+                    <Gem className="h-5 w-5" aria-hidden />
+                    Tap to Start
+                  </p>
                 )}
                 <button
                   className="btn-primary mt-2"
@@ -426,7 +440,10 @@ export default function DiamondChaseGame() {
       )}
 
       <div className="card space-y-1.5">
-        <p className="section-title">💎 High Scores</p>
+        <p className="section-title flex items-center gap-1.5">
+          <Gem className="h-4 w-4" aria-hidden />
+          High Scores
+        </p>
         {leaders.length === 0 ? (
           <p className="text-sm text-slate-400">No scores yet — be the first!</p>
         ) : (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Gem } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import type { GameLeaderEntry } from "@/lib/types";
 
@@ -24,7 +25,10 @@ export default function GameLeaderboard({ gameKey, refreshKey }: { gameKey: stri
 
   return (
     <div className="card space-y-1.5">
-      <p className="section-title">💎 High Scores</p>
+      <p className="section-title flex items-center gap-1.5">
+        <Gem className="h-4 w-4" aria-hidden />
+        High Scores
+      </p>
       {leaders.length === 0 ? (
         <p className="text-sm text-slate-400">No scores yet — be the first!</p>
       ) : (
