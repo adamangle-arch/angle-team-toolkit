@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { NotebookText, Target, ClipboardList } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
 import FeatureGate from "@/components/FeatureGate";
@@ -380,7 +381,10 @@ export default function GoalsPage() {
         <div className="card space-y-2">
           <div className="flex items-center justify-between gap-2">
             <div>
-              <p className="section-title">📓 Weekly Reflection</p>
+              <p className="section-title flex items-center gap-1.5">
+                <NotebookText className="h-4 w-4" aria-hidden />
+                Weekly Reflection
+              </p>
               <p className="text-xs text-slate-400">
                 Private — only you can ever see this, not your upline, not admin.
               </p>
@@ -413,7 +417,10 @@ export default function GoalsPage() {
 
         <div className="card space-y-2">
           <div>
-            <p className="section-title">🎯 Goal-Backwards Planning</p>
+            <p className="section-title flex items-center gap-1.5">
+              <Target className="h-4 w-4" aria-hidden />
+              Goal-Backwards Planning
+            </p>
             <p className="text-xs text-slate-400">
               Pick a target and a date — this works backwards using your own real last-90-day
               conversion rate, not a generic assumption, to show the daily Questions pace it
@@ -565,8 +572,9 @@ export default function GoalsPage() {
                 );
               })}
               {period.key === "daily" && (
-                <p className="text-xs text-amber-light">
-                  📋 Check Upline on what your daily goal should be.
+                <p className="flex items-center gap-1 text-xs text-amber-light">
+                  <ClipboardList className="h-3 w-3" aria-hidden />
+                  Check Upline on what your daily goal should be.
                 </p>
               )}
             </div>

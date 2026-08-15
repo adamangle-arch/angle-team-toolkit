@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { BookOpen } from "lucide-react";
 import { BOOK_QUOTES, type BookQuote } from "@/lib/quotes";
 
 const ROTATION_KEY = "angle-team-quote-rotation";
@@ -60,7 +61,7 @@ export default function QuoteOverlay() {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy/85 px-6 backdrop-blur-sm">
       <div className="card max-w-sm space-y-4 text-center">
-        <p className="text-3xl">📖</p>
+        <BookOpen className="mx-auto h-8 w-8 text-amber-light" aria-hidden />
         <p className="text-lg font-medium italic text-white">&ldquo;{quote.text}&rdquo;</p>
         <p className="text-sm">
           <span className="font-semibold text-amber-light">{quote.author}</span>

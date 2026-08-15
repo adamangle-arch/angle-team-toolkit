@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Plus, PiggyBank, CalendarDays, type LucideIcon } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
@@ -15,11 +16,11 @@ import type { Candidate, Contact } from "@/lib/types";
 // Pipeline already reads ?tab= to land straight on the Add Candidate
 // form; Calendar already has its own "+" FAB that opens the moment the
 // page mounts, so a plain link there is enough.
-const QUICK_ACTIONS = [
-  { label: "➕ Add Candidate", href: "/pipeline?tab=roadmap" },
-  { label: "💰 Log Today's PV", href: "/volume" },
-  { label: "📅 Log a Meeting", href: "/calendar" },
-] as const;
+const QUICK_ACTIONS: { label: string; href: string; icon: LucideIcon }[] = [
+  { label: "Add Candidate", href: "/pipeline?tab=roadmap", icon: Plus },
+  { label: "Log Today's PV", href: "/volume", icon: PiggyBank },
+  { label: "Log a Meeting", href: "/calendar", icon: CalendarDays },
+];
 
 function candidateSnippet(c: Candidate, query: string): string {
   // A note match ("works at Amazon") is the whole reason this candidate
@@ -144,8 +145,9 @@ export default function SearchPage() {
                 <button
                   key={action.href}
                   onClick={() => router.push(action.href)}
-                  className="toggle-pill-inactive flex-none bg-white/5"
+                  className="toggle-pill-inactive flex-none items-center gap-1.5 bg-white/5"
                 >
+                  <action.icon className="h-3.5 w-3.5" aria-hidden />
                   {action.label}
                 </button>
               ))}

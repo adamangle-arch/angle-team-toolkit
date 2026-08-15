@@ -1,3 +1,5 @@
+import { BarChart3 } from "lucide-react";
+
 // A team of 1-2 has no meaningful "percentile" - everyone's either #1 or
 // last by definition, so this stays quiet rather than showing a
 // misleadingly precise-looking number off a near-empty distribution.
@@ -25,5 +27,10 @@ export default function PercentileNote({
   entry: { percentile: number; team_size: number } | null | undefined;
 }) {
   if (!entry || entry.team_size < MIN_TEAM_SIZE) return null;
-  return <p className="text-[10px] text-slate-500">📊 Top {topPercent(entry.percentile)}%</p>;
+  return (
+    <p className="flex items-center gap-1 text-[10px] text-slate-500">
+      <BarChart3 className="h-3 w-3" aria-hidden />
+      Top {topPercent(entry.percentile)}%
+    </p>
+  );
 }

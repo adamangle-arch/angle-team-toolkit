@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { X } from "lucide-react";
 
 const STORAGE_PREFIX = "tip_dismissed_";
 
@@ -43,7 +44,7 @@ export default function FirstVisitTip({ id, children }: { id: string; children: 
         }}
         aria-label="Dismiss tip"
       >
-        ✕
+        <X className="h-3 w-3" aria-hidden />
       </button>
     </div>
   );
