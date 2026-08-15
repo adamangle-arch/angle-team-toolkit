@@ -37,9 +37,9 @@ const SESSION_STYLE: { icon: string; from: string; to: string }[] = [
   { icon: "🔥", from: "#fde68a", to: "#b45309" }, // 30-Day Core Run
 ];
 
-function ProgressBar({ pct }: { pct: number }) {
+function ProgressBar({ pct, size = "sm" }: { pct: number; size?: "sm" | "lg" }) {
   return (
-    <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
+    <div className={`w-full overflow-hidden rounded-full bg-white/10 ${size === "lg" ? "h-3.5" : "h-2"}`}>
       <div
         className="h-full rounded-full transition-all duration-300"
         style={{
@@ -209,13 +209,22 @@ export default function OnboardingPage() {
       />
       <main className="page-main">
         {!loading && overallTotal > 0 && (
-          <div className="card space-y-2">
-            <div className="flex items-center justify-between">
-              <p className="section-title">🚀 Your Onboarding Progress</p>
-              <span className="text-xs font-semibold text-amber-light">{overallPct}%</span>
+          <div
+            className="space-y-3 rounded-2xl border p-5"
+            style={{
+              background: "rgb(var(--amber-rgb) / 0.1)",
+              borderColor: "rgb(var(--amber-rgb) / 0.3)",
+              boxShadow: "0 0 24px -8px rgb(var(--amber-rgb) / 0.4)",
+            }}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-bold uppercase tracking-wider text-amber-light">
+                🚀 Your Onboarding Progress
+              </p>
+              <span className="text-4xl font-extrabold leading-none text-amber-light">{overallPct}%</span>
             </div>
-            <ProgressBar pct={overallPct} />
-            <p className="text-xs text-slate-400">
+            <ProgressBar pct={overallPct} size="lg" />
+            <p className="text-sm text-slate-300">
               {overallDone}/{overallTotal} resources completed across your unlocked sessions.
             </p>
           </div>
