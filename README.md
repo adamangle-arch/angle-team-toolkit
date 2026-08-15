@@ -6338,6 +6338,24 @@ section (the `off_day` column, right after `depth_texts`) plus the
   `public/onboarding/` and render via `next/image` at their real
   1170×2532 size, capped to 60vh each. Client-only, no SQL needed.
 
+- **More became Home: now the first tab and the app's landing screen.**
+  The old More grid (`app/more/page.tsx`) is now `app/home/page.tsx` -
+  same 14 tiles, same gating, just renamed (`MorePage` → `HomePage`,
+  `MORE_ITEMS` → `HOME_ITEMS`) and re-labeled "Home" instead of "More."
+  It moves to the first slot in `BottomNav` and takes the 🏠 icon,
+  since Today no longer needs it once it's not the entry point - Today
+  gets ☀️ instead and keeps its usual second-tab spot. `AuthGate`'s
+  once-per-session redirect after signup now lands on `/home` instead
+  of `/leaderboard`, so the grid is genuinely the first thing anyone
+  sees on opening the app, not just a renamed tab buried behind Today.
+  The old `MORE_ROUTES` array (used to highlight the tab as active
+  while on one of its hub pages) is now `HOME_HUB_ROUTES` and picked up
+  three routes it had been missing since they were added - `/stories`,
+  `/notifications`, `/ideas` - which previously left the nav showing no
+  active tab at all on those three pages. The unread-notification badge
+  moved with the icon from the old hardcoded "More" link onto Home's
+  entry in the shared nav-item loop. Client-only change, no SQL needed.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

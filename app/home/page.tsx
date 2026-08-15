@@ -17,7 +17,7 @@ const TILE_COLORS: { from: string; to: string }[] = [
   { from: "#fde68a", to: "#b45309" }, // amber
 ];
 
-const MORE_ITEMS = [
+const HOME_ITEMS = [
   { href: "/stories", label: "Stories", icon: "📸", description: "Today's prompt - gone in 24h." },
   { href: "/notifications", label: "Notifications", icon: "🔔", description: "Every push we've sent you." },
   { href: "/goals", label: "Goals", icon: "🎯", description: "Targets and your dreams." },
@@ -36,13 +36,13 @@ const MORE_ITEMS = [
   { href: "/ideas", label: "Innovation Box", icon: "💡", description: "Submit and vote on ideas." },
 ];
 
-export default function MorePage() {
+export default function HomePage() {
   const { unlockedThrough } = useAuth();
-  const visibleItems = MORE_ITEMS.filter((item) => unlockedThrough >= minSessionFor(item.href));
+  const visibleItems = HOME_ITEMS.filter((item) => unlockedThrough >= minSessionFor(item.href));
 
   return (
     <>
-      <PageHeader title="More" subtitle="Resources, practice, and a break" />
+      <PageHeader title="Home" subtitle="Everything else, one tap away" />
       <main className="page-main">
         <div className="grid grid-cols-2 gap-3">
           {visibleItems.map((item, i) => {

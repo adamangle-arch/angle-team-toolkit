@@ -5,20 +5,25 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "./AuthGate";
 import { minSessionFor } from "@/lib/onboarding-gate";
 
-// Only the handful of tabs used every single day live on the main bar -
-// everything else (see app/more/page.tsx) is one tap away under More.
+// Home is the landing screen (AuthGate sends first-open-of-the-session
+// traffic straight here) and doubles as the hub for everything not on
+// this bar (see app/home/page.tsx) - it owns the house icon and the
+// unread-notifications badge, both moved off Today, which now gets its
+// own icon since it's a normal tab again rather than the entry point.
 // Swiping a scrollable nav row to find a tab wasn't intuitive, so this is
 // deliberately short enough to never need horizontal scrolling.
 const NAV_ITEMS = [
-  { href: "/dashboard", label: "Today", icon: "🏠" },
+  { href: "/home", label: "Home", icon: "🏠" },
+  { href: "/dashboard", label: "Today", icon: "☀️" },
   { href: "/pipeline", label: "Pipeline", icon: "📊" },
   { href: "/calendar", label: "Calendar", icon: "📅" },
   { href: "/streak", label: "Core Run", icon: "🔥" },
   { href: "/leaderboard", label: "Leaderboard", icon: "🏆" },
 ];
 
-// Everything not on the main bar lives behind More instead.
-const MORE_ROUTES = [
+// Everything reached through the Home hub, rather than its own bar tab -
+// visiting any of these should still highlight Home as the active tab.
+const HOME_HUB_ROUTES = [
   "/goals",
   "/contacts",
   "/volume",
@@ -30,6 +35,9 @@ const MORE_ROUTES = [
   "/badges",
   "/events",
   "/insights",
+  "/stories",
+  "/notifications",
+  "/ideas",
 ];
 
 // Core Run tab's little status dot - done (green)/at-risk (red, pulses)/
@@ -46,7 +54,7 @@ const CORE_RUN_DOT_STYLE: Record<string, string> = {
 export default function BottomNav() {
   const pathname = usePathname();
   const { unlockedThrough, unreadNotificationCount, coreRunStatus } = useAuth();
-  const moreActive = MORE_ROUTES.some((r) => pathname?.startsWith(r)) || pathname?.startsWith("/more");
+  const homeHubActive = HOME_HUB_ROUTES.some((r) => pathname?.startsWith(r));
   const visibleItems = NAV_ITEMS.filter((item) => unlockedThrough >= minSessionFor(item.href));
   const coreRunDotClass = coreRunStatus ? CORE_RUN_DOT_STYLE[coreRunStatus] : undefined;
 
@@ -65,7 +73,8 @@ export default function BottomNav() {
         style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 0.375rem)" }}
       >
         {visibleItems.map((item) => {
-          const active = pathname?.startsWith(item.href);
+          const active =
+            Boolean(pathname?.startsWith(item.href)) || (item.href === "/home" && homeHubActive);
           return (
             <Link
               key={item.href}
@@ -87,36 +96,19 @@ export default function BottomNav() {
                     aria-label={`Core Run status: ${coreRunStatus?.replace("_", " ")}`}
                   />
                 )}
+                {item.href === "/home" && unreadNotificationCount > 0 && (
+                  <span
+                    className="absolute -right-2.5 -top-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold leading-none text-white"
+                    aria-label={`${unreadNotificationCount} unread notification${unreadNotificationCount === 1 ? "" : "s"}`}
+                  >
+                    {unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}
+                  </span>
+                )}
               </span>
               <span>{item.label}</span>
             </Link>
           );
         })}
-
-        <Link
-          href="/more"
-          className={`flex min-w-[60px] flex-1 flex-col items-center gap-0.5 rounded-2xl py-2 text-[11px] font-medium transition-all duration-150 ${
-            moreActive ? "text-amber-light" : "text-slate-400"
-          }`}
-          style={
-            moreActive
-              ? { background: "rgba(245,158,11,0.14)", boxShadow: "0 0 16px -2px rgba(245,158,11,0.4)" }
-              : undefined
-          }
-        >
-          <span className="relative text-lg leading-none">
-            ⋯
-            {unreadNotificationCount > 0 && (
-              <span
-                className="absolute -right-2.5 -top-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold leading-none text-white"
-                aria-label={`${unreadNotificationCount} unread notification${unreadNotificationCount === 1 ? "" : "s"}`}
-              >
-                {unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}
-              </span>
-            )}
-          </span>
-          <span>More</span>
-        </Link>
       </div>
     </nav>
   );

@@ -209,7 +209,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     if (typeof window === "undefined") return;
     if (sessionStorage.getItem("atk_app_opened")) return;
     sessionStorage.setItem("atk_app_opened", "1");
-    const homePath = onboardingComplete ? "/leaderboard" : "/onboarding";
+    const homePath = onboardingComplete ? "/home" : "/onboarding";
     if (pathname !== homePath) {
       router.replace(homePath);
     }
