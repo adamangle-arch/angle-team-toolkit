@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Link2, ArrowUpRight, Paperclip } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
 import FeatureGate from "@/components/FeatureGate";
@@ -163,7 +164,10 @@ export default function AssistantPage() {
       <PageHeader title="Assistant" subtitle="Role-play conversations, and rate your meetings" />
       <div className="px-4 pt-3">
         <div className="card space-y-2">
-          <p className="text-sm font-semibold text-white">🔗 Full Team AI Assistant</p>
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-white">
+            <Link2 className="h-3.5 w-3.5" aria-hidden />
+            Full Team AI Assistant
+          </p>
           <p className="text-xs text-slate-400">
             Want deeper Q&amp;A on scripts, comp plan, or objections? Ask your upline to invite
             you to the team&apos;s Gemini Assistant, then open it below.
@@ -172,9 +176,10 @@ export default function AssistantPage() {
             href="https://gemini.google.com/gem/1NkM3ZlEKZxU2sUFvSIaEEQ9i7DTw2So9?usp=sharing"
             target="_blank"
             rel="noopener noreferrer"
-            className="btn-secondary inline-block text-center"
+            className="btn-secondary"
           >
-            Open Gemini Assistant ↗
+            Open Gemini Assistant
+            <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
           </a>
         </div>
       </div>
@@ -279,7 +284,7 @@ export default function AssistantPage() {
             onClick={() => fileInputRef.current?.click()}
             aria-label="Attach a screenshot"
           >
-            📎
+            <Paperclip className="h-4 w-4" aria-hidden />
           </button>
           <textarea
             className="textarea min-h-0 flex-1"

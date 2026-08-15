@@ -1,3 +1,4 @@
+import { Smile } from "lucide-react";
 import { frameTierForLevel, FRAME_TIER_CLASSES } from "@/lib/levels";
 
 const SIZE_CLASSES: Record<"xs" | "sm" | "md" | "lg", string> = {
@@ -5,6 +6,15 @@ const SIZE_CLASSES: Record<"xs" | "sm" | "md" | "lg", string> = {
   sm: "h-10 w-10 text-lg",
   md: "h-16 w-16 text-2xl",
   lg: "h-20 w-20 text-3xl",
+};
+
+// Matches SIZE_CLASSES' text-size scale (xs/sm ~ small icon, md/lg ~
+// larger icon) per the icon-sizing convention used across the app.
+const FALLBACK_ICON_SIZE_CLASSES: Record<"xs" | "sm" | "md" | "lg", string> = {
+  xs: "h-3 w-3",
+  sm: "h-5 w-5",
+  md: "h-6 w-6",
+  lg: "h-8 w-8",
 };
 
 const CHIP_SIZE_CLASSES: Record<"xs" | "sm" | "md" | "lg", string> = {
@@ -48,7 +58,7 @@ export default function LevelAvatar({
         <div
           className={`flex ${sizeClass} items-center justify-center rounded-full bg-navy ${ringClass}`}
         >
-          🙂
+          <Smile className={`${FALLBACK_ICON_SIZE_CLASSES[size]} text-slate-300`} aria-hidden />
         </div>
       )}
       {showLevelChip && (

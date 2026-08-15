@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Smile } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import type { Profile } from "@/lib/types";
 
@@ -106,7 +107,7 @@ export default function ProfileForm({
           />
         ) : (
           <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-navy text-2xl">
-            🙂
+            <Smile className="h-6 w-6 text-slate-300" aria-hidden />
           </div>
         )}
         <label className="btn-secondary cursor-pointer">

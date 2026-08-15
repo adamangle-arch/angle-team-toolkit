@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { X } from "lucide-react";
 import { useAuth } from "@/components/AuthGate";
 import { useRatingJobs } from "@/components/RatingJobsProvider";
 import { supabase } from "@/lib/supabaseClient";
@@ -298,7 +299,7 @@ export default function CallRatingPanel() {
                       onClick={() => handleDeleteRating(h.id)}
                       aria-label="Delete rating"
                     >
-                      ✕
+                      <X className="h-3.5 w-3.5" aria-hidden />
                     </button>
                   </div>
                   {expandedId === h.id && (

@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { Search } from "lucide-react";
 import { useAuth } from "./AuthGate";
 
 export default function PageHeader({
   title,
   subtitle,
 }: {
-  title: string;
+  title: React.ReactNode;
   subtitle?: string;
 }) {
   const { user, signOut } = useAuth();
@@ -28,7 +29,7 @@ export default function PageHeader({
             boxShadow: "0 6px 18px -6px rgb(var(--amber-rgb) / 0.65)",
           }}
         >
-          🔍
+          <Search className="h-6 w-6 text-navy" strokeWidth={2.25} aria-hidden />
         </Link>
         <Link href="/profile" className="chip-btn">
           My Profile

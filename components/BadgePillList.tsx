@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createPortal } from "react-dom";
+import { X } from "lucide-react";
 import { BADGE_DEFINITIONS, type BadgeDefinition } from "@/lib/badges";
 
 const INITIAL_VISIBLE = 12;
@@ -87,7 +88,7 @@ export default function BadgePillList({
                   onClick={() => setSelected(null)}
                   aria-label="Close"
                 >
-                  ✕
+                  <X className="h-3.5 w-3.5" aria-hidden />
                 </button>
               </div>
               <p className="text-sm text-slate-300">{selected.def.description}</p>

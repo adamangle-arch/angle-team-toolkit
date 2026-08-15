@@ -2,6 +2,30 @@
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import {
+  Flame,
+  Medal,
+  Megaphone,
+  Trophy,
+  PiggyBank,
+  Sparkles,
+  Swords,
+  Heart,
+  ArrowLeft,
+  ArrowRight,
+  Lightbulb,
+  PartyPopper,
+  Repeat,
+  Target,
+  Package,
+  ShoppingBag,
+  BarChart3,
+  Rocket,
+  Star,
+  ScrollText,
+  Landmark,
+  type LucideIcon,
+} from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import FirstVisitTip from "@/components/FirstVisitTip";
 import { SkeletonList } from "@/components/Skeleton";
@@ -52,9 +76,9 @@ function weekNumber(dateStr: string): number {
   return Math.floor(new Date(`${dateStr}T00:00:00`).getTime() / (7 * 86_400_000));
 }
 
-const WALL_OF_FAME_ICONS: Record<string, string> = {
-  streak_milestone_reached: "🔥",
-  badge_earned: "🏅",
+const WALL_OF_FAME_ICONS: Record<string, LucideIcon> = {
+  streak_milestone_reached: Flame,
+  badge_earned: Medal,
 };
 
 type PeriodType = "daily" | "weekly" | "monthly";
@@ -70,13 +94,13 @@ const CATEGORIES = PIPELINE_STAGES.filter((s) => s.key !== "questions");
 // to the monthly period (Core 300/Ditto are calendar-month numbers), so
 // it's the one tab that can disappear depending on periodType.
 type CategoryTab = "activity" | "leaders" | "consistency" | "volume" | "spotlight" | "arena";
-const CATEGORY_TABS: { key: CategoryTab; label: string; icon: string }[] = [
-  { key: "activity", label: "Activity", icon: "📣" },
-  { key: "leaders", label: "Leaders", icon: "🏆" },
-  { key: "consistency", label: "Consistency", icon: "🔥" },
-  { key: "volume", label: "Volume", icon: "💰" },
-  { key: "spotlight", label: "Spotlight", icon: "✨" },
-  { key: "arena", label: "Arena", icon: "⚔️" },
+const CATEGORY_TABS: { key: CategoryTab; label: string; icon: LucideIcon }[] = [
+  { key: "activity", label: "Activity", icon: Megaphone },
+  { key: "leaders", label: "Leaders", icon: Trophy },
+  { key: "consistency", label: "Consistency", icon: Flame },
+  { key: "volume", label: "Volume", icon: PiggyBank },
+  { key: "spotlight", label: "Spotlight", icon: Sparkles },
+  { key: "arena", label: "Arena", icon: Swords },
 ];
 
 function personName(entry: { first_name: string | null; last_name: string | null }): string {
@@ -201,7 +225,7 @@ function LikeButton({
           }`}
           aria-label={likes.likedByMe ? "Unlike" : "Like"}
         >
-          <span>{likes.likedByMe ? "❤️" : "🤍"}</span>
+          <Heart className={`h-3 w-3 ${likes.likedByMe ? "fill-current" : ""}`} aria-hidden />
           {likes.count > 0 && <span>{likes.count}</span>}
         </button>
         {likes.names.length > 0 && (
@@ -232,7 +256,7 @@ function LikeButton({
 function Card({ title, children }: { title: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="card space-y-1.5">
-      <p className="section-title">{title}</p>
+      <p className="section-title flex items-center gap-1.5">{title}</p>
       <div className="space-y-1.5">{children}</div>
     </div>
   );
@@ -828,7 +852,8 @@ export default function LeaderboardPage() {
       />
       <main className="page-main">
         <FirstVisitTip id="leaderboard">
-          💡 Rankings reset for each period — Daily, Weekly, Monthly — and cover the whole team,
+          <Lightbulb className="mr-1 inline h-3.5 w-3.5 align-[-3px]" aria-hidden />
+          Rankings reset for each period — Daily, Weekly, Monthly — and cover the whole team,
           not just your downline. Use the ← → arrows to look back at a previous period.
         </FirstVisitTip>
 
@@ -861,7 +886,7 @@ export default function LeaderboardPage() {
               disabled={monthsBack >= 11}
               aria-label="Previous month"
             >
-              ←
+              <ArrowLeft className="h-5 w-5" aria-hidden />
             </button>
             <span className="text-sm font-medium text-white">{formatMonthLabel(periodStart)}</span>
             <button
@@ -870,7 +895,7 @@ export default function LeaderboardPage() {
               disabled={monthsBack <= 0}
               aria-label="Next month"
             >
-              →
+              <ArrowRight className="h-5 w-5" aria-hidden />
             </button>
           </div>
         )}
@@ -889,14 +914,21 @@ export default function LeaderboardPage() {
                   : "bg-white/5 text-slate-300 active:bg-white/10"
               }`}
             >
-              <span className="text-base leading-none">{t.icon}</span>
+              <t.icon className="h-5 w-5" aria-hidden />
               <span>{t.label}</span>
             </button>
           ))}
         </div>
 
         {displayTab === "activity" && periodType === "daily" && newMembers.length > 0 && (
-          <Card title="🎉 New to the Team">
+          <Card
+            title={
+              <>
+                <PartyPopper className="h-4 w-4" aria-hidden />
+                New to the Team
+              </>
+            }
+          >
             {newMembers.map((m) => (
               <div key={m.user_id} className="flex items-center justify-between text-sm">
                 <span className="text-slate-200">
@@ -915,7 +947,14 @@ export default function LeaderboardPage() {
         )}
 
         {displayTab === "activity" && milestones.length > 0 && (
-          <Card title="🏅 Milestone Alerts">
+          <Card
+            title={
+              <>
+                <Medal className="h-4 w-4" aria-hidden />
+                Milestone Alerts
+              </>
+            }
+          >
             {milestones.map((m) => {
               const label =
                 STREAK_MILESTONES.find((s) => s.days === m.milestone_days)?.label ??
@@ -932,7 +971,10 @@ export default function LeaderboardPage() {
                     <span className="text-xs text-slate-500">({m.team})</span>
                   </span>
                   <div className="flex shrink-0 items-center gap-2">
-                    <span className="pill pill-amber">🔥 {m.current_streak}d</span>
+                    <span className="pill pill-amber gap-1">
+                      <Flame className="h-3 w-3" aria-hidden />
+                      {m.current_streak}d
+                    </span>
                     <LikeButton
                       entryKey={key}
                       targetUserId={m.user_id}
@@ -1040,7 +1082,8 @@ export default function LeaderboardPage() {
             <Card
               title={
                 <>
-                  🔁 {qi1RhythmThreshold}+ QI1s{" "}
+                  <Repeat className="h-4 w-4" aria-hidden />
+                  {qi1RhythmThreshold}+ QI1s{" "}
                   {periodType === "daily" ? "Today" : periodType === "weekly" ? "This Week" : "This Month"}
                 </>
               }
@@ -1078,7 +1121,14 @@ export default function LeaderboardPage() {
 
             {displayTab === "consistency" && (
               <>
-            <Card title="🔥 Core Run Streaks">
+            <Card
+              title={
+                <>
+                  <Flame className="h-4 w-4" aria-hidden />
+                  Core Run Streaks
+                </>
+              }
+            >
               {streakLeaders.length === 0 ? (
                 <p className="text-sm text-slate-400">No one&apos;s on a streak right now.</p>
               ) : (
@@ -1107,7 +1157,14 @@ export default function LeaderboardPage() {
               )}
             </Card>
 
-            <Card title="🎯 5+ Active Candidates">
+            <Card
+              title={
+                <>
+                  <Target className="h-4 w-4" aria-hidden />
+                  5+ Active Candidates
+                </>
+              }
+            >
               {activeCandidates.length === 0 ? (
                 <p className="text-sm text-slate-400">No one&apos;s running 5+ active candidates right now.</p>
               ) : (
@@ -1170,7 +1227,14 @@ export default function LeaderboardPage() {
                   )}
                 </Card>
 
-                <Card title="📦 Day 1 Ditto 100+">
+                <Card
+                  title={
+                    <>
+                      <Package className="h-4 w-4" aria-hidden />
+                      Day 1 Ditto 100+
+                    </>
+                  }
+                >
                   {ditto.length === 0 ? (
                     <p className="text-sm text-slate-400">No one&apos;s over 100 PV on a day 1 Ditto yet.</p>
                   ) : (
@@ -1201,7 +1265,14 @@ export default function LeaderboardPage() {
                 </Card>
 
                 {periodType !== "monthly" && (
-                  <Card title={periodType === "daily" ? "🛍️ Today's Sales" : "🛍️ This Week's Sales"}>
+                  <Card
+                    title={
+                      <>
+                        <ShoppingBag className="h-4 w-4" aria-hidden />
+                        {periodType === "daily" ? "Today's Sales" : "This Week's Sales"}
+                      </>
+                    }
+                  >
                     {salesFeed.length === 0 ? (
                       <p className="text-sm text-slate-400">
                         No customer sales logged {periodType === "daily" ? "yet today" : "yet this week"}.
@@ -1255,7 +1326,14 @@ export default function LeaderboardPage() {
             {displayTab === "spotlight" && (
               <>
                 {hotStreakLeader && (
-                  <Card title="🔥 Hot Streak">
+                  <Card
+                    title={
+                      <>
+                        <Flame className="h-4 w-4" aria-hidden />
+                        Hot Streak
+                      </>
+                    }
+                  >
                     <p className="text-sm text-slate-200">
                       <PersonLink entry={hotStreakLeader} /> is on a{" "}
                       <span className="text-amber-light">{hotStreakLeader.streak_days}-day</span> Core Run
@@ -1264,7 +1342,14 @@ export default function LeaderboardPage() {
                   </Card>
                 )}
 
-                <Card title="📊 Your Rank">
+                <Card
+                  title={
+                    <>
+                      <BarChart3 className="h-4 w-4" aria-hidden />
+                      Your Rank
+                    </>
+                  }
+                >
                   {myRank ? (
                     <p className="text-sm text-slate-200">
                       You&apos;re <span className="text-amber-light">#{myRank.rank}</span> of {myRank.total}{" "}
@@ -1277,7 +1362,14 @@ export default function LeaderboardPage() {
                 </Card>
 
                 {periodType === "weekly" && (
-                  <Card title="🚀 Rising Star">
+                  <Card
+                    title={
+                      <>
+                        <Rocket className="h-4 w-4" aria-hidden />
+                        Rising Star
+                      </>
+                    }
+                  >
                     {risingStar && risingStar.delta > 0 ? (
                       <p className="text-sm text-slate-200">
                         <PersonLink entry={risingStar} /> jumped from {risingStar.last_week} to{" "}
@@ -1291,7 +1383,14 @@ export default function LeaderboardPage() {
                 )}
 
                 {weeklySpotlightPick && (
-                  <Card title="⭐ This Week's Spotlight">
+                  <Card
+                    title={
+                      <>
+                        <Star className="h-4 w-4" aria-hidden />
+                        This Week&apos;s Spotlight
+                      </>
+                    }
+                  >
                     <p className="text-sm text-slate-200">
                       <PersonLink entry={weeklySpotlightPick} />{" "}
                       <span className="text-xs text-slate-500">({weeklySpotlightPick.team})</span>
@@ -1300,7 +1399,14 @@ export default function LeaderboardPage() {
                 )}
 
                 {hallOfRecords.length > 0 && (
-                  <Card title="📜 Hall of Records">
+                  <Card
+                    title={
+                      <>
+                        <ScrollText className="h-4 w-4" aria-hidden />
+                        Hall of Records
+                      </>
+                    }
+                  >
                     <div className="space-y-2">
                       {hallOfRecords.map((r) => (
                         <div key={r.record_key} className="flex items-start justify-between gap-2 text-sm">
@@ -1321,7 +1427,14 @@ export default function LeaderboardPage() {
                   </Card>
                 )}
 
-                <Card title="🏛️ Wall of Fame">
+                <Card
+                  title={
+                    <>
+                      <Landmark className="h-4 w-4" aria-hidden />
+                      Wall of Fame
+                    </>
+                  }
+                >
                   {wallOfFame.length === 0 ? (
                     <p className="text-sm text-slate-400">
                       Nothing here yet — milestones and badges will show up as they happen.
@@ -1332,7 +1445,16 @@ export default function LeaderboardPage() {
                       return (
                         <div key={copyKey} className="flex items-start justify-between gap-2 text-sm">
                           <span className="text-slate-200">
-                            {WALL_OF_FAME_ICONS[entry.kind] ?? "🎉"} <PersonLink entry={entry} showAvatar={false} />{" "}
+                            {(() => {
+                              const Icon = WALL_OF_FAME_ICONS[entry.kind] ?? PartyPopper;
+                              return (
+                                <Icon
+                                  className="mr-1 inline h-3.5 w-3.5 align-[-3px]"
+                                  aria-hidden
+                                />
+                              );
+                            })()}
+                            <PersonLink entry={entry} showAvatar={false} />{" "}
                             — {entry.title}{" "}
                             <span className="text-xs text-slate-500">
                               ({entry.team}) — {formatDateLabel(entry.created_at.slice(0, 10))}
@@ -1354,7 +1476,10 @@ export default function LeaderboardPage() {
                 {isPrimaryUser(user.email) && (
                   <div className="card space-y-2">
                     <div className="flex items-center justify-between">
-                      <p className="section-title">⚔️ Challenges</p>
+                      <p className="section-title flex items-center gap-1.5">
+                        <Swords className="h-4 w-4" aria-hidden />
+                        Challenges
+                      </p>
                       <button className="chip-btn" onClick={() => setShowNewChallenge((v) => !v)}>
                         {showNewChallenge ? "Cancel" : "+ New Challenge"}
                       </button>

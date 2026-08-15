@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Bell } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import NotificationOptIn from "@/components/NotificationOptIn";
 import { useAuth } from "@/components/AuthGate";
@@ -89,7 +90,10 @@ export default function NotificationsPage() {
 
         {!loading && (
           <div className="card space-y-2">
-            <p className="section-title">🔔 Notification Preferences</p>
+            <p className="section-title flex items-center gap-1.5">
+              <Bell className="h-4 w-4" aria-hidden />
+              Notification Preferences
+            </p>
             <p className="text-xs text-slate-400">
               {allNotificationsOn
                 ? "You'll get pushed every notification we send — Core Run reminders, leaderboard updates, calendar reminders, and more."

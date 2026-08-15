@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Lightbulb, Hammer, CheckCircle2, type LucideIcon } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { SkeletonList } from "@/components/Skeleton";
 import { useAuth } from "@/components/AuthGate";
@@ -11,10 +12,27 @@ import type { InnovationIdea } from "@/lib/types";
 
 const STATUS_LABEL: Record<InnovationIdea["status"], string> = {
   open: "Open",
-  planned: "🛠️ Planned",
-  shipped: "✅ Shipped",
+  planned: "Planned",
+  shipped: "Shipped",
   closed: "Closed",
 };
+
+// Only the two "in progress"/"done" states get a leading icon - Open and
+// Closed read fine as plain text and don't need one.
+const STATUS_ICON: Partial<Record<InnovationIdea["status"], LucideIcon>> = {
+  planned: Hammer,
+  shipped: CheckCircle2,
+};
+
+function StatusLabel({ status }: { status: InnovationIdea["status"] }) {
+  const Icon = STATUS_ICON[status];
+  return (
+    <span className="inline-flex items-center gap-1">
+      {Icon && <Icon className="h-3 w-3" aria-hidden />}
+      {STATUS_LABEL[status]}
+    </span>
+  );
+}
 
 // Cycle order for the admin's one-tap status button - open is the start,
 // closed is a dead end you'd only reach deliberately (not part of the
@@ -116,7 +134,15 @@ export default function IdeasPage() {
 
   return (
     <>
-      <PageHeader title="💡 Innovation Box" subtitle="Submit and vote on what to build next" />
+      <PageHeader
+        title={
+          <span className="flex items-center gap-1.5">
+            <Lightbulb className="h-5 w-5" aria-hidden />
+            Innovation Box
+          </span>
+        }
+        subtitle="Submit and vote on what to build next"
+      />
       <main className="page-main">
         <div className="card space-y-2">
           <textarea
@@ -140,7 +166,7 @@ export default function IdeasPage() {
               onClick={() => setFilter(f)}
               className={filter === f ? "toggle-pill-active" : "toggle-pill-inactive"}
             >
-              {f === "all" ? "All" : STATUS_LABEL[f]}
+              {f === "all" ? "All" : <StatusLabel status={f} />}
             </button>
           ))}
         </div>
@@ -171,13 +197,16 @@ export default function IdeasPage() {
                     {idea.team ? ` (${idea.team})` : ""} — {formatDateLabel(idea.created_at.slice(0, 10))}
                   </span>
                   <span className={idea.status === "shipped" ? "pill-amber" : "pill"}>
-                    {STATUS_LABEL[idea.status]}
+                    <StatusLabel status={idea.status} />
                   </span>
                 </div>
                 {isAdmin && (
                   <div className="flex gap-2 pt-1">
-                    <button className="chip-btn text-xs" onClick={() => cycleStatus(idea)}>
-                      Mark {STATUS_LABEL[STATUS_CYCLE[idea.status]]}
+                    <button
+                      className="chip-btn flex items-center gap-1 text-xs"
+                      onClick={() => cycleStatus(idea)}
+                    >
+                      Mark <StatusLabel status={STATUS_CYCLE[idea.status]} />
                     </button>
                     <button className="chip-btn text-xs text-red-400" onClick={() => removeIdea(idea)}>
                       Remove
