@@ -6356,6 +6356,30 @@ section (the `off_day` column, right after `depth_texts`) plus the
   moved with the icon from the old hardcoded "More" link onto Home's
   entry in the shared nav-item loop. Client-only change, no SQL needed.
 
+- **Home: Pipeline, Leaderboard, and Core Run promoted to big cards at
+  the top.** The three things actually worth checking every day were
+  otherwise just three more nav tabs, no more visually important than
+  Insights or Games - now they're full-width cards above the "Everything
+  else" grid, each with a live stat instead of just a label: Pipeline
+  shows this person's active-candidate count (`get_my_active_pipeline_summary`,
+  same RPC Today's own pipeline card uses), Leaderboard shows this
+  week's rank on Questions (`get_my_rank`, the identical call the
+  Leaderboard page makes for its own "Your Rank" card), and Core Run
+  shows the current streak length (`get_current_streak`) plus a plain-
+  English status line reusing `AuthGate`'s already-fetched
+  `coreRunStatus` (the same value that lights the nav's status dot), so
+  this adds no new fetch for that piece. Styled with the account's own
+  amber-family accent color (`rgb(var(--amber-rgb) / …)`, the same
+  theme-aware token the active nav tab uses) rather than the grid tiles'
+  rainbow gradients, so the three "important" cards read as visually
+  distinct from - and more prominent than - the "everything else" grid
+  below them, and the emphasis colors correctly for anyone using a
+  non-default `profiles.theme_color`. Pipeline's card only shows once
+  Pipeline itself is unlocked (session 4), same gating rule the grid and
+  nav already apply to it; Leaderboard and Core Run are ungated so their
+  cards always show. Client-only change, no SQL needed - all three RPCs
+  already existed for their own pages.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)
