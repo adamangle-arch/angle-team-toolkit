@@ -6985,6 +6985,18 @@ recorded when tapped, but purely as a "last skipped" timestamp now -
 nothing reads it to change behavior. No schema change (the column
 already exists).
 
+### Welcome video: no rewatching once it's been watched
+
+The "Rewatch" option added to My Profile just above was a mistake in
+the other direction - once someone's actually finished it, it needs to
+be gone for good, not offered back as an option. The My Profile card
+(`app/profile/page.tsx`) is now wrapped in `!profile.welcome_video_watched_at`
+so it disappears entirely the moment `welcome_video_watched_at` is set,
+rather than turning into a "Rewatch" button. Nothing else needed a
+change - Classroom's reminder card and Session 1's locked-session card
+already only ever rendered while unwatched, so neither offered a
+rewatch path in the first place. No schema change.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

@@ -333,20 +333,20 @@ export default function MyProfilePage() {
               </div>
             </div>
 
-            <div className="card space-y-2">
-              <p className="section-title flex items-center gap-1.5">
-                <PlayCircle className="h-4 w-4" aria-hidden />
-                Welcome Video
-              </p>
-              <p className="text-xs text-slate-400">
-                {profile.welcome_video_watched_at
-                  ? "A quick message from the team — watch it again any time."
-                  : "A quick message from the team before you get started."}
-              </p>
-              <button className="btn-secondary w-full" onClick={() => setShowWelcomeVideo(true)}>
-                {profile.welcome_video_watched_at ? "Rewatch" : "Watch Now"}
-              </button>
-            </div>
+            {!profile.welcome_video_watched_at && (
+              <div className="card space-y-2">
+                <p className="section-title flex items-center gap-1.5">
+                  <PlayCircle className="h-4 w-4" aria-hidden />
+                  Welcome Video
+                </p>
+                <p className="text-xs text-slate-400">
+                  A quick message from the team before you get started.
+                </p>
+                <button className="btn-secondary w-full" onClick={() => setShowWelcomeVideo(true)}>
+                  Watch Now
+                </button>
+              </div>
+            )}
 
             <div className="card space-y-2">
               <p className="section-title flex items-center gap-1.5">
