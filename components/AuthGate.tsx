@@ -105,6 +105,15 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const [activeUserIds, setActiveUserIds] = useState<string[]>([]);
   const [coreRunStatus, setCoreRunStatus] = useState<AuthContextValue["coreRunStatus"]>(null);
+  // Tapping "Skip for now" on the welcome video doesn't change anything
+  // on the profile (welcome_video_watched_at stays null, on purpose, so
+  // it auto-plays again next app open) - without this, needsWelcomeVideo
+  // below would still be true right after skipping, and the overlay
+  // would just sit there looking like the button did nothing. This is
+  // the "for now" part: dismissed for this one open only, reset (like
+  // atk_app_opened elsewhere in this file) the next time the tab/app
+  // actually restarts, not on every navigation within it.
+  const [skippedVideoThisOpen, setSkippedVideoThisOpen] = useState(false);
 
   useEffect(() => {
     withTimeout(supabase.auth.getSession(), "Timed out checking your session — check your connection.")
@@ -423,15 +432,14 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   // QuoteOverlay would otherwise stack on top of the welcome video on
   // someone's very first app open (both are unconditional full-screen
   // overlays) - the welcome video takes priority until it's been shown.
-  // Deliberately ignores welcome_video_skipped_at - skipping only
-  // dismisses the overlay for the current open, not for good; it's meant
-  // to keep auto-playing on every app open until someone actually
-  // finishes it, same as Onboarding Session 1 staying locked the whole
-  // time (see the unlock check in app/onboarding/page.tsx and
-  // app/onboarding/[session]/page.tsx). welcome_video_skipped_at still
-  // gets recorded (WelcomeVideoOverlay's skip()) purely as a "last
-  // skipped" timestamp - nothing here reads it.
-  const needsWelcomeVideo = !profile.welcome_video_watched_at;
+  // Deliberately ignores welcome_video_skipped_at (the profile column) -
+  // skipping is meant to keep coming back on every app open until
+  // someone actually finishes it, same as Onboarding Session 1 staying
+  // locked the whole time (see the unlock check in
+  // app/onboarding/page.tsx and app/onboarding/[session]/page.tsx).
+  // skippedVideoThisOpen (the local state above) is what actually
+  // dismisses it for the current open - see the comment there.
+  const needsWelcomeVideo = !profile.welcome_video_watched_at && !skippedVideoThisOpen;
 
   return (
     <AuthContext.Provider
@@ -455,7 +463,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
         <WelcomeVideoOverlay
           userId={user.id}
           onWatched={() => loadProfile(user.id)}
-          onSkip={() => loadProfile(user.id)}
+          onSkip={() => setSkippedVideoThisOpen(true)}
         />
       ) : (
         <QuoteOverlay />

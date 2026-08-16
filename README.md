@@ -6997,6 +6997,21 @@ change - Classroom's reminder card and Session 1's locked-session card
 already only ever rendered while unwatched, so neither offered a
 rewatch path in the first place. No schema change.
 
+### Fix: "Skip for now" appeared to do nothing
+
+Bug from the "keep auto-playing every app open" change above: skipping
+was only meant to dismiss the overlay for that one open, but nothing
+actually made it go away - `needsWelcomeVideo` still checked only
+`welcome_video_watched_at`, which skip deliberately doesn't touch (so
+it comes back next time), so the overlay just sat there re-rendering
+identically and looked broken. Added local state on AuthGate
+(`skippedVideoThisOpen`) that "Skip for now" flips true to actually
+close it for the rest of that open - plain component state is enough
+here (unlike the `atk_app_opened` sessionStorage flag elsewhere in that
+file), since AuthGate only remounts on a genuine fresh app open, not on
+in-app navigation, so the state naturally resets to false exactly when
+it's supposed to. No schema change.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)
