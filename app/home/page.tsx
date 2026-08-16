@@ -12,7 +12,7 @@ import {
   Bell,
   Target,
   Contact,
-  Package,
+  DollarSign,
   Users,
   Library,
   TrendingUp,
@@ -58,7 +58,7 @@ const HOME_ITEMS: { href: string; label: string; icon: LucideIcon; description: 
   { href: "/notifications", label: "Notifications", icon: Bell, description: "Every push we've sent you." },
   { href: "/goals", label: "Goals", icon: Target, description: "Targets and your dreams." },
   { href: "/contacts", label: "Contacts", icon: Contact, description: "Your A/B/Customer list." },
-  { href: "/volume", label: "Volume", icon: Package, description: "Personal PV and Ditto." },
+  { href: "/volume", label: "PV", icon: DollarSign, description: "Personal PV and Ditto." },
   // Visible to everyone: admins see the whole company, everyone else
   // sees their own upline chain and downline (RLS scopes it either way).
   { href: "/team", label: "Team", icon: Users, description: "Downline, upline, totals." },
