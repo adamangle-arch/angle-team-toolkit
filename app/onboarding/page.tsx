@@ -178,7 +178,7 @@ export default function OnboardingPage() {
         subtitle={`${unlockedCount}/${ONBOARDING_SESSIONS.length} sessions unlocked`}
       />
       <main className="page-main">
-        {!loading && !isAdmin && !welcomeVideoWatchedAt && (
+        {!loading && !welcomeVideoWatchedAt && (
           <WelcomeVideoLockCard
             userId={user.id}
             onWatched={() => setWelcomeVideoWatchedAt(new Date().toISOString())}

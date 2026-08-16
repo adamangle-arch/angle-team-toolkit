@@ -7026,6 +7026,15 @@ path anywhere, same as before. `AuthContextValue` gained
 `welcomeVideoWatchedAt` (AuthGate already has the whole profile loaded)
 so Home doesn't need its own fetch for it. No schema change.
 
+### Fix: Classroom's welcome-video banner was hidden for admin accounts
+
+`app/onboarding/page.tsx`'s top-of-page `WelcomeVideoLockCard` had a
+leftover `!isAdmin` condition from before it became a shared, prominent
+banner - Home's copy never had one. Removed it so the two match exactly,
+admin included. No schema change.
+
+## Tech stack
+
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)
 - [Tailwind CSS](https://tailwindcss.com) v4 (navy `#0f172a` / amber `#f59e0b` theme)
 - [Supabase](https://supabase.com) (Postgres + Auth + client SDK, no server API layer needed)
