@@ -7127,19 +7127,49 @@ copies were removed. No schema change.
 `TEAMS` (`lib/constants.ts`, matching `profiles_team_check` in
 `supabase/schema.sql`) dropped TX Team, Rodgers Team, and Koebel Team -
 down to Angle Team, AA2 Team, Tucker Team, Scheerer Team, Abbott Team,
-Jones Team. Rather than leave existing accounts sitting on a value
-that no longer appears in the picker, `profiles.team` is reset to
-`null` for every pre-existing account, which is exactly the condition
-the app already treats as "haven't finished onboarding" -
-`nameTeamComplete` in `components/AuthGate.tsx` goes false and the
-blocking "Finish your profile" screen (`ProfileGate`) reappears on next
-login, same screen a brand-new signup sees, now offering only the
-trimmed list. This is a one-time reset for everyone, not just the
-accounts that were on a dropped team - a new `team_reselect_done`
-column (write-only, nothing else reads it) guards it to a single run
-per pre-existing account, and it's scoped by `created_at` to this
-change's ship date so a genuinely new signup's own team choice is never
-touched by a later re-run of `schema.sql`.
+Jones Team. Every pre-existing account needs to re-confirm its team
+through the blocking "Finish your profile" screen (`ProfileGate`) on
+next login, same screen a brand-new signup sees, now offering only the
+trimmed list.
+
+### Fix: the team-list trim above broke the Team tab's rosters
+
+The first version of the re-prompt (just above) forced this by
+resetting `profiles.team` to `null` for every pre-existing account -
+which also broke everything else in the app that reads `team`, not
+just `ProfileGate`. The Team tab groups and tallies people by
+`profiles.team` (`app/team/page.tsx`), so every account still pending
+re-confirmation dropped out of its team's roster and stats entirely
+until it happened to log back in - team-wide numbers looked like
+they'd been wiped, when the underlying activity data (`pipeline_
+periods` etc.) was never touched.
+
+Fixed by decoupling "needs to re-confirm" from the team value itself:
+a new `profiles.team_confirmed_at` timestamp tracks confirmation
+separately, and `nameTeamComplete` (`components/AuthGate.tsx`) now
+requires it alongside `team` before unblocking the app.
+`ProfileGate.tsx` sets it in the same update that saves `team`, and
+also now takes an optional `profile` prop so its team `<select>`
+prefills to whatever's already on file - re-confirming an unchanged
+team is a single tap, not hunting through the list again, while still
+being a real dropdown someone can change if theirs actually moved. A
+one-time backfill grandfathers in `team_confirmed_at` for every
+account that already has a valid team on file, so this only actually
+re-blocks the accounts that still need to pick.
+
+**Real data loss from the first version, not recoverable in code:**
+by the time this was caught, the earlier `team = null` reset had
+already run against the live database (confirmed by the Team tab
+showing rosters collapsed to just the one account that had already
+re-confirmed) - `schema.sql` doesn't keep a backup of the value it
+overwrites, so those accounts' actual prior team can't be restored by
+re-running anything here. Short of recovering it from a Supabase
+database backup/point-in-time-restore (if available on the plan -
+this needs the Supabase dashboard, not something this codebase can do),
+those ~29 accounts just need to pick their team again once, which was
+happening anyway per the original request - the Team tab's rosters
+repair themselves account-by-account as each person logs back in and
+does.
 
 ## Tech stack
 

@@ -6,6 +6,13 @@ export type Profile = {
   first_name: string | null;
   last_name: string | null;
   team: string | null;
+  // Null until this account has picked/confirmed its team through
+  // ProfileGate at least once since the Aug 2026 team-list trim (see
+  // "TEAM LIST TRIM" in supabase/schema.sql) - a separate flag from
+  // `team` itself so a future re-prompt campaign never has to null out
+  // someone's actual team (and break anything grouping by it, like the
+  // Team tab) just to force them back through the gate.
+  team_confirmed_at: string | null;
   photo_url: string | null;
   hometown: string | null;
   background: string | null;

@@ -745,23 +745,42 @@ alter table profiles add column if not exists first_name text;
 alter table profiles add column if not exists last_name text;
 alter table profiles add column if not exists team text;
 
--- One-time re-prompt, added when the team list below was trimmed from 9
--- down to 6 (dropped TX/Rodgers/Koebel) - the team wants literally
--- everyone to re-pick from the new list on their next login, not just
--- the handful of accounts sitting on a now-removed team. Clears team
--- back to null, which is exactly the condition ProfileGate already
--- treats as "ask again" (see nameTeamComplete in components/AuthGate.tsx)
--- - no new gating logic needed. team_reselect_done only exists to make
--- this run exactly once per pre-existing account; nothing else reads it.
--- Guarded by created_at against this change's ship date, same idiom as
--- the welcome video re-send further down - a genuinely new signup never
--- matches the created_at filter, so a fresh account's own team choice
--- (made through the same ProfileGate screen) is never touched by a later
--- re-run of this file. Must run before the constraint tightens below, or
--- any existing account still on a dropped team would violate it.
-alter table profiles add column if not exists team_reselect_done boolean not null default false;
-update profiles set team = null, team_reselect_done = true
-where not team_reselect_done and created_at < '2026-08-17'::date;
+-- Tracks whether this account has picked/confirmed its team since the
+-- Aug 2026 team-list trim (9 teams down to 6, dropping TX/Rodgers/
+-- Koebel) - deliberately a separate column from `team` itself. An
+-- earlier version of this migration re-prompted everyone by clearing
+-- `team` back to null outright - but team is real data with its own
+-- readers elsewhere in the app (the Team tab groups and tallies people
+-- by it), and that reset broke every one of those reads for anyone who
+-- hadn't re-picked yet, not just the ProfileGate screen it was meant
+-- to reopen. nameTeamComplete in components/AuthGate.tsx now also
+-- requires team_confirmed_at, so ProfileGate still reappears for every
+-- account that hasn't confirmed since the trim, but this way an
+-- account's existing team - and everything reading it - is left
+-- completely alone until they actually submit the form again.
+alter table profiles drop column if exists team_reselect_done;
+alter table profiles add column if not exists team_confirmed_at timestamptz;
+
+-- Anyone still on one of the three dropped teams (TX/Rodgers/Koebel)
+-- necessarily has to land on null before the tightened constraint below
+-- - unlike the grandfather-in backfill just after this, there's no
+-- equivalent team to preserve them on. Must run before that backfill too,
+-- or someone about to be nulled here would get wrongly stamped as
+-- already-confirmed in the same breath. Naturally a no-op once already
+-- applied, since no one is left holding a now-invalid value to catch on
+-- a later re-run.
+update profiles set team = null where team in ('TX Team', 'Rodgers Team', 'Koebel Team');
+
+-- Grandfather in every account that already has a valid team on file -
+-- covers both the handful of accounts the earlier, now-corrected version
+-- of this migration already force-reset-and-re-confirmed, and any
+-- environment where this ships before anyone was ever nulled. Naturally
+-- idempotent (only touches rows not yet stamped), so it's safe to leave
+-- in and re-run forever: a genuine reselect through ProfileGate always
+-- writes its own team_confirmed_at in the same update, so this backfill
+-- never overwrites a real confirmation with an earlier timestamp.
+update profiles set team_confirmed_at = now()
+where team_confirmed_at is null and team is not null;
 
 -- Keep this list in sync with TEAMS in lib/constants.ts.
 alter table profiles drop constraint if exists profiles_team_check;

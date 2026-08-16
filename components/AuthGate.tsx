@@ -201,7 +201,9 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     applyColorMode(profile?.color_mode || "dark");
   }, [profile?.color_mode]);
 
-  const nameTeamComplete = Boolean(profile?.first_name && profile?.last_name && profile?.team);
+  const nameTeamComplete = Boolean(
+    profile?.first_name && profile?.last_name && profile?.team && profile?.team_confirmed_at
+  );
   const fullyAuthed = Boolean(user && !profileLoading && profile && nameTeamComplete && profile.profile_prompted);
 
   // Admins always see the whole app - onboarding gating is for brand-new
@@ -419,7 +421,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     return (
       <>
         <ConfigWarning />
-        <ProfileGate user={user} onComplete={() => loadProfile(user.id)} />
+        <ProfileGate user={user} profile={profile} onComplete={() => loadProfile(user.id)} />
       </>
     );
   }

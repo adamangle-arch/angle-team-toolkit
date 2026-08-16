@@ -5,17 +5,28 @@ import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabaseClient";
 import { fireNotifyEvent } from "@/lib/notifyClient";
 import { TEAMS, ONBOARDING_SESSIONS, isPrimaryUser } from "@/lib/constants";
+import type { Profile } from "@/lib/types";
 
 export default function ProfileGate({
   user,
+  profile,
   onComplete,
 }: {
   user: User;
+  // Only passed (and only has a team worth prefilling) when this is a
+  // "please re-confirm" re-run of this screen, e.g. after a team-list
+  // trim - a genuinely brand-new signup has no profile row yet. Prefills
+  // just the team <select> to whatever's already on file so re-confirming
+  // an unchanged team is a single tap, not a full re-pick from scratch -
+  // still a real dropdown someone can change if theirs actually moved.
+  // Name fields intentionally still start blank either way, same as this
+  // screen has always worked.
+  profile?: Profile | null;
   onComplete: () => void;
 }) {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [team, setTeam] = useState("");
+  const [team, setTeam] = useState(profile?.team && (TEAMS as readonly string[]).includes(profile.team) ? profile.team : "");
   const [uplineNumber, setUplineNumber] = useState("");
   const [spouseEmail, setSpouseEmail] = useState("");
   // Whether First 30 Days Onboarding should actually gate this account -
@@ -60,6 +71,7 @@ export default function ProfileGate({
         first_name: firstName.trim(),
         last_name: lastName.trim(),
         team,
+        team_confirmed_at: new Date().toISOString(),
         ...(skipOnboarding
           ? {
               onboarding_unlocked_through: ONBOARDING_SESSIONS.length,
