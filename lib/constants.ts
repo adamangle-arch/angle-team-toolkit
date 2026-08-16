@@ -79,7 +79,7 @@ export const NOTIFICATION_KINDS = [
   { kind: "engagement_filler", label: "Book/audio recommendations" },
   { kind: "story_liked", label: "Story liked" },
   { kind: "story_commented", label: "New comment on your story" },
-  { kind: "budget_worksheet_completed", label: "Budget worksheet completed" },
+  { kind: "budget_worksheet_completed", label: "Budget worksheet started" },
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number]["kind"];
 export const NOTIFICATION_KIND_LABELS = Object.fromEntries(

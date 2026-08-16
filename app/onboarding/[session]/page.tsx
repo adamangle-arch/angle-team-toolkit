@@ -6,6 +6,7 @@ import { ArrowLeft, Lock } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import ProgressBar from "@/components/ProgressBar";
 import { SkeletonList } from "@/components/Skeleton";
+import WelcomeVideoLockCard from "@/components/WelcomeVideoLockCard";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import {
@@ -33,6 +34,7 @@ export default function OnboardingSessionPage({ params }: { params: Promise<{ se
   const valid = Number.isInteger(sessionNumber) && sessionNumber >= 1 && sessionNumber <= ONBOARDING_SESSIONS.length;
 
   const [unlockedThrough, setUnlockedThrough] = useState(1);
+  const [welcomeVideoWatchedAt, setWelcomeVideoWatchedAt] = useState<string | null>(null);
   const [resourceOverrides, setResourceOverrides] = useState<OnboardingResourceOverrideEntry[]>([]);
   const [completedLabels, setCompletedLabels] = useState<Set<string>>(new Set());
   // sessionParam never changes after mount (it's the URL segment), so
@@ -46,7 +48,11 @@ export default function OnboardingSessionPage({ params }: { params: Promise<{ se
     let cancelled = false;
     async function load() {
       const [{ data: profileData }, { data: overrideRows }, { data: completionRows }] = await Promise.all([
-        supabase.from("profiles").select("onboarding_unlocked_through").eq("id", user.id).single(),
+        supabase
+          .from("profiles")
+          .select("onboarding_unlocked_through,welcome_video_watched_at")
+          .eq("id", user.id)
+          .single(),
         supabase.from("onboarding_resource_overrides").select("*").eq("user_id", ownerId),
         supabase
           .from("onboarding_resource_completions")
@@ -56,6 +62,7 @@ export default function OnboardingSessionPage({ params }: { params: Promise<{ se
       ]);
       if (!cancelled) {
         setUnlockedThrough(profileData?.onboarding_unlocked_through ?? 1);
+        setWelcomeVideoWatchedAt(profileData?.welcome_video_watched_at ?? null);
         setResourceOverrides((overrideRows as OnboardingResourceOverrideEntry[]) ?? []);
         setCompletedLabels(
           new Set(((completionRows as { resource_label: string }[]) ?? []).map((r) => r.resource_label))
@@ -109,7 +116,8 @@ export default function OnboardingSessionPage({ params }: { params: Promise<{ se
 
   const session = ONBOARDING_SESSIONS[sessionNumber - 1];
   const style = SESSION_STYLE[sessionNumber - 1];
-  const unlocked = isAdmin || sessionNumber <= unlockedThrough;
+  const videoWatched = isAdmin || Boolean(welcomeVideoWatchedAt);
+  const unlocked = isAdmin || (sessionNumber <= unlockedThrough && (sessionNumber !== 1 || videoWatched));
   const resources = effectiveResourcesForSession(sessionNumber, session.resources, resourceOverrides);
   const doneCount = resources.filter((r) => completedLabels.has(r.label)).length;
   const pct = resources.length > 0 ? Math.round((doneCount / resources.length) * 100) : 0;
@@ -155,7 +163,12 @@ export default function OnboardingSessionPage({ params }: { params: Promise<{ se
           <p className="relative z-10 text-sm text-paper/85">{session.description}</p>
         </div>
 
-        {!unlocked ? (
+        {!unlocked && sessionNumber === 1 && !videoWatched ? (
+          <WelcomeVideoLockCard
+            userId={user.id}
+            onWatched={() => setWelcomeVideoWatchedAt(new Date().toISOString())}
+          />
+        ) : !unlocked ? (
           <div className="card space-y-2">
             <span className="pill inline-flex w-fit items-center gap-1">
               <Lock className="h-3 w-3" aria-hidden />

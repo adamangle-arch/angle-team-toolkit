@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Wallet,
   Receipt,
@@ -9,7 +9,8 @@ import {
   Briefcase,
   PiggyBank,
   Scale,
-  CircleCheck,
+  Copy,
+  Check,
 } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { SkeletonList } from "@/components/Skeleton";
@@ -183,13 +184,18 @@ function DebtRow({
   );
 }
 
+// "idle" before anything's loaded/touched, "saving"/"saved"/"error"
+// mirror an in-flight/finished/failed autosave - there's no separate
+// "draft" vs "complete" state anymore (see the autosave effect below for
+// why), so this is purely a save-status indicator, not a worksheet status.
+type SaveState = "idle" | "saving" | "saved" | "error";
+
 export default function BudgetPage() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [saveState, setSaveState] = useState<SaveState>("idle");
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [savedFlash, setSavedFlash] = useState(false);
-  const [completedAt, setCompletedAt] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const [income, setIncome] = useState<Record<string, string>>({});
   const [fixed, setFixed] = useState<Record<string, FixedInput>>({});
@@ -197,6 +203,14 @@ export default function BudgetPage() {
   const [debts, setDebts] = useState<Record<string, DebtInput>>({});
   const [investments, setInvestments] = useState<Record<string, string>>({});
   const [savings, setSavings] = useState<Record<string, string>>({});
+
+  // Guards the autosave effect below from firing the instant the fields
+  // above populate from the initial fetch - only actual edits (each
+  // section's onChange sets this) should trigger a write. Whether a row
+  // already existed on load also decides whether the very first autosave
+  // fires the "started their budget" notification (see doSave).
+  const dirtyRef = useRef(false);
+  const hadRowRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -232,7 +246,7 @@ export default function BudgetPage() {
       );
       setInvestments(toStringMap(w?.business_investments));
       setSavings(toStringMap(w?.savings));
-      setCompletedAt(w?.completed_at ?? null);
+      hadRowRef.current = Boolean(w);
       setLoading(false);
     }
     load();
@@ -240,6 +254,55 @@ export default function BudgetPage() {
       cancelled = true;
     };
   }, [user.id]);
+
+  function markDirty() {
+    dirtyRef.current = true;
+  }
+
+  async function doSave() {
+    setSaveError(null);
+    const isFirstSave = !hadRowRef.current;
+    const payload = {
+      user_id: user.id,
+      income: Object.fromEntries(Object.entries(income).map(([k, v]) => [k, num(v)])),
+      fixed_expenses: Object.fromEntries(
+        Object.entries(fixed).map(([k, v]) => [k, { amount: num(v.amount), due: v.due }])
+      ),
+      variable_expenses: Object.fromEntries(Object.entries(variable).map(([k, v]) => [k, num(v)])),
+      debts: Object.fromEntries(
+        Object.entries(debts).map(([k, v]) => [
+          k,
+          { payment: num(v.payment), interest_rate: num(v.interest_rate), total_owed: num(v.total_owed) },
+        ])
+      ),
+      business_investments: Object.fromEntries(Object.entries(investments).map(([k, v]) => [k, num(v)])),
+      savings: Object.fromEntries(Object.entries(savings).map(([k, v]) => [k, num(v)])),
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("budget_worksheets").upsert(payload, { onConflict: "user_id" });
+    if (error) {
+      setSaveState("error");
+      setSaveError(error.message);
+      return;
+    }
+    hadRowRef.current = true;
+    setSaveState("saved");
+    if (isFirstSave) fireNotifyEvent({ kind: "budget_worksheet_completed" });
+  }
+
+  // Debounced autosave - fires ~900ms after the last edit rather than on
+  // every keystroke, and only once something's actually been touched
+  // (dirtyRef), so loading someone's existing worksheet doesn't
+  // immediately re-write it or fire the first-save notification below.
+  useEffect(() => {
+    if (!dirtyRef.current) return;
+    setSaveState("saving");
+    const timer = setTimeout(() => {
+      void doSave();
+    }, 900);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [income, fixed, variable, debts, investments, savings]);
 
   const totals = computeBudgetTotals({
     income: Object.fromEntries(Object.entries(income).map(([k, v]) => [k, num(v)])),
@@ -257,59 +320,98 @@ export default function BudgetPage() {
     savings: Object.fromEntries(Object.entries(savings).map(([k, v]) => [k, num(v)])),
   });
 
-  async function save(markComplete: boolean) {
-    setSaving(true);
-    setSaveError(null);
-    setSavedFlash(false);
-    const wasIncomplete = !completedAt;
-    const nextCompletedAt = markComplete ? new Date().toISOString() : completedAt;
-    const payload = {
-      user_id: user.id,
-      income: Object.fromEntries(Object.entries(income).map(([k, v]) => [k, num(v)])),
-      fixed_expenses: Object.fromEntries(
-        Object.entries(fixed).map(([k, v]) => [k, { amount: num(v.amount), due: v.due }])
-      ),
-      variable_expenses: Object.fromEntries(Object.entries(variable).map(([k, v]) => [k, num(v)])),
-      debts: Object.fromEntries(
-        Object.entries(debts).map(([k, v]) => [
-          k,
-          { payment: num(v.payment), interest_rate: num(v.interest_rate), total_owed: num(v.total_owed) },
-        ])
-      ),
-      business_investments: Object.fromEntries(Object.entries(investments).map(([k, v]) => [k, num(v)])),
-      savings: Object.fromEntries(Object.entries(savings).map(([k, v]) => [k, num(v)])),
-      completed_at: nextCompletedAt,
-      updated_at: new Date().toISOString(),
-    };
-    const { error } = await supabase.from("budget_worksheets").upsert(payload, { onConflict: "user_id" });
-    setSaving(false);
-    if (error) {
-      setSaveError(error.message);
-      return;
-    }
-    setCompletedAt(nextCompletedAt);
-    setSavedFlash(true);
-    if (markComplete && wasIncomplete) {
-      fireNotifyEvent({ kind: "budget_worksheet_completed" });
-    }
+  function fmtDue(due: BudgetDueHalf | null): string {
+    if (!due) return "";
+    const half = BUDGET_DUE_HALVES.find((h) => h.key === due);
+    return half ? ` (due ${half.label})` : "";
   }
 
-  async function markIncomplete() {
-    setSaving(true);
-    const { error } = await supabase
-      .from("budget_worksheets")
-      .update({ completed_at: null })
-      .eq("user_id", user.id);
-    setSaving(false);
-    if (!error) setCompletedAt(null);
+  // A plain-text version of the whole worksheet, for the handful of
+  // times someone wants to text/DM it to their upline directly instead
+  // of (or alongside) them just opening Team - only lists populated
+  // rows, so it reads like a summary rather than a form dump of zeros.
+  function buildShareText(): string {
+    const lines: string[] = ["MY BUDGET", ""];
+
+    lines.push("INCOME");
+    for (const item of BUDGET_INCOME_ITEMS) {
+      const v = num(income[item.slug]);
+      if (v) lines.push(`  ${item.label}: ${fmt(v)}`);
+    }
+    lines.push(`  Total Income: ${fmt(totals.income)}`, "");
+
+    lines.push("FIXED EXPENSES");
+    for (const item of BUDGET_FIXED_EXPENSE_ITEMS) {
+      const v = fixed[item.slug];
+      const amount = num(v?.amount);
+      if (amount) lines.push(`  ${item.label}: ${fmt(amount)}${fmtDue(v?.due ?? null)}`);
+    }
+    lines.push(`  Total Fixed Expenses: ${fmt(totals.fixedExpenses)}`, "");
+
+    lines.push("VARIABLE EXPENSES");
+    for (const item of BUDGET_VARIABLE_EXPENSE_ITEMS) {
+      const v = num(variable[item.slug]);
+      if (v) lines.push(`  ${item.label}: ${fmt(v)}`);
+    }
+    lines.push(`  Total Variable Expenses: ${fmt(totals.variableExpenses)}`, "");
+
+    const debtRows = BUDGET_DEBT_ITEMS.filter((item) => {
+      const v = debts[item.slug];
+      return num(v?.payment) || num(v?.interest_rate) || num(v?.total_owed);
+    });
+    if (debtRows.length > 0) {
+      lines.push("DEBT");
+      for (const item of debtRows) {
+        const v = debts[item.slug];
+        lines.push(
+          `  ${item.label}: payment ${fmt(num(v?.payment))}, ${num(v?.interest_rate)}% interest, ${fmt(
+            num(v?.total_owed)
+          )} owed`
+        );
+      }
+      lines.push(`  Total Payments: ${fmt(totals.debtPayments)}  ·  Total Owed: ${fmt(totals.debtTotalOwed)}`, "");
+    }
+
+    lines.push("SUGGESTED BUSINESS INVESTMENTS");
+    for (const item of BUDGET_INVESTMENT_ITEMS) {
+      const v = num(investments[item.slug]);
+      if (v) lines.push(`  ${item.label}: ${fmt(v)}`);
+    }
+    lines.push(`  Total: ${fmt(totals.businessInvestmentsTotal)}`, "");
+
+    lines.push("SAVINGS");
+    for (const item of BUDGET_SAVINGS_ITEMS) {
+      const v = num(savings[item.slug]);
+      if (v) lines.push(`  ${item.label}: ${fmt(v)}`);
+    }
+    lines.push(`  Total Savings: ${fmt(totals.savings)}`, "");
+
+    lines.push("CASH FLOW");
+    lines.push(`  Income: ${fmt(totals.income)}`);
+    lines.push(`  Fixed Expenses: -${fmt(totals.fixedExpenses)}`);
+    lines.push(`  Variable Expenses: -${fmt(totals.variableExpenses)}`);
+    lines.push(`  Amway DITTO™ Order: -${fmt(totals.dittoOrder)}`);
+    lines.push(`  LTD Suggested Investments: -${fmt(totals.ltdSuggestedInvestments)}`);
+    lines.push(`  Monthly Debt Payments: -${fmt(totals.debtPayments)}`);
+    lines.push(`  Total Monthly Expenses: ${fmt(totals.totalMonthlyExpenses)}`);
+    lines.push(`  Net Cash Flow: ${fmt(totals.netCashFlow)}`);
+
+    return lines.join("\n");
+  }
+
+  async function copyShareText() {
+    try {
+      await navigator.clipboard.writeText(buildShareText());
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setSaveError("Couldn't copy to your clipboard.");
+    }
   }
 
   return (
     <>
-      <PageHeader
-        title="My Budget"
-        subtitle={completedAt ? "Completed — Session 1 homework" : "Session 1 homework"}
-      />
+      <PageHeader title="My Budget" subtitle="Session 1 homework" />
       <main className="page-main">
         {loading ? (
           <SkeletonList cards={4} />
@@ -329,7 +431,10 @@ export default function BudgetPage() {
                     key={item.slug}
                     label={item.label}
                     value={income[item.slug] ?? ""}
-                    onChange={(v) => setIncome((prev) => ({ ...prev, [item.slug]: v }))}
+                    onChange={(v) => {
+                      markDirty();
+                      setIncome((prev) => ({ ...prev, [item.slug]: v }));
+                    }}
                   />
                 ))}
               </div>
@@ -349,7 +454,10 @@ export default function BudgetPage() {
                     key={item.slug}
                     label={item.label}
                     value={fixed[item.slug] ?? { amount: "", due: null }}
-                    onChange={(v) => setFixed((prev) => ({ ...prev, [item.slug]: v }))}
+                    onChange={(v) => {
+                      markDirty();
+                      setFixed((prev) => ({ ...prev, [item.slug]: v }));
+                    }}
                   />
                 ))}
               </div>
@@ -369,7 +477,10 @@ export default function BudgetPage() {
                     key={item.slug}
                     label={item.label}
                     value={variable[item.slug] ?? ""}
-                    onChange={(v) => setVariable((prev) => ({ ...prev, [item.slug]: v }))}
+                    onChange={(v) => {
+                      markDirty();
+                      setVariable((prev) => ({ ...prev, [item.slug]: v }));
+                    }}
                   />
                 ))}
               </div>
@@ -386,7 +497,10 @@ export default function BudgetPage() {
                     key={item.slug}
                     label={item.label}
                     value={debts[item.slug] ?? { payment: "", interest_rate: "", total_owed: "" }}
-                    onChange={(v) => setDebts((prev) => ({ ...prev, [item.slug]: v }))}
+                    onChange={(v) => {
+                      markDirty();
+                      setDebts((prev) => ({ ...prev, [item.slug]: v }));
+                    }}
                   />
                 ))}
               </div>
@@ -419,7 +533,10 @@ export default function BudgetPage() {
                     key={item.slug}
                     label={item.label}
                     value={investments[item.slug] ?? ""}
-                    onChange={(v) => setInvestments((prev) => ({ ...prev, [item.slug]: v }))}
+                    onChange={(v) => {
+                      markDirty();
+                      setInvestments((prev) => ({ ...prev, [item.slug]: v }));
+                    }}
                   />
                 ))}
               </div>
@@ -439,7 +556,10 @@ export default function BudgetPage() {
                     key={item.slug}
                     label={item.label}
                     value={savings[item.slug] ?? ""}
-                    onChange={(v) => setSavings((prev) => ({ ...prev, [item.slug]: v }))}
+                    onChange={(v) => {
+                      markDirty();
+                      setSavings((prev) => ({ ...prev, [item.slug]: v }));
+                    }}
                   />
                 ))}
               </div>
@@ -493,36 +613,34 @@ export default function BudgetPage() {
             </div>
 
             <div className="card space-y-2">
-              {completedAt ? (
-                <>
-                  <p className="flex items-center gap-1.5 text-sm text-emerald-400">
-                    <CircleCheck className="h-4 w-4" aria-hidden />
-                    Marked complete {new Date(completedAt).toLocaleDateString()}
-                  </p>
-                  <div className="flex gap-2">
-                    <button className="btn-primary flex-1" onClick={() => save(false)} disabled={saving}>
-                      {saving ? "Saving…" : "Save Changes"}
-                    </button>
-                    <button className="btn-secondary" onClick={markIncomplete} disabled={saving}>
-                      Mark Incomplete
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <div className="flex gap-2">
-                  <button className="btn-secondary flex-1" onClick={() => save(false)} disabled={saving}>
-                    {saving ? "Saving…" : "Save Draft"}
-                  </button>
-                  <button className="btn-primary flex-1" onClick={() => save(true)} disabled={saving}>
-                    Mark Complete
-                  </button>
-                </div>
-              )}
-              {savedFlash && !saving && <p className="text-xs text-emerald-400">Saved.</p>}
-              {saveError && <p className="text-xs text-red-400">{saveError}</p>}
+              <p className="flex items-center gap-1.5 text-xs text-slate-400">
+                {saveState === "saving" && "Saving…"}
+                {saveState === "saved" && (
+                  <>
+                    <Check className="h-3.5 w-3.5 text-emerald-400" aria-hidden />
+                    Saved — everything here autosaves as you type.
+                  </>
+                )}
+                {saveState === "idle" && "Everything here autosaves as you type."}
+                {saveState === "error" && <span className="text-red-400">Couldn&apos;t save: {saveError}</span>}
+              </p>
+              <button className="btn-secondary w-full" onClick={copyShareText}>
+                {copied ? (
+                  <span className="flex items-center justify-center gap-1.5">
+                    <Check className="h-4 w-4" aria-hidden />
+                    Copied!
+                  </span>
+                ) : (
+                  <span className="flex items-center justify-center gap-1.5">
+                    <Copy className="h-4 w-4" aria-hidden />
+                    Copy to Share with Upline
+                  </span>
+                )}
+              </button>
               <p className="text-xs text-slate-500">
-                Your upline can see once this is marked complete, and can see your numbers to help coach
-                you — same as your Pipeline and Core Run numbers.
+                Your upline can already see your numbers at any time to help coach you — same as your
+                Pipeline and Core Run numbers — but this copies a plain-text summary too, in case you&apos;d
+                rather send it directly.
               </p>
             </div>
           </>

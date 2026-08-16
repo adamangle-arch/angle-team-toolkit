@@ -223,6 +223,12 @@ export async function POST(request: Request) {
         return NextResponse.json(result);
       }
 
+      // Kind name is a holdover from before My Budget autosaved - fired
+      // once now, on someone's first-ever autosave (app/budget/page.tsx's
+      // isFirstSave), not on a "mark complete" button tap (there isn't
+      // one anymore). Renaming the kind string would mean a schema.sql
+      // check-constraint change for no real benefit, so only the title/
+      // body text below were updated to match.
       case "budget_worksheet_completed": {
         const { data: recipientRows } = await admin.rpc("get_upline_user_ids", {
           p_user_id: userId,
@@ -240,8 +246,8 @@ export async function POST(request: Request) {
         const result = await notifyUsers({
           userIds: recipients,
           kind: "budget_worksheet_completed",
-          title: "💰 Budget worksheet completed",
-          body: `${fullName(submitter)} marked their budget worksheet complete`,
+          title: "💰 Budget worksheet started",
+          body: `${fullName(submitter)} started filling out their budget worksheet`,
           url: "/team",
         });
         return NextResponse.json(result);

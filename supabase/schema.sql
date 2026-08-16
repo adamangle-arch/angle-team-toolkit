@@ -7584,6 +7584,23 @@ alter table profiles add column if not exists welcome_video_watched_at timestamp
 update profiles set welcome_video_watched_at = created_at
 where welcome_video_watched_at is null and created_at < '2026-08-15'::date;
 
+-- Tracks a "skip for now" tap separately from actually finishing the
+-- video (welcome_video_watched_at) - the very first time someone signs
+-- in, AuthGate blocks the whole app behind the video; once they skip it
+-- once, that full-screen block shouldn't keep coming back on every future
+-- open (a video with sound often can't autoplay on mobile without a tap
+-- anyway, so trapping someone behind it repeatedly would be a dead end).
+-- Instead, from the first skip onward, Classroom shows a standing
+-- reminder card until the video is actually finished, and Onboarding
+-- Session 1 stays locked the whole time - see the needsWelcomeVideo
+-- check in AuthGate.tsx (now `!watched && !skipped`, was just `!watched`)
+-- and the Session 1 unlock check in app/onboarding/page.tsx and
+-- app/onboarding/[session]/page.tsx. No backfill needed: every account
+-- grandfathered into welcome_video_watched_at above already has
+-- needsWelcomeVideo = false regardless of this column, and a real new
+-- signup correctly starts with both columns null.
+alter table profiles add column if not exists welcome_video_skipped_at timestamptz;
+
 -- ============================================================
 -- 23. MY BUDGET (Budget Session worksheet, in-app)
 -- Replaces the Google Sheet used in the Budget Session (Onboarding

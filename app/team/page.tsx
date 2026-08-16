@@ -1181,11 +1181,11 @@ export default function TeamPage() {
                     <Wallet className="h-3.5 w-3.5" aria-hidden />
                     Budget (Session 1 homework)
                   </p>
-                  {memberData.budgetWorksheet?.completed_at ? (
+                  {memberData.budgetWorksheet ? (
                     <>
-                      <p className="flex items-center gap-1 text-xs text-emerald-400">
-                        <CheckCircle2 className="h-3 w-3" aria-hidden />
-                        Completed {new Date(memberData.budgetWorksheet.completed_at).toLocaleDateString()}
+                      <p className="flex items-center gap-1 text-xs text-slate-500">
+                        <CheckCircle2 className="h-3 w-3 text-emerald-400" aria-hidden />
+                        Last updated {new Date(memberData.budgetWorksheet.updated_at).toLocaleDateString()}
                       </p>
                       {(() => {
                         const budgetTotals = computeBudgetTotals(memberData.budgetWorksheet);
@@ -1217,8 +1217,6 @@ export default function TeamPage() {
                         );
                       })()}
                     </>
-                  ) : memberData.budgetWorksheet ? (
-                    <p className="text-xs text-slate-500">Started, not marked complete yet.</p>
                   ) : (
                     <p className="text-xs text-slate-500">Not started yet.</p>
                   )}

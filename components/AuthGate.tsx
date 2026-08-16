@@ -423,7 +423,13 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   // QuoteOverlay would otherwise stack on top of the welcome video on
   // someone's very first app open (both are unconditional full-screen
   // overlays) - the welcome video takes priority until it's been shown.
-  const needsWelcomeVideo = !profile.welcome_video_watched_at;
+  // Only true for someone who has neither watched nor skipped it yet -
+  // once skipped once, this stops auto-blocking every future app open
+  // (a video with sound can't autoplay on mobile without a tap anyway,
+  // so repeating the hard block would be a dead end); Classroom's own
+  // reminder card takes over as the ongoing nag from there, and Session 1
+  // stays locked either way until welcome_video_watched_at is actually set.
+  const needsWelcomeVideo = !profile.welcome_video_watched_at && !profile.welcome_video_skipped_at;
 
   return (
     <AuthContext.Provider
@@ -444,7 +450,11 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     >
       <ConfigWarning />
       {needsWelcomeVideo ? (
-        <WelcomeVideoOverlay profile={profile} userId={user.id} onWatched={() => loadProfile(user.id)} />
+        <WelcomeVideoOverlay
+          userId={user.id}
+          onWatched={() => loadProfile(user.id)}
+          onSkip={() => loadProfile(user.id)}
+        />
       ) : (
         <QuoteOverlay />
       )}

@@ -6884,6 +6884,61 @@ no way back to it. Added a "My Budget" quick-link card to the top of the
 Resources tab's default Process view (`app/library/page.tsx`), so it's
 findable by anyone, onboarding or not. No schema change.
 
+### My Budget: autosave, always-visible to upline, copy-to-share
+
+Removed the Save Draft / Mark Complete / Mark Incomplete buttons -
+`app/budget/page.tsx` now autosaves ~900ms after the last edit to any
+field (debounced, only once something's actually been touched so simply
+opening the page doesn't trigger a write). The Team tab's per-member
+Budget card (`app/team/page.tsx`) no longer waits for a "complete" flag
+that doesn't exist anymore either - it shows the Income/Expenses/Net
+Cash Flow breakdown any time a worksheet row exists at all, with "Last
+updated" instead of "Completed." RLS was already unconditional on
+`completed_at` (upline could always read it), so no policy change was
+needed - this is purely a client-side visibility change. Also added a
+"Copy to Share with Upline" button that builds a plain-text summary of
+every populated line item plus the Cash Flow totals and copies it to the
+clipboard, for anyone who'd rather text/DM it directly. The
+`budget_worksheet_completed` notification kind is kept (renaming it
+would mean a schema.sql check-constraint change for no real benefit) but
+now fires on someone's first-ever autosave instead of a "mark complete"
+tap, with its title/body reworded to "started" instead of "completed" to
+match. `profiles.completed_at`/`budget_worksheets.completed_at` still
+exists in the schema (untouched, unused going forward) rather than
+dropping the column for a cosmetic cleanup. No schema change needed.
+
+### Welcome video: skip vs. watched, and gating Session 1 on it
+
+The welcome-video overlay (`components/WelcomeVideoOverlay.tsx`,
+`profiles.welcome_video_watched_at`) already existed from an earlier
+pass, but its one button did double duty - "Skip for now" secretly
+called the same `markWatched()` as "Continue," so skipping without
+actually watching still permanently marked it watched. Fixed several
+things together:
+- Set the real YouTube video id (was a `REPLACE_WITH_YOUTUBE_ID`
+  placeholder).
+- Split Skip from Watched: skipping now sets a new
+  `profiles.welcome_video_skipped_at` column instead of `watched_at`, so
+  it no longer counts as having watched it.
+- Onboarding Session 1 is now gated on `welcome_video_watched_at`
+  specifically (`app/onboarding/page.tsx` and
+  `app/onboarding/[session]/page.tsx`) - unlockedThrough already
+  includes session 1 by default for every signup, so this is an
+  additional AND, not a replacement.
+- AuthGate's auto-blocking full-screen overlay (the "every new person's
+  first sign-in" behavior) now only fires when someone has neither
+  watched nor skipped yet - once skipped once, it stops forcing itself
+  on every future app open (a video with sound can't autoplay on mobile
+  without a tap anyway, so repeating the hard block would be a dead
+  end). From the first skip onward, a new standing reminder card
+  (`components/WelcomeVideoLockCard.tsx`, shared by Classroom's
+  top-of-page banner and Session 1's own locked-session card) is the
+  ongoing nag until it's actually finished.
+- SQL needed: adds `profiles.welcome_video_skipped_at` (see handoff
+  below) - no backfill needed, since every account already grandfathered
+  into `welcome_video_watched_at` has `needsWelcomeVideo = false`
+  regardless of this new column.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

@@ -19,6 +19,7 @@ import {
 import PageHeader from "@/components/PageHeader";
 import ProgressBar from "@/components/ProgressBar";
 import { SkeletonList } from "@/components/Skeleton";
+import WelcomeVideoLockCard from "@/components/WelcomeVideoLockCard";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import {
@@ -36,6 +37,7 @@ export default function OnboardingPage() {
   const { user, ownerId, onboardingComplete } = useAuth();
   const isAdmin = isPrimaryUser(user.email);
   const [unlockedThrough, setUnlockedThrough] = useState(1);
+  const [welcomeVideoWatchedAt, setWelcomeVideoWatchedAt] = useState<string | null>(null);
   const [networkContactCount, setNetworkContactCount] = useState(0);
   const [chaptersConfirmed, setChaptersConfirmed] = useState(false);
   const [confirmingChapters, setConfirmingChapters] = useState(false);
@@ -61,7 +63,7 @@ export default function OnboardingPage() {
         await Promise.all([
           supabase
             .from("profiles")
-            .select("onboarding_unlocked_through,thinking_big_chapters_confirmed")
+            .select("onboarding_unlocked_through,thinking_big_chapters_confirmed,welcome_video_watched_at")
             .eq("id", user.id)
             .single(),
           supabase
@@ -79,6 +81,7 @@ export default function OnboardingPage() {
         ]);
       if (!cancelled) {
         setUnlockedThrough(profileData?.onboarding_unlocked_through ?? 1);
+        setWelcomeVideoWatchedAt(profileData?.welcome_video_watched_at ?? null);
         setChaptersConfirmed(profileData?.thinking_big_chapters_confirmed ?? false);
         setNetworkContactCount(count ?? 0);
         setResourceOverrides((overrideRows as OnboardingResourceOverrideEntry[]) ?? []);
@@ -125,9 +128,17 @@ export default function OnboardingPage() {
     setConfirmingChapters(false);
   }
 
+  // Session 1 additionally requires the welcome video (see WELCOME VIDEO
+  // in supabase/schema.sql) - unlockedThrough alone already includes
+  // session 1 by default for every signup, so this is an extra AND, not
+  // a replacement for the usual sessionNumber <= unlockedThrough check.
+  const videoWatched = isAdmin || Boolean(welcomeVideoWatchedAt);
+
   const unlockedCount = isAdmin
     ? ONBOARDING_SESSIONS.length
-    : Math.min(unlockedThrough, ONBOARDING_SESSIONS.length);
+    : videoWatched
+      ? Math.min(unlockedThrough, ONBOARDING_SESSIONS.length)
+      : 0;
 
   // Resource-level completion across everything actually reachable right
   // now (not the still-locked sessions further down) - the top-of-page
@@ -167,6 +178,13 @@ export default function OnboardingPage() {
         subtitle={`${unlockedCount}/${ONBOARDING_SESSIONS.length} sessions unlocked`}
       />
       <main className="page-main">
+        {!loading && !isAdmin && !welcomeVideoWatchedAt && (
+          <WelcomeVideoLockCard
+            userId={user.id}
+            onWatched={() => setWelcomeVideoWatchedAt(new Date().toISOString())}
+          />
+        )}
+
         {!loading && overallTotal > 0 && (
           <div
             className="space-y-3 rounded-2xl border p-5"
@@ -446,7 +464,7 @@ export default function OnboardingPage() {
         ) : (
           ONBOARDING_SESSIONS.map((session, i) => {
             const sessionNumber = i + 1;
-            const unlocked = isAdmin || sessionNumber <= unlockedThrough;
+            const unlocked = isAdmin || (sessionNumber <= unlockedThrough && (sessionNumber !== 1 || videoWatched));
             const resources = effectiveResourcesForSession(
               sessionNumber,
               session.resources,
@@ -513,7 +531,9 @@ export default function OnboardingPage() {
                     </div>
                   )}
                   <p className="text-xs text-slate-500">
-                    Ask your upline to unlock this session once you&apos;re ready.
+                    {sessionNumber === 1 && !videoWatched
+                      ? "Watch the welcome video above to unlock this session."
+                      : "Ask your upline to unlock this session once you're ready."}
                   </p>
                 </div>
               );
