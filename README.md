@@ -6875,6 +6875,15 @@ card (Dark/Light toggle) alongside the App Color card, and any of the
   `COLOR_MODES`/`ColorMode` in `lib/constants.ts` and `lib/types.ts`.
   SQL needed: adds the column + check constraint (see handoff below).
 
+### My Budget: also linked from Resources, not just Session 1
+
+The Budget worksheet (`/budget`) was previously only reachable from the
+Home grid tile or Session 1's homework list on Classroom - someone who'd
+already finished onboarding and no longer visits those session pages had
+no way back to it. Added a "My Budget" quick-link card to the top of the
+Resources tab's default Process view (`app/library/page.tsx`), so it's
+findable by anyone, onboarding or not. No schema change.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

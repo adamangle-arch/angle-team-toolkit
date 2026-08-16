@@ -2,8 +2,9 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { X, Mic, Headphones, BookOpen, ClipboardList, Library, Rocket, CheckCircle2, AlertTriangle } from "lucide-react";
+import { X, Mic, Headphones, BookOpen, ClipboardList, Library, Rocket, CheckCircle2, AlertTriangle, Wallet, ChevronRight } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
 import FeatureGate from "@/components/FeatureGate";
@@ -553,6 +554,24 @@ function ScriptsSection({
 function ProcessSection() {
   return (
     <>
+      <Link
+        href="/budget"
+        className="card flex items-center justify-between gap-2 transition hover:bg-white/5"
+      >
+        <span className="flex items-center gap-2.5">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber/15">
+            <Wallet className="h-4.5 w-4.5 text-amber-light" aria-hidden />
+          </span>
+          <span>
+            <span className="block text-sm font-semibold text-white">My Budget</span>
+            <span className="block text-xs text-slate-400">
+              Fill out (or revisit) your Session 1 budget worksheet anytime.
+            </span>
+          </span>
+        </span>
+        <ChevronRight className="h-4 w-4 shrink-0 text-slate-500" aria-hidden />
+      </Link>
+
       <div className="card space-y-2">
         <p className="section-title">Angle Diamond Team — 9 Core Steps</p>
         <Image
