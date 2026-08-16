@@ -1869,9 +1869,40 @@ stable
 security definer
 set search_path = public
 as $$
+  -- pipeline_periods is household-shared - a linked pair has exactly one
+  -- real row, stored under whichever partner is NOT the "deferring" side
+  -- (household_id null; see the ownerId = household_id ?? id convention
+  -- used everywhere else in the app). Joining pipeline_periods straight
+  -- on pr.id (the old version of this function) silently dropped an
+  -- entire household's numbers whenever the deferring partner happened
+  -- to be the one this query was looking at - the owner's real row never
+  -- got matched to that row at all. Fixed below by resolving to exactly
+  -- one row per household (owner_id), so a shared row is never missed
+  -- *or* double-counted by both partners independently matching it.
+  with resolved as (
+    select
+      pr.id,
+      coalesce(pr.household_id, pr.id) as owner_id,
+      coalesce(public.effective_team(pr.id), pr.team) as team
+    from profiles pr
+  ),
+  members_by_owner as (
+    -- One row per household. Prefers a partner whose own resolution is
+    -- non-null (covers a deferring partner - like an admin whose real
+    -- pipeline data is filed under their spouse's account - who still
+    -- independently traces to a team via their own upline_id even
+    -- though the owner they defer to doesn't); ties (both non-null, e.g.
+    -- an ordinary couple who both trace to the same team) break toward
+    -- the actual data owner, though the value is identical either way.
+    select distinct on (owner_id)
+      owner_id,
+      team
+    from resolved
+    order by owner_id, (team is not null) desc, (id = owner_id) desc
+  )
   select
-    coalesce(public.effective_team(pr.id), pr.team) as team,
-    count(distinct pr.id)::int as member_count,
+    m.team,
+    count(distinct m.owner_id)::int as member_count,
     coalesce(sum(pp.questions), 0)::int as questions,
     coalesce(sum(pp.yeses), 0)::int as yeses,
     coalesce(sum(pp.qi1), 0)::int as qi1,
@@ -1882,13 +1913,13 @@ as $$
     coalesce(sum(pp.fu2), 0)::int as fu2,
     coalesce(sum(pp.questionnaire), 0)::int as questionnaire,
     coalesce(sum(pp.launches), 0)::int as launches
-  from profiles pr
+  from members_by_owner m
   left join pipeline_periods pp
-    on pp.user_id = pr.id
+    on pp.user_id = m.owner_id
    and pp.period_type = p_period_type
    and pp.period_start = p_period_start
-  where coalesce(public.effective_team(pr.id), pr.team) is not null
-  group by coalesce(public.effective_team(pr.id), pr.team);
+  where m.team is not null
+  group by m.team;
 $$;
 
 grant execute on function public.get_team_pipeline_totals(text, date) to authenticated;

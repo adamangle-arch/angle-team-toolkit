@@ -7223,6 +7223,33 @@ they picked at signup. The other 5 teams (Angle, Tucker, Scheerer,
 Abbott, Jones) still fall back to the self-picked value until their root
 accounts are identified and added to `team_roots`.
 
+### Fix: get_team_pipeline_totals silently dropped a household's numbers
+
+Reported as "our QI1 total is short by exactly one household's worth" -
+confirmed with a diagnostic query rather than guessed at, since a
+household-linkage theory from the previous fix turned out to be about
+the wrong household. `get_team_pipeline_totals` joined `pipeline_periods`
+straight on each profile's own id - but that table is household-shared
+(one real row, stored under whichever partner is *not* the deferring
+side; see `household_id`), so any row belonging to a deferring partner
+never matched anything and their entire household's numbers silently
+vanished from the team total. Pre-existing bug, unrelated to the
+sponsorship-line change above - it would have under-counted the old
+self-picked grouping too, just less visibly.
+
+Fixed by resolving to exactly one row per household before joining
+`pipeline_periods` (via each household's actual owner id), instead of
+one row per profile - a shared row is now always found *and* never
+double-counted by both partners matching it independently. `team` for
+that household is resolved by trying either partner's own sponsorship
+chain, preferring whichever one actually resolves (covers exactly the
+reported case: an admin whose real pipeline data is filed under their
+spouse's account, but who still traces to their team through their own
+upline independently of that). Side effect: `member_count` on the Teams
+tab now counts households, not raw profile rows, so a linked couple
+counts once instead of twice - a more accurate number, but it may look
+lower than before for any team with linked couples in it.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)
