@@ -7647,3 +7647,18 @@ create policy "budget_worksheets_insert_own" on budget_worksheets for insert wit
 drop policy if exists "budget_worksheets_update_own" on budget_worksheets;
 create policy "budget_worksheets_update_own" on budget_worksheets
   for update using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+-- ============================================================
+-- 24. LIGHT / DARK MODE
+-- An independent axis from profiles.theme_color (accent color) -
+-- picking a theme_color like "sapphire" or a custom hex still works the
+-- same in either mode. Applied by AuthGate setting data-mode="light" on
+-- <html> (see lib/applyTheme.ts's applyColorMode) which flips
+-- --color-navy*, the Tailwind slate-200..600 tokens, and --color-white
+-- via the ":root[data-mode=\"light\"]" block in app/globals.css - the
+-- same "override the token, not every call site" trick data-theme
+-- already uses for accent colors.
+-- ============================================================
+alter table profiles add column if not exists color_mode text not null default 'dark';
+alter table profiles drop constraint if exists profiles_color_mode_check;
+alter table profiles add constraint profiles_color_mode_check check (color_mode in ('dark', 'light'));

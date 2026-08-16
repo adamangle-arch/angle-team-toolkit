@@ -6813,6 +6813,68 @@ deliberately left out of this pass to keep it shippable in one sitting;
 happy to extend to those next if it's wanted. Client-only change, no
 SQL needed.
 
+### Real light/dark mode ("App Mode")
+
+An independent axis from App Color - My Profile now has an "App Mode"
+card (Dark/Light toggle) alongside the App Color card, and any of the
+44+custom accent colorways works in either mode.
+
+- **The mechanism**: same "override the token, not every call site"
+  trick `data-theme` already uses for accent colors, just aimed at
+  different tokens. `AuthGate` sets `data-mode="light"` on `<html>`
+  (via the new `applyColorMode` in `lib/applyTheme.ts`) from
+  `profiles.color_mode`, and a new `:root[data-mode="light"]` block in
+  `app/globals.css` overrides `--color-navy`/`-light`/`-lighter` (the
+  page/card background), Tailwind's own `--color-slate-200` through
+  `--color-slate-600` tokens (the app's entire body-text hierarchy),
+  and `--color-white`. Because Tailwind v4 utility classes read these
+  as CSS variables rather than baking in a hex value, every existing
+  `bg-navy`/`text-slate-400`/`text-white` usage across the whole app -
+  something like 700 individual occurrences - repaints for light mode
+  automatically, without editing each one by hand.
+- **Two new fixed (never-inverting) tokens**: some text/icons
+  legitimately need to stay the same regardless of page mode, because
+  they're not sitting on the page background at all - they're sitting
+  on a colorway's own colored surface. `--color-ink` (~`#0a0f1e`,
+  replacing what used to be a dozen-plus `text-navy` usages for "dark
+  text against an amber-colored pill/button/chip" - checkmarks,
+  toggle-active states, the FAB, level chips) and `--color-paper`
+  (`#ffffff`, for the handful of spots where text sits directly on a
+  gradient tile/banner - Home's grid tiles, Classroom's session
+  banners, the two red notification-count badges) both keep their
+  literal color in both modes, since inverting them would put
+  low-contrast text on what's often still a dark gradient stop.
+  `text-navy` itself is gone from the codebase - every former usage is
+  now either `text-ink` (stays dark) or, where it turns out to have
+  actually meant "page-background text," folded into the reactive set.
+- **Accent-color contrast mitigation**: `--color-amber-light` (an
+  accent's lighter tint, used for a lot of on-page text like section
+  titles and hero card labels) is aliased to `--color-amber` under
+  light mode, for every colorway at once - several colorways' light
+  tints (Silver, Platinum, Pearl, Diamond, USA's white tile, ...) are
+  pale enough to have poor contrast as text against a white background,
+  and the base/mid tone reads acceptably on both dark and light.
+  Trade-off, accepted: a couple of surfaces that gradient from
+  amber-light to amber-dark for a two-tone look (Home's plain tiles,
+  ProgressBar's fill) render a bit flatter in light mode as a result.
+  This mitigation doesn't reach the "custom" colorway specifically
+  (its light/dark tints are computed from the picked hex via inline
+  styles, which take precedence over this CSS-level alias) - a custom
+  pale color could still read weak as text in light mode.
+- **Known gaps, disclosed rather than silently skipped**: mini-games
+  (Diamond Run, Diamond Chase, Trivia, etc.) weren't individually
+  audited for light-mode contrast against their own custom canvas/
+  gradient styling - same "games are their own visual world" scoping
+  boundary the icon rollout used earlier. A handful of `bg-white/NN`
+  translucent surface tints inside gradient-tile files were checked by
+  hand to confirm they're not sitting on the gradient itself (they
+  aren't - they're plain progress-bar tracks/dividers), but a
+  codebase-wide guarantee would need the same file-by-file care this
+  pass already used, not a blanket claim.
+- New `profiles.color_mode` column (`'dark'` default, `'light'`), plus
+  `COLOR_MODES`/`ColorMode` in `lib/constants.ts` and `lib/types.ts`.
+  SQL needed: adds the column + check constraint (see handoff below).
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

@@ -1194,7 +1194,7 @@ export default function StreakPage() {
                   title={day}
                   onClick={() => setSelectedDay(day)}
                   className={`h-7 w-7 rounded-md text-center text-[10px] leading-7 transition ${
-                    done ? "bg-amber text-navy font-bold" : "bg-white/10 text-slate-500"
+                    done ? "bg-amber text-ink font-bold" : "bg-white/10 text-slate-500"
                   } ${selectedDay === day ? "ring-2 ring-white" : ""}`}
                 >
                   {Number(day.slice(8, 10))}

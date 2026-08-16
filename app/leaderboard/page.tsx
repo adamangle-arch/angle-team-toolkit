@@ -910,7 +910,7 @@ export default function LeaderboardPage() {
               onClick={() => setActiveTab(t.key)}
               className={`flex flex-col items-center gap-0.5 rounded-xl py-2 text-[11px] font-semibold leading-tight transition ${
                 displayTab === t.key
-                  ? "bg-amber text-navy"
+                  ? "bg-amber text-ink"
                   : "bg-white/5 text-slate-300 active:bg-white/10"
               }`}
             >

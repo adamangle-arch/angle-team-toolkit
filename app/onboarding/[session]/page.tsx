@@ -137,7 +137,7 @@ export default function OnboardingSessionPage({ params }: { params: Promise<{ se
           }}
         >
           <style.icon
-            className="pointer-events-none absolute -right-4 -top-4 h-28 w-28 text-white opacity-25"
+            className="pointer-events-none absolute -right-4 -top-4 h-28 w-28 text-paper opacity-25"
             strokeWidth={1.5}
             aria-hidden
           />
@@ -146,13 +146,13 @@ export default function OnboardingSessionPage({ params }: { params: Promise<{ se
               className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full bg-black/30"
               aria-hidden
             >
-              <Lock className="h-3.5 w-3.5 text-white" />
+              <Lock className="h-3.5 w-3.5 text-paper" />
             </span>
           )}
-          <p className="relative z-10 text-lg font-extrabold leading-tight text-white drop-shadow-sm">
+          <p className="relative z-10 text-lg font-extrabold leading-tight text-paper drop-shadow-sm">
             {session.title}
           </p>
-          <p className="relative z-10 text-sm text-white/85">{session.description}</p>
+          <p className="relative z-10 text-sm text-paper/85">{session.description}</p>
         </div>
 
         {!unlocked ? (
@@ -191,7 +191,7 @@ export default function OnboardingSessionPage({ params }: { params: Promise<{ se
                       type="button"
                       onClick={() => toggleResourceComplete(r.label)}
                       className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 text-[11px] font-bold transition ${
-                        done ? "border-emerald-400 bg-emerald-400 text-navy" : "border-slate-600 text-transparent"
+                        done ? "border-emerald-400 bg-emerald-400 text-ink" : "border-slate-600 text-transparent"
                       }`}
                       aria-label={done ? `Mark ${r.label} as not done` : `Mark ${r.label} as done`}
                     >

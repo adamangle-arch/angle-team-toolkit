@@ -29,7 +29,7 @@ export default function PageHeader({
             boxShadow: "0 6px 18px -6px rgb(var(--amber-rgb) / 0.65)",
           }}
         >
-          <Search className="h-6 w-6 text-navy" strokeWidth={2.25} aria-hidden />
+          <Search className="h-6 w-6 text-ink" strokeWidth={2.25} aria-hidden />
         </Link>
         <Link href="/profile" className="chip-btn">
           My Profile

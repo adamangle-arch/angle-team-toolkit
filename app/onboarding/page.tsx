@@ -468,7 +468,7 @@ export default function OnboardingPage() {
                     }}
                   >
                     <style.icon
-                      className="pointer-events-none absolute -right-4 -top-4 h-28 w-28 text-white opacity-25"
+                      className="pointer-events-none absolute -right-4 -top-4 h-28 w-28 text-paper opacity-25"
                       strokeWidth={1.5}
                       aria-hidden
                     />
@@ -476,9 +476,9 @@ export default function OnboardingPage() {
                       className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full bg-black/30"
                       aria-hidden
                     >
-                      <Lock className="h-3.5 w-3.5 text-white" />
+                      <Lock className="h-3.5 w-3.5 text-paper" />
                     </span>
-                    <p className="relative z-10 text-lg font-extrabold leading-tight text-white drop-shadow-sm">
+                    <p className="relative z-10 text-lg font-extrabold leading-tight text-paper drop-shadow-sm">
                       {session.title}
                     </p>
                   </div>
@@ -534,11 +534,11 @@ export default function OnboardingPage() {
                     }}
                   >
                     <style.icon
-                      className="pointer-events-none absolute -right-4 -top-4 h-28 w-28 text-white opacity-25"
+                      className="pointer-events-none absolute -right-4 -top-4 h-28 w-28 text-paper opacity-25"
                       strokeWidth={1.5}
                       aria-hidden
                     />
-                    <p className="relative z-10 text-lg font-extrabold leading-tight text-white drop-shadow-sm">
+                    <p className="relative z-10 text-lg font-extrabold leading-tight text-paper drop-shadow-sm">
                       {session.title}
                     </p>
                   </div>

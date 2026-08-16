@@ -14,7 +14,7 @@ import WelcomeVideoOverlay from "./WelcomeVideoOverlay";
 import RatingJobsProvider from "./RatingJobsProvider";
 import PullToRefresh from "./PullToRefresh";
 import { ONBOARDING_SESSIONS, isPrimaryUser, type ThemeColor } from "@/lib/constants";
-import { applyTheme } from "@/lib/applyTheme";
+import { applyTheme, applyColorMode } from "@/lib/applyTheme";
 import type { Profile } from "@/lib/types";
 
 type AuthContextValue = {
@@ -180,6 +180,12 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     applyTheme(profile?.theme_color || "amber", profile?.custom_theme_hex ?? null);
   }, [profile?.theme_color, profile?.custom_theme_hex]);
+
+  // Independent of the accent colorway above - My Profile's "App Mode"
+  // card (profiles.color_mode). See applyColorMode in lib/applyTheme.ts.
+  useEffect(() => {
+    applyColorMode(profile?.color_mode || "dark");
+  }, [profile?.color_mode]);
 
   const nameTeamComplete = Boolean(profile?.first_name && profile?.last_name && profile?.team);
   const fullyAuthed = Boolean(user && !profileLoading && profile && nameTeamComplete && profile.profile_prompted);

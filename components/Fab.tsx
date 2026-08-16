@@ -29,7 +29,7 @@ export default function Fab({ targetId, label }: { targetId: string; label: stri
       <button
         onClick={handleClick}
         aria-label={label}
-        className="pointer-events-auto absolute right-4 flex h-14 w-14 items-center justify-center rounded-full bg-amber text-2xl font-bold text-navy shadow-lg shadow-black/30 transition active:scale-95"
+        className="pointer-events-auto absolute right-4 flex h-14 w-14 items-center justify-center rounded-full bg-amber text-2xl font-bold text-ink shadow-lg shadow-black/30 transition active:scale-95"
         style={{ bottom: "calc(env(safe-area-inset-bottom) + 5.5rem)" }}
       >
         +

@@ -55,7 +55,7 @@ function GamesTabs() {
             key={g.key}
             onClick={() => setGame(g.key)}
             className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
-              game === g.key ? "bg-amber text-navy" : "bg-white/10 text-slate-300"
+              game === g.key ? "bg-amber text-ink" : "bg-white/10 text-slate-300"
             }`}
           >
             {g.label}

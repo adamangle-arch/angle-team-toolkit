@@ -63,7 +63,7 @@ export default function LevelAvatar({
       )}
       {showLevelChip && (
         <span
-          className={`absolute flex items-center justify-center rounded-full bg-amber px-1 font-bold text-navy ring-2 ring-navy ${CHIP_SIZE_CLASSES[size]}`}
+          className={`absolute flex items-center justify-center rounded-full bg-amber px-1 font-bold text-ink ring-2 ring-navy ${CHIP_SIZE_CLASSES[size]}`}
         >
           {level}
         </span>

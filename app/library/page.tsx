@@ -91,7 +91,7 @@ function LibraryTabs() {
               setQuery("");
             }}
             className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
-              section === s.key ? "bg-amber text-navy" : "bg-white/10 text-slate-300"
+              section === s.key ? "bg-amber text-ink" : "bg-white/10 text-slate-300"
             }`}
           >
             {s.label}

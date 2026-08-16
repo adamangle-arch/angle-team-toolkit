@@ -2,14 +2,14 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Palette, Check, Medal, Globe } from "lucide-react";
+import { Palette, Check, Medal, Globe, SunMoon } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import ProfileForm from "@/components/ProfileForm";
 import { SkeletonList } from "@/components/Skeleton";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
-import { TEAMS, US_TIMEZONES, THEME_COLORS, type ThemeColor } from "@/lib/constants";
-import { applyTheme } from "@/lib/applyTheme";
+import { TEAMS, US_TIMEZONES, THEME_COLORS, COLOR_MODES, type ThemeColor, type ColorMode } from "@/lib/constants";
+import { applyTheme, applyColorMode } from "@/lib/applyTheme";
 import { isValidHex } from "@/lib/color";
 import { guessTimeZone } from "@/lib/timezones";
 import { BADGE_DEFINITIONS } from "@/lib/badges";
@@ -89,6 +89,11 @@ export default function MyProfilePage() {
     setSyncedCustomHex(profile.custom_theme_hex);
     setCustomHexDraft(profile.custom_theme_hex ?? "#f59e0b");
   }
+
+  // Independent of App Color above - same "applies immediately,
+  // optimistic, rolled back on failure" shape as handleSetThemeColor.
+  const [savingColorMode, setSavingColorMode] = useState<ColorMode | null>(null);
+  const [colorModeError, setColorModeError] = useState<string | null>(null);
 
   async function reload() {
     const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
@@ -243,6 +248,24 @@ export default function MyProfilePage() {
     refreshProfile();
   }
 
+  async function handleSetColorMode(mode: ColorMode) {
+    if (!profile || profile.color_mode === mode || savingColorMode) return;
+    const previous = profile.color_mode;
+    setColorModeError(null);
+    setSavingColorMode(mode);
+    setProfile({ ...profile, color_mode: mode });
+    applyColorMode(mode);
+    const { error } = await supabase.from("profiles").update({ color_mode: mode }).eq("id", user.id);
+    setSavingColorMode(null);
+    if (error) {
+      setProfile((prev) => (prev ? { ...prev, color_mode: previous } : prev));
+      applyColorMode(previous);
+      setColorModeError(error.message);
+      return;
+    }
+    refreshProfile();
+  }
+
   async function handleLinkUpline() {
     const number = uplineNumber.trim();
     if (!number) return;
@@ -334,7 +357,7 @@ export default function MyProfilePage() {
                             : "none",
                         }}
                       >
-                        {isActive && <Check className="h-3.5 w-3.5 text-navy" aria-hidden />}
+                        {isActive && <Check className="h-3.5 w-3.5 text-ink" aria-hidden />}
                       </span>
                       <span className="text-[11px] text-slate-400">{theme.label}</span>
                     </button>
@@ -361,7 +384,7 @@ export default function MyProfilePage() {
                     }}
                   >
                     {profile.theme_color === "custom" && (
-                      <Check className="h-3.5 w-3.5 text-navy drop-shadow" aria-hidden />
+                      <Check className="h-3.5 w-3.5 text-ink drop-shadow" aria-hidden />
                     )}
                     <input
                       type="color"
@@ -379,6 +402,30 @@ export default function MyProfilePage() {
                 </label>
               </div>
               {themeColorError && <p className="text-xs text-red-400">{themeColorError}</p>}
+            </div>
+
+            <div className="card space-y-2">
+              <p className="section-title flex items-center gap-1.5">
+                <SunMoon className="h-4 w-4" aria-hidden />
+                App Mode
+              </p>
+              <p className="text-xs text-slate-400">
+                Dark or light background — your App Color above still applies either way.
+              </p>
+              <div className="flex gap-2">
+                {COLOR_MODES.map((mode) => (
+                  <button
+                    key={mode.key}
+                    type="button"
+                    className={profile.color_mode === mode.key ? "toggle-pill-active" : "toggle-pill-inactive"}
+                    onClick={() => handleSetColorMode(mode.key)}
+                    disabled={savingColorMode !== null}
+                  >
+                    {mode.label}
+                  </button>
+                ))}
+              </div>
+              {colorModeError && <p className="text-xs text-red-400">{colorModeError}</p>}
             </div>
 
             <div className="card space-y-2">

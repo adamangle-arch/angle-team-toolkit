@@ -35,3 +35,18 @@ export function applyTheme(themeColor: string, customHex: string | null) {
   root.dataset.theme = themeColor || "amber";
   for (const prop of CUSTOM_PROPERTIES) root.style.removeProperty(prop);
 }
+
+// Independent axis from applyTheme above (profiles.color_mode, not
+// theme_color) - light mode repaints entirely through the
+// ":root[data-mode=\"light\"]" block in app/globals.css, so all this
+// needs to do is set/clear the attribute. Dark has no attribute at all
+// (mirrors applyTheme's "amber" default having no data-theme attribute)
+// since the base CSS is already dark-mode by default.
+export function applyColorMode(mode: string) {
+  const root = document.documentElement;
+  if (mode === "light") {
+    root.dataset.mode = "light";
+  } else {
+    delete root.dataset.mode;
+  }
+}

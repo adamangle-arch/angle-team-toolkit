@@ -347,7 +347,7 @@ export default function HomePage() {
                 {shineTiles && <span className="tile-shine" aria-hidden />}
                 <item.icon
                   className={`pointer-events-none absolute -right-3 -top-3 h-24 w-24 opacity-25 ${
-                    onLight ? "text-navy" : "text-white"
+                    onLight ? "text-ink" : "text-paper"
                   }`}
                   strokeWidth={1.5}
                   aria-hidden
@@ -355,7 +355,7 @@ export default function HomePage() {
                 {Decor && (
                   <Decor
                     className={`pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 ${
-                      onLight ? "text-navy/45" : "text-white/70"
+                      onLight ? "text-ink/45" : "text-paper/70"
                     }`}
                     strokeWidth={2}
                     aria-hidden
@@ -363,7 +363,7 @@ export default function HomePage() {
                 )}
                 {item.href === "/notifications" && unreadNotificationCount > 0 && (
                   <span
-                    className="absolute right-2 top-2 z-20 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white shadow-[0_2px_6px_-1px_rgba(0,0,0,0.5)]"
+                    className="absolute right-2 top-2 z-20 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-paper shadow-[0_2px_6px_-1px_rgba(0,0,0,0.5)]"
                     aria-label={`${unreadNotificationCount} unread notification${unreadNotificationCount === 1 ? "" : "s"}`}
                   >
                     {unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}
@@ -372,12 +372,12 @@ export default function HomePage() {
                 <div className="relative z-10">
                   <p
                     className={`text-base font-extrabold leading-tight drop-shadow-sm ${
-                      onLight ? "text-navy" : "text-white"
+                      onLight ? "text-ink" : "text-paper"
                     }`}
                   >
                     {item.label}
                   </p>
-                  <p className={`mt-1 text-[11px] leading-snug ${onLight ? "text-navy/70" : "text-white/85"}`}>
+                  <p className={`mt-1 text-[11px] leading-snug ${onLight ? "text-ink/70" : "text-paper/85"}`}>
                     {item.description}
                   </p>
                 </div>

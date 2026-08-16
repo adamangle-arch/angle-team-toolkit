@@ -1,4 +1,4 @@
-import type { PipelineStageKey, GoalMetric, GoalPeriod, CallRatingType, CalendarEventType, ActivityLogKind, NotificationKind, ReadingUnit, ThemeColor } from "./constants";
+import type { PipelineStageKey, GoalMetric, GoalPeriod, CallRatingType, CalendarEventType, ActivityLogKind, NotificationKind, ReadingUnit, ThemeColor, ColorMode } from "./constants";
 
 export type Profile = {
   id: string;
@@ -33,6 +33,8 @@ export type Profile = {
   // Only meaningful when theme_color is "custom" - the hex someone
   // picked on My Profile's color input. Null for every preset colorway.
   custom_theme_hex: string | null;
+  // Independent of theme_color - "App Mode" (light/dark) on My Profile.
+  color_mode: ColorMode;
   pinned_kpis: PipelineStageKey[];
   last_active_at: string | null;
   welcome_video_watched_at: string | null;

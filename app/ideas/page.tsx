@@ -184,7 +184,7 @@ export default function IdeasPage() {
                   <button
                     onClick={() => vote(idea)}
                     className={`flex shrink-0 flex-col items-center rounded-lg px-2.5 py-1.5 text-xs font-bold transition ${
-                      idea.voted_by_me ? "bg-amber text-navy" : "bg-white/5 text-slate-300"
+                      idea.voted_by_me ? "bg-amber text-ink" : "bg-white/5 text-slate-300"
                     }`}
                   >
                     <span>▲</span>

@@ -106,7 +106,7 @@ export default function BottomNav() {
                 )}
                 {item.href === "/home" && unreadNotificationCount > 0 && (
                   <span
-                    className="absolute -right-2.5 -top-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold leading-none text-white"
+                    className="absolute -right-2.5 -top-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold leading-none text-paper"
                     aria-label={`${unreadNotificationCount} unread notification${unreadNotificationCount === 1 ? "" : "s"}`}
                   >
                     {unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}

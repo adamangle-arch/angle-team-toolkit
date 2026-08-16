@@ -4,6 +4,27 @@
   --color-navy: #0a0f1e;
   --color-navy-light: #121a2e;
   --color-navy-lighter: #1a2338;
+  /* Deliberately NOT overridden by :root[data-mode="light"] below, unlike
+     --color-navy* above - this is "dark text/ring for contrast against an
+     accent-colored surface" (bg-amber pills, level chips, the FAB), a role
+     that stays constant regardless of page mode. --color-navy itself
+     serves a different role (the page/card background) that DOES need to
+     invert for light mode - the two roles used to be the same token
+     (text-navy) since dark mode never had to tell them apart, but light
+     mode does: text-navy needs to keep meaning "always dark" wherever it
+     was really being used for contrast-on-amber, hence this split. */
+  --color-ink: #0a0f1e;
+  /* The literal-white counterpart to --color-ink above, for the same
+     reason: text/icons sitting directly on a colorway's own colored or
+     gradient surface (Home's grid tiles, Classroom's session banners,
+     the small red notification-count badges) need to stay readable
+     against THAT surface regardless of page mode - inverting them to
+     near-black under data-mode="light" would put dark text on what's
+     often still a dark gradient stop, not a lighter one. Every other
+     "text-white" in the app keeps using the plain Tailwind class
+     instead (which DOES invert via :root[data-mode="light"] below),
+     since it's sitting on the actual page/card background. */
+  --color-paper: #ffffff;
   --color-amber: #f59e0b;
   --color-amber-dark: #b45309;
   --color-amber-light: #fbbf24;
@@ -11,13 +32,28 @@
   --font-mono: var(--font-geist-mono);
 }
 
-/* Plain custom property (not inside @theme) holding the same amber as
-   above, as an R G B triplet rather than a hex string, so the hard-coded
-   rgba() glows/shadows below can pick up a colorway change too via
-   rgb(var(--amber-rgb) / alpha) - a bare hex custom property can't be
-   used inside rgba() like this. Keep in sync with --color-amber above. */
+/* Plain custom properties (not inside @theme) holding some of the
+   @theme colors above as R G B triplets rather than hex strings, so
+   hard-coded rgba()/rgb() glows, shadows, and translucent surface tints
+   below can pick up a mode or colorway change too via
+   rgb(var(--foo-rgb) / alpha) - a bare hex custom property can't be used
+   inside rgb()/rgba() like this.
+   --amber-rgb keeps in sync with --color-amber (overridden per
+   data-theme below). --navy-rgb keeps in sync with --color-navy
+   (overridden per data-mode further below - used by .app-header's
+   background, which needs the page background's own color at a couple
+   of specific opacities, not a fixed navy regardless of mode).
+   --surface-rgb is the "surface" tint every card/input/pill/button uses
+   for its own subtle background/border (a translucent light-on-dark
+   fill in dark mode) - overridden to a translucent dark-on-light fill
+   for data-mode="light" so .card/.input/.btn-secondary/etc. all still
+   read as "a slightly raised surface" against a white page instead of
+   staying literally white-tinted (invisible) on a white background. */
 :root {
   --amber-rgb: 245 158 11;
+  --navy-rgb: 10 15 30;
+  --surface-rgb: 255 255 255;
+  --body-text: #e2e8f0;
 }
 
 /* App-wide colorways, picked on My Profile (profiles.theme_color) and
@@ -297,6 +333,54 @@
   --amber-rgb: 2 132 199;
 }
 
+/* Light mode (profiles.color_mode, applied by AuthGate setting
+   data-mode="light" on <html> - see lib/applyTheme.ts's applyColorMode).
+   An independent axis from data-theme above (which only ever touches
+   --color-amber and friends, plus --amber-rgb) - this block touches
+   everything ELSE text/surface-related instead, so the two combine freely: any of the
+   44 accent colorways can run in either mode.
+
+   Overriding --color-navy*, --body-text, and Tailwind's own
+   --color-slate-200/300/400/500/600 and --color-white theme tokens
+   means every existing bg-navy, text-slate-200..600, and text-white
+   utility class across the whole app repaints for light mode too, the
+   same "override the token, not every call site" trick data-theme
+   already uses for amber - without it, shipping light mode would mean
+   manually editing the ~700 individual usages of those classes
+   sprinkled through every page. Scope of what this does NOT fix: a small, known
+   set of text sitting directly on a colorway's own colored/gradient
+   surface (Home's grid tiles, Classroom's session banners, the two red
+   notification-count badges) intentionally keeps literal white
+   regardless of mode - inverting those specific spots would make them
+   unreadable against their own (still-dark) gradient, not more
+   readable, so they're written as literal white in their own files
+   rather than the `text-white` utility class this block affects.
+   --color-amber-light is also aliased to --color-amber here, for every
+   colorway at once: an accent's "light" tint is chosen for contrast
+   against the dark navy background, and several colorways' light tints
+   (Silver, Platinum, Pearl, Diamond, USA's white tile...) are pale
+   enough that they'd have poor contrast as text against a white page
+   background instead - the base (mid) tone reads acceptably on both.
+   Trade-off: a couple of surfaces that deliberately gradient from
+   amber-light to amber-dark for a two-tone look (Home's plain tiles,
+   ProgressBar's fill) render a bit flatter in light mode as a result -
+   accepted as the smaller cost. */
+:root[data-mode="light"] {
+  --color-navy: #ffffff;
+  --color-navy-light: #f8fafc;
+  --color-navy-lighter: #f1f5f9;
+  --navy-rgb: 255 255 255;
+  --surface-rgb: 15 23 42;
+  --body-text: #0f172a;
+  --color-white: #0f172a;
+  --color-slate-200: #1e293b;
+  --color-slate-300: #334155;
+  --color-slate-400: #64748b;
+  --color-slate-500: #94a3b8;
+  --color-slate-600: #cbd5e1;
+  --color-amber-light: var(--color-amber);
+}
+
 html,
 body {
   height: 100%;
@@ -305,7 +389,7 @@ body {
     radial-gradient(80% 40% at 100% 0%, rgba(56, 130, 246, 0.06), transparent 60%),
     var(--color-navy);
   background-attachment: fixed;
-  color: #e2e8f0;
+  color: var(--body-text);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
   font-variant-numeric: tabular-nums;
@@ -333,9 +417,9 @@ body {
 
   .app-header {
     @apply sticky top-0 z-20 px-4 py-3.5 backdrop-blur-xl;
-    background: linear-gradient(180deg, rgba(10, 15, 30, 0.92), rgba(10, 15, 30, 0.75));
+    background: linear-gradient(180deg, rgb(var(--navy-rgb) / 0.92), rgb(var(--navy-rgb) / 0.75));
     border-bottom: 1px solid rgb(var(--amber-rgb) / 0.15);
-    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04);
+    box-shadow: 0 1px 0 rgb(var(--surface-rgb) / 0.04);
   }
 
   .app-title {
@@ -365,11 +449,11 @@ body {
 
   .card {
     @apply relative rounded-2xl border p-4;
-    border-color: rgba(255, 255, 255, 0.08);
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0) 45%),
+    border-color: rgb(var(--surface-rgb) / 0.08);
+    background: linear-gradient(180deg, rgb(var(--surface-rgb) / 0.05), rgb(var(--surface-rgb) / 0) 45%),
       var(--color-navy-lighter);
     box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.06) inset,
+      0 1px 0 rgb(var(--surface-rgb) / 0.06) inset,
       0 12px 28px -18px rgba(0, 0, 0, 0.75);
   }
 
@@ -382,7 +466,7 @@ body {
   }
 
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-sm font-bold text-navy transition duration-150 active:scale-95 disabled:opacity-40 disabled:active:scale-100;
+    @apply inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-sm font-bold text-ink transition duration-150 active:scale-95 disabled:opacity-40 disabled:active:scale-100;
     background: linear-gradient(135deg, var(--color-amber-light), var(--color-amber));
     box-shadow: 0 6px 20px -8px rgb(var(--amber-rgb) / 0.55);
   }
@@ -393,12 +477,12 @@ body {
 
   .btn-secondary {
     @apply inline-flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-medium text-white transition duration-150 active:scale-95 disabled:opacity-40 disabled:active:scale-100;
-    background: rgba(255, 255, 255, 0.06);
-    border-color: rgba(255, 255, 255, 0.1);
+    background: rgb(var(--surface-rgb) / 0.06);
+    border-color: rgb(var(--surface-rgb) / 0.1);
   }
 
   .btn-secondary:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgb(var(--surface-rgb) / 0.1);
   }
 
   .btn-danger {
@@ -413,16 +497,16 @@ body {
 
   .btn-icon {
     @apply flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-lg font-bold text-white transition duration-150 active:scale-90 disabled:opacity-30 disabled:active:scale-100;
-    background: rgba(255, 255, 255, 0.06);
-    border-color: rgba(255, 255, 255, 0.1);
+    background: rgb(var(--surface-rgb) / 0.06);
+    border-color: rgb(var(--surface-rgb) / 0.1);
   }
 
   .input,
   .select,
   .textarea {
     @apply w-full rounded-xl border px-3 py-2 text-sm text-white placeholder:text-slate-500 transition duration-150 focus:outline-none;
-    background: rgba(255, 255, 255, 0.03);
-    border-color: rgba(255, 255, 255, 0.1);
+    background: rgb(var(--surface-rgb) / 0.03);
+    border-color: rgb(var(--surface-rgb) / 0.1);
   }
 
   .input:focus,
@@ -442,8 +526,8 @@ body {
 
   .pill {
     @apply inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium text-slate-200;
-    background: rgba(255, 255, 255, 0.06);
-    border-color: rgba(255, 255, 255, 0.08);
+    background: rgb(var(--surface-rgb) / 0.06);
+    border-color: rgb(var(--surface-rgb) / 0.08);
   }
 
   .pill-amber {
@@ -457,7 +541,7 @@ body {
   }
 
   .toggle-pill-active {
-    @apply flex flex-1 items-center justify-center rounded-lg py-1.5 text-sm font-bold text-navy transition duration-150;
+    @apply flex flex-1 items-center justify-center rounded-lg py-1.5 text-sm font-bold text-ink transition duration-150;
     background: linear-gradient(135deg, var(--color-amber-light), var(--color-amber));
     box-shadow: 0 4px 14px -6px rgb(var(--amber-rgb) / 0.6);
   }
@@ -468,18 +552,18 @@ body {
 
   .empty-state {
     @apply rounded-2xl border border-dashed p-6 text-center text-sm text-slate-400;
-    border-color: rgba(255, 255, 255, 0.12);
-    background: rgba(255, 255, 255, 0.02);
+    border-color: rgb(var(--surface-rgb) / 0.12);
+    background: rgb(var(--surface-rgb) / 0.02);
   }
 
   .chip-btn {
     @apply rounded-lg border px-2.5 py-1.5 text-xs font-medium text-slate-300 transition duration-150 active:scale-95;
-    background: rgba(255, 255, 255, 0.06);
-    border-color: rgba(255, 255, 255, 0.08);
+    background: rgb(var(--surface-rgb) / 0.06);
+    border-color: rgb(var(--surface-rgb) / 0.08);
   }
 
   .chip-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgb(var(--surface-rgb) / 0.1);
   }
 }
 

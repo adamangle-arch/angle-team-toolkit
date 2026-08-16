@@ -174,6 +174,18 @@ export const THEME_COLORS = [
 // renders it as its own color-input control, not a loop entry.
 export type ThemeColor = (typeof THEME_COLORS)[number]["key"] | "custom";
 
+// Independent of ThemeColor above (accent color) - picked on My
+// Profile's "App Mode" card, applied via applyColorMode in
+// lib/applyTheme.ts (sets/clears data-mode="light" on <html>, which the
+// ":root[data-mode=\"light\"]" block in app/globals.css reads to flip
+// --color-navy*/slate/white). Must match the check constraint on
+// profiles.color_mode in supabase/schema.sql.
+export const COLOR_MODES = [
+  { key: "dark", label: "Dark" },
+  { key: "light", label: "Light" },
+] as const;
+export type ColorMode = (typeof COLOR_MODES)[number]["key"];
+
 // One-off/repeatable self-report actions with no other way to auto-detect
 // them (same gap book_completions solved for reading) — must match the
 // activity_logs.kind check constraint in supabase/schema.sql. Logged from

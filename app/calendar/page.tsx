@@ -1102,7 +1102,7 @@ export default function CalendarPage() {
                       onClick={() => setSelectedGridDate(cell.date)}
                       className={`flex min-h-[3.25rem] flex-col items-center gap-0.5 rounded-lg px-0.5 py-1 text-xs transition ${
                         isSelected
-                          ? "bg-amber font-semibold text-navy"
+                          ? "bg-amber font-semibold text-ink"
                           : isToday
                             ? "bg-navy text-white ring-1 ring-amber"
                             : cell.inMonth
@@ -1124,7 +1124,7 @@ export default function CalendarPage() {
                         {overflowCount > 0 && (
                           <span
                             className={`text-[8px] font-normal leading-tight ${
-                              isSelected ? "text-navy/70" : "text-slate-500"
+                              isSelected ? "text-ink/70" : "text-slate-500"
                             }`}
                           >
                             +{overflowCount} more
@@ -1297,7 +1297,7 @@ export default function CalendarPage() {
                       onClick={() => setSelectedWeekDate(date)}
                       className={`flex flex-col items-center gap-0.5 rounded-lg py-1.5 text-xs transition ${
                         isSelected
-                          ? "bg-amber font-semibold text-navy"
+                          ? "bg-amber font-semibold text-ink"
                           : isToday
                             ? "bg-navy text-white ring-1 ring-amber"
                             : "text-slate-200"
@@ -1393,7 +1393,7 @@ export default function CalendarPage() {
       <div className="pointer-events-none fixed inset-x-0 bottom-[calc(4.75rem+env(safe-area-inset-bottom)+1rem)] z-40 mx-auto w-full max-w-md px-4">
         <div className="flex justify-end">
           <button
-            className="pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full text-3xl font-bold text-navy shadow-lg transition active:scale-95"
+            className="pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full text-3xl font-bold text-ink shadow-lg transition active:scale-95"
             style={{ background: "linear-gradient(135deg, var(--color-amber-light), var(--color-amber))" }}
             onClick={() => openAddModal()}
             aria-label="Add event"
