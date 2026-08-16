@@ -6939,6 +6939,24 @@ things together:
   into `welcome_video_watched_at` has `needsWelcomeVideo = false`
   regardless of this new column.
 
+### Welcome video: re-sent to the whole existing team, not just new signups
+
+Follow-up to the above - the team now wants literally everyone to see the
+welcome video the next time they open the app, not just people who sign
+up from here forward. Added a one-time reset to `supabase/schema.sql`
+(same WELCOME VIDEO section) that clears `welcome_video_watched_at` back
+to null for exactly the accounts the original ship-date backfill touched
+- detected by `welcome_video_watched_at = created_at`, which is that
+backfill's own signature, since a real watch always stamps "now," not
+someone's signup time. That makes the reset safe to leave in the file
+forever: once someone actually (re)watches it, their row no longer
+matches, so a later re-run of `schema.sql` won't clear them a second
+time. No client code changes needed - AuthGate already auto-plays the
+overlay for anyone with a null `welcome_video_watched_at`. One side
+effect worth knowing: Onboarding Session 1 briefly re-locks for anyone
+this resets, until they watch it again - nothing else in the app is
+affected. SQL needed: re-running the schema (see handoff below).
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

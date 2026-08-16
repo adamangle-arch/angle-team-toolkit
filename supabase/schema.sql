@@ -7601,6 +7601,26 @@ where welcome_video_watched_at is null and created_at < '2026-08-15'::date;
 -- signup correctly starts with both columns null.
 alter table profiles add column if not exists welcome_video_skipped_at timestamptz;
 
+-- One-time re-send: the team now wants literally everyone - including
+-- people who were grandfathered out of it above - to see the welcome
+-- video the next time they open the app, not just people signing up
+-- from here forward. Only clears rows whose welcome_video_watched_at
+-- still exactly equals their created_at, which is the one-time
+-- backfill's own signature (it's the only code path that ever sets them
+-- equal) - so this is safe to leave in and re-run forever: a real watch
+-- always sets welcome_video_watched_at to the moment they finished it,
+-- which won't coincidentally match created_at, so once someone actually
+-- (re)watches it after this ships, a later re-run of this file leaves
+-- them alone instead of clearing them again. welcome_video_skipped_at
+-- doesn't need clearing alongside it - every row this matches came from
+-- the backfill, which never went through the real overlay, so it can't
+-- have a skip on file. Session 1 briefly re-locks for anyone this
+-- clears (see the Session 1 unlock check in app/onboarding/page.tsx and
+-- app/onboarding/[session]/page.tsx) until they watch it again - nothing
+-- else in the app is affected.
+update profiles set welcome_video_watched_at = null
+where welcome_video_watched_at = created_at and created_at < '2026-08-15'::date;
+
 -- ============================================================
 -- 23. MY BUDGET (Budget Session worksheet, in-app)
 -- Replaces the Google Sheet used in the Budget Session (Onboarding
