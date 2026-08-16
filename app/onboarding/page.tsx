@@ -144,8 +144,12 @@ export default function OnboardingPage() {
   // now (not the still-locked sessions further down) - the top-of-page
   // progress bar, distinct from the "X/Y sessions unlocked" subtitle
   // which is about gating, not how much of what's unlocked is done.
-  let overallTotal = 0;
-  let overallDone = 0;
+  // Starts at 1 (done or not) for the welcome video itself, which isn't
+  // one of any session's own resources.length - counted here so it
+  // shows up in the same "X/Y resources completed" number instead of
+  // being invisible to this progress bar.
+  let overallTotal = 1;
+  let overallDone = videoWatched ? 1 : 0;
   for (let i = 0; i < unlockedCount; i++) {
     const sessionNumber = i + 1;
     const resources = effectiveResourcesForSession(

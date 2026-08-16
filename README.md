@@ -7078,6 +7078,21 @@ Onboarding Tier card) instead of being the very first thing on the page.
 Home's copy of the same shared component picks up the new look too,
 unchanged in position there. No schema change.
 
+### Welcome video counted in Classroom's overall progress bar
+
+The "Your Onboarding Progress" card's "X/Y resources completed" number
+(`app/onboarding/page.tsx`) previously only summed each unlocked
+session's own resource list, so the welcome video - not part of any
+session's resources - never showed up in it (28 total instead of 29
+with all 5 sessions unlocked). `overallTotal`/`overallDone` now start at
+1/`videoWatched ? 1 : 0` before the per-session loop adds the rest, so
+the video counts as its own item in that same number instead of being
+invisible to it. Side effect: the progress card itself, previously
+hidden until `overallTotal > 0` (i.e., until something was unlocked),
+now always shows - even for a brand-new signup who hasn't watched the
+video yet, starting them at "0/1" - since overallTotal can no longer be
+zero. No schema change.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)
