@@ -6970,6 +6970,21 @@ everyone regardless of admin status or whether they've already watched
 it - a permanent, findable home for it independent of the auto-play/
 skip/Classroom-reminder flow. No schema change.
 
+### Welcome video: skip no longer stops it from auto-playing again
+
+Reversed the "skip stops the full-screen block from coming back" change
+from earlier in this feature's life - the team wants it to keep
+auto-playing on every single app open, for everyone, until it's actually
+finished, not just once with a Classroom reminder afterward.
+`AuthGate.tsx`'s `needsWelcomeVideo` now checks only
+`welcome_video_watched_at` again (dropped the `&& !welcome_video_skipped_at`
+it had). "Skip for now" still dismisses the overlay for the current open
+(a video with sound can't autoplay on mobile without a tap anyway, so it
+still needs an escape hatch), and `welcome_video_skipped_at` still gets
+recorded when tapped, but purely as a "last skipped" timestamp now -
+nothing reads it to change behavior. No schema change (the column
+already exists).
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)
