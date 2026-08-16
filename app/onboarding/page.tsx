@@ -147,9 +147,13 @@ export default function OnboardingPage() {
   // Starts at 1 (done or not) for the welcome video itself, which isn't
   // one of any session's own resources.length - counted here so it
   // shows up in the same "X/Y resources completed" number instead of
-  // being invisible to this progress bar.
+  // being invisible to this progress bar. Deliberately checks the raw
+  // welcome_video_watched_at, not videoWatched - that flag is true for
+  // admins regardless of whether they've actually watched it (it just
+  // bypasses the Session 1 lock), which would otherwise show an admin
+  // as having "completed" a resource they haven't touched.
   let overallTotal = 1;
-  let overallDone = videoWatched ? 1 : 0;
+  let overallDone = welcomeVideoWatchedAt ? 1 : 0;
   for (let i = 0; i < unlockedCount; i++) {
     const sessionNumber = i + 1;
     const resources = effectiveResourcesForSession(
