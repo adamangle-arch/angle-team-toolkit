@@ -282,10 +282,7 @@ export const TEAMS = [
   "Tucker Team",
   "Scheerer Team",
   "Abbott Team",
-  "TX Team",
-  "Rodgers Team",
   "Jones Team",
-  "Koebel Team",
 ] as const;
 
 // Pipeline Tracker: ordered stages

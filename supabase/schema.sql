@@ -745,12 +745,29 @@ alter table profiles add column if not exists first_name text;
 alter table profiles add column if not exists last_name text;
 alter table profiles add column if not exists team text;
 
+-- One-time re-prompt, added when the team list below was trimmed from 9
+-- down to 6 (dropped TX/Rodgers/Koebel) - the team wants literally
+-- everyone to re-pick from the new list on their next login, not just
+-- the handful of accounts sitting on a now-removed team. Clears team
+-- back to null, which is exactly the condition ProfileGate already
+-- treats as "ask again" (see nameTeamComplete in components/AuthGate.tsx)
+-- - no new gating logic needed. team_reselect_done only exists to make
+-- this run exactly once per pre-existing account; nothing else reads it.
+-- Guarded by created_at against this change's ship date, same idiom as
+-- the welcome video re-send further down - a genuinely new signup never
+-- matches the created_at filter, so a fresh account's own team choice
+-- (made through the same ProfileGate screen) is never touched by a later
+-- re-run of this file. Must run before the constraint tightens below, or
+-- any existing account still on a dropped team would violate it.
+alter table profiles add column if not exists team_reselect_done boolean not null default false;
+update profiles set team = null, team_reselect_done = true
+where not team_reselect_done and created_at < '2026-08-17'::date;
+
 -- Keep this list in sync with TEAMS in lib/constants.ts.
 alter table profiles drop constraint if exists profiles_team_check;
 alter table profiles add constraint profiles_team_check check (
   team is null or team in (
-    'Angle Team', 'AA2 Team', 'Tucker Team', 'Scheerer Team', 'Abbott Team',
-    'TX Team', 'Rodgers Team', 'Jones Team', 'Koebel Team'
+    'Angle Team', 'AA2 Team', 'Tucker Team', 'Scheerer Team', 'Abbott Team', 'Jones Team'
   )
 );
 

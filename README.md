@@ -252,7 +252,7 @@ data.
 `profiles` also carries `first_name`, `last_name`, and `team` — the fixed
 list of teams (`TEAMS` in `lib/constants.ts`, matching a check constraint in
 `supabase/schema.sql`) is currently: Angle Team, AA2 Team, Tucker Team,
-Scheerer Team, Abbott Team, TX Team, Rodgers Team, Jones Team, Koebel Team.
+Scheerer Team, Abbott Team, Jones Team.
 Every user is prompted to fill these in — once, via a blocking "Finish your
 profile" screen — the first time they log in after this feature shipped, and
 new signups get the same prompt right after creating their account. If
@@ -7121,6 +7121,25 @@ existing background call-rating banner in
 `BottomNav`), which survives switching tabs, auto-clears after 8
 seconds, and can be tapped to dismiss immediately. The old inline
 copies were removed. No schema change.
+
+### Trim the team list to 6, and re-prompt everyone to pick again
+
+`TEAMS` (`lib/constants.ts`, matching `profiles_team_check` in
+`supabase/schema.sql`) dropped TX Team, Rodgers Team, and Koebel Team -
+down to Angle Team, AA2 Team, Tucker Team, Scheerer Team, Abbott Team,
+Jones Team. Rather than leave existing accounts sitting on a value
+that no longer appears in the picker, `profiles.team` is reset to
+`null` for every pre-existing account, which is exactly the condition
+the app already treats as "haven't finished onboarding" -
+`nameTeamComplete` in `components/AuthGate.tsx` goes false and the
+blocking "Finish your profile" screen (`ProfileGate`) reappears on next
+login, same screen a brand-new signup sees, now offering only the
+trimmed list. This is a one-time reset for everyone, not just the
+accounts that were on a dropped team - a new `team_reselect_done`
+column (write-only, nothing else reads it) guards it to a single run
+per pre-existing account, and it's scoped by `created_at` to this
+change's ship date so a genuinely new signup's own team choice is never
+touched by a later re-run of `schema.sql`.
 
 ## Tech stack
 
