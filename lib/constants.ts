@@ -669,10 +669,10 @@ export const ONBOARDING_SESSIONS: OnboardingSession[] = [
         url: "/budget",
       },
       {
-        label: "📋 Homework: Budget Worksheet & Audio",
+        label: "🎧 How to Fill Out a Budget Sheet",
         detail:
-          "The audio bundled here explains how to fill out the budget (the worksheet itself now lives in the app above) - listen before your next meeting.",
-        url: "https://www.dropbox.com/scl/fo/9provgioq5ijeudeaebt1/ACExQWjHLo9nFbsXm8gUBYE?rlkey=k2kadsk4wmc9h0am8nn13lxl1&st=8u9146yf&dl=0",
+          "A five-minute explanation on how to fill out your budget properly before meeting back up with your coach.",
+        url: "https://www.dropbox.com/scl/fi/dhr72f5nf2sfizigwpxqi/How-To-Fill-Out-Budget-Sheet.m4a?rlkey=58h4eaufoelcnpp896xfwykbw&st=mvwit11f&dl=0",
       },
       {
         label: "🎧 Welcome to the Success Journey",
