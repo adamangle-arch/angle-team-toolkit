@@ -13,7 +13,7 @@ import QuoteOverlay from "./QuoteOverlay";
 import WelcomeVideoOverlay from "./WelcomeVideoOverlay";
 import RatingJobsProvider from "./RatingJobsProvider";
 import PullToRefresh from "./PullToRefresh";
-import { ONBOARDING_SESSIONS, isPrimaryUser } from "@/lib/constants";
+import { ONBOARDING_SESSIONS, isPrimaryUser, type ThemeColor } from "@/lib/constants";
 import type { Profile } from "@/lib/types";
 
 type AuthContextValue = {
@@ -43,6 +43,12 @@ type AuthContextValue = {
   // first fetch resolves (renders no dot in the meantime).
   coreRunStatus: "done" | "off_day" | "at_risk" | "pending" | null;
   refreshCoreRunStatus: () => void;
+  // Same value that drives the data-theme attribute below, exposed so
+  // components that need to vary more than CSS custom properties can
+  // give them (e.g. Home's grid tiles picking a themed palette/icon for
+  // USA/Christmas/Easter) don't have to read document.documentElement
+  // themselves. Same "amber" fallback as the attribute effect.
+  themeColor: ThemeColor;
   refreshProfile: () => void;
   signOut: () => void;
   // Who else has the app open right now, team-wide - Stories' Pulse tab's
@@ -423,6 +429,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
         refreshUnreadCount,
         coreRunStatus,
         refreshCoreRunStatus,
+        themeColor: profile.theme_color || "amber",
         refreshProfile: () => loadProfile(user.id),
         signOut: () => supabase.auth.signOut(),
         activeUserIds,

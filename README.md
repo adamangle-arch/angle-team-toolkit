@@ -6567,6 +6567,46 @@ section (the `off_day` column, right after `depth_texts`) plus the
   `profiles_theme_color_check` constraint to allow the 7 new keys (see
   handoff below).
 
+- **USA/Christmas/Easter now genuinely look like their holiday, and
+  Gold/Silver/Metallic actually shine.** Follow-up on the 7 new App
+  Colors above: those first shipped using the same single-gradient
+  tile every other colorway uses, which reads fine for a plain accent
+  color but not for "USA" or "Christmas." Home's grid tiles for these
+  themes now break that one-gradient-fits-all rule on purpose:
+  - **USA, Christmas, Easter** cycle each tile through a small
+    hardcoded on-brand palette instead of one gradient repeated
+    everywhere - USA alternates red/white/blue tiles, Christmas
+    alternates red/green, Easter cycles four pastels - plus a small
+    corner icon per theme (a `Star` for USA, `Snowflake` for
+    Christmas, `Egg` for Easter) on top of each tile's own existing
+    icon. `FLAVOR_TILES` in `app/home/page.tsx` holds this palette +
+    icon per theme, keyed by the same `ThemeColor` type as everything
+    else; a pale tile (USA's white stripe, Easter's pastel yellow)
+    flips its text/icon color to navy instead of white so it stays
+    readable, via a per-swatch `onLight` flag in that config. These
+    three are deliberately the only themes with hardcoded per-tile hex
+    rather than the shared `--color-amber-*` variables - the palette
+    *is* the theme here, not a tint of one accent color.
+  - **Gold, Silver, Metallic** keep the normal single theme-reactive
+    gradient (still `--color-amber-light` → `--color-amber-dark`, so
+    editing those themes' colors still works the normal way) but gain
+    a moving diagonal shine sweep layered on top - `.tile-shine` in
+    `app/globals.css`, a new dedicated `tile-shine-sweep` keyframe
+    animating an angled white-streak gradient across the tile on a
+    ~2.6s loop. A flat two-tone gradient alone reads as "gold-
+    colored"; the moving highlight is what actually sells "metal."
+  - Every other App Color (Amber, Sky Blue, Emerald, Violet, Rose,
+    Teal, Sunset) is untouched - still the single theme-reactive
+    gradient with no flavor palette or shine, exactly as shipped
+    above.
+  - New context value: `useAuth()` now also exposes `themeColor`
+    (`AuthGate.tsx`, sourced from the same `profiles.theme_color` that
+    already drives the `data-theme` attribute) so a component can
+    branch on the active colorway for effects like this that a CSS
+    variable swap alone can't express, without reaching into
+    `document.documentElement` itself. Client-only change, no SQL
+    needed.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

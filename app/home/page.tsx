@@ -20,6 +20,9 @@ import {
   Medal,
   PartyPopper,
   Lightbulb,
+  Star,
+  Snowflake,
+  Egg,
   type LucideIcon,
 } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
@@ -28,7 +31,7 @@ import { useAuth } from "@/components/AuthGate";
 import { minSessionFor } from "@/lib/onboarding-gate";
 import { supabase } from "@/lib/supabaseClient";
 import { getWeekStart } from "@/lib/dates";
-import { ONBOARDING_SESSIONS } from "@/lib/constants";
+import { ONBOARDING_SESSIONS, type ThemeColor } from "@/lib/constants";
 import type { MyRankEntry } from "@/lib/types";
 
 // Plain wording, not a status enum lookup like BottomNav's dot colors -
@@ -40,6 +43,49 @@ const CORE_RUN_STATUS_COPY: Record<string, string> = {
   at_risk: "At risk — log today or yesterday",
   pending: "Not logged yet today",
 };
+
+// Flavor palettes for the "themed" App Colors (USA, Christmas, Easter) -
+// unlike the solid colorways (Amber, Sky Blue, Gold, ...), which stay a
+// single from-light-to-dark gradient across every tile via the
+// theme-reactive --color-amber-* variables, these cycle each tile
+// through a small on-brand palette (e.g. USA alternates red/white/blue)
+// plus a small decorative corner icon, since a literal red-white-blue
+// flag or a scattering of snowflakes reads as the holiday in a way one
+// flat color never could. Deliberately hardcoded hex, not CSS
+// variables - these colors ARE the theme, not a tint of it.
+const FLAVOR_TILES: Partial<
+  Record<ThemeColor, { gradients: { from: string; to: string; onLight?: boolean }[]; decor: LucideIcon }>
+> = {
+  usa: {
+    gradients: [
+      { from: "#ef4444", to: "#7f1d1d" },
+      { from: "#f8fafc", to: "#cbd5e1", onLight: true },
+      { from: "#60a5fa", to: "#1e3a8a" },
+    ],
+    decor: Star,
+  },
+  christmas: {
+    gradients: [
+      { from: "#ef4444", to: "#991b1b" },
+      { from: "#4ade80", to: "#166534" },
+    ],
+    decor: Snowflake,
+  },
+  easter: {
+    gradients: [
+      { from: "#f9a8d4", to: "#db2777" },
+      { from: "#c4b5fd", to: "#7c3aed" },
+      { from: "#fde68a", to: "#ca8a04", onLight: true },
+      { from: "#93c5fd", to: "#2563eb" },
+    ],
+    decor: Egg,
+  },
+};
+
+// Gold/Silver/Metallic keep the normal single (theme-reactive) gradient
+// tile but get a moving diagonal shine sweep on top (see .tile-shine in
+// globals.css) - the thing a flat gradient alone can't sell as "metal."
+const SHINE_THEMES: ThemeColor[] = ["gold", "silver", "metallic"];
 
 const HOME_ITEMS: { href: string; label: string; icon: LucideIcon; description: string }[] = [
   { href: "/stories", label: "Stories", icon: Camera, description: "Today's prompt - gone in 24h." },
@@ -92,8 +138,10 @@ function HeroCard({
 }
 
 export default function HomePage() {
-  const { user, unlockedThrough, coreRunStatus, unreadNotificationCount } = useAuth();
+  const { user, unlockedThrough, coreRunStatus, unreadNotificationCount, themeColor } = useAuth();
   const visibleItems = HOME_ITEMS.filter((item) => unlockedThrough >= minSessionFor(item.href));
+  const flavorTiles = FLAVOR_TILES[themeColor];
+  const shineTiles = SHINE_THEMES.includes(themeColor);
   // Pipeline and Assistant are session-gated everywhere else (BottomNav,
   // the old More grid) - their hero cards follow the same rule rather
   // than teasing a page that isn't unlocked yet. Classroom (Onboarding)
@@ -190,22 +238,37 @@ export default function HomePage() {
 
         <p className="section-title">Everything else</p>
         <div className="grid grid-cols-2 gap-3">
-          {visibleItems.map((item) => {
+          {visibleItems.map((item, i) => {
+            const tile = flavorTiles?.gradients[i % flavorTiles.gradients.length];
+            const background = tile
+              ? `linear-gradient(135deg, ${tile.from}, ${tile.to})`
+              : "linear-gradient(135deg, var(--color-amber-light), var(--color-amber-dark))";
+            const onLight = tile?.onLight ?? false;
+            const Decor = flavorTiles?.decor;
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 className="relative flex min-h-[132px] flex-col justify-end overflow-hidden rounded-2xl p-3.5 transition active:scale-95"
-                style={{
-                  background: "linear-gradient(135deg, var(--color-amber-light), var(--color-amber-dark))",
-                  boxShadow: "0 10px 24px -12px rgba(0,0,0,0.55)",
-                }}
+                style={{ background, boxShadow: "0 10px 24px -12px rgba(0,0,0,0.55)" }}
               >
+                {shineTiles && <span className="tile-shine" aria-hidden />}
                 <item.icon
-                  className="pointer-events-none absolute -right-3 -top-3 h-24 w-24 text-white opacity-25"
+                  className={`pointer-events-none absolute -right-3 -top-3 h-24 w-24 opacity-25 ${
+                    onLight ? "text-navy" : "text-white"
+                  }`}
                   strokeWidth={1.5}
                   aria-hidden
                 />
+                {Decor && (
+                  <Decor
+                    className={`pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 ${
+                      onLight ? "text-navy/45" : "text-white/70"
+                    }`}
+                    strokeWidth={2}
+                    aria-hidden
+                  />
+                )}
                 {item.href === "/notifications" && unreadNotificationCount > 0 && (
                   <span
                     className="absolute right-2 top-2 z-20 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white shadow-[0_2px_6px_-1px_rgba(0,0,0,0.5)]"
@@ -215,10 +278,16 @@ export default function HomePage() {
                   </span>
                 )}
                 <div className="relative z-10">
-                  <p className="text-base font-extrabold leading-tight text-white drop-shadow-sm">
+                  <p
+                    className={`text-base font-extrabold leading-tight drop-shadow-sm ${
+                      onLight ? "text-navy" : "text-white"
+                    }`}
+                  >
                     {item.label}
                   </p>
-                  <p className="mt-1 text-[11px] leading-snug text-white/85">{item.description}</p>
+                  <p className={`mt-1 text-[11px] leading-snug ${onLight ? "text-navy/70" : "text-white/85"}`}>
+                    {item.description}
+                  </p>
                 </div>
               </Link>
             );

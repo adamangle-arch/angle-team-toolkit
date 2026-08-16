@@ -342,4 +342,29 @@ body {
   .animate-glow-pulse {
     animation: glow-pulse 2.4s ease-in-out infinite;
   }
+
+  /* Diagonal shine sweep laid over Home grid tiles under the Gold/
+     Silver/Metallic App Colors - a flat two-stop gradient alone reads
+     as "gold-colored," not "gold," so this adds the moving highlight a
+     real polished surface would catch as you look at it. Oversized and
+     angled so the sweep crosses corner-to-corner regardless of a
+     tile's exact aspect ratio; own dedicated keyframes (rather than
+     reusing .animate-shimmer above) because that one only animates
+     translateX, and layering a static rotate underneath an animated
+     transform on the same element would just get clobbered every
+     frame. */
+  @keyframes tile-shine-sweep {
+    0% {
+      transform: translateX(-60%) rotate(8deg);
+    }
+    100% {
+      transform: translateX(60%) rotate(8deg);
+    }
+  }
+  .tile-shine {
+    position: absolute;
+    inset: -20% -40%;
+    background: linear-gradient(100deg, transparent 42%, rgba(255, 255, 255, 0.55) 50%, transparent 58%);
+    animation: tile-shine-sweep 2.6s ease-in-out infinite;
+  }
 }
