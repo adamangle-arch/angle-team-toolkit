@@ -297,9 +297,9 @@ export default function MyProfilePage() {
                       <span
                         className="flex h-9 w-9 items-center justify-center rounded-full text-sm"
                         style={{
-                          backgroundColor: theme.swatch,
+                          background: theme.swatch,
                           boxShadow: isActive
-                            ? `0 0 0 2px var(--color-navy-lighter), 0 0 0 4px ${theme.swatch}`
+                            ? `0 0 0 2px var(--color-navy-lighter), 0 0 0 4px ${theme.ring}`
                             : "none",
                         }}
                       >

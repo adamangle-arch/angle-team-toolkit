@@ -60,6 +60,48 @@
   --color-amber-light: #2dd4bf;
   --amber-rgb: 20 184 166;
 }
+:root[data-theme="usa"] {
+  --color-amber: #b22234;
+  --color-amber-dark: #3c3b6e;
+  --color-amber-light: #ffffff;
+  --amber-rgb: 178 34 52;
+}
+:root[data-theme="christmas"] {
+  --color-amber: #dc2626;
+  --color-amber-dark: #14532d;
+  --color-amber-light: #4ade80;
+  --amber-rgb: 220 38 38;
+}
+:root[data-theme="easter"] {
+  --color-amber: #f472b6;
+  --color-amber-dark: #7c3aed;
+  --color-amber-light: #fef08a;
+  --amber-rgb: 244 114 182;
+}
+:root[data-theme="gold"] {
+  --color-amber: #d4af37;
+  --color-amber-dark: #92400e;
+  --color-amber-light: #fde68a;
+  --amber-rgb: 212 175 55;
+}
+:root[data-theme="silver"] {
+  --color-amber: #94a3b8;
+  --color-amber-dark: #475569;
+  --color-amber-light: #f1f5f9;
+  --amber-rgb: 148 163 184;
+}
+:root[data-theme="metallic"] {
+  --color-amber: #b76e45;
+  --color-amber-dark: #7c4a2d;
+  --color-amber-light: #e8b795;
+  --amber-rgb: 183 110 69;
+}
+:root[data-theme="sunset"] {
+  --color-amber: #f472b6;
+  --color-amber-dark: #7c3aed;
+  --color-amber-light: #fb923c;
+  --amber-rgb: 244 114 182;
+}
 
 html,
 body {

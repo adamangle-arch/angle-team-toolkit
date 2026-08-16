@@ -41,18 +41,6 @@ const CORE_RUN_STATUS_COPY: Record<string, string> = {
   pending: "Not logged yet today",
 };
 
-// Cycled per tile below, not tied to the account-wide colorway
-// (profiles.theme_color) - this is just visual variety for the grid, same
-// idea as the App Store's Browse tiles each getting their own color.
-const TILE_COLORS: { from: string; to: string }[] = [
-  { from: "#7dd3fc", to: "#0369a1" }, // sky
-  { from: "#6ee7b7", to: "#047857" }, // emerald
-  { from: "#c4b5fd", to: "#6d28d9" }, // violet
-  { from: "#5eead4", to: "#0f766e" }, // teal
-  { from: "#fda4af", to: "#be123c" }, // rose
-  { from: "#fde68a", to: "#b45309" }, // amber
-];
-
 const HOME_ITEMS: { href: string; label: string; icon: LucideIcon; description: string }[] = [
   { href: "/stories", label: "Stories", icon: Camera, description: "Today's prompt - gone in 24h." },
   { href: "/notifications", label: "Notifications", icon: Bell, description: "Every push we've sent you." },
@@ -202,15 +190,14 @@ export default function HomePage() {
 
         <p className="section-title">Everything else</p>
         <div className="grid grid-cols-2 gap-3">
-          {visibleItems.map((item, i) => {
-            const color = TILE_COLORS[i % TILE_COLORS.length];
+          {visibleItems.map((item) => {
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 className="relative flex min-h-[132px] flex-col justify-end overflow-hidden rounded-2xl p-3.5 transition active:scale-95"
                 style={{
-                  background: `linear-gradient(135deg, ${color.from}, ${color.to})`,
+                  background: "linear-gradient(135deg, var(--color-amber-light), var(--color-amber-dark))",
                   boxShadow: "0 10px 24px -12px rgba(0,0,0,0.55)",
                 }}
               >

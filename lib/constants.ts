@@ -101,14 +101,32 @@ export type ReadingUnit = (typeof READING_UNITS)[number]["key"];
 // ":root[data-theme=...]" blocks in app/globals.css), so every existing
 // text-amber/bg-amber/border-amber usage across the app repaints without
 // any component needing to know a colorway exists. Must match the check
-// constraint on profiles.theme_color in supabase/schema.sql.
+// constraint on profiles.theme_color in supabase/schema.sql. `swatch` can
+// be a flat hex (solid picker circle) or a `linear-gradient(...)` string
+// (multi-tone preview, e.g. USA/holiday/metallic themes) - the picker
+// renders it with the `background` shorthand so both work. `ring` is
+// always a solid hex, used for the active-swatch selection ring since a
+// box-shadow color can't itself be a gradient.
 export const THEME_COLORS = [
-  { key: "amber", label: "Amber", swatch: "#f59e0b" },
-  { key: "blue", label: "Sky Blue", swatch: "#0ea5e9" },
-  { key: "green", label: "Emerald", swatch: "#10b981" },
-  { key: "purple", label: "Violet", swatch: "#8b5cf6" },
-  { key: "rose", label: "Rose", swatch: "#f43f5e" },
-  { key: "teal", label: "Teal", swatch: "#14b8a6" },
+  { key: "amber", label: "Amber", swatch: "#f59e0b", ring: "#f59e0b" },
+  { key: "blue", label: "Sky Blue", swatch: "#0ea5e9", ring: "#0ea5e9" },
+  { key: "green", label: "Emerald", swatch: "#10b981", ring: "#10b981" },
+  { key: "purple", label: "Violet", swatch: "#8b5cf6", ring: "#8b5cf6" },
+  { key: "rose", label: "Rose", swatch: "#f43f5e", ring: "#f43f5e" },
+  { key: "teal", label: "Teal", swatch: "#14b8a6", ring: "#14b8a6" },
+  {
+    key: "usa",
+    label: "USA",
+    swatch:
+      "linear-gradient(135deg, #b22234 0%, #b22234 33%, #ffffff 33%, #ffffff 66%, #3c3b6e 66%, #3c3b6e 100%)",
+    ring: "#3c3b6e",
+  },
+  { key: "christmas", label: "Christmas", swatch: "linear-gradient(135deg, #dc2626, #15803d)", ring: "#dc2626" },
+  { key: "easter", label: "Easter", swatch: "linear-gradient(135deg, #f9a8d4, #c4b5fd, #fef08a)", ring: "#c4b5fd" },
+  { key: "gold", label: "Gold", swatch: "linear-gradient(135deg, #fde68a, #d4af37, #92400e)", ring: "#d4af37" },
+  { key: "silver", label: "Silver", swatch: "linear-gradient(135deg, #f1f5f9, #94a3b8, #475569)", ring: "#94a3b8" },
+  { key: "metallic", label: "Metallic", swatch: "linear-gradient(135deg, #e8b795, #b76e45, #7c4a2d)", ring: "#b76e45" },
+  { key: "sunset", label: "Sunset", swatch: "linear-gradient(135deg, #fb923c, #f472b6, #7c3aed)", ring: "#f472b6" },
 ] as const;
 export type ThemeColor = (typeof THEME_COLORS)[number]["key"];
 

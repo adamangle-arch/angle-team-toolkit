@@ -6523,6 +6523,50 @@ section (the `off_day` column, right after `depth_texts`) plus the
   stays under a locked one's banner so the state isn't color-only.
   Client-only change, no SQL needed.
 
+- **Fix: Home's "Everything else" grid tiles now match your App
+  Color instead of cycling through a fixed rainbow.** Each tile
+  (Stories, Contacts, Team, etc.) used to get its gradient from a
+  hardcoded 6-color `TILE_COLORS` array cycled by grid position,
+  completely unrelated to the accent color picked on My Profile - so a
+  Sky Blue account still saw a purple Goals tile next to a rose PV
+  tile. Every tile's gradient is now `var(--color-amber-light)` →
+  `var(--color-amber-dark)`, the same theme-reactive tokens the hero
+  cards above it already used, so the whole grid repaints together
+  with whatever colorway is active. Client-only change, no SQL needed.
+
+- **7 new App Color options: USA, Christmas, Easter, Gold, Silver,
+  Metallic, and Sunset.** Same mechanism as the original 6 colorways
+  (a `:root[data-theme="..."]` override block in `app/globals.css`,
+  picked via a swatch on My Profile, persisted to
+  `profiles.theme_color`) - these just add more entries. A few
+  (USA, Christmas, Easter, Gold, Silver, Metallic) needed a
+  multi-stop `linear-gradient(...)` swatch instead of a flat hex to
+  read as themed in the picker (e.g. USA's swatch is an actual red-
+  white-blue diagonal stripe), so `THEME_COLORS` in `lib/constants.ts`
+  gained a `ring` field alongside `swatch` - `swatch` renders the
+  picker circle itself (via the `background` shorthand, so it accepts
+  either a hex or a gradient string), while `ring` is always a solid
+  hex used for the selection ring, since a `box-shadow` color can't be
+  a gradient. The app itself still only ever repaints from a single
+  amber/amber-dark/amber-light/amber-rgb tuple per theme, same as
+  before - the multi-tone effect lives entirely in the picker preview
+  and, for the diagonal tile/card gradients that already blend
+  `--color-amber-light` into `--color-amber-dark`, in the two-tone
+  contrast between those two values (e.g. USA renders as a white-to-
+  red diagonal on cards, Gold as pale-champagne-to-bronze). **Not
+  included: real light mode.** "Dark and light mode" was part of the
+  request, but dark is already the app's only mode, so that half needs
+  no work. A genuine light mode isn't a colorway swap like the others
+  - it would mean auditing and re-theming the ~500+ places across the
+  app that use plain Tailwind `text-slate-200/300/400/500` classes
+  chosen for contrast against the fixed dark navy background (never
+  designed to invert), plus making `--color-navy` itself theme-
+  reactive. That's a separate, much larger project on the scale of the
+  icon rollout, not something to fold into a colorway list - flagging
+  it here rather than silently skipping it. SQL needed: widens the
+  `profiles_theme_color_check` constraint to allow the 7 new keys (see
+  handoff below).
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

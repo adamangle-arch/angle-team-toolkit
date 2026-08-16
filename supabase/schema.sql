@@ -878,7 +878,10 @@ alter table profiles add constraint profiles_timezone_check check (
 alter table profiles add column if not exists theme_color text not null default 'amber';
 alter table profiles drop constraint if exists profiles_theme_color_check;
 alter table profiles add constraint profiles_theme_color_check check (
-  theme_color in ('amber', 'blue', 'green', 'purple', 'rose', 'teal')
+  theme_color in (
+    'amber', 'blue', 'green', 'purple', 'rose', 'teal',
+    'usa', 'christmas', 'easter', 'gold', 'silver', 'metallic', 'sunset'
+  )
 );
 
 create or replace function public.generate_account_number()
