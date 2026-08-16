@@ -7662,25 +7662,39 @@ create index if not exists budget_worksheets_user_id_idx on budget_worksheets(us
 
 alter table budget_worksheets enable row level security;
 
--- Same "own row, any-level upline, or admin" read shape as
--- activity_logs/candidate_specific_resources above - an upline coaching
--- a Budget Session needs to see it, at any level, not just a direct
--- sponsor. Writes are owner-only (no "fill in for a downline" carve-out
--- like Pipeline has - this is personal financial disclosure, not a team
--- business number someone else should ever be entering on your behalf).
+-- "Own row, linked spouse's row, any-level upline, or admin" read shape,
+-- same "any-level upline" reach as activity_logs/candidate_specific_
+-- resources above. Originally owner-only end to end ("financial
+-- disclosure is personal even between linked spouses") - the team
+-- changed that: a linked spouse can now see AND edit their partner's
+-- budget too, same as they already can for household-shared business
+-- tables (pipeline/candidates/contacts). get_household_partner_id()
+-- resolves the link from either direction (household_id is only ever
+-- stored on the "deferring" side), unlike a plain household_id column
+-- read. Still two separate rows, one per person - not merged into a
+-- single household row like pipeline/candidates are, since these are
+-- two individual worksheets a spouse can each open, not one shared
+-- number (app/budget/page.tsx's "My Budget" / their name tab switcher).
 drop policy if exists "budget_worksheets_select_own_or_upline_or_admin" on budget_worksheets;
-create policy "budget_worksheets_select_own_or_upline_or_admin" on budget_worksheets for select using (
+create policy "budget_worksheets_select_own_or_spouse_or_upline_or_admin" on budget_worksheets for select using (
   user_id = auth.uid()
+  or user_id = public.get_household_partner_id()
   or public.is_upline_of(auth.uid(), user_id)
   or public.is_app_admin()
 );
 
 drop policy if exists "budget_worksheets_insert_own" on budget_worksheets;
-create policy "budget_worksheets_insert_own" on budget_worksheets for insert with check (user_id = auth.uid());
+create policy "budget_worksheets_insert_own_or_spouse" on budget_worksheets for insert with check (
+  user_id = auth.uid() or user_id = public.get_household_partner_id()
+);
 
 drop policy if exists "budget_worksheets_update_own" on budget_worksheets;
-create policy "budget_worksheets_update_own" on budget_worksheets
-  for update using (user_id = auth.uid()) with check (user_id = auth.uid());
+drop policy if exists "budget_worksheets_update_own_or_spouse" on budget_worksheets;
+create policy "budget_worksheets_update_own_or_spouse" on budget_worksheets for update using (
+  user_id = auth.uid() or user_id = public.get_household_partner_id()
+) with check (
+  user_id = auth.uid() or user_id = public.get_household_partner_id()
+);
 
 -- ============================================================
 -- 24. LIGHT / DARK MODE

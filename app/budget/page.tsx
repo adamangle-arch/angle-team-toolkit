@@ -28,7 +28,7 @@ import {
   BUDGET_DUE_HALVES,
   type BudgetDueHalf,
 } from "@/lib/constants";
-import type { BudgetWorksheet } from "@/lib/types";
+import type { BudgetWorksheet, PublicProfile } from "@/lib/types";
 
 type FixedInput = { amount: string; due: BudgetDueHalf | null };
 type DebtInput = { payment: string; interest_rate: string; total_owed: string };
@@ -197,6 +197,39 @@ export default function BudgetPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
+  // A linked spouse can see AND edit each other's budget (RLS already
+  // allows it - see budget_worksheets_select_own_or_spouse_or_upline_or_
+  // admin etc. in supabase/schema.sql) - two separate worksheets though,
+  // not merged into one shared row like Pipeline/Candidates, so this is
+  // a tab switcher rather than a single shared view. get_household_
+  // partner_id() resolves the link from either direction (household_id
+  // is only ever stored on the "deferring" side).
+  const [partnerId, setPartnerId] = useState<string | null>(null);
+  const [partnerName, setPartnerName] = useState<string | null>(null);
+  const [viewingUserId, setViewingUserId] = useState(user.id);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadPartner() {
+      const { data: partnerIdData } = await supabase.rpc("get_household_partner_id");
+      const id = (partnerIdData as string | null) ?? null;
+      if (cancelled) return;
+      setPartnerId(id);
+      if (!id) {
+        setPartnerName(null);
+        return;
+      }
+      const { data: partnerData } = await supabase.rpc("get_public_profile", { p_user_id: id });
+      if (cancelled) return;
+      const partner = ((partnerData as PublicProfile[]) ?? [])[0] ?? null;
+      setPartnerName(partner ? [partner.first_name, partner.last_name].filter(Boolean).join(" ") : "Spouse");
+    }
+    loadPartner();
+    return () => {
+      cancelled = true;
+    };
+  }, [user.id]);
+
   const [income, setIncome] = useState<Record<string, string>>({});
   const [fixed, setFixed] = useState<Record<string, FixedInput>>({});
   const [variable, setVariable] = useState<Record<string, string>>({});
@@ -215,10 +248,18 @@ export default function BudgetPage() {
   useEffect(() => {
     let cancelled = false;
     async function load() {
+      setLoading(true);
+      // Switching tabs (My Budget <-> spouse's) needs a clean slate -
+      // otherwise the incoming reload would look "dirty" against the
+      // previous tab's edits and the first-save notification check
+      // would be judging the wrong worksheet's history.
+      dirtyRef.current = false;
+      setSaveState("idle");
+      setSaveError(null);
       const { data } = await supabase
         .from("budget_worksheets")
         .select("*")
-        .eq("user_id", user.id)
+        .eq("user_id", viewingUserId)
         .maybeSingle();
       const w = data as BudgetWorksheet | null;
       if (cancelled) return;
@@ -253,7 +294,7 @@ export default function BudgetPage() {
     return () => {
       cancelled = true;
     };
-  }, [user.id]);
+  }, [viewingUserId]);
 
   function markDirty() {
     dirtyRef.current = true;
@@ -262,8 +303,9 @@ export default function BudgetPage() {
   async function doSave() {
     setSaveError(null);
     const isFirstSave = !hadRowRef.current;
+    const savingForUserId = viewingUserId;
     const payload = {
-      user_id: user.id,
+      user_id: savingForUserId,
       income: Object.fromEntries(Object.entries(income).map(([k, v]) => [k, num(v)])),
       fixed_expenses: Object.fromEntries(
         Object.entries(fixed).map(([k, v]) => [k, { amount: num(v.amount), due: v.due }])
@@ -287,7 +329,14 @@ export default function BudgetPage() {
     }
     hadRowRef.current = true;
     setSaveState("saved");
-    if (isFirstSave) fireNotifyEvent({ kind: "budget_worksheet_completed" });
+    // Only notify on your own first save, not one you made helping fill
+    // in your spouse's - the API route attributes the notification to
+    // whoever's signed in making the call, not the worksheet's user_id,
+    // so firing it here for a spouse's worksheet would tell the wrong
+    // household's upline "I started my budget."
+    if (isFirstSave && savingForUserId === user.id) {
+      fireNotifyEvent({ kind: "budget_worksheet_completed" });
+    }
   }
 
   // Debounced autosave - fires ~900ms after the last edit rather than on
@@ -411,8 +460,28 @@ export default function BudgetPage() {
 
   return (
     <>
-      <PageHeader title="My Budget" subtitle="Session 1 homework" />
+      <PageHeader
+        title="My Budget"
+        subtitle={viewingUserId === user.id ? "Session 1 homework" : `${partnerName ?? "Spouse"}'s Session 1 homework`}
+      />
       <main className="page-main">
+        {partnerId && (
+          <div className="flex gap-2">
+            <button
+              className={viewingUserId === user.id ? "toggle-pill-active flex-1" : "toggle-pill-inactive flex-1"}
+              onClick={() => setViewingUserId(user.id)}
+            >
+              My Budget
+            </button>
+            <button
+              className={viewingUserId === partnerId ? "toggle-pill-active flex-1" : "toggle-pill-inactive flex-1"}
+              onClick={() => setViewingUserId(partnerId)}
+            >
+              {(partnerName ?? "Spouse").split(" ")[0]}&apos;s Budget
+            </button>
+          </div>
+        )}
+
         {loading ? (
           <SkeletonList cards={4} />
         ) : (

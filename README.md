@@ -7033,6 +7033,35 @@ leftover `!isAdmin` condition from before it became a shared, prominent
 banner - Home's copy never had one. Removed it so the two match exactly,
 admin included. No schema change.
 
+### My Budget: linked spouses can now see and edit each other's budget
+
+Reverses an earlier deliberate decision ("financial disclosure is
+personal even between linked spouses") - the team wants a linked spouse
+to be able to view AND edit their partner's budget too, same access a
+spouse already has on the household-shared business tables (pipeline/
+candidates/contacts). Still two separate rows/worksheets though, not
+merged into one shared number like those tables - `budget_worksheets`'
+RLS policies (`supabase/schema.sql`) now allow
+`user_id = public.get_household_partner_id()` alongside the existing
+owner/upline/admin checks, for select, insert, and update alike.
+`get_household_partner_id()` already existed (used client-side on My
+Profile) and resolves the spouse link from either direction, unlike a
+plain `household_id` column read which only works from the "deferring"
+side.
+
+`app/budget/page.tsx` gained a "My Budget" / "{spouse}'s Budget" tab
+switcher (only rendered when a partner is linked) - `viewingUserId`
+drives the fetch/save/autosave instead of always using your own id, and
+switching tabs resets the autosave's dirty-tracking so the incoming
+worksheet doesn't look "dirty" against the previous tab's edits. The
+`budget_worksheet_completed` first-save notification only fires when
+you're editing your own budget, not your spouse's - the API route
+attributes it to whoever's signed in making the call, not the
+worksheet's owner, so firing it while helping fill in a spouse's
+worksheet would tell the wrong household's upline "I started my
+budget." SQL needed: updates the three `budget_worksheets` RLS policies
+(see handoff below).
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)
