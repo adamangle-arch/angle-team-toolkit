@@ -340,7 +340,7 @@ export default function MyProfilePage() {
                   Welcome Video
                 </p>
                 <p className="text-xs text-slate-400">
-                  A quick message from Adam and Laura Angle before you get started.
+                  A quick message from Alex and Laura Angle before you get started.
                 </p>
                 <button className="btn-secondary w-full" onClick={() => setShowWelcomeVideo(true)}>
                   Watch Now
