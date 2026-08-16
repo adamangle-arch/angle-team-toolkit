@@ -6686,11 +6686,14 @@ grant execute on function public.get_badge_metrics(uuid) to authenticated;
 
 -- The sole definition of sent_notifications' kind check constraint (see
 -- the note back at the table's own CREATE TABLE block) - every kind ever
--- added lives in this one list, most-recently the notifications batch
--- adding leaderboard_liked/story_posted/candidate_launched/
--- candidate_resource_completed/prospect_link_visited. Add new kinds by
--- editing this list in place; never add a second drop/add-constraint
--- block elsewhere in this file for the same constraint.
+-- added lives in this one list, most-recently 'story_liked'/
+-- 'story_commented' (merged in from a second drop/add-constraint block
+-- that had drifted in further down the file - exactly the mistake this
+-- comment already warned against once; consolidated back into this one
+-- block rather than repeating it) plus 'budget_worksheet_completed' (My
+-- Budget). Add new kinds by editing this list in place; never add a
+-- second drop/add-constraint block elsewhere in this file for the same
+-- constraint.
 alter table sent_notifications drop constraint if exists sent_notifications_kind_check;
 alter table sent_notifications add constraint sent_notifications_kind_check check (
   kind in (
@@ -6702,7 +6705,8 @@ alter table sent_notifications add constraint sent_notifications_kind_check chec
     'prospect_link_visited', 'member_resource_sent', 'library_resource_added', 'streak_milestone_reached',
     'downline_signup_linked', 'trivia_streak_reminder', 'app_inactive_reminder', 'streak_break_downline',
     'admin_weekly_report', 'engagement_filler',
-    'candidate_filtered_out', 'customer_sale_logged', 'onboarding_completed'
+    'candidate_filtered_out', 'customer_sale_logged', 'onboarding_completed',
+    'story_liked', 'story_commented', 'budget_worksheet_completed'
   )
 );
 
@@ -7361,22 +7365,9 @@ grant execute on function public.get_story_comments(uuid) to authenticated;
 -- already a free-form string, nothing leaderboard-specific about its
 -- schema) with entry_key = 'story:' || story_id, instead of a second
 -- near-identical likes table - get_likers(p_entry_keys) already works
--- unchanged for any entry_key shape.
-alter table sent_notifications drop constraint if exists sent_notifications_kind_check;
-alter table sent_notifications add constraint sent_notifications_kind_check check (
-  kind in (
-    'daily_stat_leaders', 'weekly_stat_leaders', 'monthly_stat_leaders', 'core_run_reminder',
-    'calendar_reminder', 'calendar_event_added', 'call_rating_submitted', 'core_run_completed',
-    'pipeline_5plus', 'onboarding_unlocked', 'games_unlocked', 'badge_earned',
-    'mission_reminder', 'volume_reminder', 'goals_reminder',
-    'leaderboard_liked', 'story_posted', 'candidate_launched', 'candidate_resource_completed',
-    'prospect_link_visited', 'member_resource_sent', 'library_resource_added', 'streak_milestone_reached',
-    'downline_signup_linked', 'trivia_streak_reminder', 'app_inactive_reminder', 'streak_break_downline',
-    'admin_weekly_report', 'engagement_filler',
-    'candidate_filtered_out', 'customer_sale_logged', 'onboarding_completed',
-    'story_liked', 'story_commented'
-  )
-);
+-- unchanged for any entry_key shape. ('story_liked'/'story_commented'
+-- themselves were added to sent_notifications_kind_check back at that
+-- constraint's one sole definition, not here - see the note there.)
 
 -- 19. STORIES: PULSE AVATAR ROW -------------------------------------------
 -- Pulse dropped from its own tab to an always-visible avatar row at the
@@ -7592,3 +7583,67 @@ alter table profiles add column if not exists welcome_video_watched_at timestamp
 -- signup as watched on the next re-run.
 update profiles set welcome_video_watched_at = created_at
 where welcome_video_watched_at is null and created_at < '2026-08-15'::date;
+
+-- ============================================================
+-- 23. MY BUDGET (Budget Session worksheet, in-app)
+-- Replaces the Google Sheet used in the Budget Session (Onboarding
+-- Session 1) with an in-app version an upline can see get filled out,
+-- rather than something that only ever lived in a Dropbox link. One row
+-- per person (NOT household-shared like pipeline/candidates/contacts -
+-- financial disclosure is personal even between linked spouses, unlike
+-- team business numbers). Amounts live in a handful of jsonb maps
+-- keyed by the line-item slugs in BUDGET_*_ITEMS (lib/constants.ts)
+-- rather than one column per line item - the sheet has ~55 line items
+-- across 6 sections, and a flexible jsonb map means a future content
+-- change (renaming a line item's label, adding one) doesn't need a
+-- migration. fixed_expenses entries are {amount, due} (due mirrors the
+-- sheet's "Date Bill Due 1st-15th | 15th-30th" column); debts entries
+-- are {payment, interest_rate, total_owed}; every other section is a
+-- flat {slug: amount} map. See lib/budget.ts's computeBudgetTotals for
+-- how these six maps turn into the sheet's own Cash Flow summary.
+-- ============================================================
+create table if not exists budget_worksheets (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null unique default auth.uid() references auth.users(id) on delete cascade,
+  income jsonb not null default '{}'::jsonb,
+  fixed_expenses jsonb not null default '{}'::jsonb,
+  variable_expenses jsonb not null default '{}'::jsonb,
+  debts jsonb not null default '{}'::jsonb,
+  business_investments jsonb not null default '{}'::jsonb,
+  savings jsonb not null default '{}'::jsonb,
+  -- Set once someone taps "Mark Budget Complete" - stays null the whole
+  -- time they're still filling it in. Drives the checkmark on the
+  -- Classroom homework link, the Team tab's Budget card for an upline,
+  -- and the one-time budget_worksheet_completed push fired on the
+  -- null -> not-null transition (app/budget/page.tsx). Editing again
+  -- after completion updates the numbers without clearing this or
+  -- re-notifying - "Mark Incomplete" is the only thing that resets it,
+  -- same reversible-flag shape as candidates.launched/filtered_out.
+  completed_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists budget_worksheets_user_id_idx on budget_worksheets(user_id);
+
+alter table budget_worksheets enable row level security;
+
+-- Same "own row, any-level upline, or admin" read shape as
+-- activity_logs/candidate_specific_resources above - an upline coaching
+-- a Budget Session needs to see it, at any level, not just a direct
+-- sponsor. Writes are owner-only (no "fill in for a downline" carve-out
+-- like Pipeline has - this is personal financial disclosure, not a team
+-- business number someone else should ever be entering on your behalf).
+drop policy if exists "budget_worksheets_select_own_or_upline_or_admin" on budget_worksheets;
+create policy "budget_worksheets_select_own_or_upline_or_admin" on budget_worksheets for select using (
+  user_id = auth.uid()
+  or public.is_upline_of(auth.uid(), user_id)
+  or public.is_app_admin()
+);
+
+drop policy if exists "budget_worksheets_insert_own" on budget_worksheets;
+create policy "budget_worksheets_insert_own" on budget_worksheets for insert with check (user_id = auth.uid());
+
+drop policy if exists "budget_worksheets_update_own" on budget_worksheets;
+create policy "budget_worksheets_update_own" on budget_worksheets
+  for update using (user_id = auth.uid()) with check (user_id = auth.uid());

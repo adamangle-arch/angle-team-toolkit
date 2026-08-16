@@ -23,6 +23,7 @@ import {
   Star,
   Snowflake,
   Egg,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
@@ -111,6 +112,7 @@ const HOME_ITEMS: { href: string; label: string; icon: LucideIcon; description: 
   { href: "/stories", label: "Stories", icon: Camera, description: "Today's prompt - gone in 24h." },
   { href: "/notifications", label: "Notifications", icon: Bell, description: "Every push we've sent you." },
   { href: "/goals", label: "Goals", icon: Target, description: "Targets and your dreams." },
+  { href: "/budget", label: "Budget", icon: Wallet, description: "Your Session 1 budget worksheet." },
   { href: "/contacts", label: "Contacts", icon: Contact, description: "Your A/B/Customer list." },
   { href: "/volume", label: "PV", icon: DollarSign, description: "Personal PV and Ditto." },
   // Visible to everyone: admins see the whole company, everyone else

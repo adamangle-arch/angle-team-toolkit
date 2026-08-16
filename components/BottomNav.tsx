@@ -28,6 +28,7 @@ const NAV_ITEMS: { href: string; label: string; icon: LucideIcon }[] = [
 // on top of the grid tiles, now that none of them has its own tab.
 const HOME_HUB_ROUTES = [
   "/goals",
+  "/budget",
   "/contacts",
   "/volume",
   "/team",

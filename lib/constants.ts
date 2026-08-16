@@ -79,6 +79,7 @@ export const NOTIFICATION_KINDS = [
   { kind: "engagement_filler", label: "Book/audio recommendations" },
   { kind: "story_liked", label: "Story liked" },
   { kind: "story_commented", label: "New comment on your story" },
+  { kind: "budget_worksheet_completed", label: "Budget worksheet completed" },
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number]["kind"];
 export const NOTIFICATION_KIND_LABELS = Object.fromEntries(
@@ -650,9 +651,15 @@ export const ONBOARDING_SESSIONS: OnboardingSession[] = [
         url: "https://www.dropbox.com/scl/fi/nem1bqacjnfo4r3mtgraa/Excited-to-Confident-L22-3613-AUD.mp3?rlkey=0z1shlbvk28ndg7tfuk0p64za&st=revpnfob&dl=0",
       },
       {
+        label: "📋 Fill Out Your Budget (in-app)",
+        detail:
+          "The same budget worksheet your coach has always used, now right here in the app - your mentor can see once it's marked complete.",
+        url: "/budget",
+      },
+      {
         label: "📋 Homework: Budget Worksheet & Audio",
         detail:
-          "Listen to the audio explaining how to fill out the budget, then bring your completed budget to your next meeting with your coach.",
+          "The audio bundled here explains how to fill out the budget (the worksheet itself now lives in the app above) - listen before your next meeting.",
         url: "https://www.dropbox.com/scl/fo/9provgioq5ijeudeaebt1/ACExQWjHLo9nFbsXm8gUBYE?rlkey=k2kadsk4wmc9h0am8nn13lxl1&st=8u9146yf&dl=0",
       },
       {
@@ -800,6 +807,108 @@ export const ONBOARDING_SESSIONS: OnboardingSession[] = [
     ],
   },
 ];
+
+// My Budget (app/budget/page.tsx) - line items matching the Budget
+// Session's worksheet exactly, so nothing gets lost bringing it in-app.
+// `slug` is the jsonb key on budget_worksheets.{income,fixed_expenses,
+// variable_expenses,debts,business_investments,savings} - stable once
+// shipped, since renaming one here would silently orphan whatever a
+// person already saved under the old slug. Labels can be edited freely;
+// slugs can't. (The original sheet's Debt section actually reads "Auto
+// Loan 1/2, Credit Card 1/2/3, Line of Credit 1/2, Student Loan 1, 3" -
+// skipping "2" - corrected to 1/2 here rather than reproduced literally,
+// since a visible gap would read as a bug in a polished form the way it
+// doesn't in a spreadsheet.)
+export const BUDGET_INCOME_ITEMS = [
+  { slug: "income_1", label: "Monthly Income (net)" },
+  { slug: "income_2", label: "Monthly Income (net)" },
+  { slug: "other_income", label: "Other Income" },
+] as const;
+
+export type BudgetDueHalf = "first_half" | "second_half";
+export const BUDGET_DUE_HALVES: { key: BudgetDueHalf; label: string }[] = [
+  { key: "first_half", label: "1st–15th" },
+  { key: "second_half", label: "15th–30th" },
+];
+
+export const BUDGET_FIXED_EXPENSE_ITEMS = [
+  { slug: "rent_mortgage", label: "Rent/Mortgage" },
+  { slug: "home_insurance", label: "Home Insurance" },
+  { slug: "car_insurance", label: "Car Insurance" },
+  { slug: "auto_maintenance", label: "Auto Maintenance" },
+  { slug: "internet", label: "Internet" },
+  { slug: "cable_satellite", label: "Cable/Satellite" },
+  { slug: "charitable_donations", label: "Charitable Donations" },
+  { slug: "membership_fees", label: "Membership Fees" },
+  { slug: "health_insurance", label: "Health (Insurance, etc)" },
+  { slug: "subscriptions", label: "Subscriptions" },
+  { slug: "property_tax", label: "Property Tax" },
+  { slug: "home_phone", label: "Home Phone" },
+  { slug: "cell_phone_1", label: "Cell Phone 1" },
+  { slug: "cell_phone_2", label: "Cell Phone 2" },
+  { slug: "tuition", label: "Tuition" },
+  { slug: "trash", label: "Trash" },
+  { slug: "gas_home", label: "Gas (Home)" },
+  { slug: "water", label: "Water" },
+  { slug: "electric", label: "Electric" },
+  { slug: "sewage", label: "Sewage" },
+  { slug: "alarm", label: "Alarm" },
+  { slug: "life_insurance", label: "Life Insurance" },
+  { slug: "day_care", label: "Day Care" },
+  { slug: "tithing", label: "Tithing" },
+  { slug: "fixed_other", label: "Other" },
+] as const;
+
+export const BUDGET_VARIABLE_EXPENSE_ITEMS = [
+  { slug: "groceries", label: "Food - Groceries" },
+  { slug: "eating_out", label: "Food - Eating Out" },
+  { slug: "gas_car", label: "Gas - Car" },
+  { slug: "miscellaneous", label: "Miscellaneous" },
+  { slug: "gifts", label: "Gifts" },
+  { slug: "pets", label: "Pets" },
+  { slug: "babysitting", label: "Babysitting" },
+  { slug: "variable_other_1", label: "Other" },
+  { slug: "variable_other_2", label: "Other" },
+] as const;
+
+export const BUDGET_DEBT_ITEMS = [
+  { slug: "auto_loan_1", label: "Auto Loan 1" },
+  { slug: "auto_loan_2", label: "Auto Loan 2" },
+  { slug: "credit_card_1", label: "Credit Card 1" },
+  { slug: "credit_card_2", label: "Credit Card 2" },
+  { slug: "credit_card_3", label: "Credit Card 3" },
+  { slug: "line_of_credit_1", label: "Line of Credit 1" },
+  { slug: "line_of_credit_2", label: "Line of Credit 2" },
+  { slug: "student_loan_1", label: "Student Loan 1" },
+  { slug: "student_loan_2", label: "Student Loan 2" },
+  { slug: "debt_other_1", label: "Other" },
+  { slug: "debt_other_2", label: "Other" },
+] as const;
+
+// Amway DITTO™ is split out of this section into its own Cash Flow line
+// (see computeBudgetTotals in lib/budget.ts) - everything else here
+// rolls up into "LTD Suggested Investments," matching the sheet's own
+// Cash Flow breakdown exactly. Keep "ditto_order" as the first slug if
+// this list is ever reordered - computeBudgetTotals reads it by slug,
+// not position, but the sheet's own layout leads with it too.
+export const BUDGET_INVESTMENT_ITEMS = [
+  { slug: "ditto_order", label: "Amway DITTO™ Scheduled Order" },
+  { slug: "ltd_subscription", label: "LTD Subscription*" },
+  { slug: "info_sessions", label: "Info Sessions" },
+  { slug: "masterclass_events", label: "Masterclass Events" },
+  { slug: "conferences", label: "Conferences" },
+  { slug: "business_supplies", label: "Business Supplies" },
+  { slug: "additional_travel", label: "Additional Travel Expenses" },
+  { slug: "investment_other", label: "Other" },
+] as const;
+
+export const BUDGET_SAVINGS_ITEMS = [
+  { slug: "savings", label: "Savings" },
+  { slug: "emergency_fund", label: "Emergency Fund" },
+  { slug: "investments", label: "Investments" },
+  { slug: "savings_other_1", label: "Other" },
+  { slug: "savings_other_2", label: "Other" },
+] as const;
 
 // A/B Contact List: pipeline status dropdown options
 export const CONTACT_STATUSES = [

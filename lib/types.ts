@@ -322,6 +322,23 @@ export type MonthlyPv = {
   updated_at: string;
 };
 
+export type BudgetFixedExpenseEntry = { amount: number; due: "first_half" | "second_half" | null };
+export type BudgetDebtEntry = { payment: number; interest_rate: number; total_owed: number };
+
+export type BudgetWorksheet = {
+  id: string;
+  user_id: string;
+  income: Record<string, number>;
+  fixed_expenses: Record<string, BudgetFixedExpenseEntry>;
+  variable_expenses: Record<string, number>;
+  debts: Record<string, BudgetDebtEntry>;
+  business_investments: Record<string, number>;
+  savings: Record<string, number>;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type CustomerSale = {
   id: string;
   user_id: string;

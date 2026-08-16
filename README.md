@@ -6701,6 +6701,74 @@ option that isn't a preset at all.
   widens `profiles_theme_color_check` to the 31 new keys plus
   `'custom'` (see handoff below).
 
+### My Budget - the Budget Session worksheet, in-app
+
+Replaces the Google Sheet used in Session 1's Budget Session (screenshot
+shown in the request) with a real in-app page an upline can watch get
+filled out, rather than something that only ever lived in a Dropbox
+link nobody else could see.
+
+- **`app/budget/page.tsx`** (new tab, reached from Classroom Session 1's
+  homework list and a new "Budget" tile in Home's "Everything else"
+  grid) reproduces the sheet's six sections - Income, Fixed Expenses
+  (with the sheet's own "Date Bill Due 1st-15th | 15th-30th" column, as
+  a per-row select), Variable Expenses, Debt (Payment/Interest %/Total
+  Owed per loan), Suggested Business Investments, and Savings - plus a
+  live-computed Cash Flow summary at the bottom that mirrors the
+  sheet's own breakdown exactly (Amway DITTO™ split out of Business
+  Investments into its own line, everything else there rolling into
+  "LTD Suggested Investments," Net Cash Flow = Income − everything).
+  One correction from the original sheet: its Debt section actually
+  reads "Student Loan 1, 3" (skipping "2") - fixed to 1/2 here, since a
+  visible gap reads as a bug in a polished form the way it doesn't in a
+  spreadsheet.
+- **Personal, not household-shared** - unlike Pipeline/Candidates/PV
+  (which a linked spouse shares), a budget is individual financial
+  disclosure, so `budget_worksheets` is one row per `user_id` with no
+  household read/write carve-out, and there's no "fill in for a
+  downline" flow like Pipeline has either - self-entry only.
+- **Upline visibility**: an upline (any level, same `is_upline_of()`
+  reach as Pipeline/Candidates/activity_logs) can read a downline's
+  budget row but never write to it. The Team tab's per-member detail
+  view gets a new "Budget" card showing completion status, and once
+  completed, an Income/Expenses/Net Cash Flow summary computed the same
+  way the owner's own page does (both call `computeBudgetTotals` in the
+  new `lib/budget.ts`, so they can never show different math for the
+  same numbers). Deliberately just a summary, not a full line-item
+  breakdown, on the Team card - "did they do it and where do they
+  stand" is what coaching needs at a glance; the owner's own `/budget`
+  page is still the place to see every line.
+- **Completing it notifies your upline**: tapping "Mark Complete" saves
+  and fires a new `budget_worksheet_completed` push (via the existing
+  `/api/notify` + `notifyUsers()` infra, same shape as
+  `core_run_completed`) to everyone in the completer's upline chain.
+  Editing again afterward just updates the numbers - it only fires once,
+  on the null → not-null transition of `completed_at` - and "Mark
+  Incomplete" is there to reset it if someone wants to redo it, same
+  reversible-flag shape as `candidates.launched`/`filtered_out`.
+- Storage shape: `income`/`variable_expenses`/`business_investments`/
+  `savings` are flat `{slug: amount}` jsonb maps; `fixed_expenses` is
+  `{slug: {amount, due}}`; `debts` is `{slug: {payment, interest_rate,
+  total_owed}}` - jsonb rather than ~55 individual columns (one per line
+  item across the sheet's six sections), so a future content change
+  (renaming a label, adding a line item) is a `lib/constants.ts` edit,
+  not a migration. The line-item catalogs themselves
+  (`BUDGET_INCOME_ITEMS`, `BUDGET_FIXED_EXPENSE_ITEMS`, etc.) live in
+  `lib/constants.ts` alongside every other fixed-list catalog in the
+  app.
+- Fixed a latent bug while touching `sent_notifications_kind_check` for
+  the new `budget_worksheet_completed` kind: a second drop/add-
+  constraint block for that same check had drifted in later in the file
+  (adding `story_liked`/`story_commented`), directly violating the
+  comment on the original block, which explicitly says never to do
+  that. A narrower re-run of that stray first block could fail against
+  real data with an existing `story_liked` row, reproducing the exact
+  bug the original comment was written to prevent. Merged back into the
+  one sole definition rather than repeating the mistake a third time.
+- SQL needed: new `budget_worksheets` table + RLS, widens
+  `sent_notifications_kind_check` to include
+  `budget_worksheet_completed` (see handoff below).
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

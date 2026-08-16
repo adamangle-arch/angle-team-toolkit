@@ -36,7 +36,8 @@ type Body =
   | { kind: "customer_sale_logged" }
   | { kind: "onboarding_completed"; targetUserId: string }
   | { kind: "story_liked"; targetUserId: string }
-  | { kind: "story_commented"; targetUserId: string; commentPreview: string };
+  | { kind: "story_commented"; targetUserId: string; commentPreview: string }
+  | { kind: "budget_worksheet_completed" };
 
 function fullName(p: { first_name: string | null; last_name: string | null } | null): string {
   if (!p) return "Someone";
@@ -218,6 +219,30 @@ export async function POST(request: Request) {
           title: "💬 New comment on your story",
           body: `${fullName(commenter)}: "${body.commentPreview}"`,
           url: "/stories",
+        });
+        return NextResponse.json(result);
+      }
+
+      case "budget_worksheet_completed": {
+        const { data: recipientRows } = await admin.rpc("get_upline_user_ids", {
+          p_user_id: userId,
+        });
+        const recipients = ((recipientRows as { user_id?: string }[]) ?? [])
+          .map((r) => r.user_id)
+          .filter((id): id is string => Boolean(id));
+
+        const { data: submitter } = await admin
+          .from("profiles")
+          .select("first_name,last_name")
+          .eq("id", userId)
+          .maybeSingle();
+
+        const result = await notifyUsers({
+          userIds: recipients,
+          kind: "budget_worksheet_completed",
+          title: "💰 Budget worksheet completed",
+          body: `${fullName(submitter)} marked their budget worksheet complete`,
+          url: "/team",
         });
         return NextResponse.json(result);
       }

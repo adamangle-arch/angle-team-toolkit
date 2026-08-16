@@ -18,11 +18,13 @@ import {
   Flame,
   CheckCircle2,
   X,
+  Wallet,
 } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
 import FeatureGate from "@/components/FeatureGate";
 import { supabase } from "@/lib/supabaseClient";
+import { computeBudgetTotals } from "@/lib/budget";
 import {
   isPrimaryUser,
   isGeminiGroupOwner,
@@ -61,6 +63,7 @@ import type {
   CallRating,
   Goal,
   MonthlyPv,
+  BudgetWorksheet,
 } from "@/lib/types";
 
 type ViewMode = "members" | "teams" | "my-tree" | "whole-tree" | "diagnostics";
@@ -124,6 +127,7 @@ type MemberData = {
   callRatings: CallRating[];
   goals: Goal[];
   monthlyPv: MonthlyPv | null;
+  budgetWorksheet: BudgetWorksheet | null;
 };
 
 export default function TeamPage() {
@@ -384,6 +388,7 @@ export default function TeamPage() {
         { data: callRatings },
         { data: goals },
         { data: monthlyPv },
+        { data: budgetWorksheet },
       ] = await Promise.all([
         supabase
           .from("pipeline_periods")
@@ -435,6 +440,10 @@ export default function TeamPage() {
           .eq("user_id", ownerId)
           .eq("period_start", getMonthStart())
           .maybeSingle(),
+        // Not household-scoped like the queries above (via ownerId) -
+        // a budget is personal even between linked spouses, so this
+        // always reads the selected person's own row (selectedId).
+        supabase.from("budget_worksheets").select("*").eq("user_id", selectedId).maybeSingle(),
       ]);
 
       if (!cancelled) {
@@ -448,6 +457,7 @@ export default function TeamPage() {
           callRatings: (callRatings as CallRating[]) ?? [],
           goals: (goals as Goal[]) ?? [],
           monthlyPv: (monthlyPv as MonthlyPv) ?? null,
+          budgetWorksheet: (budgetWorksheet as BudgetWorksheet) ?? null,
         });
         setLoadingMember(false);
       }
@@ -1163,6 +1173,54 @@ export default function TeamPage() {
                   </div>
                   {!memberData.monthlyPv && (
                     <p className="text-xs text-slate-500">Nothing logged this month.</p>
+                  )}
+                </div>
+
+                <div className="card space-y-1.5">
+                  <p className="section-title flex items-center gap-1.5">
+                    <Wallet className="h-3.5 w-3.5" aria-hidden />
+                    Budget (Session 1 homework)
+                  </p>
+                  {memberData.budgetWorksheet?.completed_at ? (
+                    <>
+                      <p className="flex items-center gap-1 text-xs text-emerald-400">
+                        <CheckCircle2 className="h-3 w-3" aria-hidden />
+                        Completed {new Date(memberData.budgetWorksheet.completed_at).toLocaleDateString()}
+                      </p>
+                      {(() => {
+                        const budgetTotals = computeBudgetTotals(memberData.budgetWorksheet);
+                        return (
+                          <div className="grid grid-cols-3 gap-1.5">
+                            <div className="rounded-lg bg-navy px-2 py-1.5 text-xs">
+                              <p className="text-slate-400">Income</p>
+                              <p className="font-semibold text-white">
+                                ${budgetTotals.income.toLocaleString()}
+                              </p>
+                            </div>
+                            <div className="rounded-lg bg-navy px-2 py-1.5 text-xs">
+                              <p className="text-slate-400">Expenses</p>
+                              <p className="font-semibold text-white">
+                                ${budgetTotals.totalMonthlyExpenses.toLocaleString()}
+                              </p>
+                            </div>
+                            <div className="rounded-lg bg-navy px-2 py-1.5 text-xs">
+                              <p className="text-slate-400">Net Cash Flow</p>
+                              <p
+                                className={`font-semibold ${
+                                  budgetTotals.netCashFlow >= 0 ? "text-emerald-400" : "text-red-400"
+                                }`}
+                              >
+                                ${budgetTotals.netCashFlow.toLocaleString()}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </>
+                  ) : memberData.budgetWorksheet ? (
+                    <p className="text-xs text-slate-500">Started, not marked complete yet.</p>
+                  ) : (
+                    <p className="text-xs text-slate-500">Not started yet.</p>
                   )}
                 </div>
 
