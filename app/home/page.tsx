@@ -44,6 +44,7 @@ import {
 } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { SkeletonList } from "@/components/Skeleton";
+import WelcomeVideoLockCard from "@/components/WelcomeVideoLockCard";
 import { useAuth } from "@/components/AuthGate";
 import { minSessionFor } from "@/lib/onboarding-gate";
 import { supabase } from "@/lib/supabaseClient";
@@ -230,7 +231,13 @@ function HeroCard({
 }
 
 export default function HomePage() {
-  const { user, unlockedThrough, coreRunStatus, unreadNotificationCount, themeColor } = useAuth();
+  const { user, unlockedThrough, coreRunStatus, unreadNotificationCount, themeColor, welcomeVideoWatchedAt, refreshProfile } =
+    useAuth();
+  // Local so watching it hides the card immediately instead of waiting
+  // on refreshProfile's round trip - refreshProfile is still called (see
+  // onWatched below) so the AuthGate-level value (and everything else
+  // derived from it, like Onboarding Session 1's own lock) catches up too.
+  const [videoWatched, setVideoWatched] = useState(Boolean(welcomeVideoWatchedAt));
   const visibleItems = HOME_ITEMS.filter((item) => unlockedThrough >= minSessionFor(item.href));
   const flavorTiles = FLAVOR_TILES[themeColor];
   const shineTiles = SHINE_THEMES.includes(themeColor);
@@ -284,6 +291,16 @@ export default function HomePage() {
     <>
       <PageHeader title="Home" subtitle="Your most important numbers, plus everything else" />
       <main className="page-main">
+        {!videoWatched && (
+          <WelcomeVideoLockCard
+            userId={user.id}
+            onWatched={() => {
+              setVideoWatched(true);
+              refreshProfile();
+            }}
+          />
+        )}
+
         {heroLoading ? (
           <SkeletonList cards={3 + (showPipeline ? 1 : 0) + (showAssistant ? 1 : 0)} lines={1} />
         ) : (

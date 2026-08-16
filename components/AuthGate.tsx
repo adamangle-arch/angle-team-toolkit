@@ -50,6 +50,11 @@ type AuthContextValue = {
   // USA/Christmas/Easter) don't have to read document.documentElement
   // themselves. Same "amber" fallback as the attribute effect.
   themeColor: ThemeColor;
+  // Lets Home show its own top-of-page WelcomeVideoLockCard without a
+  // separate fetch (AuthGate already has the whole profile loaded) - see
+  // needsWelcomeVideo just below for the auto-play overlay this is
+  // otherwise unrelated to.
+  welcomeVideoWatchedAt: string | null;
   refreshProfile: () => void;
   signOut: () => void;
   // Who else has the app open right now, team-wide - Stories' Pulse tab's
@@ -453,6 +458,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
         coreRunStatus,
         refreshCoreRunStatus,
         themeColor: profile.theme_color || "amber",
+        welcomeVideoWatchedAt: profile.welcome_video_watched_at,
         refreshProfile: () => loadProfile(user.id),
         signOut: () => supabase.auth.signOut(),
         activeUserIds,

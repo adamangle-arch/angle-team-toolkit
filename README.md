@@ -7012,7 +7012,19 @@ file), since AuthGate only remounts on a genuine fresh app open, not on
 in-app navigation, so the state naturally resets to false exactly when
 it's supposed to. No schema change.
 
-## Tech stack
+### Welcome video: moved to be the most prominent thing on Home and Classroom
+
+Relocated the "watch it" entry point from My Profile (removed entirely)
+to the very top of both Home (`app/home/page.tsx`) and Classroom
+(`app/onboarding/page.tsx`), above everything else on each page -
+`WelcomeVideoLockCard` was redesigned from a small compact card into a
+large, high-contrast banner (bigger icon, bigger type, the same amber
+glow treatment Home's other hero cards use but sized up) so it's
+unmissable rather than just present. It still disappears entirely, from
+both places, the instant `welcome_video_watched_at` is set - no rewatch
+path anywhere, same as before. `AuthContextValue` gained
+`welcomeVideoWatchedAt` (AuthGate already has the whole profile loaded)
+so Home doesn't need its own fetch for it. No schema change.
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)
 - [Tailwind CSS](https://tailwindcss.com) v4 (navy `#0f172a` / amber `#f59e0b` theme)
