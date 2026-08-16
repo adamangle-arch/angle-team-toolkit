@@ -6957,6 +6957,19 @@ effect worth knowing: Onboarding Session 1 briefly re-locks for anyone
 this resets, until they watch it again - nothing else in the app is
 affected. SQL needed: re-running the schema (see handoff below).
 
+### Welcome video: a permanent "watch it again" spot on My Profile
+
+Skipping the video previously left no way back to it except waiting for
+Classroom's reminder card - which an admin account never sees, since
+Session 1 is never actually locked for them (`isAdmin` bypasses the
+video-watched check entirely), so an admin who skipped had no path back
+to it at all. Added a "Welcome Video" card to My Profile
+(`app/profile/page.tsx`, right below the Level card) with a Watch Now /
+Rewatch button that opens the same `WelcomeVideoOverlay`, available to
+everyone regardless of admin status or whether they've already watched
+it - a permanent, findable home for it independent of the auto-play/
+skip/Classroom-reminder flow. No schema change.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Palette, Check, Medal, Globe, SunMoon } from "lucide-react";
+import { Palette, Check, Medal, Globe, SunMoon, PlayCircle } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import ProfileForm from "@/components/ProfileForm";
 import { SkeletonList } from "@/components/Skeleton";
+import WelcomeVideoOverlay from "@/components/WelcomeVideoOverlay";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import { TEAMS, US_TIMEZONES, THEME_COLORS, COLOR_MODES, type ThemeColor, type ColorMode } from "@/lib/constants";
@@ -24,6 +25,11 @@ export default function MyProfilePage() {
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
   const [earnedBadges, setEarnedBadges] = useState<UserBadge[]>([]);
+  // Skipping the welcome video used to leave no way back to it except
+  // waiting for Classroom's reminder (which admins never see, since
+  // Session 1 is never actually locked for them) - this gives literally
+  // everyone a permanent, findable place to (re)watch it on demand.
+  const [showWelcomeVideo, setShowWelcomeVideo] = useState(false);
 
   const [partner, setPartner] = useState<PublicProfile | null>(null);
   const [partnerEmail, setPartnerEmail] = useState("");
@@ -325,6 +331,21 @@ export default function MyProfilePage() {
                     : " — max level"}
                 </p>
               </div>
+            </div>
+
+            <div className="card space-y-2">
+              <p className="section-title flex items-center gap-1.5">
+                <PlayCircle className="h-4 w-4" aria-hidden />
+                Welcome Video
+              </p>
+              <p className="text-xs text-slate-400">
+                {profile.welcome_video_watched_at
+                  ? "A quick message from the team — watch it again any time."
+                  : "A quick message from the team before you get started."}
+              </p>
+              <button className="btn-secondary w-full" onClick={() => setShowWelcomeVideo(true)}>
+                {profile.welcome_video_watched_at ? "Rewatch" : "Watch Now"}
+              </button>
             </div>
 
             <div className="card space-y-2">
@@ -641,6 +662,17 @@ export default function MyProfilePage() {
           </>
         )}
       </main>
+      {showWelcomeVideo && (
+        <WelcomeVideoOverlay
+          userId={user.id}
+          onWatched={() => {
+            setShowWelcomeVideo(false);
+            setProfile((prev) => (prev ? { ...prev, welcome_video_watched_at: new Date().toISOString() } : prev));
+            refreshProfile();
+          }}
+          onSkip={() => setShowWelcomeVideo(false)}
+        />
+      )}
     </>
   );
 }
