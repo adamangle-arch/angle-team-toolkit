@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home as HomeIcon, Sun, Calendar as CalendarIcon, type LucideIcon } from "lucide-react";
+import { Home as HomeIcon, Diamond, Calendar as CalendarIcon, type LucideIcon } from "lucide-react";
 import { useAuth } from "./AuthGate";
 import { minSessionFor } from "@/lib/onboarding-gate";
 
@@ -18,7 +18,7 @@ import { minSessionFor } from "@/lib/onboarding-gate";
 // a normal tab, just no longer the entry point.
 const NAV_ITEMS: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/home", label: "Home", icon: HomeIcon },
-  { href: "/dashboard", label: "Today", icon: Sun },
+  { href: "/dashboard", label: "Today", icon: Diamond },
   { href: "/calendar", label: "Calendar", icon: CalendarIcon },
 ];
 
