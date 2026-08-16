@@ -7093,6 +7093,21 @@ now always shows - even for a brand-new signup who hasn't watched the
 video yet, starting them at "0/1" - since overallTotal can no longer be
 zero. No schema change.
 
+### Add Event: link a downline's candidate, not just your own
+
+The "link a candidate" picker on the Add Event form (`app/calendar/page.tsx`)
+only ever queried `candidates` scoped to `ownerId` (this household's
+own) - a follow-up call is often for a downline member's candidate
+instead, and there was no way to link one. RLS already lets an upline
+read any-level-downline candidates (same reach used everywhere else),
+so this was purely a client-side scoping gap: the query now also
+fetches every downline member's candidates (reusing `downlineMembers`,
+already loaded for the recipient picker just below it, instead of a
+second id lookup). Since two different downline members can each have a
+same-named candidate, the picker's sublabel now names whose candidate
+it is (e.g. "Connected Jul 29, 2026 · Sarah's candidate") whenever it
+isn't this household's own. No schema change.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

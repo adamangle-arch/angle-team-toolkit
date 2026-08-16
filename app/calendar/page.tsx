@@ -504,17 +504,27 @@ export default function CalendarPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user.id, ownerId, partnerId]);
 
+  // Own household's candidates plus every downline member's - an event
+  // like a follow-up call is often for a downline's candidate, not just
+  // your own, and RLS already lets an upline read any-level-downline
+  // candidates (same "select_own_or_upline_or_admin" reach used
+  // everywhere else), so this was a client-side scoping gap, not an
+  // access one. Waits on downlineMembers rather than fetching its own
+  // id list, since that effect already resolves the exact same
+  // "authoritative downline, spouse excluded" set for the recipient
+  // picker just below.
   useEffect(() => {
     async function load() {
+      const ids = [ownerId, ...downlineMembers.map((m) => m.id)];
       const { data } = await supabase
         .from("candidates")
         .select("*")
-        .eq("user_id", ownerId)
+        .in("user_id", ids)
         .order("name", { ascending: true });
       setCandidates((data as Candidate[]) ?? []);
     }
     load();
-  }, [ownerId]);
+  }, [ownerId, downlineMembers]);
 
   // get_downline_user_ids is the authoritative "who's actually below me"
   // source (already excludes a linked spouse, whose data resolves to
@@ -1484,12 +1494,22 @@ export default function CalendarPage() {
                   // Connected date + notes shown as a sublabel - two
                   // candidates can share a first name, and this is the
                   // fastest way to tell them apart while picking rather
-                  // than guessing from the name alone.
-                  ...candidates.map((c) => ({
-                    value: c.id,
-                    label: c.name,
-                    sublabel: `Connected ${formatDateLabel(c.connected_date)}${c.notes ? ` · ${c.notes}` : ""}`,
-                  })),
+                  // than guessing from the name alone. Whoever's
+                  // downline candidate it is gets named too now that this
+                  // list spans the whole downline, not just this
+                  // household's own - otherwise two same-named
+                  // candidates belonging to different downline members
+                  // would be indistinguishable.
+                  ...candidates.map((c) => {
+                    const ownerName = c.user_id === ownerId ? null : downlineMembers.find((m) => m.id === c.user_id)?.name;
+                    return {
+                      value: c.id,
+                      label: c.name,
+                      sublabel: `Connected ${formatDateLabel(c.connected_date)}${
+                        ownerName ? ` · ${ownerName}'s candidate` : ""
+                      }${c.notes ? ` · ${c.notes}` : ""}`,
+                    };
+                  }),
                 ]}
               />
               <div className="flex gap-2">
