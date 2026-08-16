@@ -9,21 +9,14 @@ import { SkeletonList } from "@/components/Skeleton";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import { TEAMS, US_TIMEZONES, THEME_COLORS, type ThemeColor } from "@/lib/constants";
+import { applyTheme } from "@/lib/applyTheme";
+import { isValidHex } from "@/lib/color";
 import { guessTimeZone } from "@/lib/timezones";
 import { BADGE_DEFINITIONS } from "@/lib/badges";
 import { pointsForBadgeKeys, levelProgress, frameTierForLevel, FRAME_TIER_LABELS } from "@/lib/levels";
 import BadgePillList from "@/components/BadgePillList";
 import LevelAvatar from "@/components/LevelAvatar";
 import type { Profile, PublicProfile, UserBadge } from "@/lib/types";
-
-// Kept as a standalone module-scope function (not inlined in the click
-// handler below) so it's the same "mutate document from a plain
-// function, not a hook" shape AuthGate's own theme-applying effect uses -
-// the two together are the entire client-side apply step for a colorway
-// change, no other component needs to know about data-theme at all.
-function applyThemeColor(key: string) {
-  document.documentElement.dataset.theme = key;
-}
 
 export default function MyProfilePage() {
   const { user, ownerId, refreshProfile } = useAuth();
@@ -78,14 +71,24 @@ export default function MyProfilePage() {
 
   // Applies immediately on tap (no separate Save step, unlike Team/Time
   // Zone above) - a colorway is instant visual feedback, not something
-  // that benefits from a confirm-before-apply step. document.documentElement's
-  // data-theme is what actually repaints the app (every text-amber/
-  // bg-amber/border-amber usage reads the CSS custom properties app/
-  // globals.css overrides per data-theme value) - set optimistically here
-  // and rolled back if the save fails, same pattern as everywhere else in
-  // this file.
+  // that benefits from a confirm-before-apply step. applyTheme (shared
+  // with AuthGate's own theme-applying effect) is what actually repaints
+  // the app - called optimistically here and rolled back if the save
+  // fails, same pattern as everywhere else in this file.
   const [savingThemeColor, setSavingThemeColor] = useState<ThemeColor | null>(null);
   const [themeColorError, setThemeColorError] = useState<string | null>(null);
+  // Local text the custom color input is bound to - kept separate from
+  // profile.custom_theme_hex so an in-progress edit (typing a hex, or
+  // dragging the native color wheel) doesn't fire a save on every
+  // keystroke. Only commits (see handleSetCustomColor) on blur/change-end.
+  // What the custom-color swatch renders, and what a fresh pick starts
+  // from before profile.custom_theme_hex has ever been set.
+  const [customHexDraft, setCustomHexDraft] = useState("#f59e0b");
+  const [syncedCustomHex, setSyncedCustomHex] = useState<string | null>(null);
+  if (profile && profile.custom_theme_hex !== syncedCustomHex) {
+    setSyncedCustomHex(profile.custom_theme_hex);
+    setCustomHexDraft(profile.custom_theme_hex ?? "#f59e0b");
+  }
 
   async function reload() {
     const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
@@ -200,12 +203,40 @@ export default function MyProfilePage() {
     setThemeColorError(null);
     setSavingThemeColor(key);
     setProfile({ ...profile, theme_color: key });
-    applyThemeColor(key);
+    applyTheme(key, null);
     const { error } = await supabase.from("profiles").update({ theme_color: key }).eq("id", user.id);
     setSavingThemeColor(null);
     if (error) {
       setProfile((prev) => (prev ? { ...prev, theme_color: previous } : prev));
-      applyThemeColor(previous);
+      applyTheme(previous, profile.custom_theme_hex);
+      setThemeColorError(error.message);
+      return;
+    }
+    refreshProfile();
+  }
+
+  // Commits the color-input's value as the "custom" colorway - fires on
+  // change-end (native color inputs only emit "change" once the picker
+  // closes / the swatch is released, not per drag-frame), same
+  // optimistic-then-rollback shape as handleSetThemeColor above.
+  async function handleSetCustomColor(hex: string) {
+    if (!profile || !isValidHex(hex) || savingThemeColor) return;
+    const previous: { theme_color: ThemeColor; custom_theme_hex: string | null } = {
+      theme_color: profile.theme_color,
+      custom_theme_hex: profile.custom_theme_hex,
+    };
+    setThemeColorError(null);
+    setSavingThemeColor("custom");
+    setProfile({ ...profile, theme_color: "custom", custom_theme_hex: hex });
+    applyTheme("custom", hex);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ theme_color: "custom", custom_theme_hex: hex })
+      .eq("id", user.id);
+    setSavingThemeColor(null);
+    if (error) {
+      setProfile((prev) => (prev ? { ...prev, ...previous } : prev));
+      applyTheme(previous.theme_color, previous.custom_theme_hex);
       setThemeColorError(error.message);
       return;
     }
@@ -309,6 +340,43 @@ export default function MyProfilePage() {
                     </button>
                   );
                 })}
+
+                {/* Not a preset - opens the device's native color picker so
+                    someone can match any brand/team color exactly, rather
+                    than picking the closest curated swatch above. The
+                    conic-gradient ring is just "pick any color" iconography,
+                    not itself a selectable value. */}
+                <label className="flex flex-col items-center gap-1">
+                  <span
+                    className="relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-full text-sm"
+                    style={{
+                      background:
+                        profile.theme_color === "custom"
+                          ? customHexDraft
+                          : "conic-gradient(from 0deg, #f43f5e, #f59e0b, #eab308, #22c55e, #0ea5e9, #8b5cf6, #f43f5e)",
+                      boxShadow:
+                        profile.theme_color === "custom"
+                          ? `0 0 0 2px var(--color-navy-lighter), 0 0 0 4px ${customHexDraft}`
+                          : "none",
+                    }}
+                  >
+                    {profile.theme_color === "custom" && (
+                      <Check className="h-3.5 w-3.5 text-navy drop-shadow" aria-hidden />
+                    )}
+                    <input
+                      type="color"
+                      className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                      value={customHexDraft}
+                      disabled={savingThemeColor !== null}
+                      onChange={(e) => {
+                        setCustomHexDraft(e.target.value);
+                        handleSetCustomColor(e.target.value);
+                      }}
+                      aria-label="Pick a custom App Color"
+                    />
+                  </span>
+                  <span className="text-[11px] text-slate-400">Custom</span>
+                </label>
               </div>
               {themeColorError && <p className="text-xs text-red-400">{themeColorError}</p>}
             </div>

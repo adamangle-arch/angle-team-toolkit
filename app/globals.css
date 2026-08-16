@@ -103,6 +103,200 @@
   --amber-rgb: 244 114 182;
 }
 
+/* Batch 2: holiday/nature/gem/mood colorways added on top of the
+   original 13 above, same mechanism, same sync requirement (keep in
+   step with THEME_COLORS in lib/constants.ts and the check constraint
+   on profiles.theme_color in supabase/schema.sql). Also see
+   :root[data-theme="custom"] further below, which these do NOT cover -
+   an arbitrary hex has no static block here at all, it's applied as an
+   inline style override instead (see lib/applyTheme.ts). */
+:root[data-theme="valentines"] {
+  --color-amber: #ec4899;
+  --color-amber-dark: #831843;
+  --color-amber-light: #f9a8d4;
+  --amber-rgb: 236 72 153;
+}
+:root[data-theme="stpatricks"] {
+  --color-amber: #22c55e;
+  --color-amber-dark: #14532d;
+  --color-amber-light: #a3e635;
+  --amber-rgb: 34 197 94;
+}
+:root[data-theme="harvest"] {
+  --color-amber: #c2410c;
+  --color-amber-dark: #7c2d12;
+  --color-amber-light: #fb923c;
+  --amber-rgb: 194 65 12;
+}
+:root[data-theme="hanukkah"] {
+  --color-amber: #2563eb;
+  --color-amber-dark: #1e3a8a;
+  --color-amber-light: #bfdbfe;
+  --amber-rgb: 37 99 235;
+}
+:root[data-theme="newyears"] {
+  --color-amber: #eab308;
+  --color-amber-dark: #0f172a;
+  --color-amber-light: #fde047;
+  --amber-rgb: 234 179 8;
+}
+:root[data-theme="fireworks"] {
+  --color-amber: #e11d48;
+  --color-amber-dark: #1e1b4b;
+  --color-amber-light: #fbbf24;
+  --amber-rgb: 225 29 72;
+}
+:root[data-theme="ocean"] {
+  --color-amber: #0891b2;
+  --color-amber-dark: #164e63;
+  --color-amber-light: #67e8f9;
+  --amber-rgb: 8 145 178;
+}
+:root[data-theme="forest"] {
+  --color-amber: #15803d;
+  --color-amber-dark: #14532d;
+  --color-amber-light: #4ade80;
+  --amber-rgb: 21 128 61;
+}
+:root[data-theme="desert"] {
+  --color-amber: #9a3412;
+  --color-amber-dark: #431407;
+  --color-amber-light: #fdba74;
+  --amber-rgb: 154 52 18;
+}
+:root[data-theme="lava"] {
+  --color-amber: #b91c1c;
+  --color-amber-dark: #1c1917;
+  --color-amber-light: #f97316;
+  --amber-rgb: 185 28 28;
+}
+:root[data-theme="aurora"] {
+  --color-amber: #22d3ee;
+  --color-amber-dark: #1e1b4b;
+  --color-amber-light: #a5f3fc;
+  --amber-rgb: 34 211 238;
+}
+:root[data-theme="galaxy"] {
+  --color-amber: #7c3aed;
+  --color-amber-dark: #1e1b4b;
+  --color-amber-light: #f0abfc;
+  --amber-rgb: 124 58 237;
+}
+:root[data-theme="coral"] {
+  --color-amber: #fb7185;
+  --color-amber-dark: #0e7490;
+  --color-amber-light: #5eead4;
+  --amber-rgb: 251 113 133;
+}
+:root[data-theme="starrynight"] {
+  --color-amber: #6366f1;
+  --color-amber-dark: #0f172a;
+  --color-amber-light: #c7d2fe;
+  --amber-rgb: 99 102 241;
+}
+:root[data-theme="ruby"] {
+  --color-amber: #be123c;
+  --color-amber-dark: #4c0519;
+  --color-amber-light: #fb7185;
+  --amber-rgb: 190 18 60;
+}
+:root[data-theme="sapphire"] {
+  --color-amber: #1d4ed8;
+  --color-amber-dark: #172554;
+  --color-amber-light: #60a5fa;
+  --amber-rgb: 29 78 216;
+}
+:root[data-theme="amethyst"] {
+  --color-amber: #9333ea;
+  --color-amber-dark: #3b0764;
+  --color-amber-light: #d8b4fe;
+  --amber-rgb: 147 51 234;
+}
+:root[data-theme="rosegold"] {
+  --color-amber: #e8a598;
+  --color-amber-dark: #9f5a4d;
+  --color-amber-light: #fbcfe8;
+  --amber-rgb: 232 165 152;
+}
+:root[data-theme="platinum"] {
+  --color-amber: #cbd5e1;
+  --color-amber-dark: #64748b;
+  --color-amber-light: #f1f5f9;
+  --amber-rgb: 203 213 225;
+}
+:root[data-theme="copper"] {
+  --color-amber: #c2703c;
+  --color-amber-dark: #7c3f1d;
+  --color-amber-light: #e8a87c;
+  --amber-rgb: 194 112 60;
+}
+:root[data-theme="obsidian"] {
+  --color-amber: #6d28d9;
+  --color-amber-dark: #0f0a1f;
+  --color-amber-light: #c4b5fd;
+  --amber-rgb: 109 40 217;
+}
+:root[data-theme="opal"] {
+  --color-amber: #a5b4fc;
+  --color-amber-dark: #6366f1;
+  --color-amber-light: #e0e7ff;
+  --amber-rgb: 165 180 252;
+}
+:root[data-theme="pearl"] {
+  --color-amber: #e2e8f0;
+  --color-amber-dark: #94a3b8;
+  --color-amber-light: #f8fafc;
+  --amber-rgb: 226 232 240;
+}
+:root[data-theme="cyberpunk"] {
+  --color-amber: #d946ef;
+  --color-amber-dark: #701a75;
+  --color-amber-light: #67e8f9;
+  --amber-rgb: 217 70 239;
+}
+:root[data-theme="vaporwave"] {
+  --color-amber: #2dd4bf;
+  --color-amber-dark: #7c3aed;
+  --color-amber-light: #fbcfe8;
+  --amber-rgb: 45 212 191;
+}
+:root[data-theme="pastel"] {
+  --color-amber: #c4b5fd;
+  --color-amber-dark: #8b5cf6;
+  --color-amber-light: #ede9fe;
+  --amber-rgb: 196 181 253;
+}
+:root[data-theme="monochrome"] {
+  --color-amber: #d4d4d8;
+  --color-amber-dark: #52525b;
+  --color-amber-light: #f4f4f5;
+  --amber-rgb: 212 212 216;
+}
+:root[data-theme="fire"] {
+  --color-amber: #ef4444;
+  --color-amber-dark: #7f1d1d;
+  --color-amber-light: #fbbf24;
+  --amber-rgb: 239 68 68;
+}
+:root[data-theme="ice"] {
+  --color-amber: #67e8f9;
+  --color-amber-dark: #0e7490;
+  --color-amber-light: #cffafe;
+  --amber-rgb: 103 232 249;
+}
+:root[data-theme="diamond"] {
+  --color-amber: #38bdf8;
+  --color-amber-dark: #0369a1;
+  --color-amber-light: #e0f2fe;
+  --amber-rgb: 56 189 248;
+}
+:root[data-theme="foundersdiamond"] {
+  --color-amber: #0284c7;
+  --color-amber-dark: #082f49;
+  --color-amber-light: #7dd3fc;
+  --amber-rgb: 2 132 199;
+}
+
 html,
 body {
   height: 100%;

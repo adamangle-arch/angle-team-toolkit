@@ -880,8 +880,24 @@ alter table profiles drop constraint if exists profiles_theme_color_check;
 alter table profiles add constraint profiles_theme_color_check check (
   theme_color in (
     'amber', 'blue', 'green', 'purple', 'rose', 'teal',
-    'usa', 'christmas', 'easter', 'gold', 'silver', 'metallic', 'sunset'
+    'usa', 'christmas', 'easter', 'gold', 'silver', 'metallic', 'sunset',
+    'valentines', 'stpatricks', 'harvest', 'hanukkah', 'newyears', 'fireworks',
+    'ocean', 'forest', 'desert', 'lava', 'aurora', 'galaxy', 'coral', 'starrynight',
+    'ruby', 'sapphire', 'amethyst', 'rosegold', 'platinum', 'copper', 'obsidian', 'opal', 'pearl',
+    'cyberpunk', 'vaporwave', 'pastel', 'monochrome', 'fire', 'ice',
+    'diamond', 'foundersdiamond', 'custom'
   )
+);
+
+-- Only meaningful when theme_color = 'custom' (see lib/applyTheme.ts) -
+-- the one hex someone picked instead of a preset. Null for every other
+-- theme_color value. Regex mirrors lib/color.ts's isValidHex so a
+-- malformed value can never reach the client and break the color math
+-- that derives light/dark tints from it.
+alter table profiles add column if not exists custom_theme_hex text;
+alter table profiles drop constraint if exists profiles_custom_theme_hex_check;
+alter table profiles add constraint profiles_custom_theme_hex_check check (
+  custom_theme_hex is null or custom_theme_hex ~ '^#[0-9a-fA-F]{6}$'
 );
 
 create or replace function public.generate_account_number()

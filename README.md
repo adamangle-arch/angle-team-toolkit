@@ -6645,6 +6645,62 @@ view, a Candidate's card):
 
 Client-only change, no SQL needed.
 
+### 31 more App Colors, plus a true custom color picker
+
+Follow-up on the theme system: went from 13 colorways to 44, plus an
+option that isn't a preset at all.
+
+- **31 new presets**, same mechanism as every colorway before them (a
+  `:root[data-theme="..."]` block in `app/globals.css`, an entry in
+  `THEME_COLORS` in `lib/constants.ts`, a key in the
+  `profiles_theme_color_check` constraint) - grouped as holidays
+  (Valentine's Day, St. Patrick's Day, Thanksgiving, Hanukkah, New
+  Year's Eve, Fireworks), nature/elemental (Ocean, Forest, Desert
+  Canyon, Lava, Aurora Borealis, Galaxy, Coral Reef, Starry Night),
+  gems/metals (Ruby, Sapphire, Amethyst, Rose Gold, Platinum, Copper,
+  Obsidian, Opal, Pearl), mood/vibe (Neon Cyberpunk, Vaporwave, Pastel
+  Dream, Monochrome, Fire, Ice), and two pin-tier colors - Diamond and
+  Founders Diamond - that tie into the app's own Diamond icon on the
+  Today tab. Every entry's swatch preview is a light-to-dark gradient
+  built from that exact theme's own two tones (never a color invented
+  just for the picker), so what you see in the picker is exactly what
+  the app repaints to.
+- **Shine extended to every gem/sparkle-coded theme, not just
+  Gold/Silver/Metallic** - Ruby, Sapphire, Amethyst, Rose Gold,
+  Platinum, Copper, Obsidian, Opal, Pearl, Diamond, Founders Diamond,
+  and New Year's Eve all got added to `SHINE_THEMES` in
+  `app/home/page.tsx`. Cheap to extend (the shine sweep is generic -
+  just listing a theme's key turns it on) unlike the USA/Christmas/
+  Easter treatment, which needs a hand-picked palette + icon per theme
+  and stayed limited to those three.
+- **New: a true custom color picker.** Beyond the 44 presets, My
+  Profile's App Color card now has a "Custom" swatch - a native
+  `<input type="color">` behind a conic-gradient circle - that lets
+  someone match literally any hex instead of picking the closest
+  curated option. Presets repaint through their `:root[data-theme]`
+  block; a custom hex has no such block (there's no bounding an
+  infinite hex space with static CSS), so `lib/color.ts` (a small
+  lighten/darken/hex↔RGB helper) derives light/dark tints and an RGB
+  triplet from the one hex picked, and `lib/applyTheme.ts` sets all
+  four `--color-amber*`/`--amber-rgb` custom properties directly as
+  inline styles on `<html>` - which, being inline, override whatever
+  `:root[data-theme]` rule is still sitting underneath regardless of
+  its attribute value. `applyTheme` is now the single shared function
+  behind both AuthGate's own-profile repaint effect and My Profile's
+  optimistic apply-on-tap handlers, replacing the plain
+  `dataset.theme = key` each used to set separately - one codepath
+  instead of two that could drift.
+- New `profiles.custom_theme_hex` column (nullable, `^#[0-9a-fA-F]{6}$`
+  checked) holds the picked hex; only meaningful when
+  `theme_color = 'custom'`, added to `Profile` in `lib/types.ts`.
+  `ThemeColor` itself is now `(typeof THEME_COLORS)[number]["key"] |
+  "custom"` - "custom" deliberately isn't a `THEME_COLORS` entry, since
+  it has no fixed swatch/ring and renders as its own control, not a
+  loop item.
+- SQL needed: adds `custom_theme_hex` + its check constraint, and
+  widens `profiles_theme_color_check` to the 31 new keys plus
+  `'custom'` (see handoff below).
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

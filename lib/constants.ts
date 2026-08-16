@@ -127,8 +127,51 @@ export const THEME_COLORS = [
   { key: "silver", label: "Silver", swatch: "linear-gradient(135deg, #f1f5f9, #94a3b8, #475569)", ring: "#94a3b8" },
   { key: "metallic", label: "Metallic", swatch: "linear-gradient(135deg, #e8b795, #b76e45, #7c4a2d)", ring: "#b76e45" },
   { key: "sunset", label: "Sunset", swatch: "linear-gradient(135deg, #fb923c, #f472b6, #7c3aed)", ring: "#f472b6" },
+  // Batch 2 - holidays, nature/elemental, gems/metals, mood/vibe, plus
+  // the two Amway-pin-tier colors (Diamond ties into the app's own
+  // Diamond icon on the Today tab). Same swatch/ring convention as
+  // above: swatch is a light-to-dark gradient built from that theme's
+  // own amber-light/amber-dark pair (so the picker preview always
+  // matches what the app actually repaints to, never a color made up
+  // just for the picker), ring is the solid amber value for the
+  // selection ring.
+  { key: "valentines", label: "Valentine's Day", swatch: "linear-gradient(135deg, #f9a8d4, #831843)", ring: "#ec4899" },
+  { key: "stpatricks", label: "St. Patrick's Day", swatch: "linear-gradient(135deg, #a3e635, #14532d)", ring: "#22c55e" },
+  { key: "harvest", label: "Thanksgiving", swatch: "linear-gradient(135deg, #fb923c, #7c2d12)", ring: "#c2410c" },
+  { key: "hanukkah", label: "Hanukkah", swatch: "linear-gradient(135deg, #bfdbfe, #1e3a8a)", ring: "#2563eb" },
+  { key: "newyears", label: "New Year's Eve", swatch: "linear-gradient(135deg, #fde047, #0f172a)", ring: "#eab308" },
+  { key: "fireworks", label: "Fireworks", swatch: "linear-gradient(135deg, #fbbf24, #1e1b4b)", ring: "#e11d48" },
+  { key: "ocean", label: "Ocean", swatch: "linear-gradient(135deg, #67e8f9, #164e63)", ring: "#0891b2" },
+  { key: "forest", label: "Forest", swatch: "linear-gradient(135deg, #4ade80, #14532d)", ring: "#15803d" },
+  { key: "desert", label: "Desert Canyon", swatch: "linear-gradient(135deg, #fdba74, #431407)", ring: "#9a3412" },
+  { key: "lava", label: "Lava", swatch: "linear-gradient(135deg, #f97316, #1c1917)", ring: "#b91c1c" },
+  { key: "aurora", label: "Aurora Borealis", swatch: "linear-gradient(135deg, #a5f3fc, #1e1b4b)", ring: "#22d3ee" },
+  { key: "galaxy", label: "Galaxy", swatch: "linear-gradient(135deg, #f0abfc, #1e1b4b)", ring: "#7c3aed" },
+  { key: "coral", label: "Coral Reef", swatch: "linear-gradient(135deg, #5eead4, #0e7490)", ring: "#fb7185" },
+  { key: "starrynight", label: "Starry Night", swatch: "linear-gradient(135deg, #c7d2fe, #0f172a)", ring: "#6366f1" },
+  { key: "ruby", label: "Ruby", swatch: "linear-gradient(135deg, #fb7185, #4c0519)", ring: "#be123c" },
+  { key: "sapphire", label: "Sapphire", swatch: "linear-gradient(135deg, #60a5fa, #172554)", ring: "#1d4ed8" },
+  { key: "amethyst", label: "Amethyst", swatch: "linear-gradient(135deg, #d8b4fe, #3b0764)", ring: "#9333ea" },
+  { key: "rosegold", label: "Rose Gold", swatch: "linear-gradient(135deg, #fbcfe8, #9f5a4d)", ring: "#e8a598" },
+  { key: "platinum", label: "Platinum", swatch: "linear-gradient(135deg, #f1f5f9, #64748b)", ring: "#cbd5e1" },
+  { key: "copper", label: "Copper", swatch: "linear-gradient(135deg, #e8a87c, #7c3f1d)", ring: "#c2703c" },
+  { key: "obsidian", label: "Obsidian", swatch: "linear-gradient(135deg, #c4b5fd, #0f0a1f)", ring: "#6d28d9" },
+  { key: "opal", label: "Opal", swatch: "linear-gradient(135deg, #e0e7ff, #6366f1)", ring: "#a5b4fc" },
+  { key: "pearl", label: "Pearl", swatch: "linear-gradient(135deg, #f8fafc, #94a3b8)", ring: "#e2e8f0" },
+  { key: "cyberpunk", label: "Neon Cyberpunk", swatch: "linear-gradient(135deg, #67e8f9, #701a75)", ring: "#d946ef" },
+  { key: "vaporwave", label: "Vaporwave", swatch: "linear-gradient(135deg, #fbcfe8, #7c3aed)", ring: "#2dd4bf" },
+  { key: "pastel", label: "Pastel Dream", swatch: "linear-gradient(135deg, #ede9fe, #8b5cf6)", ring: "#c4b5fd" },
+  { key: "monochrome", label: "Monochrome", swatch: "linear-gradient(135deg, #f4f4f5, #52525b)", ring: "#d4d4d8" },
+  { key: "fire", label: "Fire", swatch: "linear-gradient(135deg, #fbbf24, #7f1d1d)", ring: "#ef4444" },
+  { key: "ice", label: "Ice", swatch: "linear-gradient(135deg, #cffafe, #0e7490)", ring: "#67e8f9" },
+  { key: "diamond", label: "Diamond", swatch: "linear-gradient(135deg, #e0f2fe, #0369a1)", ring: "#38bdf8" },
+  { key: "foundersdiamond", label: "Founders Diamond", swatch: "linear-gradient(135deg, #7dd3fc, #082f49)", ring: "#0284c7" },
 ] as const;
-export type ThemeColor = (typeof THEME_COLORS)[number]["key"];
+// "custom" isn't in THEME_COLORS above - it has no fixed swatch/ring or
+// :root[data-theme] block (see lib/applyTheme.ts) since it's an
+// arbitrary hex someone picks on My Profile, not a preset. The picker
+// renders it as its own color-input control, not a loop entry.
+export type ThemeColor = (typeof THEME_COLORS)[number]["key"] | "custom";
 
 // One-off/repeatable self-report actions with no other way to auto-detect
 // them (same gap book_completions solved for reading) — must match the

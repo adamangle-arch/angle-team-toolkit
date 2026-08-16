@@ -82,10 +82,30 @@ const FLAVOR_TILES: Partial<
   },
 };
 
-// Gold/Silver/Metallic keep the normal single (theme-reactive) gradient
-// tile but get a moving diagonal shine sweep on top (see .tile-shine in
-// globals.css) - the thing a flat gradient alone can't sell as "metal."
-const SHINE_THEMES: ThemeColor[] = ["gold", "silver", "metallic"];
+// Every theme here keeps the normal single (theme-reactive) gradient
+// tile but gets a moving diagonal shine sweep on top (see .tile-shine in
+// globals.css) - the thing a flat gradient alone can't sell as "metal"
+// or "gem." Cheap to extend (just adding a key here, no palette/icon
+// design work like FLAVOR_TILES above needs), so every metal/gem/
+// sparkle-coded colorway from the batch-2 rollout got added too, not
+// just the original three.
+const SHINE_THEMES: ThemeColor[] = [
+  "gold",
+  "silver",
+  "metallic",
+  "ruby",
+  "sapphire",
+  "amethyst",
+  "rosegold",
+  "platinum",
+  "copper",
+  "obsidian",
+  "opal",
+  "pearl",
+  "diamond",
+  "foundersdiamond",
+  "newyears",
+];
 
 const HOME_ITEMS: { href: string; label: string; icon: LucideIcon; description: string }[] = [
   { href: "/stories", label: "Stories", icon: Camera, description: "Today's prompt - gone in 24h." },
