@@ -178,13 +178,6 @@ export default function OnboardingPage() {
         subtitle={`${unlockedCount}/${ONBOARDING_SESSIONS.length} sessions unlocked`}
       />
       <main className="page-main">
-        {!loading && !welcomeVideoWatchedAt && (
-          <WelcomeVideoLockCard
-            userId={user.id}
-            onWatched={() => setWelcomeVideoWatchedAt(new Date().toISOString())}
-          />
-        )}
-
         {!loading && overallTotal > 0 && (
           <div
             className="space-y-3 rounded-2xl border p-5"
@@ -457,6 +450,13 @@ export default function OnboardingPage() {
               ))}
             </div>
           </div>
+        )}
+
+        {!loading && !welcomeVideoWatchedAt && (
+          <WelcomeVideoLockCard
+            userId={user.id}
+            onWatched={() => setWelcomeVideoWatchedAt(new Date().toISOString())}
+          />
         )}
 
         {loading ? (

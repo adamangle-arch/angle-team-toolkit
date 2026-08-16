@@ -7063,6 +7063,21 @@ different sets of numbers isn't safe to do silently). SQL needed:
 updates the three `budget_worksheets` RLS policies and runs the
 consolidation (see handoff below).
 
+### Welcome video card: restyled and repositioned on Classroom
+
+`WelcomeVideoLockCard` now matches the visual language of the session
+tiles it sits among instead of the plain amber-bordered box it was -
+same gradient rounded-xl box with a big faded icon and title, description
+below, chevron row at the bottom (borrowed straight from
+`ONBOARDING_SESSIONS.map`'s own tile markup in `app/onboarding/page.tsx`),
+just with its own indigo gradient and a hand icon since it isn't one of
+the five numbered sessions. Also moved on that page specifically - it
+now sits directly above the Session 1 tile (after the progress bar and
+the two collapsible LTD guide cards, and past the admin-only Preview
+Onboarding Tier card) instead of being the very first thing on the page.
+Home's copy of the same shared component picks up the new look too,
+unchanged in position there. No schema change.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)
