@@ -645,4 +645,45 @@ body {
     background: linear-gradient(100deg, transparent 42%, rgba(255, 255, 255, 0.55) 50%, transparent 58%);
     animation: tile-shine-sweep 2.6s ease-in-out infinite;
   }
+
+  /* Real flair for the 9 calendar-holiday App Colors (FestiveBackdrop.tsx
+     / FESTIVE_THEME_EMOJI in lib/constants.ts) - a scatter of themed
+     emoji drifting behind every page, not just a recolored accent.
+     Fixed + negative z-index puts it in the same layer as body's own
+     background gradient (app/globals.css `body` rule) but *above* it and
+     *below* every normal-flow page element: negative z-index paints
+     after a stacking context's own background but before any z-index:
+     auto content, so this shows through the gaps between cards/header on
+     every page without needing z-index on app-shell or page-main to
+     "win" - see FestiveBackdrop.tsx's own comment for the stacking-order
+     reasoning. pointer-events: none so it never intercepts taps. */
+  .festive-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .festive-backdrop-item {
+    position: absolute;
+    opacity: 0.16;
+    filter: saturate(1.1);
+    animation-name: festive-drift;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+  }
+  @keyframes festive-drift {
+    0%,
+    100% {
+      transform: translateY(0) rotate(var(--festive-rotate, 0deg));
+    }
+    50% {
+      transform: translateY(-14px) rotate(var(--festive-rotate, 0deg));
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .festive-backdrop-item {
+      animation: none;
+    }
+  }
 }

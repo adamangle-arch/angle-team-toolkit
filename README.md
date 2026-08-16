@@ -7171,6 +7171,30 @@ happening anyway per the original request - the Team tab's rosters
 repair themselves account-by-account as each person logs back in and
 does.
 
+### Real flair for the holiday App Colors, not just a recolor
+
+Every App Color on My Profile (`THEME_COLORS` in `lib/constants.ts`) only
+ever changed one accent hue app-wide via `data-theme` (`lib/applyTheme.ts`)
+- the fancy multi-tone gradient shown in the picker circle was purely a
+preview, never what actually applied. Fine for a plain color choice
+(Amber, Ruby, Ocean, etc.), but flat for something branded as an actual
+holiday - "Christmas" as a single recolored button doesn't read as
+Christmas.
+
+The 9 calendar-holiday/civic-day colorways (USA, Christmas, Easter,
+Valentine's Day, St. Patrick's Day, Thanksgiving, Hanukkah, New Year's
+Eve, Fireworks) now get real decorative flair on top of their accent
+color: a new `FestiveBackdrop` component renders a fixed, low-opacity
+scatter of themed emoji (`FESTIVE_THEME_EMOJI` in `lib/constants.ts`,
+e.g. 🎄❄️🎅🎁 for Christmas) gently drifting behind every page, mounted
+once in `AuthGate.tsx` alongside `QuoteOverlay`. It sits at `z-index: -1`
+(`.festive-backdrop` in `app/globals.css`) - above the body's own
+background gradient, below every card - so it shows through the natural
+gaps between cards and the header on every page without touching a
+single page's own layout. The other ~30 colorways (gems, metals, nature,
+mood) render nothing here and are unaffected; they're a color choice,
+not a "theme." Respects `prefers-reduced-motion`. No schema change.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

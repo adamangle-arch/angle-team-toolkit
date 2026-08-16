@@ -174,6 +174,27 @@ export const THEME_COLORS = [
 // renders it as its own color-input control, not a loop entry.
 export type ThemeColor = (typeof THEME_COLORS)[number]["key"] | "custom";
 
+// The subset of THEME_COLORS that are actual calendar holidays/civic
+// days (as opposed to the gems/metals/nature/mood colorways, which are
+// just a color choice, not a "theme") - these get real decorative flair
+// app-wide via FestiveBackdrop, not just an accent-color swap, since a
+// single recolored button doesn't read as "Christmas" or "the Fourth of
+// July" the way an actual scatter of themed emoji does. Deliberately a
+// separate lookup rather than a field on THEME_COLORS itself, so that
+// array's shared tuple type (swatch/ring, used for every colorway) isn't
+// forced to carry an optional field only 9 of ~40 entries ever use.
+export const FESTIVE_THEME_EMOJI: Partial<Record<ThemeColor, string[]>> = {
+  usa: ["🎆", "🇺🇸", "⭐", "🧨"],
+  christmas: ["🎄", "❄️", "🎅", "🎁"],
+  easter: ["🐣", "🌷", "🥚", "🐰"],
+  valentines: ["💘", "🌹", "💕", "💌"],
+  stpatricks: ["🍀", "☘️", "🌈", "🎩"],
+  harvest: ["🦃", "🍂", "🥧", "🌽"],
+  hanukkah: ["🕎", "✨", "🪔", "💙"],
+  newyears: ["🎉", "🥂", "🎆", "🎊"],
+  fireworks: ["🎆", "✨", "🎇", "💥"],
+};
+
 // Independent of ThemeColor above (accent color) - picked on My
 // Profile's "App Mode" card, applied via applyColorMode in
 // lib/applyTheme.ts (sets/clears data-mode="light" on <html>, which the
