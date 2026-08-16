@@ -7195,6 +7195,34 @@ single page's own layout. The other ~30 colorways (gems, metals, nature,
 mood) render nothing here and are unaffected; they're a color choice,
 not a "theme." Respects `prefers-reduced-motion`. No schema change.
 
+### Team tab grouping: derive team from sponsorship line, not self-pick
+
+The Team tab's rosters and tallies (`get_team_pipeline_totals`,
+`get_individual_leaders` in `supabase/schema.sql`) grouped strictly by
+`profiles.team`, the value someone picked once on their own via
+ProfileGate - unreliable in practice, since people don't always know
+(or remember) which of the 6 names actually matches their real
+sponsorship line, especially when it's a specific leader's own
+sub-team rather than the umbrella team name.
+
+New `team_roots` table (`team` -> `root_user_id`, admin-writable,
+readable by anyone) plus `effective_team(user_id)`, a `security definer`
+function that walks a person's actual `upline_id` chain and returns
+whichever configured team root they trace back to (closest one wins, so
+a narrower sub-team correctly carves itself out of a broader parent
+team's roster rather than both matching). Both RPCs now group by
+`coalesce(effective_team(pr.id), pr.team)` - falls back to the old
+self-picked value for any team with no root configured, so this only
+ever corrects/narrows grouping, never regresses one that isn't set up
+yet. `profiles.team` itself is untouched.
+
+Seeded with the one root confirmed so far: AA2 Team's root is
+adamangle@icloud.com (Adam Angle) - his entire downline (not just direct
+recruits) now counts under AA2 Team on the Team tab regardless of what
+they picked at signup. The other 5 teams (Angle, Tucker, Scheerer,
+Abbott, Jones) still fall back to the self-picked value until their root
+accounts are identified and added to `team_roots`.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

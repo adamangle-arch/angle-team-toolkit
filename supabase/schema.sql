@@ -1769,6 +1769,75 @@ create index if not exists assistant_api_calls_user_created_idx
 alter table assistant_api_calls enable row level security;
 
 -- ============================================================
+-- 6B. TEAM ROOTS (sponsorship-line team grouping)
+-- profiles.team is self-picked at signup, which turned out unreliable -
+-- people pick the wrong name (e.g. picking "Angle Team" when they're
+-- actually sponsored under a specific leader's own sub-team), so the
+-- Team tab's rosters/tallies didn't match reality. This is the fix: each
+-- team can have a designated root account, and effective_team() below
+-- walks a person's actual upline_id chain to find the closest one they
+-- trace back to - the real sponsorship line becomes the source of truth
+-- for team grouping instead of a dropdown someone filled in once.
+-- profiles.team itself is untouched and still stays the fallback for any
+-- team with no root configured yet (or anyone who doesn't trace back to
+-- any configured root), so this only ever narrows/corrects grouping, it
+-- never regresses a team that hasn't been set up here yet.
+-- ============================================================
+create table if not exists team_roots (
+  team text primary key,
+  root_user_id uuid not null references profiles(id) on delete cascade,
+  updated_at timestamptz not null default now()
+);
+alter table team_roots drop constraint if exists team_roots_team_check;
+alter table team_roots add constraint team_roots_team_check check (
+  team in ('Angle Team', 'AA2 Team', 'Tucker Team', 'Scheerer Team', 'Abbott Team', 'Jones Team')
+);
+
+alter table team_roots enable row level security;
+drop policy if exists "team_roots_select_all" on team_roots;
+create policy "team_roots_select_all" on team_roots for select using (true);
+drop policy if exists "team_roots_write_admin" on team_roots;
+create policy "team_roots_write_admin" on team_roots for all using (public.is_app_admin()) with check (public.is_app_admin());
+
+-- Closest configured root wins (smallest depth), so a narrower sub-team
+-- correctly carves itself out of a broader parent team's roster instead
+-- of both matching and the row order picking an arbitrary winner - e.g.
+-- if Angle Team's root is upline of AA2 Team's root, someone under AA2
+-- still resolves to AA2, not Angle Team. Returns null (falls back to
+-- profiles.team at the call site) if this person doesn't trace back to
+-- any team with a root configured yet.
+create or replace function public.effective_team(p_user_id uuid)
+returns text
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  with recursive chain as (
+    select id, upline_id, 0 as depth from profiles where id = p_user_id
+    union all
+    select pr.id, pr.upline_id, c.depth + 1
+    from profiles pr
+    join chain c on pr.id = c.upline_id
+    where c.depth < 20
+  )
+  select tr.team
+  from chain c
+  join team_roots tr on tr.root_user_id = c.id
+  order by c.depth asc
+  limit 1
+$$;
+
+grant execute on function public.effective_team(uuid) to authenticated;
+
+-- Seeds the one root confirmed so far: Adam Angle's own downline (his
+-- full My Tree, not just direct recruits) is AA2 Team. The other 5 teams
+-- stay on the profiles.team fallback until their roots are known.
+insert into team_roots (team, root_user_id)
+select 'AA2 Team', id from profiles where email = 'adamangle@icloud.com'
+on conflict (team) do update set root_user_id = excluded.root_user_id, updated_at = now();
+
+-- ============================================================
 -- 7. TEAM PIPELINE TOTALS & LEADERBOARD
 -- Every member's individual pipeline_periods row stays private via RLS
 -- (below). These two functions are the only way to see across members:
@@ -1801,7 +1870,7 @@ security definer
 set search_path = public
 as $$
   select
-    pr.team,
+    coalesce(public.effective_team(pr.id), pr.team) as team,
     count(distinct pr.id)::int as member_count,
     coalesce(sum(pp.questions), 0)::int as questions,
     coalesce(sum(pp.yeses), 0)::int as yeses,
@@ -1818,8 +1887,8 @@ as $$
     on pp.user_id = pr.id
    and pp.period_type = p_period_type
    and pp.period_start = p_period_start
-  where pr.team is not null
-  group by pr.team;
+  where coalesce(public.effective_team(pr.id), pr.team) is not null
+  group by coalesce(public.effective_team(pr.id), pr.team);
 $$;
 
 grant execute on function public.get_team_pipeline_totals(text, date) to authenticated;
@@ -1852,7 +1921,7 @@ security definer
 set search_path = public
 as $$
   with periods as (
-    select pp.*, pr.first_name, pr.last_name, pr.team,
+    select pp.*, pr.first_name, pr.last_name, coalesce(public.effective_team(pr.id), pr.team) as team,
            partner.id as partner_user_id,
            partner.first_name as partner_first_name,
            partner.last_name as partner_last_name
