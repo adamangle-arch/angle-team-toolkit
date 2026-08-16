@@ -7108,6 +7108,20 @@ same-named candidate, the picker's sublabel now names whose candidate
 it is (e.g. "Connected Jul 29, 2026 · Sarah's candidate") whenever it
 isn't this household's own. No schema change.
 
+### Pipeline Tracker: visible error toast for failed saves
+
+A failed stage bump or candidate update (`app/pipeline/page.tsx`) only
+ever showed as a small inline red-text line buried inside whichever
+tab triggered it - easy to miss mid-tap, especially on a flaky
+connection, and a failed save could silently revert an optimistic
++1/-1 with nothing drawing the eye to it. `updateError` now also
+renders as a persistent bottom toast (same positioning/style as the
+existing background call-rating banner in
+`components/RatingJobsProvider.tsx` - a `.card` pill sitting just above
+`BottomNav`), which survives switching tabs, auto-clears after 8
+seconds, and can be tapped to dismiss immediately. The old inline
+copies were removed. No schema change.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

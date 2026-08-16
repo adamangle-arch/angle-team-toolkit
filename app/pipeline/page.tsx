@@ -22,6 +22,7 @@ import {
   ClipboardList,
   Circle,
   Paperclip,
+  AlertTriangle,
 } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import TrendChart from "@/components/TrendChart";
@@ -215,6 +216,19 @@ function PipelinePageInner() {
   const [addError, setAddError] = useState<string | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [tallyCopied, setTallyCopied] = useState(false);
+
+  // A failed stage bump or candidate update used to only show as small
+  // inline red text buried in whichever tab triggered it - easy to miss
+  // mid-tap, especially on a flaky connection, and it could silently
+  // revert an optimistic +1/-1 with nothing drawing the eye to it. Now
+  // it's a persistent bottom toast (rendered once, below) that survives
+  // tab switches and auto-clears after a few seconds, but is dismissible
+  // immediately too.
+  useEffect(() => {
+    if (!updateError) return;
+    const timer = setTimeout(() => setUpdateError(null), 8000);
+    return () => clearTimeout(timer);
+  }, [updateError]);
 
   const [trendStage, setTrendStage] = useState<PipelineStageKey>("questions");
   const [trendHistory, setTrendHistory] = useState<PipelinePeriod[]>([]);
@@ -952,12 +966,6 @@ function PipelinePageInner() {
               </div>
             </div>
 
-            {updateError && (
-              <div className="card">
-                <p className="text-xs text-red-400">{updateError}</p>
-              </div>
-            )}
-
             {loadError ? (
               <div className="empty-state">Couldn&apos;t load this period: {loadError}</div>
             ) : loading || !period ? (
@@ -1275,12 +1283,6 @@ function PipelinePageInner() {
               </div>
             )}
 
-            {updateError && (
-              <div className="card">
-                <p className="text-xs text-red-400">{updateError}</p>
-              </div>
-            )}
-
             {loadingCandidates ? (
               <div className="card">
                 <SkeletonRows rows={4} />
@@ -1370,6 +1372,18 @@ function PipelinePageInner() {
         )}
       </main>
       {tab === "roadmap" && <Fab targetId="add-candidate" label="Add candidate" />}
+      {updateError && (
+        <div className="pointer-events-none fixed inset-x-0 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-40 flex justify-center px-4">
+          <button
+            type="button"
+            onClick={() => setUpdateError(null)}
+            className="card pointer-events-auto flex w-full max-w-md items-center gap-2 !p-2.5 text-left shadow-lg"
+          >
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-red-400" aria-hidden />
+            <span className="text-xs text-red-400">Couldn&apos;t save — {updateError}</span>
+          </button>
+        </div>
+      )}
     </FeatureGate>
   );
 }
