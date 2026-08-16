@@ -6508,6 +6508,21 @@ section (the `off_day` column, right after `depth_texts`) plus the
   is its own real count with its own +/- buttons on the page - it only
   changes now when someone actually touches it.
 
+- **Classroom: sessions now look like real course cards, and locked
+  ones are visibly shaded out.** Each session's small icon-badge-plus-
+  text header became a full-width colored banner (the same gradient,
+  just bigger - min-height 110px, a large watermark icon in the corner,
+  the session title bolded directly on the banner itself) rather than
+  a compact row, closer to what a real course platform's module tiles
+  look like. A locked session's banner switches to a flat slate-gray
+  gradient plus a `grayscale(0.6)` filter, a small lock badge in its
+  corner, and the whole card drops to `opacity-55` - "shaded out"
+  rather than just a small "Locked" pill next to the title, which was
+  easy to miss. The "Unlocked" pill was dropped for unlocked sessions
+  (the banner's full color already says that); a plain "Locked" pill
+  stays under a locked one's banner so the state isn't color-only.
+  Client-only change, no SQL needed.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

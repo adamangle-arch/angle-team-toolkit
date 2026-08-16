@@ -515,34 +515,41 @@ export default function OnboardingPage() {
             const doneCount = resources.filter((r) => completedKeys.has(`${sessionNumber}:${r.label}`)).length;
             const sessionPct = resources.length > 0 ? Math.round((doneCount / resources.length) * 100) : 0;
             return (
-              <div key={session.title} className="card space-y-3">
-                <div className="flex items-center gap-3">
-                  <div
-                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl"
-                    style={{
-                      background: `linear-gradient(135deg, ${style.from}, ${style.to})`,
-                      boxShadow: "0 6px 16px -8px rgba(0,0,0,0.6)",
-                      opacity: unlocked ? 1 : 0.45,
-                    }}
+              <div key={session.title} className={`card space-y-3 ${unlocked ? "" : "opacity-55"}`}>
+                <div
+                  className="relative flex min-h-[110px] flex-col justify-end overflow-hidden rounded-xl p-4"
+                  style={{
+                    background: unlocked
+                      ? `linear-gradient(135deg, ${style.from}, ${style.to})`
+                      : "linear-gradient(135deg, #64748b, #334155)",
+                    boxShadow: "0 10px 24px -12px rgba(0,0,0,0.55)",
+                    filter: unlocked ? undefined : "grayscale(0.6)",
+                  }}
+                >
+                  <style.icon
+                    className="pointer-events-none absolute -right-4 -top-4 h-28 w-28 text-white opacity-25"
+                    strokeWidth={1.5}
                     aria-hidden
-                  >
-                    <style.icon className="h-6 w-6 text-white" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-bold text-white">{session.title}</p>
-                    <p className="text-xs text-slate-400">{session.description}</p>
-                  </div>
-                  <span className={`shrink-0 gap-1 ${unlocked ? "pill-amber" : "pill"}`}>
-                    {unlocked ? (
-                      "Unlocked"
-                    ) : (
-                      <>
-                        <Lock className="h-3 w-3" aria-hidden />
-                        Locked
-                      </>
-                    )}
-                  </span>
+                  />
+                  {!unlocked && (
+                    <span
+                      className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full bg-black/30"
+                      aria-hidden
+                    >
+                      <Lock className="h-3.5 w-3.5 text-white" />
+                    </span>
+                  )}
+                  <p className="relative z-10 text-lg font-extrabold leading-tight text-white drop-shadow-sm">
+                    {session.title}
+                  </p>
                 </div>
+                <p className="text-sm text-slate-400">{session.description}</p>
+                {!unlocked && (
+                  <span className="pill inline-flex w-fit items-center gap-1">
+                    <Lock className="h-3 w-3" aria-hidden />
+                    Locked
+                  </span>
+                )}
 
                 {unlocked && resources.length > 0 && (
                   <div className="space-y-1">
