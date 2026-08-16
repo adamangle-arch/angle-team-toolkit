@@ -7036,31 +7036,32 @@ admin included. No schema change.
 ### My Budget: linked spouses can now see and edit each other's budget
 
 Reverses an earlier deliberate decision ("financial disclosure is
-personal even between linked spouses") - the team wants a linked spouse
-to be able to view AND edit their partner's budget too, same access a
-spouse already has on the household-shared business tables (pipeline/
-candidates/contacts). Still two separate rows/worksheets though, not
-merged into one shared number like those tables - `budget_worksheets`'
-RLS policies (`supabase/schema.sql`) now allow
-`user_id = public.get_household_partner_id()` alongside the existing
-owner/upline/admin checks, for select, insert, and update alike.
-`get_household_partner_id()` already existed (used client-side on My
-Profile) and resolves the spouse link from either direction, unlike a
-plain `household_id` column read which only works from the "deferring"
-side.
+personal even between linked spouses"). First pass gave a linked spouse
+their own tab to view/edit their partner's budget, but kept it as two
+separate worksheets - the team then asked for one shared budget instead,
+same as pipeline/candidates/contacts already are. `budget_worksheets` is
+now genuinely household-shared: `user_id` is the household owner's id
+(`profile.household_id ?? their own id`, the exact convention those
+other tables use), and either spouse reads/writes the same row - no more
+tab switcher on `app/budget/page.tsx`, it just uses `ownerId` from
+`useAuth()` like the rest of the household-shared pages do. RLS mirrors
+`candidate_specific_resources`' shape exactly: `user_id = auth.uid() or
+user_id = (select household_id from profiles where id = auth.uid()) or
+is_upline_of(...) or is_app_admin()`, for select/insert/update. The
+Team tab's per-member Budget card (`app/team/page.tsx`) switched from
+the selected person's own id to their `ownerId` too, matching how it
+already reads their pipeline/candidates/contacts.
 
-`app/budget/page.tsx` gained a "My Budget" / "{spouse}'s Budget" tab
-switcher (only rendered when a partner is linked) - `viewingUserId`
-drives the fetch/save/autosave instead of always using your own id, and
-switching tabs resets the autosave's dirty-tracking so the incoming
-worksheet doesn't look "dirty" against the previous tab's edits. The
-`budget_worksheet_completed` first-save notification only fires when
-you're editing your own budget, not your spouse's - the API route
-attributes it to whoever's signed in making the call, not the
-worksheet's owner, so firing it while helping fill in a spouse's
-worksheet would tell the wrong household's upline "I started my
-budget." SQL needed: updates the three `budget_worksheets` RLS policies
-(see handoff below).
+Since some people may have already saved a budget under their own id
+before this shipped, schema.sql includes a one-time, idempotent
+consolidation: if only the deferring spouse has a row, it's promoted to
+become the shared row (no data lost); if the actual owner already has
+their own row too, the deferring spouse's is treated as a duplicate and
+dropped, with the owner's kept as canonical (disclosed as the one case
+where old numbers don't survive, since automatically merging two
+different sets of numbers isn't safe to do silently). SQL needed:
+updates the three `budget_worksheets` RLS policies and runs the
+consolidation (see handoff below).
 
 ## Tech stack
 

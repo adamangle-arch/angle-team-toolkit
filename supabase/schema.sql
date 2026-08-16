@@ -7622,19 +7622,26 @@ where welcome_video_watched_at = created_at and created_at < '2026-08-15'::date;
 -- 23. MY BUDGET (Budget Session worksheet, in-app)
 -- Replaces the Google Sheet used in the Budget Session (Onboarding
 -- Session 1) with an in-app version an upline can see get filled out,
--- rather than something that only ever lived in a Dropbox link. One row
--- per person (NOT household-shared like pipeline/candidates/contacts -
--- financial disclosure is personal even between linked spouses, unlike
--- team business numbers). Amounts live in a handful of jsonb maps
--- keyed by the line-item slugs in BUDGET_*_ITEMS (lib/constants.ts)
--- rather than one column per line item - the sheet has ~55 line items
--- across 6 sections, and a flexible jsonb map means a future content
--- change (renaming a line item's label, adding one) doesn't need a
--- migration. fixed_expenses entries are {amount, due} (due mirrors the
--- sheet's "Date Bill Due 1st-15th | 15th-30th" column); debts entries
--- are {payment, interest_rate, total_owed}; every other section is a
--- flat {slug: amount} map. See lib/budget.ts's computeBudgetTotals for
--- how these six maps turn into the sheet's own Cash Flow summary.
+-- rather than something that only ever lived in a Dropbox link.
+-- Household-shared like pipeline/candidates/contacts - a linked couple
+-- runs one household budget, not two separate ones, so user_id here is
+-- the household owner's id (profile.household_id ?? their own id,
+-- resolved client-side the same way app/team/page.tsx already does for
+-- the other household-shared tables), and either spouse reads/writes
+-- the same row. This was originally one row per person with owner-only
+-- access ("financial disclosure is personal even between linked
+-- spouses") - the team changed that; see the migration below for how
+-- any already-separate per-spouse rows get folded into one. Amounts
+-- live in a handful of jsonb maps keyed by the line-item slugs in
+-- BUDGET_*_ITEMS (lib/constants.ts) rather than one column per line
+-- item - the sheet has ~55 line items across 6 sections, and a flexible
+-- jsonb map means a future content change (renaming a line item's
+-- label, adding one) doesn't need a migration. fixed_expenses entries
+-- are {amount, due} (due mirrors the sheet's "Date Bill Due 1st-15th |
+-- 15th-30th" column); debts entries are {payment, interest_rate,
+-- total_owed}; every other section is a flat {slug: amount} map. See
+-- lib/budget.ts's computeBudgetTotals for how these six maps turn into
+-- the sheet's own Cash Flow summary.
 -- ============================================================
 create table if not exists budget_worksheets (
   id uuid primary key default gen_random_uuid(),
@@ -7662,39 +7669,65 @@ create index if not exists budget_worksheets_user_id_idx on budget_worksheets(us
 
 alter table budget_worksheets enable row level security;
 
--- "Own row, linked spouse's row, any-level upline, or admin" read shape,
--- same "any-level upline" reach as activity_logs/candidate_specific_
--- resources above. Originally owner-only end to end ("financial
--- disclosure is personal even between linked spouses") - the team
--- changed that: a linked spouse can now see AND edit their partner's
--- budget too, same as they already can for household-shared business
--- tables (pipeline/candidates/contacts). get_household_partner_id()
--- resolves the link from either direction (household_id is only ever
--- stored on the "deferring" side), unlike a plain household_id column
--- read. Still two separate rows, one per person - not merged into a
--- single household row like pipeline/candidates are, since these are
--- two individual worksheets a spouse can each open, not one shared
--- number (app/budget/page.tsx's "My Budget" / their name tab switcher).
+-- Same "own household row, any-level upline, or admin" shape as
+-- candidate_specific_resources above, checked via a plain household_id
+-- column read rather than get_household_partner_id() - that RPC exists
+-- to resolve the link from either direction when there's no "owner" row
+-- to check against (My Profile's own display), but here the row is
+-- always attributed to whichever side is the actual owner, so only the
+-- deferring side ever needs the extra clause (the owner already matches
+-- on user_id = auth.uid()) - same reasoning candidate_specific_
+-- resources' policies use.
 drop policy if exists "budget_worksheets_select_own_or_upline_or_admin" on budget_worksheets;
-create policy "budget_worksheets_select_own_or_spouse_or_upline_or_admin" on budget_worksheets for select using (
+drop policy if exists "budget_worksheets_select_own_or_spouse_or_upline_or_admin" on budget_worksheets;
+create policy "budget_worksheets_select_own_or_household_or_upline_or_admin" on budget_worksheets for select using (
   user_id = auth.uid()
-  or user_id = public.get_household_partner_id()
+  or user_id = (select household_id from profiles where id = auth.uid())
   or public.is_upline_of(auth.uid(), user_id)
   or public.is_app_admin()
 );
 
 drop policy if exists "budget_worksheets_insert_own" on budget_worksheets;
-create policy "budget_worksheets_insert_own_or_spouse" on budget_worksheets for insert with check (
-  user_id = auth.uid() or user_id = public.get_household_partner_id()
+drop policy if exists "budget_worksheets_insert_own_or_spouse" on budget_worksheets;
+create policy "budget_worksheets_insert_own_or_household" on budget_worksheets for insert with check (
+  user_id = auth.uid() or user_id = (select household_id from profiles where id = auth.uid())
 );
 
 drop policy if exists "budget_worksheets_update_own" on budget_worksheets;
 drop policy if exists "budget_worksheets_update_own_or_spouse" on budget_worksheets;
-create policy "budget_worksheets_update_own_or_spouse" on budget_worksheets for update using (
-  user_id = auth.uid() or user_id = public.get_household_partner_id()
+create policy "budget_worksheets_update_own_or_household" on budget_worksheets for update using (
+  user_id = auth.uid() or user_id = (select household_id from profiles where id = auth.uid())
 ) with check (
-  user_id = auth.uid() or user_id = public.get_household_partner_id()
+  user_id = auth.uid() or user_id = (select household_id from profiles where id = auth.uid())
 );
+
+-- One-time consolidation: fold any budget that was already saved under
+-- a deferring spouse's own id (from before this became household-
+-- shared) into the actual household owner's row, same owner the RLS
+-- policies above now check against. Two passes, both naturally
+-- idempotent - once a deferring side has no row of its own left,
+-- neither WHERE clause matches it again on a re-run:
+--  1. Owner has no row yet: promote the deferring side's row to the
+--     owner's id - it becomes the shared row outright, no data lost.
+--  2. Owner already has their own row: the deferring side's row is a
+--     genuine duplicate (both partners independently started one) -
+--     the owner's row stays canonical and the duplicate is dropped.
+--     Whichever numbers were in the now-dropped row are gone; this is
+--     a one-time reconciliation the household is expected to redo
+--     together going forward, not an attempt to merge two different
+--     sets of numbers automatically.
+update budget_worksheets bw
+set user_id = p.household_id
+from profiles p
+where bw.user_id = p.id
+  and p.household_id is not null
+  and not exists (select 1 from budget_worksheets bw2 where bw2.user_id = p.household_id);
+
+delete from budget_worksheets bw
+using profiles p
+where bw.user_id = p.id
+  and p.household_id is not null
+  and exists (select 1 from budget_worksheets bw2 where bw2.user_id = p.household_id);
 
 -- ============================================================
 -- 24. LIGHT / DARK MODE

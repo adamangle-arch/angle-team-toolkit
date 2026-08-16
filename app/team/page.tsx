@@ -440,10 +440,9 @@ export default function TeamPage() {
           .eq("user_id", ownerId)
           .eq("period_start", getMonthStart())
           .maybeSingle(),
-        // Not household-scoped like the queries above (via ownerId) -
-        // a budget is personal even between linked spouses, so this
-        // always reads the selected person's own row (selectedId).
-        supabase.from("budget_worksheets").select("*").eq("user_id", selectedId).maybeSingle(),
+        // Household-scoped now too (via ownerId) - a linked couple
+        // shares one budget, same as pipeline/candidates/contacts.
+        supabase.from("budget_worksheets").select("*").eq("user_id", ownerId).maybeSingle(),
       ]);
 
       if (!cancelled) {
