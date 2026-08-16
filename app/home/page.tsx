@@ -104,7 +104,7 @@ function HeroCard({
 }
 
 export default function HomePage() {
-  const { user, unlockedThrough, coreRunStatus } = useAuth();
+  const { user, unlockedThrough, coreRunStatus, unreadNotificationCount } = useAuth();
   const visibleItems = HOME_ITEMS.filter((item) => unlockedThrough >= minSessionFor(item.href));
   // Pipeline and Assistant are session-gated everywhere else (BottomNav,
   // the old More grid) - their hero cards follow the same rule rather
@@ -219,6 +219,14 @@ export default function HomePage() {
                   strokeWidth={1.5}
                   aria-hidden
                 />
+                {item.href === "/notifications" && unreadNotificationCount > 0 && (
+                  <span
+                    className="absolute right-2 top-2 z-20 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white shadow-[0_2px_6px_-1px_rgba(0,0,0,0.5)]"
+                    aria-label={`${unreadNotificationCount} unread notification${unreadNotificationCount === 1 ? "" : "s"}`}
+                  >
+                    {unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}
+                  </span>
+                )}
                 <div className="relative z-10">
                   <p className="text-base font-extrabold leading-tight text-white drop-shadow-sm">
                     {item.label}
