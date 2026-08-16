@@ -24,6 +24,22 @@ import {
   Snowflake,
   Egg,
   Wallet,
+  Flag,
+  Sparkles,
+  TreePine,
+  Gift,
+  Heart,
+  HeartHandshake,
+  Rabbit,
+  Cross,
+  Flower2,
+  Clover,
+  Rainbow,
+  Coins,
+  Wheat,
+  Leaf,
+  Sprout,
+  Clock,
   type LucideIcon,
 } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
@@ -45,17 +61,22 @@ const CORE_RUN_STATUS_COPY: Record<string, string> = {
   pending: "Not logged yet today",
 };
 
-// Flavor palettes for the "themed" App Colors (USA, Christmas, Easter) -
-// unlike the solid colorways (Amber, Sky Blue, Gold, ...), which stay a
-// single from-light-to-dark gradient across every tile via the
-// theme-reactive --color-amber-* variables, these cycle each tile
-// through a small on-brand palette (e.g. USA alternates red/white/blue)
-// plus a small decorative corner icon, since a literal red-white-blue
-// flag or a scattering of snowflakes reads as the holiday in a way one
-// flat color never could. Deliberately hardcoded hex, not CSS
-// variables - these colors ARE the theme, not a tint of it.
+// Flavor palettes for the "decked out" App Colors - every holiday
+// colorway, not just a plain accent pick. Unlike the solid colorways
+// (Amber, Sky Blue, Gold, ...), which stay a single from-light-to-dark
+// gradient across every tile via the theme-reactive --color-amber-*
+// variables, these cycle each tile through a small on-brand palette
+// (e.g. USA alternates red/white/blue) AND a small decorative corner
+// icon that itself cycles through several motifs (a flag on one tile, a
+// star on the next, a firework burst on the one after) rather than the
+// same single icon repeated everywhere - a scatter of different
+// ornaments/hearts/eggs reads as "decked out" in a way one repeated
+// glyph doesn't. `decor` cycles independently of `gradients` (different
+// lengths are fine and intentional - it keeps the icon/color pairing
+// from repeating in lockstep across the grid). Deliberately hardcoded
+// hex, not CSS variables - these colors ARE the theme, not a tint of it.
 const FLAVOR_TILES: Partial<
-  Record<ThemeColor, { gradients: { from: string; to: string; onLight?: boolean }[]; decor: LucideIcon }>
+  Record<ThemeColor, { gradients: { from: string; to: string; onLight?: boolean }[]; decor: LucideIcon[] }>
 > = {
   usa: {
     gradients: [
@@ -63,14 +84,23 @@ const FLAVOR_TILES: Partial<
       { from: "#f8fafc", to: "#cbd5e1", onLight: true },
       { from: "#60a5fa", to: "#1e3a8a" },
     ],
-    decor: Star,
+    decor: [Flag, Star, Sparkles],
   },
   christmas: {
     gradients: [
       { from: "#ef4444", to: "#991b1b" },
       { from: "#4ade80", to: "#166534" },
+      { from: "#fde68a", to: "#92400e" },
     ],
-    decor: Snowflake,
+    decor: [TreePine, Gift, Snowflake, Bell],
+  },
+  valentines: {
+    gradients: [
+      { from: "#f9a8d4", to: "#be123c" },
+      { from: "#fecdd3", to: "#9f1239" },
+      { from: "#f472b6", to: "#831843" },
+    ],
+    decor: [Heart, HeartHandshake, Sparkles],
   },
   easter: {
     gradients: [
@@ -79,7 +109,47 @@ const FLAVOR_TILES: Partial<
       { from: "#fde68a", to: "#ca8a04", onLight: true },
       { from: "#93c5fd", to: "#2563eb" },
     ],
-    decor: Egg,
+    decor: [Egg, Rabbit, Cross, Flower2],
+  },
+  stpatricks: {
+    gradients: [
+      { from: "#86efac", to: "#166534" },
+      { from: "#4ade80", to: "#14532d" },
+      { from: "#fde047", to: "#78350f" },
+    ],
+    decor: [Clover, Rainbow, Coins],
+  },
+  harvest: {
+    gradients: [
+      { from: "#fb923c", to: "#7c2d12" },
+      { from: "#fbbf24", to: "#92400e" },
+      { from: "#fca5a5", to: "#7f1d1d" },
+    ],
+    decor: [Wheat, Leaf, Sprout],
+  },
+  hanukkah: {
+    gradients: [
+      { from: "#93c5fd", to: "#1e3a8a" },
+      { from: "#bfdbfe", to: "#1e40af" },
+      { from: "#e0e7ff", to: "#3730a3" },
+    ],
+    decor: [Star, Flame, Sparkles],
+  },
+  newyears: {
+    gradients: [
+      { from: "#fde047", to: "#1e293b" },
+      { from: "#fbbf24", to: "#0f172a" },
+      { from: "#facc15", to: "#334155" },
+    ],
+    decor: [PartyPopper, Sparkles, Clock],
+  },
+  fireworks: {
+    gradients: [
+      { from: "#fbbf24", to: "#7f1d1d" },
+      { from: "#f472b6", to: "#581c87" },
+      { from: "#67e8f9", to: "#1e3a8a" },
+    ],
+    decor: [Sparkles, PartyPopper, Star],
   },
 };
 
@@ -266,7 +336,7 @@ export default function HomePage() {
               ? `linear-gradient(135deg, ${tile.from}, ${tile.to})`
               : "linear-gradient(135deg, var(--color-amber-light), var(--color-amber-dark))";
             const onLight = tile?.onLight ?? false;
-            const Decor = flavorTiles?.decor;
+            const Decor = flavorTiles?.decor[i % flavorTiles.decor.length];
             return (
               <Link
                 key={item.href}

@@ -6769,6 +6769,50 @@ link nobody else could see.
   `sent_notifications_kind_check` to include
   `budget_worksheet_completed` (see handoff below).
 
+### Holiday App Colors are actually "decked out" now, not just recolored
+
+Follow-up on the App Color rollout: USA/Christmas/Easter previously got
+one repeated decorative icon (a single Star, Snowflake, or Egg cycling
+in the same corner of every tile). Every holiday colorway now cycles
+through several different ornaments instead of one repeated glyph, and
+6 more holidays that only ever had a plain accent color before
+(Valentine's Day, St. Patrick's Day, Thanksgiving, Hanukkah, New Year's
+Eve, Fireworks) got the same full treatment:
+
+- USA: flag, star, and firework-sparkle icons cycling across the grid,
+  over the existing red/white/blue tiles.
+- Christmas: pine tree, gift, snowflake, and ornament (bell) icons, plus
+  a third gold/wrapped-gift tile added to the red/green cycle.
+- Valentine's Day: heart, heart-handshake, and sparkle icons over a
+  pink/rose/maroon cycle.
+- Easter: egg, rabbit, cross, and flower icons (unchanged pastel
+  cycle).
+- St. Patrick's Day (new): clover, rainbow, and coin icons over a
+  green-and-gold cycle.
+- Thanksgiving (new): wheat, leaf, and sprout icons over a burnt-
+  orange/gold/cranberry cycle.
+- Hanukkah (new): star, flame, and sparkle icons over a blue/white
+  cycle.
+- New Year's Eve (new): party-popper, sparkle, and clock icons over a
+  gold/black cycle - keeps its shine sweep too (already in
+  `SHINE_THEMES`), so it's shiny *and* decorated.
+- Fireworks (new): sparkle, party-popper, and star icons over a
+  gold-red/pink-purple/cyan-blue burst cycle.
+
+`FLAVOR_TILES` in `app/home/page.tsx` now takes `decor` as an array of
+icons per theme instead of one icon - it cycles by tile position
+independently of the color-gradient cycle (deliberately different
+lengths on the two arrays, so the icon/color pairing doesn't repeat in
+lockstep down the grid). Every other App Color (the plain accents plus
+the nature/gem/mood set - Ocean, Ruby, Cyberpunk, etc.) is untouched -
+still the single theme-reactive gradient with no icon cycle, same as
+before. Scoped to Home's "Everything else" grid specifically (the
+tiles the request pointed at) - hero cards, Classroom banners, and a
+full-page decorative background/wallpaper per theme were all
+deliberately left out of this pass to keep it shippable in one sitting;
+happy to extend to those next if it's wanted. Client-only change, no
+SQL needed.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)
