@@ -27,7 +27,7 @@ export default function WelcomeVideoLockCard({
           Watch the Welcome Video First
         </p>
         <p className="text-sm text-slate-300">
-          A quick message from the team before Session 1 unlocks.
+          A quick message from Adam and Laura Angle before Session 1 unlocks.
         </p>
         <button className="btn-primary w-full" onClick={() => setOpen(true)}>
           Watch Now

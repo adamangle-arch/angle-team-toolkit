@@ -137,7 +137,9 @@ export default function WelcomeVideoOverlay({
       <div className="w-full max-w-md space-y-1 text-center">
         <Hand className="mx-auto h-6 w-6 text-white" aria-hidden />
         <p className="text-lg font-bold text-white">Welcome to the Angle Team</p>
-        <p className="text-sm text-slate-400">A quick message before you get started.</p>
+        <p className="text-sm text-slate-400">
+          A quick message from Adam and Laura Angle before you get started.
+        </p>
       </div>
       <div className="aspect-video w-full max-w-md overflow-hidden rounded-xl bg-black">
         <div ref={playerHostRef} className="h-full w-full" />
