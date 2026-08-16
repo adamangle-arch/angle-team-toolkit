@@ -7697,6 +7697,7 @@ alter table budget_worksheets enable row level security;
 -- resources' policies use.
 drop policy if exists "budget_worksheets_select_own_or_upline_or_admin" on budget_worksheets;
 drop policy if exists "budget_worksheets_select_own_or_spouse_or_upline_or_admin" on budget_worksheets;
+drop policy if exists "budget_worksheets_select_own_or_household_or_upline_or_admin" on budget_worksheets;
 create policy "budget_worksheets_select_own_or_household_or_upline_or_admin" on budget_worksheets for select using (
   user_id = auth.uid()
   or user_id = (select household_id from profiles where id = auth.uid())
@@ -7706,12 +7707,14 @@ create policy "budget_worksheets_select_own_or_household_or_upline_or_admin" on 
 
 drop policy if exists "budget_worksheets_insert_own" on budget_worksheets;
 drop policy if exists "budget_worksheets_insert_own_or_spouse" on budget_worksheets;
+drop policy if exists "budget_worksheets_insert_own_or_household" on budget_worksheets;
 create policy "budget_worksheets_insert_own_or_household" on budget_worksheets for insert with check (
   user_id = auth.uid() or user_id = (select household_id from profiles where id = auth.uid())
 );
 
 drop policy if exists "budget_worksheets_update_own" on budget_worksheets;
 drop policy if exists "budget_worksheets_update_own_or_spouse" on budget_worksheets;
+drop policy if exists "budget_worksheets_update_own_or_household" on budget_worksheets;
 create policy "budget_worksheets_update_own_or_household" on budget_worksheets for update using (
   user_id = auth.uid() or user_id = (select household_id from profiles where id = auth.uid())
 ) with check (
