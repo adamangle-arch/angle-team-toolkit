@@ -5,23 +5,19 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   Check,
+  ChevronRight,
   Circle,
-  ClipboardList,
-  Flame,
   FlaskConical,
   Gift,
   Headphones,
   Lock,
   Mail,
-  MessageCircle,
-  PiggyBank,
   Rocket,
-  ShoppingBag,
   Unlock,
   X,
-  type LucideIcon,
 } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
+import ProgressBar from "@/components/ProgressBar";
 import { SkeletonList } from "@/components/Skeleton";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
@@ -33,41 +29,8 @@ import {
   isPrimaryUser,
   type OnboardingResourceOverrideEntry,
 } from "@/lib/constants";
+import { SESSION_STYLE } from "@/lib/onboarding-style";
 import type { MemberResource } from "@/lib/types";
-
-// A resource url starting with "/" is a link to somewhere else in the
-// app (e.g. a Resources tab) rather than an external video/doc link -
-// those should navigate in-app via next/link instead of opening a new
-// browser tab.
-function isInternalLink(url: string): boolean {
-  return url.startsWith("/");
-}
-
-// One icon + gradient per session, index-matched to ONBOARDING_SESSIONS
-// - same "colorful module card" language the Home hub's tiles already
-// use, just five fixed entries instead of a cycled palette since there
-// are always exactly five sessions.
-const SESSION_STYLE: { icon: LucideIcon; from: string; to: string }[] = [
-  { icon: PiggyBank, from: "#6ee7b7", to: "#047857" }, // Budget Session
-  { icon: ClipboardList, from: "#7dd3fc", to: "#0369a1" }, // List Building
-  { icon: ShoppingBag, from: "#c4b5fd", to: "#6d28d9" }, // Customers
-  { icon: MessageCircle, from: "#fda4af", to: "#be123c" }, // Sharing Your Story
-  { icon: Flame, from: "#fde68a", to: "#b45309" }, // 30-Day Core Run
-];
-
-function ProgressBar({ pct, size = "sm" }: { pct: number; size?: "sm" | "lg" }) {
-  return (
-    <div className={`w-full overflow-hidden rounded-full bg-white/10 ${size === "lg" ? "h-3.5" : "h-2"}`}>
-      <div
-        className="h-full rounded-full transition-all duration-300"
-        style={{
-          width: `${Math.max(0, Math.min(100, pct))}%`,
-          background: "linear-gradient(135deg, var(--color-amber-light), var(--color-amber))",
-        }}
-      />
-    </div>
-  );
-}
 
 export default function OnboardingPage() {
   const { user, ownerId, onboardingComplete } = useAuth();
@@ -160,28 +123,6 @@ export default function OnboardingPage() {
       setConfirmError(error.message);
     }
     setConfirmingChapters(false);
-  }
-
-  async function toggleResourceComplete(session: number, label: string) {
-    const key = `${session}:${label}`;
-    const wasDone = completedKeys.has(key);
-    const previous = completedKeys;
-    const next = new Set(completedKeys);
-    if (wasDone) next.delete(key);
-    else next.add(key);
-    setCompletedKeys(next);
-
-    const { error } = wasDone
-      ? await supabase
-          .from("onboarding_resource_completions")
-          .delete()
-          .eq("user_id", user.id)
-          .eq("session", session)
-          .eq("resource_label", label)
-      : await supabase
-          .from("onboarding_resource_completions")
-          .insert({ user_id: user.id, session, resource_label: label });
-    if (error) setCompletedKeys(previous);
   }
 
   const unlockedCount = isAdmin
@@ -514,140 +455,113 @@ export default function OnboardingPage() {
             const style = SESSION_STYLE[i];
             const doneCount = resources.filter((r) => completedKeys.has(`${sessionNumber}:${r.label}`)).length;
             const sessionPct = resources.length > 0 ? Math.round((doneCount / resources.length) * 100) : 0;
-            return (
-              <div key={session.title} className={`card space-y-3 ${unlocked ? "" : "opacity-55"}`}>
-                <div
-                  className="relative flex min-h-[110px] flex-col justify-end overflow-hidden rounded-xl p-4"
-                  style={{
-                    background: unlocked
-                      ? `linear-gradient(135deg, ${style.from}, ${style.to})`
-                      : "linear-gradient(135deg, #64748b, #334155)",
-                    boxShadow: "0 10px 24px -12px rgba(0,0,0,0.55)",
-                    filter: unlocked ? undefined : "grayscale(0.6)",
-                  }}
-                >
-                  <style.icon
-                    className="pointer-events-none absolute -right-4 -top-4 h-28 w-28 text-white opacity-25"
-                    strokeWidth={1.5}
-                    aria-hidden
-                  />
-                  {!unlocked && (
+
+            if (!unlocked) {
+              return (
+                <div key={session.title} className="card space-y-3 opacity-55">
+                  <div
+                    className="relative flex min-h-[110px] flex-col justify-end overflow-hidden rounded-xl p-4"
+                    style={{
+                      background: "linear-gradient(135deg, #64748b, #334155)",
+                      boxShadow: "0 10px 24px -12px rgba(0,0,0,0.55)",
+                      filter: "grayscale(0.6)",
+                    }}
+                  >
+                    <style.icon
+                      className="pointer-events-none absolute -right-4 -top-4 h-28 w-28 text-white opacity-25"
+                      strokeWidth={1.5}
+                      aria-hidden
+                    />
                     <span
                       className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full bg-black/30"
                       aria-hidden
                     >
                       <Lock className="h-3.5 w-3.5 text-white" />
                     </span>
-                  )}
-                  <p className="relative z-10 text-lg font-extrabold leading-tight text-white drop-shadow-sm">
-                    {session.title}
-                  </p>
-                </div>
-                <p className="text-sm text-slate-400">{session.description}</p>
-                {!unlocked && (
+                    <p className="relative z-10 text-lg font-extrabold leading-tight text-white drop-shadow-sm">
+                      {session.title}
+                    </p>
+                  </div>
+                  <p className="text-sm text-slate-400">{session.description}</p>
                   <span className="pill inline-flex w-fit items-center gap-1">
                     <Lock className="h-3 w-3" aria-hidden />
                     Locked
                   </span>
-                )}
 
-                {unlocked && resources.length > 0 && (
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between text-xs text-slate-400">
-                      <span>
-                        {doneCount}/{resources.length} done
-                      </span>
-                      <span>{sessionPct}%</span>
+                  {sessionNumber === 4 && (
+                    <div className="space-y-1.5">
+                      <p className="flex items-center gap-1 text-xs text-amber-light">
+                        {networkContactCount >= SESSION_4_CONTACT_MINIMUM ? (
+                          <Check className="h-3 w-3 shrink-0" aria-hidden />
+                        ) : (
+                          <Circle className="h-3 w-3 shrink-0 text-slate-500" aria-hidden />
+                        )}
+                        {SESSION_4_CONTACT_MINIMUM}+ names in your Contact Builder&apos;s A/B
+                        list — you have {networkContactCount}/{SESSION_4_CONTACT_MINIMUM}.
+                      </p>
+                      <label className="flex items-start gap-2 text-xs text-amber-light">
+                        <input
+                          type="checkbox"
+                          className="mt-0.5"
+                          checked={chaptersConfirmed}
+                          disabled={confirmingChapters}
+                          onChange={toggleChaptersConfirmed}
+                        />
+                        <span>I&apos;ve read {SESSION_4_READING_REQUIREMENT}.</span>
+                      </label>
+                      {confirmError && <p className="text-xs text-red-400">{confirmError}</p>}
                     </div>
-                    <ProgressBar pct={sessionPct} />
-                  </div>
-                )}
+                  )}
+                  <p className="text-xs text-slate-500">
+                    Ask your upline to unlock this session once you&apos;re ready.
+                  </p>
+                </div>
+              );
+            }
 
-                {unlocked ? (
-                  <div className="space-y-1.5">
-                    {resources.map((r) => {
-                      const done = completedKeys.has(`${sessionNumber}:${r.label}`);
-                      return (
-                        <div key={r.label} className="flex items-start gap-2.5 rounded-lg bg-navy px-3 py-2">
-                          <button
-                            type="button"
-                            onClick={() => toggleResourceComplete(sessionNumber, r.label)}
-                            className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 text-[11px] font-bold transition ${
-                              done
-                                ? "border-emerald-400 bg-emerald-400 text-navy"
-                                : "border-slate-600 text-transparent"
-                            }`}
-                            aria-label={done ? `Mark ${r.label} as not done` : `Mark ${r.label} as done`}
-                          >
-                            ✓
-                          </button>
-                          <div className="min-w-0 flex-1">
-                            {r.url && isInternalLink(r.url) ? (
-                              <Link
-                                href={r.url}
-                                className={`text-sm font-medium underline decoration-dotted underline-offset-2 ${
-                                  done ? "text-slate-500" : "text-amber-light"
-                                }`}
-                              >
-                                {r.label}
-                              </Link>
-                            ) : r.url ? (
-                              <a
-                                href={r.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className={`text-sm font-medium underline decoration-dotted underline-offset-2 ${
-                                  done ? "text-slate-500" : "text-amber-light"
-                                }`}
-                              >
-                                {r.label}
-                              </a>
-                            ) : (
-                              <p className={`text-sm font-medium ${done ? "text-slate-400 line-through" : "text-white"}`}>
-                                {r.label}
-                              </p>
-                            )}
-                            <p className="text-xs text-slate-400">
-                              {r.detail}
-                              {r.estimate && <span> · {r.estimate}</span>}
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <>
-                    {sessionNumber === 4 && (
-                      <div className="space-y-1.5">
-                        <p className="flex items-center gap-1 text-xs text-amber-light">
-                          {networkContactCount >= SESSION_4_CONTACT_MINIMUM ? (
-                            <Check className="h-3 w-3 shrink-0" aria-hidden />
-                          ) : (
-                            <Circle className="h-3 w-3 shrink-0 text-slate-500" aria-hidden />
-                          )}
-                          {SESSION_4_CONTACT_MINIMUM}+ names in your Contact Builder&apos;s A/B
-                          list — you have {networkContactCount}/{SESSION_4_CONTACT_MINIMUM}.
-                        </p>
-                        <label className="flex items-start gap-2 text-xs text-amber-light">
-                          <input
-                            type="checkbox"
-                            className="mt-0.5"
-                            checked={chaptersConfirmed}
-                            disabled={confirmingChapters}
-                            onChange={toggleChaptersConfirmed}
-                          />
-                          <span>I&apos;ve read {SESSION_4_READING_REQUIREMENT}.</span>
-                        </label>
-                        {confirmError && <p className="text-xs text-red-400">{confirmError}</p>}
-                      </div>
-                    )}
-                    <p className="text-xs text-slate-500">
-                      Ask your upline to unlock this session once you&apos;re ready.
+            return (
+              <Link
+                key={session.title}
+                href={`/onboarding/${sessionNumber}`}
+                className="block transition active:scale-[0.98]"
+              >
+                <div className="card space-y-3">
+                  <div
+                    className="relative flex min-h-[110px] flex-col justify-end overflow-hidden rounded-xl p-4"
+                    style={{
+                      background: `linear-gradient(135deg, ${style.from}, ${style.to})`,
+                      boxShadow: "0 10px 24px -12px rgba(0,0,0,0.55)",
+                    }}
+                  >
+                    <style.icon
+                      className="pointer-events-none absolute -right-4 -top-4 h-28 w-28 text-white opacity-25"
+                      strokeWidth={1.5}
+                      aria-hidden
+                    />
+                    <p className="relative z-10 text-lg font-extrabold leading-tight text-white drop-shadow-sm">
+                      {session.title}
                     </p>
-                  </>
-                )}
-              </div>
+                  </div>
+                  <p className="text-sm text-slate-400">{session.description}</p>
+
+                  {resources.length > 0 && (
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-xs text-slate-400">
+                        <span>
+                          {doneCount}/{resources.length} done
+                        </span>
+                        <span>{sessionPct}%</span>
+                      </div>
+                      <ProgressBar pct={sessionPct} />
+                    </div>
+                  )}
+
+                  <p className="flex items-center justify-end gap-0.5 text-xs font-semibold text-amber-light">
+                    View homework
+                    <ChevronRight className="h-3.5 w-3.5" aria-hidden />
+                  </p>
+                </div>
+              </Link>
             );
           })
         )}

@@ -6607,6 +6607,44 @@ section (the `off_day` column, right after `depth_texts`) plus the
     `document.documentElement` itself. Client-only change, no SQL
     needed.
 
+### Classroom split into 5 tabs + a per-session homework page
+
+Classroom used to be one long scroll: the 5 session banners each had
+their full homework checklist expanded directly underneath, so getting
+to Session 5's list meant scrolling past four other sessions' worth of
+checked-off items first. It's now a two-level flow, same as tapping
+into any other list-then-detail page in the app (Team's per-member
+view, a Candidate's card):
+
+- **`/onboarding` (the Classroom tab itself)** now just shows the 5
+  session banners as tappable tiles - title, description, and (once
+  unlocked) a compact `X/Y done · Z%` line with a mini progress bar, no
+  homework list inline. A locked tile stays exactly as before
+  (grayscale banner, lock badge, "Locked" pill, and for Session 4 the
+  two unlock requirements + confirmation checkbox) but isn't a link -
+  there's nothing to click through to until it's unlocked. Everything
+  else on the page (overall progress card, the two LTD app guides,
+  Sent To You, More to Unlock, admin's Preview Onboarding Tier panel)
+  stayed put - none of that is session-specific.
+- **`/onboarding/[session]` (new)** is what tapping an unlocked tile
+  opens - that one session's own banner, a progress meter, and its
+  homework checklist (same tap-to-toggle-done circles as before,
+  writing to the same `onboarding_resource_completions` table). Visiting
+  a session directly that isn't actually unlocked yet (typing the URL by
+  hand, a stale link) shows the same locked state as the overview tile
+  rather than exposing the homework - the real gate is still
+  `profiles.onboarding_unlocked_through`, checked independently on this
+  page too, not just "was there a link to click."
+- Two small pieces of shared code moved out of the old single-file page
+  so both routes could use them: `ProgressBar` is now
+  `components/ProgressBar.tsx`, and the icon+gradient-per-session table
+  is now `SESSION_STYLE` in `lib/onboarding-style.ts`. Session 4's two
+  homework items that used to say "confirm/tracked further up this
+  page" now say "on the Classroom tab" instead, since that confirmation
+  UI and the homework list are no longer on the same page.
+
+Client-only change, no SQL needed.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

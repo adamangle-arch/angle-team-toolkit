@@ -711,11 +711,11 @@ export const ONBOARDING_SESSIONS: OnboardingSession[] = [
     resources: [
       {
         label: "📖 Reading",
-        detail: `Read ${SESSION_4_READING_REQUIREMENT} — required to unlock this session. Confirm it further up this page while it's still locked.`,
+        detail: `Read ${SESSION_4_READING_REQUIREMENT} — required to unlock this session. Confirmed on the Classroom tab while it was still locked.`,
       },
       {
         label: "📋 Homework: Contact Builder",
-        detail: `Have ${SESSION_4_CONTACT_MINIMUM}+ names in your A/B list — also required to unlock this session. Tracked automatically and shown further up this page while it's still locked.`,
+        detail: `Have ${SESSION_4_CONTACT_MINIMUM}+ names in your A/B list — also required to unlock this session. Tracked automatically and shown on the Classroom tab while it was still locked.`,
       },
       {
         label: "🎧 Ditch the Pitch",
