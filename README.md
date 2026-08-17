@@ -7425,24 +7425,53 @@ same pattern as Pipeline's `friendlyPeriodError()`.
 ### Fix: schema.sql failed on a genuinely fresh database
 
 Discovered while duplicating this app for the McGrath team: running the
-full `schema.sql` against a brand-new, empty Supabase project failed
-partway through with `relation "profiles" does not exist`, even though
-this exact file has been re-run against Angle's own database dozens of
-times without issue. Root cause - a handful of `language sql` functions
-and RLS policies (Candidate Roadmap's access-code lookup,
+full `schema.sql` against a brand-new, empty Supabase project failed -
+first with `relation "profiles" does not exist`, then after a first
+patch with `column p.first_name does not exist`, then `function
+is_upline_of does not exist`, then `relation "innovation_ideas" does not
+exist` - a chain of latent ordering bugs that a decade of re-running this
+file against Angle's own already-populated database had never once
+exercised, since every one of them only bites the very first time the
+file runs against nothing.
+
+Root cause of the first three: a handful of `language sql` functions and
+RLS policies (Candidate Roadmap's access-code lookup,
 candidate_specific_resources' household-sharing policies) reference
-`profiles` and sit earlier in the file than section 5, where `profiles`
-is actually created; `create function ... language sql` and `create
-policy ... using (...)` both get validated against the catalog
-immediately, unlike a plpgsql function body (only checked when it's
-actually called). This was invisible here because `profiles` has existed
-on this database since early on, so `create table if not exists`
-further down in section 5 was always a no-op - it only surfaces the
-first time the whole file runs against nothing. Fixed with a new "0.
-PROFILES BOOTSTRAP" section at the very top: a minimal `create table if
-not exists profiles (id, email, created_at)`, a strict subset of what
-section 5 creates later, so section 5's fuller definition still runs
-exactly as before and just adds everything else on top.
+`profiles.first_name/last_name` and call `is_upline_of()`, all sitting
+earlier in the file than section 5 (where `profiles` is actually built
+out) and earlier than `is_upline_of()`'s own definition. Unlike a
+plpgsql function body (only checked when it's actually called), `create
+function ... language sql` and `create policy ... using (...)` both get
+validated against the catalog immediately. Fixed with a new "0. PROFILES
+BOOTSTRAP" section at the very top: a minimal `profiles` (id, email,
+first_name, last_name, household_id, upline_id) plus a duplicate,
+identical `is_upline_of()` - both a strict subset of / identical to what
+sections 5 and onward define for real later, so those later definitions
+still run exactly as before and just layer everything else on top
+(`member_resources` already used this exact duplicate-instead-of-move
+pattern once before, for the same reason - see its own comment).
+
+`innovation_ideas` was a different bug entirely: no `create table`
+statement for it existed anywhere in this file, ever - it was created by
+hand directly in Supabase's dashboard back when Innovation Box first
+shipped, so every change since has been an `alter table` against a table
+this file itself never actually creates. Reconstructed from the columns
+every alter/policy/function for it actually references and added right
+before its first use.
+
+Verified this time with a real end-to-end run, not just re-reading the
+file: installed the local `postgresql-16` package already on this
+machine, stubbed the handful of Supabase-only pieces a bare Postgres
+doesn't have (`auth.users`/`auth.uid()`/`auth.jwt()`, `storage.buckets`/
+`storage.objects`/`storage.foldername()`, the `anon`/`authenticated`/
+`service_role` roles, the `supabase_realtime` publication), and ran the
+whole file against a freshly created database, fixing whatever it hit
+next until a full run finished with zero errors - then inserted a real
+row into `auth.users` and confirmed `handle_new_user()` actually creates
+a working profile end to end. Systematic sweeps (every `create table`
+line's position compared against every earlier reference to that table
+name) doubled as a proactive check for any other instance of either bug
+class hiding elsewhere in the file - none found.
 
 ## Tech stack
 

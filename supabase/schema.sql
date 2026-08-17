@@ -65,13 +65,57 @@ drop table if exists recognition_log cascade;
 -- Team Toolkit fork) running this file for the very first time. Every
 -- statement here is a strict subset of section 5's, so section 5 running
 -- afterward is a safe no-op for the parts that overlap, then continues on
--- to add every other column/constraint/trigger as before.
+-- to add every other column/constraint/trigger as before. Same reasoning
+-- extends to is_upline_of() just below: several early RLS policies call
+-- it directly, so it's duplicated here too (also `create or replace`,
+-- also safely redefined identically at its real spot later) rather than
+-- moved - member_resources further down already does the equivalent
+-- move-instead-of-duplicate for the exact same reason, see the comment
+-- there.
 -- ============================================================
 create table if not exists profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text not null,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  first_name text,
+  last_name text,
+  household_id uuid references auth.users(id),
+  upline_id uuid references auth.users(id)
 );
+
+create or replace function public.is_upline_of(p_viewer uuid, p_target uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  with recursive target_unit as (
+    select p_target as id
+    union
+    select household_id from profiles where id = p_target and household_id is not null
+    union
+    select id from profiles where household_id = p_target
+  ),
+  chain as (
+    select id, upline_id, 0 as depth from profiles where id in (select id from target_unit)
+    union all
+    select pr.id, pr.upline_id, c.depth + 1
+    from profiles pr
+    join chain c on pr.id = c.upline_id
+    where c.depth < 20
+  ),
+  viewer_unit as (
+    select p_viewer as id
+    union
+    select household_id from profiles where id = p_viewer and household_id is not null
+    union
+    select id from profiles where household_id = p_viewer
+  )
+  select exists (
+    select 1 from chain c join viewer_unit u on u.id = c.upline_id
+  );
+$$;
 
 -- ============================================================
 -- 1. PIPELINE TRACKER (one set of buckets per user)
@@ -7659,6 +7703,22 @@ grant execute on function public.get_all_team_members() to authenticated;
 -- is gone entirely along with it (nothing to vote on if you can't see
 -- anyone else's posts).
 -- ============================================================
+-- No `create table` for innovation_ideas ever existed in this file - the
+-- table was created by hand directly in Supabase's dashboard back when
+-- this feature first shipped, and every change since has been an `alter
+-- table` against that already-existing table, so this was never caught.
+-- Added here (reconstructed from the columns every alter/policy/function
+-- below actually references) so a genuinely fresh database has somewhere
+-- for those to land - found and fixed while duplicating this app for the
+-- McGrath team, whose Supabase project never had the by-hand table.
+create table if not exists innovation_ideas (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  body text not null,
+  kind text not null default 'idea',
+  created_at timestamptz not null default now()
+);
+
 alter table innovation_ideas drop constraint if exists innovation_ideas_status_check;
 alter table innovation_ideas drop column if exists status;
 alter table innovation_ideas add column if not exists kind text;
