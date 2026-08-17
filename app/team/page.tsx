@@ -195,6 +195,29 @@ export default function TeamPage() {
   const [diagnostics, setDiagnostics] = useState<DiagnosticsData | null>(null);
   const [loadingDiagnostics, setLoadingDiagnostics] = useState(false);
   const [diagnosticsError, setDiagnosticsError] = useState("");
+
+  const [moveError, setMoveError] = useState("");
+
+  // Reassigning someone's line of sponsorship is admin-only and goes
+  // through a dedicated RPC (not a plain profiles update) so it can
+  // reject the one mistake that would actually corrupt the tree -
+  // moving someone under their own downline, creating a loop -
+  // server-side, not just hope the admin doesn't do it by accident.
+  // Patches the already-loaded `profiles` list directly on success
+  // rather than refetching everyone, since wholeTreeRoots/myTreeChildren
+  // are both derived from it.
+  async function moveUpline(userId: string, newUplineId: string | null) {
+    setMoveError("");
+    const { error } = await supabase.rpc("admin_set_upline", {
+      p_user_id: userId,
+      p_new_upline_id: newUplineId,
+    });
+    if (error) {
+      setMoveError(error.message);
+      return;
+    }
+    setProfiles((prev) => prev.map((p) => (p.id === userId ? { ...p, upline_id: newUplineId } : p)));
+  }
   const [runningCronPath, setRunningCronPath] = useState<string | null>(null);
   const [cronResults, setCronResults] = useState<Record<string, string>>({});
 
@@ -282,6 +305,21 @@ export default function TeamPage() {
   const wholeTreeRoots = useMemo(
     () => (isAdmin ? buildSponsorshipChildren(profiles, null) : []),
     [isAdmin, profiles]
+  );
+  // Every signed-up person as a searchable "move under…" option for the
+  // Whole Team tree's admin-only Move control - built once here rather
+  // than per-node so opening the picker on a big tree doesn't re-map all
+  // 50+ profiles on every render.
+  const uplineMoveOptions = useMemo(
+    () =>
+      profiles
+        .map((p) => ({
+          value: p.id,
+          label: p.first_name && p.last_name ? `${p.first_name} ${p.last_name}` : p.email,
+          sublabel: p.team ?? undefined,
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label)),
+    [profiles]
   );
   // "My Upline" - the chain going up from your own sponsor to the top,
   // in sponsoring order (immediate sponsor first). The profiles select
@@ -831,12 +869,14 @@ export default function TeamPage() {
             <p className="section-title">Whole Team</p>
             <p className="text-xs text-slate-400">
               Every signed-up member, nested by line of sponsorship. Tap a name to view their
-              profile, tap ▾ to collapse a branch.
+              profile, tap ▾ to collapse a branch, tap ✎ to move someone under a different upline.
             </p>
+            {moveError && <p className="text-xs text-red-400">{moveError}</p>}
             <div className="rounded-lg bg-navy p-2.5">
               <SponsorshipTree
                 nodes={wholeTreeRoots}
                 emptyLabel="No one has signed up yet."
+                adminMove={{ options: uplineMoveOptions, onMove: moveUpline }}
               />
             </div>
           </div>

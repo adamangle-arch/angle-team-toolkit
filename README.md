@@ -7340,6 +7340,29 @@ default for a fresh contact, editable afterward same as any manually-
 added one. No schema change - reuses the existing `contacts` table and
 insert path.
 
+### Whole Team tree: admin can move someone's line of sponsorship
+
+Onboarding the whole team onto the app in one push meant getting
+everyone signed up mattered more than getting each person's exact
+sponsor right in the moment - fixing it after the fact meant asking me
+to write a one-off SQL script per person, which doesn't scale.
+
+New `admin_set_upline(p_user_id, p_new_upline_id)` (mirrors the
+existing self-service `link_upline`, just for reassigning someone
+else's upline instead of only your own) rejects the one mistake that
+would actually corrupt the tree - moving someone under their own
+downline, creating a loop - the same way `link_upline` already guards
+against it for a self-service move. `components/SponsorshipTree.tsx`
+takes an optional `adminMove` prop (options list + move handler); when
+present, every node gets a small pencil button that opens a
+`SearchablePicker` to pick a new upline (or "No upline (top level)").
+Only `app/team/page.tsx`'s admin-only "Whole Team" view passes this
+prop - "My Tree" (what every regular member sees for their own
+downline) renders the exact same component without it, so the Move
+control simply doesn't exist there. No RLS change on `profiles` itself
+- the admin-only check lives inside the new function, same pattern as
+every other admin-gated write in this file.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

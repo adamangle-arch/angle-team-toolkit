@@ -1185,6 +1185,39 @@ $$;
 
 grant execute on function public.link_upline(text) to authenticated;
 
+-- Admin-only equivalent of link_upline above, for reassigning someone
+-- ELSE's upline (link_upline only ever changes the caller's own) - the
+-- Whole Team tree's Move control (components/SponsorshipTree.tsx) is
+-- how a mass-onboarded team that didn't get the sponsorship chain
+-- exactly right on day one gets straightened out afterward, without
+-- needing a one-off SQL script run by hand each time. p_new_upline_id
+-- null moves someone to the top level (no upline). Same loop guard as
+-- link_upline, just checked against p_user_id instead of auth.uid().
+create or replace function public.admin_set_upline(p_user_id uuid, p_new_upline_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_app_admin() then
+    raise exception 'Only an admin can move someone in the line of sponsorship.';
+  end if;
+
+  if p_new_upline_id = p_user_id then
+    raise exception 'Someone can''t be their own upline.';
+  end if;
+
+  if p_new_upline_id is not null and public.is_upline_of(p_user_id, p_new_upline_id) then
+    raise exception 'That would create a loop — they''re already in this person''s downline.';
+  end if;
+
+  update profiles set upline_id = p_new_upline_id where id = p_user_id;
+end;
+$$;
+
+grant execute on function public.admin_set_upline(uuid, uuid) to authenticated;
+
 -- Admin or upline (any level) can permanently delete a downline's entire
 -- account — for when someone quits the business. Deletes from
 -- auth.users, which cascades to profiles and every table that

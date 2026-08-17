@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { Pencil } from "lucide-react";
 import type { Profile } from "@/lib/types";
 import type { SponsorshipNode } from "@/lib/sponsorship-tree";
+import SearchablePicker, { type SearchablePickerOption } from "./SearchablePicker";
 
 function personName(profile: Profile): string {
   return profile.first_name && profile.last_name
@@ -11,8 +13,21 @@ function personName(profile: Profile): string {
     : profile.email;
 }
 
-function TreeNode({ node }: { node: SponsorshipNode }) {
+// Only passed from the admin-only "Whole Team" view (app/team/page.tsx)
+// - a regular member's own "My Tree" never gets this prop, so the Move
+// control simply doesn't render there. Reassigning someone's upline is
+// sensitive enough (ripples into Team tab grouping, notifications,
+// upline visibility) that it's admin-only, not something every member
+// gets on their own downline.
+export type AdminMove = {
+  options: SearchablePickerOption[];
+  onMove: (userId: string, newUplineId: string | null) => void | Promise<void>;
+};
+
+function TreeNode({ node, adminMove }: { node: SponsorshipNode; adminMove?: AdminMove }) {
   const [collapsed, setCollapsed] = useState(false);
+  const [moving, setMoving] = useState(false);
+  const [saving, setSaving] = useState(false);
   const hasChildren = node.children.length > 0;
 
   return (
@@ -52,13 +67,43 @@ function TreeNode({ node }: { node: SponsorshipNode }) {
           <span className="shrink-0 truncate text-xs text-slate-500">· {node.profile.team}</span>
         )}
         {hasChildren && (
-          <span className="ml-auto shrink-0 text-xs text-slate-600">{node.children.length}</span>
+          <span className={adminMove ? "shrink-0 text-xs text-slate-600" : "ml-auto shrink-0 text-xs text-slate-600"}>
+            {node.children.length}
+          </span>
+        )}
+        {adminMove && (
+          <button
+            className="btn-icon ml-auto !h-6 !w-6 shrink-0 text-xs"
+            onClick={() => setMoving((m) => !m)}
+            aria-label={`Move ${personName(node.profile)}`}
+          >
+            <Pencil className="h-3 w-3" aria-hidden />
+          </button>
         )}
       </div>
+      {moving && adminMove && (
+        <div className="mb-1.5 ml-6 space-y-1">
+          <p className="text-xs text-slate-500">Move {personName(node.profile)} under…</p>
+          <SearchablePicker
+            options={[{ value: "", label: "No upline (top level)" }, ...adminMove.options].filter(
+              (o) => o.value !== node.profile.id
+            )}
+            value=""
+            placeholder="Search for a new upline…"
+            onChange={async (newUplineId) => {
+              setSaving(true);
+              await adminMove.onMove(node.profile.id, newUplineId || null);
+              setSaving(false);
+              setMoving(false);
+            }}
+          />
+          {saving && <p className="text-xs text-slate-500">Moving…</p>}
+        </div>
+      )}
       {!collapsed && hasChildren && (
         <div>
           {node.children.map((child) => (
-            <TreeNode key={child.profile.id} node={child} />
+            <TreeNode key={child.profile.id} node={child} adminMove={adminMove} />
           ))}
         </div>
       )}
@@ -69,9 +114,11 @@ function TreeNode({ node }: { node: SponsorshipNode }) {
 export default function SponsorshipTree({
   nodes,
   emptyLabel,
+  adminMove,
 }: {
   nodes: SponsorshipNode[];
   emptyLabel: string;
+  adminMove?: AdminMove;
 }) {
   if (nodes.length === 0) {
     return <p className="text-sm text-slate-400">{emptyLabel}</p>;
@@ -79,7 +126,7 @@ export default function SponsorshipTree({
   return (
     <div>
       {nodes.map((node) => (
-        <TreeNode key={node.profile.id} node={node} />
+        <TreeNode key={node.profile.id} node={node} adminMove={adminMove} />
       ))}
     </div>
   );
