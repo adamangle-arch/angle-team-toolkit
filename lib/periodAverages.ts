@@ -37,6 +37,28 @@ export function offsetForPeriodStart(periodType: PeriodType, dateStr: string): n
   return Math.max(0, Math.round((today.getTime() - target.getTime()) / 86400000));
 }
 
+// The day after this period's last day (Daily: the next day; Weekly: 7
+// days later; Monthly: the 1st of the next month) - an exclusive upper
+// bound, so a query can do `period_start >= X and period_start < end`
+// to grab exactly the Daily rows that fall inside one Weekly/Monthly
+// period, for reconciling a stored total against a fresh sum of its own
+// Daily rows (see the Pipeline tally's "Daily entries this period"
+// note).
+export function periodEndExclusive(periodType: PeriodType, periodStart: string): string {
+  const d = new Date(`${periodStart}T00:00:00`);
+  if (periodType === "daily") {
+    d.setDate(d.getDate() + 1);
+  } else if (periodType === "weekly") {
+    d.setDate(d.getDate() + 7);
+  } else {
+    d.setMonth(d.getMonth() + 1);
+  }
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 // How many periods back each average window looks - 30 days ~ a month,
 // 12 weeks ~ a quarter, 6 months ~ half a year.
 export const AVERAGES_WINDOW: Record<PeriodType, number> = { daily: 30, weekly: 12, monthly: 6 };

@@ -66,6 +66,7 @@ import { fireNotifyEvent } from "@/lib/notifyClient";
 import {
   periodStartFor,
   offsetForPeriodStart,
+  periodEndExclusive,
   averagesForPeriods,
   AVERAGES_WINDOW,
   AVERAGE_METRICS,
@@ -116,11 +117,17 @@ function StageCount({
   value,
   onDelta,
   onSetAbsolute,
+  directEditHint,
 }: {
   label: string;
   value: number;
   onDelta: (delta: number) => void;
   onSetAbsolute: (value: number) => void;
+  // Only passed on Weekly/Monthly (never Daily) - warns right at the
+  // point of typing a number in that this sets an absolute value with no
+  // link back to Daily, instead of only explaining the resulting gap
+  // after the fact via the "Daily entries for this period" note above.
+  directEditHint?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState("");
@@ -132,46 +139,53 @@ function StageCount({
   }
 
   return (
-    <div className="flex items-center gap-3">
-      <button
-        className="btn-icon"
-        onClick={() => onDelta(-1)}
-        disabled={value <= 0}
-        aria-label={`Decrease ${label}`}
-      >
-        −
-      </button>
-      {editing ? (
-        <input
-          type="number"
-          min={0}
-          inputMode="numeric"
-          autoFocus
-          className="input !w-14 !p-1 text-center text-lg font-bold"
-          value={editValue}
-          onChange={(e) => setEditValue(e.target.value)}
-          onBlur={commit}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") e.currentTarget.blur();
-            if (e.key === "Escape") setEditing(false);
-          }}
-        />
-      ) : (
+    <div>
+      <div className="flex items-center gap-3">
         <button
-          type="button"
-          className="w-8 text-center text-xl font-bold text-white"
-          onClick={() => {
-            setEditValue(String(value));
-            setEditing(true);
-          }}
-          aria-label={`Edit ${label} directly`}
+          className="btn-icon"
+          onClick={() => onDelta(-1)}
+          disabled={value <= 0}
+          aria-label={`Decrease ${label}`}
         >
-          {value}
+          −
         </button>
+        {editing ? (
+          <input
+            type="number"
+            min={0}
+            inputMode="numeric"
+            autoFocus
+            className="input !w-14 !p-1 text-center text-lg font-bold"
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            onBlur={commit}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") e.currentTarget.blur();
+              if (e.key === "Escape") setEditing(false);
+            }}
+          />
+        ) : (
+          <button
+            type="button"
+            className="w-8 text-center text-xl font-bold text-white"
+            onClick={() => {
+              setEditValue(String(value));
+              setEditing(true);
+            }}
+            aria-label={`Edit ${label} directly`}
+          >
+            {value}
+          </button>
+        )}
+        <button className="btn-icon" onClick={() => onDelta(1)} aria-label={`Increase ${label}`}>
+          +
+        </button>
+      </div>
+      {editing && directEditHint && (
+        <p className="mt-1 max-w-[140px] text-right text-[11px] leading-tight text-slate-500">
+          Sets this exact number — won&apos;t change your Daily entries.
+        </p>
       )}
-      <button className="btn-icon" onClick={() => onDelta(1)} aria-label={`Increase ${label}`}>
-        +
-      </button>
     </div>
   );
 }
@@ -411,6 +425,58 @@ function PipelinePageInner() {
       cancelled = true;
     };
   }, [periodType, periodOffset, effectiveOwnerId]);
+
+  // Reconciliation for Weekly/Monthly: a stored total can legitimately
+  // differ from a fresh sum of its own Daily rows (someone corrected the
+  // number directly, which doesn't cascade back down - see StageCount's
+  // tap-to-edit-exact-value). Computed fresh on every load instead of
+  // relying on the manually_adjusted flag alone, since that flag is only
+  // set going forward from when it shipped - it can't retroactively
+  // explain a correction someone made before then. Shows real numbers
+  // instead of a vague "may not match" warning, so a gap explains itself
+  // immediately instead of looking like data loss.
+  const [dailySumForPeriod, setDailySumForPeriod] = useState<Record<PipelineStageKey, number> | null>(
+    null
+  );
+
+  useEffect(() => {
+    // Nothing to reconcile on Daily itself - leaves any stale value in
+    // state, which is harmless since mismatchedStages below only reads
+    // it when periodType !== "daily" anyway.
+    if (periodType === "daily") return;
+    let cancelled = false;
+    async function load() {
+      const start = periodStartFor(periodType, periodOffset);
+      const end = periodEndExclusive(periodType, start);
+      const { data } = await supabase
+        .from("pipeline_periods")
+        .select("*")
+        .eq("user_id", effectiveOwnerId)
+        .eq("period_type", "daily")
+        .gte("period_start", start)
+        .lt("period_start", end);
+      if (cancelled) return;
+      const sums = Object.fromEntries(PIPELINE_STAGES.map((s) => [s.key, 0])) as Record<
+        PipelineStageKey,
+        number
+      >;
+      for (const row of (data as PipelinePeriod[] | null) ?? []) {
+        for (const stage of PIPELINE_STAGES) {
+          sums[stage.key] += row[stage.key] as number;
+        }
+      }
+      setDailySumForPeriod(sums);
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [periodType, periodOffset, effectiveOwnerId]);
+
+  const mismatchedStages =
+    periodType !== "daily" && period && dailySumForPeriod
+      ? PIPELINE_STAGES.filter((s) => (period[s.key] as number) !== dailySumForPeriod[s.key])
+      : [];
 
   useEffect(() => {
     if (actingForId) return;
@@ -945,11 +1011,22 @@ function PipelinePageInner() {
               </button>
             </div>
 
-            {periodType !== "daily" && period?.manually_adjusted && (
-              <p className="text-xs text-slate-500">
-                Includes a manual correction entered directly on {periodType === "weekly" ? "Weekly" : "Monthly"} —
-                it may not exactly match a fresh sum of Daily entries for this period.
-              </p>
+            {mismatchedStages.length > 0 && (
+              <div className="card space-y-1.5 border border-amber/30 bg-amber/5">
+                <p className="text-xs font-medium text-amber-light">
+                  Daily entries for this period don&apos;t quite match what&apos;s shown below
+                </p>
+                <p className="text-xs text-slate-400">
+                  {mismatchedStages
+                    .map((s) => `${s.label}: Daily adds up to ${dailySumForPeriod?.[s.key]} (shown: ${period?.[s.key]})`)
+                    .join(" · ")}
+                </p>
+                <p className="text-xs text-slate-500">
+                  This usually means a number was corrected directly on{" "}
+                  {periodType === "weekly" ? "Weekly" : "Monthly"} instead of through Daily — not a bug, just where
+                  the difference comes from.
+                </p>
+              </div>
             )}
 
             {downlineOptions.length > 0 && (
@@ -1044,6 +1121,7 @@ function PipelinePageInner() {
                           value={count}
                           onDelta={(delta) => updateStage(stage.key, delta)}
                           onSetAbsolute={(value) => setStageAbsolute(stage.key, value)}
+                          directEditHint={periodType !== "daily"}
                         />
                       </div>
                     </div>

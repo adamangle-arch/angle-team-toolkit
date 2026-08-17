@@ -7363,28 +7363,36 @@ control simply doesn't exist there. No RLS change on `profiles` itself
 - the admin-only check lives inside the new function, same pattern as
 every other admin-gated write in this file.
 
-### Pipeline: flag manually-corrected Weekly/Monthly totals
+### Pipeline: reconcile Weekly/Monthly against a live Daily sum
 
-Recurring pattern this session: someone reports "the Monthly numbers are
-off," and every time it's been investigated with real data, the number
-was correct - it just came from a legitimate direct catch-up edit on
-Weekly or Monthly (StageCount's tap-to-edit-exact-value), which by
-design doesn't cascade and so won't always match a fresh sum of that
-period's Daily rows. Re-proving that via one-off SQL diagnostics each
-time doesn't scale and reads as stonewalling when someone's waiting on
-an answer.
+Recurring pattern this session: someone reports "the Monthly numbers
+are off," and every time it's been investigated with real data, the
+number was correct - it just came from a legitimate direct catch-up
+edit on Weekly or Monthly (StageCount's tap-to-edit-exact-value),
+which by design doesn't cascade and so won't always match a fresh sum
+of that period's Daily rows. Re-proving that via one-off SQL
+diagnostics each time doesn't scale, and for Adam's own QI1 count
+specifically it meant a real "is this catastrophic" scare over a gap
+(10 shown vs. 6 from adding up Daily by hand) that turned out to be
+the exact same manual correction already confirmed earlier in this
+session.
 
-New `pipeline_periods.manually_adjusted` boolean (default `false`),
-set `true` by `app/pipeline/page.tsx`'s `updateStage` whenever a
-Weekly/Monthly row is written through the direct-edit path (both the
-draft-row insert and the existing-row update); never touched by
-`bump_pipeline_stage()`'s Daily-cascade path, and never cleared once
-set, so a period that was corrected once and later picked up further
-cascaded Daily deltas still reads as "not a pure Daily sum." Surfaced
-as a small note under the period selector on the Pipeline tally view
-and under the Pipeline card on Team tab's member detail, so a real
-manual correction is self-evident right where the numbers are being
-compared instead of getting reported as broken data each time.
+First pass at fixing this shipped a `pipeline_periods.manually_adjusted`
+flag, but it only gets set going forward from when it shipped - it
+can't explain a correction someone made before then, which is exactly
+the case that caused the QI1 scare. Replaced it with a live
+reconciliation instead: whenever the Pipeline tally (or Team tab's
+member detail) is showing Weekly or Monthly, it now also fetches that
+period's own Daily rows fresh and sums them client-side. If any stage
+doesn't match, a note lists the real numbers - "QI1: Daily adds up to
+6 (shown: 10)" - instead of a vague "may not match" warning, so the
+gap explains itself with actual data regardless of when the correction
+happened. New `periodEndExclusive()` in `lib/periodAverages.ts` gives
+the exclusive upper bound for a Weekly/Monthly span so the Daily query
+can grab exactly the right rows. The StageCount tap-to-edit input also
+now shows "Sets this exact number — won't change your Daily entries"
+while editing Weekly/Monthly, so the disconnect is flagged at the
+moment someone creates it, not just discovered later.
 
 ### Pipeline: tap the date to jump straight to a period
 

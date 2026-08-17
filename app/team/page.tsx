@@ -36,7 +36,9 @@ import {
   GOAL_ITEMS_BY_PERIOD,
   GOAL_PERIODS,
   NOTIFICATION_KINDS,
+  type PipelineStageKey,
 } from "@/lib/constants";
+import { periodEndExclusive } from "@/lib/periodAverages";
 import { groupCallRatingsByType } from "@/lib/call-ratings";
 import { buildSponsorshipChildren } from "@/lib/sponsorship-tree";
 import { fireNotifyEvent } from "@/lib/notifyClient";
@@ -119,6 +121,11 @@ function computeStreak(days: StreakDay[]): number {
 
 type MemberData = {
   pipeline: PipelinePeriod | null;
+  // Fresh sum of this member's own Daily rows across whichever
+  // Weekly/Monthly period is selected - lets the Pipeline card show real
+  // numbers when a stored total doesn't match, instead of a vague
+  // warning. Null while on the Daily tab (nothing to reconcile against).
+  dailySumForPeriod: Record<PipelineStageKey, number> | null;
   candidates: Candidate[];
   contacts: Contact[];
   streakDays: StreakDay[];
@@ -427,6 +434,7 @@ export default function TeamPage() {
         { data: goals },
         { data: monthlyPv },
         { data: budgetWorksheet },
+        dailyRowsForPeriodResult,
       ] = await Promise.all([
         supabase
           .from("pipeline_periods")
@@ -481,11 +489,35 @@ export default function TeamPage() {
         // Household-scoped now too (via ownerId) - a linked couple
         // shares one budget, same as pipeline/candidates/contacts.
         supabase.from("budget_worksheets").select("*").eq("user_id", ownerId).maybeSingle(),
+        // Only meaningful on the Weekly/Monthly tabs - reconciles the
+        // stored total above against a fresh sum of this member's own
+        // Daily rows for that same span, same purpose as the identical
+        // check on the Pipeline Tracker page itself.
+        periodType === "daily"
+          ? Promise.resolve({ data: null })
+          : supabase
+              .from("pipeline_periods")
+              .select("*")
+              .eq("user_id", ownerId)
+              .eq("period_type", "daily")
+              .gte("period_start", periodStart)
+              .lt("period_start", periodEndExclusive(periodType, periodStart)),
       ]);
+
+      const dailyRowsForPeriod = (dailyRowsForPeriodResult.data as PipelinePeriod[] | null) ?? null;
+      const dailySumForPeriod = dailyRowsForPeriod
+        ? (Object.fromEntries(
+            PIPELINE_STAGES.map((s) => [
+              s.key,
+              dailyRowsForPeriod.reduce((sum, row) => sum + (row[s.key] as number), 0),
+            ])
+          ) as Record<PipelineStageKey, number>)
+        : null;
 
       if (!cancelled) {
         setMemberData({
           pipeline: (pipeline as PipelinePeriod) ?? null,
+          dailySumForPeriod,
           candidates: (candidates as Candidate[]) ?? [],
           contacts: (contacts as Contact[]) ?? [],
           streakDays: (streakDays as StreakDay[]) ?? [],
@@ -1190,12 +1222,36 @@ export default function TeamPage() {
                   {!memberData.pipeline && (
                     <p className="text-xs text-slate-500">Nothing logged for this period.</p>
                   )}
-                  {periodType !== "daily" && memberData.pipeline?.manually_adjusted && (
-                    <p className="text-xs text-slate-500">
-                      Includes a manual correction entered directly on {periodType === "weekly" ? "Weekly" : "Monthly"}{" "}
-                      — it may not exactly match a fresh sum of Daily entries for this period.
-                    </p>
-                  )}
+                  {periodType !== "daily" &&
+                    memberData.dailySumForPeriod &&
+                    (() => {
+                      const mismatched = PIPELINE_STAGES.filter(
+                        (s) =>
+                          (memberData.pipeline?.[s.key] ?? 0) !== memberData.dailySumForPeriod![s.key]
+                      );
+                      if (mismatched.length === 0) return null;
+                      return (
+                        <div className="space-y-1 rounded-lg border border-amber/30 bg-amber/5 p-2">
+                          <p className="text-xs font-medium text-amber-light">
+                            Daily entries for this period don&apos;t quite match what&apos;s shown above
+                          </p>
+                          <p className="text-xs text-slate-400">
+                            {mismatched
+                              .map(
+                                (s) =>
+                                  `${s.label}: Daily adds up to ${memberData.dailySumForPeriod![s.key]} (shown: ${
+                                    memberData.pipeline?.[s.key] ?? 0
+                                  })`
+                              )
+                              .join(" · ")}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            Usually means a number was corrected directly on{" "}
+                            {periodType === "weekly" ? "Weekly" : "Monthly"} instead of through Daily.
+                          </p>
+                        </div>
+                      );
+                    })()}
                 </div>
 
                 <div className="card space-y-1.5">
