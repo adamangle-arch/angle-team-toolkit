@@ -450,7 +450,7 @@ as $$
   select o.step, o.action, o.label, o.detail, o.url, o.estimate
   from candidate_resource_overrides o
   join candidates c on c.user_id = o.user_id
-  where upper(c.access_code) = upper(p_code)
+  where upper(c.access_code) = upper(p_code) and c.filtered_out = false
   order by o.step;
 $$;
 
@@ -547,7 +547,7 @@ as $$
   select r.id, r.label, r.detail, r.url, r.estimate
   from candidate_specific_resources r
   join candidates c on c.id = r.candidate_id
-  where upper(c.access_code) = upper(p_code)
+  where upper(c.access_code) = upper(p_code) and c.filtered_out = false
   order by r.created_at;
 $$;
 
@@ -4446,6 +4446,7 @@ as $$
   join candidates c on c.id = e.candidate_id
   left join profiles p on p.id = e.creator_id
   where upper(c.access_code) = upper(p_code)
+    and c.filtered_out = false
     and e.event_at >= now()
   order by e.event_at asc;
 $$;
@@ -4829,7 +4830,7 @@ as $$
     c.is2_session_mode, c.is2_webinar_slot, c.is2_watched
   from candidates c
   join profiles p on p.id = c.creator_id
-  where upper(c.access_code) = upper(p_code);
+  where upper(c.access_code) = upper(p_code) and c.filtered_out = false;
 $$;
 
 grant execute on function public.get_candidate_by_access_code(text) to anon, authenticated;
@@ -4857,10 +4858,10 @@ as $$
 begin
   if p_step = 'is1' then
     update candidates set is1_watched = true, is1_watched_at = coalesce(is1_watched_at, now())
-    where upper(access_code) = upper(p_code);
+    where upper(access_code) = upper(p_code) and filtered_out = false;
   elsif p_step = 'is2' then
     update candidates set is2_watched = true, is2_watched_at = coalesce(is2_watched_at, now())
-    where upper(access_code) = upper(p_code);
+    where upper(access_code) = upper(p_code) and filtered_out = false;
   else
     raise exception 'invalid step';
   end if;
@@ -5016,7 +5017,7 @@ as $$
   select r.resource_label
   from candidate_resource_completions r
   join candidates c on c.id = r.candidate_id
-  where upper(c.access_code) = upper(p_code);
+  where upper(c.access_code) = upper(p_code) and c.filtered_out = false;
 $$;
 
 grant execute on function public.get_candidate_resource_completions(text) to anon, authenticated;
@@ -5036,7 +5037,7 @@ declare
   v_candidate_id uuid;
   v_existed boolean;
 begin
-  select id into v_candidate_id from candidates where upper(access_code) = upper(p_code);
+  select id into v_candidate_id from candidates where upper(access_code) = upper(p_code) and filtered_out = false;
   if v_candidate_id is null then
     raise exception 'invalid code';
   end if;
@@ -5136,7 +5137,7 @@ as $$
   select q.id, q.question, q.answered, q.created_at
   from candidate_questions q
   join candidates c on c.id = q.candidate_id
-  where upper(c.access_code) = upper(p_code)
+  where upper(c.access_code) = upper(p_code) and c.filtered_out = false
   order by q.created_at asc;
 $$;
 
@@ -5155,7 +5156,7 @@ begin
     raise exception 'Question cannot be empty.';
   end if;
 
-  select id into v_candidate_id from candidates where upper(access_code) = upper(p_code);
+  select id into v_candidate_id from candidates where upper(access_code) = upper(p_code) and filtered_out = false;
   if v_candidate_id is null then
     raise exception 'invalid code';
   end if;
@@ -5180,6 +5181,7 @@ begin
   using candidates c
   where q.candidate_id = c.id
     and upper(c.access_code) = upper(p_code)
+    and c.filtered_out = false
     and q.id = p_id;
 end;
 $$;

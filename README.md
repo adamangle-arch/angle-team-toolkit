@@ -7473,6 +7473,27 @@ line's position compared against every earlier reference to that table
 name) doubled as a proactive check for any other instance of either bug
 class hiding elsewhere in the file - none found.
 
+### Fix: Filtered Out didn't revoke a candidate's resource access
+
+"Filtered Out" on the Candidate Roadmap only ever marked a candidate
+inactive/hidden in an IBO's own view - the `/prospect` link built from
+that candidate's `access_code` kept working exactly as before, with
+every resource, info session, and question still fully accessible.
+None of the nine access_code-scoped RPCs `/prospect` calls
+(`get_candidate_by_access_code`, `get_candidate_resource_overrides`,
+`get_candidate_specific_resources`, `get_candidate_upcoming_events`,
+`mark_candidate_virtual_watched`, `get_candidate_resource_completions`,
+`toggle_candidate_resource_completion`, `get_candidate_questions`,
+`add_candidate_question`, `remove_candidate_question`) ever checked
+`filtered_out` - each matched purely on the code. Added `and
+filtered_out = false` to every one of them, so filtering someone out
+now actually cuts off their link entirely - the same generic "that
+code doesn't match anyone" message `/prospect` already shows for a
+wrong code, rather than a new one that would tip off *why* (that
+they'd specifically been filtered out, rather than just mistyping
+it). Verified with a real before/after test against a live database:
+the lookup returns the candidate before filtering, zero rows after.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)
