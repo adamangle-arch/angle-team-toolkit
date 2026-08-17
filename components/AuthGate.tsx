@@ -208,9 +208,16 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   // Aug 2026 trim) gets TeamReconfirmGate's single dropdown instead of
   // ProfileGate's full first-time signup form - confusing someone into
   // re-entering their upline number and launch status for a one-field
-  // change was real reported feedback, not a hypothetical.
-  const hasInitialProfile = Boolean(profile?.first_name && profile?.last_name && profile?.team);
-  const nameTeamComplete = hasInitialProfile && Boolean(profile?.team_confirmed_at);
+  // change was real reported feedback, not a hypothetical. Deliberately
+  // does NOT require team itself here - team is exactly the field the
+  // trim's reset already wiped for most existing accounts, so requiring
+  // it would send everyone still missing it back through full
+  // ProfileGate instead of the lightweight screen this exists for.
+  // first_name/last_name are only ever set by having already been
+  // through one of these two screens once, so their presence alone is
+  // enough to know this isn't a genuinely new signup.
+  const hasInitialProfile = Boolean(profile?.first_name && profile?.last_name);
+  const nameTeamComplete = hasInitialProfile && Boolean(profile?.team) && Boolean(profile?.team_confirmed_at);
   const fullyAuthed = Boolean(user && !profileLoading && profile && nameTeamComplete && profile.profile_prompted);
 
   // Admins always see the whole app - onboarding gating is for brand-new

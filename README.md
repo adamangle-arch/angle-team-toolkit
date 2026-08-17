@@ -7269,6 +7269,19 @@ profile and is only missing `team_confirmed_at` gets the lightweight
 screen instead. No schema change - both screens write the same
 `team`/`team_confirmed_at` columns.
 
+### Fix: the split above still showed the full form for most people
+
+`hasInitialProfile` required `team` to already be non-null - but team
+is exactly the column the original reset (further up) wiped for most
+existing accounts, so almost everyone still fell through to full
+ProfileGate instead of the new lightweight screen; only the handful of
+people who'd already re-picked since then got the short one. Fixed by
+dropping `team` from `hasInitialProfile` - `first_name`/`last_name`
+alone are enough to know this isn't a genuinely new signup, since
+they're only ever set by having already been through one of these two
+screens once. `nameTeamComplete` (which actually gates entry to the
+app) still requires `team` itself, unchanged.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)
