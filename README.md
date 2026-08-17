@@ -7316,6 +7316,30 @@ between them in `app/leaderboard/page.tsx`, same row shape (rank, name,
 team, PV pill, like button) as Core 300. No schema change beyond the
 one new read-only function - reads the existing `monthly_pv` table.
 
+### Contact Builder: bulk-upload a list, then sort each into Networking or Customer
+
+Manually adding one contact at a time toward the 100-name goal is real
+friction if someone already has a list somewhere else. `app/contacts/
+page.tsx` now has an "Or Upload a List (CSV)" button next to Add
+Contact - picks a file, reads it client-side (`FileReader`), and pulls
+out a name per line (`parseContactNamesFromCsv`: takes the text before
+the first comma on each line, so it also handles the first column of a
+plain phone-contacts export; skips blank lines and a lone "name"
+header). Deliberately not a full CSV parser (quoted fields with
+embedded commas aren't handled) - this only needs to cover a plain
+list of names, not arbitrary spreadsheets.
+
+Parsed names land in a review step (`pendingImports` state) rather than
+saving immediately - per the ask, every uploaded name gets its own
+Networking/Customer toggle (defaulting to Networking, since that's the
+list with the 100-name goal) before anything's written, plus an
+editable name field and a remove button per row for typos or junk
+lines. "Import N Contacts" bulk-inserts them in one request; networking-
+bound rows land in category `B` (Acquaintances) same as the "typical"
+default for a fresh contact, editable afterward same as any manually-
+added one. No schema change - reuses the existing `contacts` table and
+insert path.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

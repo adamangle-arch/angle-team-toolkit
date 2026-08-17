@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import type { ReactNode } from "react";
-import { Lightbulb, Trophy, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { ChangeEvent, ReactNode } from "react";
+import { Lightbulb, Trophy, Upload, X } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
 import FeatureGate from "@/components/FeatureGate";
@@ -23,6 +23,21 @@ const LIST_MILESTONES: { threshold: number; dotColor?: string; trophy?: boolean 
 
 type ViewMode = "networking" | "customer";
 
+type PendingImport = { name: string; destination: "networking" | "customer" };
+
+// Deliberately not a full RFC 4180 CSV parser (quoted fields with
+// embedded commas, etc.) - this only needs to handle a plain list of
+// names, one per line, or the first column of a simple export (e.g. a
+// phone contacts CSV with Name/Email/Phone columns), which covers what
+// anyone's actually going to paste in here. Takes the text before the
+// first comma on each line, skips blank lines and a lone "name" header.
+function parseContactNamesFromCsv(text: string): string[] {
+  return text
+    .split(/\r?\n/)
+    .map((line) => line.split(",")[0]?.trim() ?? "")
+    .filter((name) => name.length > 0 && name.toLowerCase() !== "name");
+}
+
 export default function ContactsPage() {
   const { ownerId } = useAuth();
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -36,6 +51,62 @@ export default function ContactsPage() {
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
+
+  // A bulk-uploaded list needs a review step before anything's saved -
+  // unlike a manually-added contact (one at a time, destination already
+  // chosen by whichever tab you're on), an upload dumps in a batch of
+  // names with no way to know which belong on the Networking List vs the
+  // Customer List, so each one gets its own toggle here before Import.
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [pendingImports, setPendingImports] = useState<PendingImport[] | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
+
+  function handleFileSelected(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // lets the same file be re-picked later if needed
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const names = parseContactNamesFromCsv(String(reader.result ?? ""));
+      if (names.length === 0) {
+        setImportError("Couldn't find any names in that file.");
+        return;
+      }
+      setImportError(null);
+      setPendingImports(names.map((name) => ({ name, destination: "networking" })));
+    };
+    reader.readAsText(file);
+  }
+
+  function updatePendingImport(index: number, patch: Partial<PendingImport>) {
+    setPendingImports((prev) => prev && prev.map((p, i) => (i === index ? { ...p, ...patch } : p)));
+  }
+
+  function removePendingImport(index: number) {
+    setPendingImports((prev) => prev && prev.filter((_, i) => i !== index));
+  }
+
+  async function importPendingContacts() {
+    if (!pendingImports || pendingImports.length === 0) return;
+    setImporting(true);
+    setImportError(null);
+    const rows = pendingImports
+      .filter((p) => p.name.trim())
+      .map((p) => ({
+        name: p.name.trim(),
+        category: p.destination === "customer" ? "Customer" : "B",
+        user_id: ownerId,
+      }));
+    const { data, error } = await supabase.from("contacts").insert(rows).select("*");
+    setImporting(false);
+    if (error) {
+      setImportError(error.message);
+      return;
+    }
+    setContacts((prev) => [...((data as Contact[]) ?? []), ...prev]);
+    setPendingImports(null);
+  }
 
   const [promptIndex, setPromptIndex] = useState(0);
   const activePrompts = viewMode === "customer" ? CUSTOMER_MEMORY_PROMPTS : NETWORKING_MEMORY_PROMPTS;
@@ -305,6 +376,22 @@ export default function ContactsPage() {
           >
             Add Contact
           </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,.txt,text/csv,text/plain"
+            className="hidden"
+            onChange={handleFileSelected}
+          />
+          <button
+            type="button"
+            className="btn-secondary flex w-full items-center justify-center gap-1.5"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Upload className="h-3.5 w-3.5" aria-hidden />
+            Or Upload a List (CSV)
+          </button>
+          {importError && <p className="text-xs text-red-400">{importError}</p>}
           <p
             key={promptIndex}
             className="animate-fade-in flex items-center justify-center gap-1.5 text-center text-xs italic text-slate-500"
@@ -313,6 +400,61 @@ export default function ContactsPage() {
             {activePrompts[promptIndex % activePrompts.length]}
           </p>
         </div>
+
+        {pendingImports && (
+          <div className="card space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="section-title">Review Import ({pendingImports.length})</p>
+              <button className="chip-btn text-xs" onClick={() => setPendingImports(null)}>
+                Cancel
+              </button>
+            </div>
+            <p className="text-xs text-slate-400">
+              For each name, pick whether it goes on your Networking List or Customer List, then import.
+            </p>
+            <div className="max-h-80 space-y-1.5 overflow-y-auto">
+              {pendingImports.map((row, i) => (
+                <div key={i} className="flex items-center gap-1.5">
+                  <input
+                    className="input !py-1.5 flex-1 text-sm"
+                    value={row.name}
+                    onChange={(e) => updatePendingImport(i, { name: e.target.value })}
+                  />
+                  <button
+                    className={
+                      row.destination === "networking" ? "toggle-pill-active px-2 text-xs" : "toggle-pill-inactive px-2 text-xs"
+                    }
+                    onClick={() => updatePendingImport(i, { destination: "networking" })}
+                  >
+                    Networking
+                  </button>
+                  <button
+                    className={
+                      row.destination === "customer" ? "toggle-pill-active px-2 text-xs" : "toggle-pill-inactive px-2 text-xs"
+                    }
+                    onClick={() => updatePendingImport(i, { destination: "customer" })}
+                  >
+                    Customer
+                  </button>
+                  <button
+                    className="btn-icon !h-7 !w-7 shrink-0 text-sm"
+                    onClick={() => removePendingImport(i)}
+                    aria-label={`Remove ${row.name || "this row"}`}
+                  >
+                    <X className="h-3.5 w-3.5" aria-hidden />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <button
+              className="btn-primary w-full"
+              onClick={importPendingContacts}
+              disabled={importing || pendingImports.length === 0}
+            >
+              {importing ? "Importing…" : `Import ${pendingImports.length} Contact${pendingImports.length === 1 ? "" : "s"}`}
+            </button>
+          </div>
+        )}
 
         {updateError && (
           <div className="card">
