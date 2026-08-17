@@ -370,6 +370,7 @@ function PipelinePageInner() {
             period_type: periodType,
             period_start: periodStart,
             last_edited_by: null,
+            manually_adjusted: false,
             created_at: "",
             updated_at: "",
             ...zeroStages,
@@ -565,7 +566,11 @@ function PipelinePageInner() {
     const previousValue = period[key] as number;
     const nextValue = Math.max(0, previousValue + delta);
     const appliedDelta = nextValue - previousValue;
-    setPeriod({ ...period, [key]: nextValue });
+    setPeriod({
+      ...period,
+      [key]: nextValue,
+      manually_adjusted: periodType !== "daily" ? true : period.manually_adjusted,
+    });
 
     if (periodType !== "daily") {
       // Weekly/Monthly, edited directly: no cascade - there's no smaller
@@ -587,6 +592,7 @@ function PipelinePageInner() {
             period_start: period.period_start,
             [key]: nextValue,
             last_edited_by: user.id,
+            manually_adjusted: true,
           })
           .select("*")
           .single();
@@ -602,7 +608,12 @@ function PipelinePageInner() {
 
       const { error } = await supabase
         .from("pipeline_periods")
-        .update({ [key]: nextValue, updated_at: new Date().toISOString(), last_edited_by: user.id })
+        .update({
+          [key]: nextValue,
+          updated_at: new Date().toISOString(),
+          last_edited_by: user.id,
+          manually_adjusted: true,
+        })
         .eq("id", period.id);
       if (error) {
         // Revert the optimistic count - otherwise a failed save looks
@@ -903,6 +914,13 @@ function PipelinePageInner() {
                 ›
               </button>
             </div>
+
+            {periodType !== "daily" && period?.manually_adjusted && (
+              <p className="text-xs text-slate-500">
+                Includes a manual correction entered directly on {periodType === "weekly" ? "Weekly" : "Monthly"} —
+                it may not exactly match a fresh sum of Daily entries for this period.
+              </p>
+            )}
 
             {downlineOptions.length > 0 && (
               <div className="card space-y-2">

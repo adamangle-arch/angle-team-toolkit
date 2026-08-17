@@ -1190,6 +1190,12 @@ export default function TeamPage() {
                   {!memberData.pipeline && (
                     <p className="text-xs text-slate-500">Nothing logged for this period.</p>
                   )}
+                  {periodType !== "daily" && memberData.pipeline?.manually_adjusted && (
+                    <p className="text-xs text-slate-500">
+                      Includes a manual correction entered directly on {periodType === "weekly" ? "Weekly" : "Monthly"}{" "}
+                      — it may not exactly match a fresh sum of Daily entries for this period.
+                    </p>
+                  )}
                 </div>
 
                 <div className="card space-y-1.5">

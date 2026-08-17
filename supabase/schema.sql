@@ -144,6 +144,23 @@ alter table pipeline_periods add constraint pipeline_periods_period_type_check c
 -- member N different days").
 alter table pipeline_periods add column if not exists last_edited_by uuid references auth.users(id) on delete set null;
 
+-- True only for a Weekly/Monthly row that was set via the direct
+-- tap-to-edit path (StageCount's absolute-value entry on app/pipeline -
+-- see updateStage's periodType !== "daily" branch), never for a row that
+-- only ever received cascaded deltas from Daily via bump_pipeline_stage()
+-- below. This exists because a manual catch-up correction on Weekly or
+-- Monthly is a legitimate, supported action - not a bug - but from the
+-- outside a manually-corrected number looks identical to a genuinely
+-- wrong one (it won't match a fresh sum of that period's Daily rows).
+-- Surfacing this flag on the Pipeline tally and Team tab lets a real
+-- discrepancy self-explain instead of getting reported as broken data
+-- each time someone notices Weekly/Monthly doesn't add up to Daily.
+-- Sticky by design: bump_pipeline_stage()'s cascade UPDATE never clears
+-- it, since a period that was manually corrected once and later received
+-- normal Daily cascades on top is still worth flagging as "not a pure
+-- Daily sum."
+alter table pipeline_periods add column if not exists manually_adjusted boolean not null default false;
+
 -- ============================================================
 -- 2. CANDIDATE ROADMAP
 -- current_step is an index (0-9) into the 10 roadmap steps defined in

@@ -364,6 +364,7 @@ export type PipelinePeriod = {
   period_type: "daily" | "weekly" | "monthly";
   period_start: string;
   last_edited_by: string | null;
+  manually_adjusted: boolean;
   created_at: string;
   updated_at: string;
 } & Record<PipelineStageKey, number>;

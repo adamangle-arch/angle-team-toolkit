@@ -7363,6 +7363,29 @@ control simply doesn't exist there. No RLS change on `profiles` itself
 - the admin-only check lives inside the new function, same pattern as
 every other admin-gated write in this file.
 
+### Pipeline: flag manually-corrected Weekly/Monthly totals
+
+Recurring pattern this session: someone reports "the Monthly numbers are
+off," and every time it's been investigated with real data, the number
+was correct - it just came from a legitimate direct catch-up edit on
+Weekly or Monthly (StageCount's tap-to-edit-exact-value), which by
+design doesn't cascade and so won't always match a fresh sum of that
+period's Daily rows. Re-proving that via one-off SQL diagnostics each
+time doesn't scale and reads as stonewalling when someone's waiting on
+an answer.
+
+New `pipeline_periods.manually_adjusted` boolean (default `false`),
+set `true` by `app/pipeline/page.tsx`'s `updateStage` whenever a
+Weekly/Monthly row is written through the direct-edit path (both the
+draft-row insert and the existing-row update); never touched by
+`bump_pipeline_stage()`'s Daily-cascade path, and never cleared once
+set, so a period that was corrected once and later picked up further
+cascaded Daily deltas still reads as "not a pure Daily sum." Surfaced
+as a small note under the period selector on the Pipeline tally view
+and under the Pipeline card on Team tab's member detail, so a real
+manual correction is self-evident right where the numbers are being
+compared instead of getting reported as broken data each time.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)
