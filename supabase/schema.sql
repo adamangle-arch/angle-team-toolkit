@@ -2079,6 +2079,40 @@ $$;
 
 grant execute on function public.get_core300_leaderboard(date) to authenticated;
 
+-- Everyone at 150+ personal circle PV but not yet at Core 300, for the
+-- given month, ranked by PV - the "getting there" tier shown between
+-- Core 300 and Day 1 Ditto on the Leaderboard's Volume tab.
+create or replace function public.get_pv150_leaderboard(
+  p_period_start date
+)
+returns table (
+  first_name text,
+  last_name text,
+  team text,
+  pv int,
+  user_id uuid,
+  partner_user_id uuid,
+  partner_first_name text,
+  partner_last_name text
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select pr.first_name, pr.last_name, pr.team, mp.pv, pr.id,
+         partner.id, partner.first_name, partner.last_name
+  from monthly_pv mp
+  join profiles pr on pr.id = mp.user_id
+  left join profiles partner on partner.household_id = pr.id
+  where mp.period_start = p_period_start
+    and mp.pv >= 150
+    and mp.pv < 300
+  order by mp.pv desc;
+$$;
+
+grant execute on function public.get_pv150_leaderboard(date) to authenticated;
+
 -- Everyone currently running 5+ active candidates through the roadmap
 -- (not launched, not filtered out, and a QI1 has actually been booked —
 -- current_step >= 1), ranked by how many.

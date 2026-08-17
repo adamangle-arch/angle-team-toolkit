@@ -286,6 +286,9 @@ function activeCandidatesEntryKey(userId: string) {
 function core300EntryKey(periodStart: string, userId: string) {
   return `core300:${periodStart}:${userId}`;
 }
+function pv150EntryKey(periodStart: string, userId: string) {
+  return `pv150:${periodStart}:${userId}`;
+}
 function dittoEntryKey(periodStart: string, userId: string) {
   return `ditto:${periodStart}:${userId}`;
 }
@@ -321,6 +324,7 @@ export default function LeaderboardPage() {
   const [individualLeaders, setIndividualLeaders] = useState<IndividualLeaderEntry[]>([]);
   const [streakLeaders, setStreakLeaders] = useState<StreakLeaderboardEntry[]>([]);
   const [core300, setCore300] = useState<Core300Entry[]>([]);
+  const [pv150, setPv150] = useState<Core300Entry[]>([]);
   const [activeCandidates, setActiveCandidates] = useState<ActiveCandidatesEntry[]>([]);
   const [qi1Rhythm, setQi1Rhythm] = useState<Qi1RhythmEntry[]>([]);
   const [ditto, setDitto] = useState<DittoEntry[]>([]);
@@ -590,12 +594,14 @@ export default function LeaderboardPage() {
     let cancelled = false;
 
     async function load() {
-      const [{ data: core }, { data: dittoData }] = await Promise.all([
+      const [{ data: core }, { data: pv150Data }, { data: dittoData }] = await Promise.all([
         supabase.rpc("get_core300_leaderboard", { p_period_start: volumeMonthStart }),
+        supabase.rpc("get_pv150_leaderboard", { p_period_start: volumeMonthStart }),
         supabase.rpc("get_ditto_leaderboard", { p_period_start: volumeMonthStart }),
       ]);
       if (!cancelled) {
         setCore300((core as Core300Entry[]) ?? []);
+        setPv150((pv150Data as Core300Entry[]) ?? []);
         setDitto((dittoData as DittoEntry[]) ?? []);
       }
     }
@@ -703,7 +709,8 @@ export default function LeaderboardPage() {
       // feed only counts toward Volume on Daily/Weekly - Monthly already
       // has Core 300/Ditto as its volume picture, so the sales feed card
       // itself is Daily/Weekly-only (see the JSX below).
-      volume: core300.length + ditto.length + (periodType === "monthly" ? 0 : salesFeed.length),
+      volume:
+        core300.length + pv150.length + ditto.length + (periodType === "monthly" ? 0 : salesFeed.length),
       spotlight:
         (myRank ? 1 : 0) + (risingStar ? 1 : 0) + (hotStreakLeader ? 1 : 0) + wallOfFame.length,
       arena: challenges.length,
@@ -719,6 +726,7 @@ export default function LeaderboardPage() {
       streakLeaders,
       activeCandidates,
       core300,
+      pv150,
       ditto,
       myRank,
       risingStar,
@@ -742,6 +750,7 @@ export default function LeaderboardPage() {
     for (const s of streakLeaders) keys.add(streakEntryKey(s.user_id));
     for (const e of activeCandidates) keys.add(activeCandidatesEntryKey(e.user_id));
     for (const e of core300) keys.add(core300EntryKey(volumeMonthStart, e.user_id));
+    for (const e of pv150) keys.add(pv150EntryKey(volumeMonthStart, e.user_id));
     for (const e of ditto) keys.add(dittoEntryKey(volumeMonthStart, e.user_id));
     for (const m of milestones) keys.add(milestoneEntryKey(m.user_id, m.milestone_days));
     for (const e of salesFeed) keys.add(dailySaleEntryKey(e.sale_id));
@@ -753,6 +762,7 @@ export default function LeaderboardPage() {
     streakLeaders,
     activeCandidates,
     core300,
+    pv150,
     ditto,
     milestones,
     salesFeed,
@@ -1203,6 +1213,36 @@ export default function LeaderboardPage() {
                   ) : (
                     core300.map((entry, i) => {
                       const key = core300EntryKey(volumeMonthStart, entry.user_id);
+                      return (
+                        <div
+                          key={`${entry.user_id}-${i}`}
+                          className="flex items-start justify-between gap-2 text-sm"
+                        >
+                          <span className="text-slate-200">
+                            {i + 1}. <CoupleLink entry={entry} />{" "}
+                            <span className="text-xs text-slate-500">({entry.team})</span>
+                          </span>
+                          <div className="flex shrink-0 items-center gap-2">
+                            <span className="pill pill-amber">{entry.pv} PV</span>
+                            <LikeButton
+                              entryKey={key}
+                              targetUserId={entry.user_id}
+                              likes={likesMap.get(key) ?? NO_LIKES}
+                              onToggle={toggleLike}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </Card>
+
+                <Card title="150+ PV">
+                  {pv150.length === 0 ? (
+                    <p className="text-sm text-slate-400">No one&apos;s between 150-299 PV yet this month.</p>
+                  ) : (
+                    pv150.map((entry, i) => {
+                      const key = pv150EntryKey(volumeMonthStart, entry.user_id);
                       return (
                         <div
                           key={`${entry.user_id}-${i}`}

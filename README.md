@@ -7305,6 +7305,17 @@ the admin check from a single hardcoded email to `is_app_admin()`
 for existing rows beyond defaulting them to `kind = 'idea'` (there's no
 way to know in hindsight which old posts were really questions).
 
+### Leaderboard: 150+ PV tier between Core 300 and Day 1 Ditto
+
+The Volume tab jumped straight from "300+ PV" (Core 300) to the Day 1
+Ditto list with nothing in between, so anyone still building toward
+Core 300 had no section of their own. New `get_pv150_leaderboard(date)`
+mirrors `get_core300_leaderboard` exactly, just `pv >= 150 and pv < 300`
+instead of `pv >= 300`, so the two tiers never overlap. Card sits
+between them in `app/leaderboard/page.tsx`, same row shape (rank, name,
+team, PV pill, like button) as Core 300. No schema change beyond the
+one new read-only function - reads the existing `monthly_pv` table.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)
