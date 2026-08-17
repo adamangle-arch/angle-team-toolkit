@@ -5,16 +5,11 @@ import Link from "next/link";
 import { Camera, Heart, MessageCircle, Video } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { SkeletonList } from "@/components/Skeleton";
-import LevelAvatar from "@/components/LevelAvatar";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import { getTodayStoryPrompt, isPrimaryUser } from "@/lib/constants";
 import { fireNotifyEvent } from "@/lib/notifyClient";
-import type { StoryPost, StoryComment, TeamMemberBasic, Liker } from "@/lib/types";
-
-// A day's worth of staleness - long enough to still be useful ("seen this
-// morning") without listing someone who hasn't opened the app in a week.
-const RECENTLY_ACTIVE_HOURS = 24;
+import type { StoryPost, StoryComment, Liker } from "@/lib/types";
 
 function uniqueId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -69,21 +64,11 @@ function personName(entry: { first_name: string | null; last_name: string | null
   return name || "Unnamed";
 }
 
-// "Sarah" / "Sarah and Mike" / "Sarah, Mike, and Jordan" - so Who's
-// Around reads as a real sentence naming people, not just a row of
-// avatars someone has to squint at (or tap through) to identify.
-function joinNames(names: string[]): string {
-  if (names.length === 0) return "";
-  if (names.length === 1) return names[0];
-  if (names.length === 2) return `${names[0]} and ${names[1]}`;
-  return `${names.slice(0, -1).join(", ")}, and ${names[names.length - 1]}`;
-}
-
 // "Posted 4h ago" / "Expires in 6h" - both derived from the same
 // created_at, so there's no separate "expires_at" to keep in sync; a
 // story just stops coming back from get_active_stories() once its own
-// 24h window passes. Also reused for Pulse's "last active" labels and
-// comment timestamps - all three are just "how long since this instant."
+// 24h window passes. Also reused for comment timestamps - both are just
+// "how long since this instant."
 function hoursSince(iso: string): number {
   return (Date.now() - new Date(iso).getTime()) / (1000 * 60 * 60);
 }
@@ -111,12 +96,9 @@ type LikeInfo = { count: number; likedByMe: boolean; names: string[] };
 const NO_LIKES: LikeInfo = { count: 0, likedByMe: false, names: [] };
 
 export default function StoriesPage() {
-  const { user, activeUserIds } = useAuth();
+  const { user } = useAuth();
   const isAdmin = isPrimaryUser(user.email);
   const prompt = getTodayStoryPrompt();
-
-  const [teamMembers, setTeamMembers] = useState<TeamMemberBasic[] | null>(null);
-  const [pulseError, setPulseError] = useState<string | null>(null);
 
   const [stories, setStories] = useState<StoryPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -210,42 +192,6 @@ export default function StoriesPage() {
       cancelled = true;
     };
   }, [stories, user.id]);
-
-  // Always-visible avatar row at the top of the page now (not a separate
-  // tab) - fetches once on mount instead of lazily on a tab switch. Reuses
-  // the same team-wide roster RPC Leaderboard's Spotlight tab already
-  // added (get_all_team_members). Which of them are actually online comes
-  // from AuthGate's Realtime Presence channel (activeUserIds), not from
-  // this - last_active_at (also on this same row) backs the "recently
-  // active but not online right now" half of the row.
-  useEffect(() => {
-    let cancelled = false;
-    supabase.rpc("get_all_team_members").then(({ data, error }) => {
-      if (cancelled) return;
-      if (error) {
-        setPulseError(error.message);
-        return;
-      }
-      setTeamMembers((data as TeamMemberBasic[]) ?? []);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const activeMembers = (teamMembers ?? []).filter((m) => activeUserIds.includes(m.user_id));
-  // Excludes anyone already counted live in activeMembers - being both
-  // currently online and "recently" active is redundant to show twice.
-  const recentlyActiveMembers = (teamMembers ?? [])
-    .filter((m) => !activeUserIds.includes(m.user_id) && m.last_active_at)
-    .filter((m) => hoursSince(m.last_active_at as string) <= RECENTLY_ACTIVE_HOURS)
-    .sort((a, b) => (b.last_active_at as string).localeCompare(a.last_active_at as string));
-  // One combined row - active-now people first (green dot), then anyone
-  // else active in the last 24h, faces only, tap through to their profile.
-  const pulseMembers = [
-    ...activeMembers.map((m) => ({ ...m, isActiveNow: true })),
-    ...recentlyActiveMembers.map((m) => ({ ...m, isActiveNow: false })),
-  ];
 
   async function handleSelectFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -394,69 +340,6 @@ export default function StoriesPage() {
     <>
       <PageHeader title="Stories" subtitle="Today's prompt - posts disappear after 24h" />
       <main className="page-main">
-        <div className="card space-y-2">
-          <p className="section-title flex items-center gap-1.5">
-            <span className="inline-block h-2 w-2 rounded-full bg-emerald-400" aria-hidden />
-            Who&apos;s Around
-          </p>
-          {pulseError ? (
-            <p className="text-xs text-red-400">{pulseError}</p>
-          ) : teamMembers === null ? (
-            <SkeletonList cards={1} lines={2} />
-          ) : pulseMembers.length === 0 ? (
-            <p className="empty-state">No one else has been active in the last 24 hours.</p>
-          ) : (
-            <>
-              <p className="text-sm text-slate-200">
-                {activeMembers.length > 0 && (
-                  <>
-                    <span className="inline-block h-2 w-2 rounded-full bg-emerald-400" aria-hidden />{" "}
-                    {joinNames(activeMembers.map((m) => (m.user_id === user.id ? "You" : personName(m))))}{" "}
-                    {activeMembers.length === 1 ? "is" : "are"} active right now
-                    {recentlyActiveMembers.length > 0 ? "; " : "."}
-                  </>
-                )}
-                {recentlyActiveMembers.length > 0 && (
-                  <>
-                    {joinNames(
-                      recentlyActiveMembers.map((m) => (m.user_id === user.id ? "You" : personName(m)))
-                    )}{" "}
-                    {recentlyActiveMembers.length === 1 ? "was" : "were"} active in the last 24h.
-                  </>
-                )}
-              </p>
-              <div className="no-scrollbar flex gap-3 overflow-x-auto pb-0.5">
-                {pulseMembers.map((m) => (
-                  <Link
-                    key={m.user_id}
-                    href={`/profile/${m.user_id}`}
-                    className="flex w-14 shrink-0 flex-col items-center gap-1 text-center"
-                  >
-                    <div className="relative">
-                      <LevelAvatar
-                        photoUrl={m.photo_url}
-                        level={1}
-                        showLevelChip={false}
-                        size="sm"
-                        name={personName(m)}
-                      />
-                      {m.isActiveNow && (
-                        <span
-                          className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-400 ring-2 ring-navy"
-                          aria-hidden="true"
-                        />
-                      )}
-                    </div>
-                    <span className="w-full truncate text-[10px] text-slate-300">
-                      {m.user_id === user.id ? "You" : m.first_name || "Unnamed"}
-                    </span>
-                  </Link>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-
         <div className="card space-y-3">
           <p className="section-title flex items-center gap-1.5">
             <Camera className="h-4 w-4" aria-hidden />

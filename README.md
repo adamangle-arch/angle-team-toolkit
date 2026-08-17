@@ -7494,6 +7494,21 @@ they'd specifically been filtered out, rather than just mistyping
 it). Verified with a real before/after test against a live database:
 the lookup returns the candidate before filtering, zero rows after.
 
+### Moved "Who's Around" to Home as "Who's Active", dropped the roll call
+
+Was tucked at the top of Stories, and led with a full sentence naming
+everyone active by first *and* last name - unreadable once more than a
+handful of people were on at once, and easy to miss since Stories isn't
+where most people land first. The avatar row right below it already
+showed first-name-only under each face, which was the useful part.
+Dropped the sentence entirely, renamed the heading to "Who's Active",
+and moved the whole thing into a new `components/WhosActive.tsx` -
+pulled onto Home instead, as the very first thing on the page (above
+the Welcome Video card, which still only shows until it's watched).
+Same data underneath (`get_all_team_members` + AuthGate's Realtime
+Presence for who's on right now vs. active in the last 24h) - just
+relocated and re-presented, not rebuilt.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

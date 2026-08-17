@@ -45,6 +45,7 @@ import {
 import PageHeader from "@/components/PageHeader";
 import { SkeletonList } from "@/components/Skeleton";
 import WelcomeVideoLockCard from "@/components/WelcomeVideoLockCard";
+import WhosActive from "@/components/WhosActive";
 import { useAuth } from "@/components/AuthGate";
 import { minSessionFor } from "@/lib/onboarding-gate";
 import { supabase } from "@/lib/supabaseClient";
@@ -291,6 +292,7 @@ export default function HomePage() {
     <>
       <PageHeader title="Home" subtitle="Your most important numbers, plus everything else" />
       <main className="page-main">
+        <WhosActive />
         {!videoWatched && (
           <WelcomeVideoLockCard
             userId={user.id}
