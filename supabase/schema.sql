@@ -7022,6 +7022,16 @@ insert into storage.buckets (id, name, public)
 values ('story-photos', 'story-photos', true)
 on conflict (id) do nothing;
 
+-- Explicit per-bucket cap instead of leaving file_size_limit null (which
+-- falls back to whatever the project's dashboard-configured global
+-- default happens to be - often too small for a real phone video clip,
+-- and invisible from this file since it's not something a SQL migration
+-- can see or change). 200MB comfortably covers a 20-30 second phone
+-- video at typical quality with headroom to spare. Re-runnable update
+-- (not just the initial insert above) so this takes effect even on a
+-- bucket that already existed before this line was added.
+update storage.buckets set file_size_limit = 209715200 where id = 'story-photos';
+
 drop policy if exists "story_photos_bucket_public_read" on storage.objects;
 create policy "story_photos_bucket_public_read" on storage.objects for select
 using (bucket_id = 'story-photos');

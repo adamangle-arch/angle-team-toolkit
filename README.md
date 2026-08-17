@@ -7407,6 +7407,21 @@ is the exact inverse of the existing `periodStartFor()` - converts a
 picked date back into the same `periodOffset` the ‹/› buttons already
 drive, so no other state or query logic needed to change.
 
+### Stories: raise the video upload size cap
+
+A 20-second phone video failed to post with Supabase Storage's raw
+"The object exceeded the maximum allowed size" - the `story-photos`
+bucket never set an explicit `file_size_limit`, so it fell back to
+whatever the project's dashboard-configured global default happens to
+be, which isn't visible from this file and is often too small for a
+real video clip (photos never hit this since `compressImage` already
+shrinks them before upload; video is uploaded as-is). Set an explicit
+200MB `file_size_limit` on the bucket - comfortable headroom for a
+20-30 second clip at typical phone quality. Also swapped the raw
+Supabase error text for a plain-language one ("try a shorter clip, or
+lower the camera's video quality") via a new `friendlyUploadError()`,
+same pattern as Pipeline's `friendlyPeriodError()`.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

@@ -52,6 +52,18 @@ async function compressImage(file: File): Promise<File> {
   }
 }
 
+// Supabase Storage's raw rejection ("The object exceeded the maximum
+// allowed size") doesn't say what to actually do about it - translate it
+// into something actionable, same pattern as Pipeline's
+// friendlyPeriodError. Story videos aren't compressed client-side the
+// way photos are (compressImage above), so a longer or higher-quality
+// clip is the most likely cause.
+function friendlyUploadError(message: string): string {
+  return message.toLowerCase().includes("exceeded the maximum allowed size")
+    ? "That video is too large to upload. Try a shorter clip, or lower the camera's video quality/resolution before recording."
+    : message;
+}
+
 function personName(entry: { first_name: string | null; last_name: string | null }): string {
   const name = [entry.first_name, entry.last_name].filter(Boolean).join(" ");
   return name || "Unnamed";
@@ -248,7 +260,7 @@ export default function StoriesPage() {
       const path = `${user.id}/${uniqueId()}.${ext}`;
       const { error: uploadError } = await supabase.storage.from("story-photos").upload(path, toUpload);
       if (uploadError) {
-        setPostError(uploadError.message);
+        setPostError(friendlyUploadError(uploadError.message));
         return;
       }
       const { data } = supabase.storage.from("story-photos").getPublicUrl(path);
