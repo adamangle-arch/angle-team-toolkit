@@ -194,7 +194,7 @@ const HOME_ITEMS: { href: string; label: string; icon: LucideIcon; description: 
   { href: "/games", label: "Games", icon: Gamepad2, description: "Diamond Run, Chase, Trivia." },
   { href: "/badges", label: "Badges", icon: Medal, description: "Achievements you've earned." },
   { href: "/events", label: "Team Events", icon: PartyPopper, description: "Photos and videos." },
-  { href: "/ideas", label: "Innovation Box", icon: Lightbulb, description: "Submit and vote on ideas." },
+  { href: "/ideas", label: "Innovation Box", icon: Lightbulb, description: "Ask questions, share ideas." },
 ];
 
 function HeroCard({

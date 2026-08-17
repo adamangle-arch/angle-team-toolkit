@@ -7282,6 +7282,29 @@ they're only ever set by having already been through one of these two
 screens once. `nameTeamComplete` (which actually gates entry to the
 app) still requires `team` itself, unchanged.
 
+### Innovation Box: private questions/ideas instead of a public voting board
+
+Reworked per direct feedback - the old design was a company-wide public
+board (everyone sees and upvotes everyone's submissions, admin curates
+an open → planned → shipped status). The team wants a private mastermind
+channel to admin instead: submit a question or an idea, only admins
+(and you, for your own posts) can see it - not a shared list.
+
+`innovation_ideas` drops `status` (and the whole open/planned/shipped/
+closed workflow) in favor of a `kind` column (`question` | `idea`) -
+the app/ideas/page.tsx UI is now two tabs, one per kind, rather than a
+status filter. `innovation_idea_votes` and `toggle_innovation_vote` are
+dropped entirely - nothing to vote on when you can't see anyone else's
+posts. RLS on `innovation_ideas` tightens from "any signed-in user" to
+`user_id = auth.uid() or is_app_admin()` for both select and delete;
+`get_innovation_ideas()` mirrors that same check server-side (it's
+SECURITY DEFINER purely to resolve the poster's name across the
+auth.users → profiles boundary, not to widen visibility). Also switches
+the admin check from a single hardcoded email to `is_app_admin()`
+(covers all three team-lead accounts, not just one). No data migration
+for existing rows beyond defaulting them to `kind = 'idea'` (there's no
+way to know in hindsight which old posts were really questions).
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

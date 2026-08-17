@@ -7529,128 +7529,77 @@ grant execute on function public.get_all_team_members() to authenticated;
 
 -- ============================================================
 -- 20. INNOVATION BOX
--- Submit and vote on ideas for the business or the app itself - company-
--- wide, not scoped to team/upline/downline, same "everyone sees
--- everyone's" model as the Leaderboard. Deliberately simple: no editing
--- a submitted idea, no threaded replies - the point is a fast, low-
--- friction place to drop an idea and see what the team actually wants
--- built next, not a full discussion board.
+-- A private feedback channel to admin, not a public board - reworked
+-- from an earlier "everyone sees and votes on everyone's ideas" design
+-- per direct feedback: the team wants a place to mastermind and raise
+-- questions or ideas straight to whoever runs it, not a shared,
+-- votable list. Split into exactly two kinds (question/idea) instead of
+-- the old open/planned/shipped status workflow - simpler, and status-
+-- tracking implied a public roadmap that no longer exists here. Voting
+-- is gone entirely along with it (nothing to vote on if you can't see
+-- anyone else's posts).
 -- ============================================================
-create table if not exists innovation_ideas (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
-  body text not null,
-  status text not null default 'open' check (status in ('open', 'planned', 'shipped', 'closed')),
-  created_at timestamptz not null default now()
-);
+alter table innovation_ideas drop constraint if exists innovation_ideas_status_check;
+alter table innovation_ideas drop column if exists status;
+alter table innovation_ideas add column if not exists kind text;
+update innovation_ideas set kind = 'idea' where kind is null;
+alter table innovation_ideas alter column kind set not null;
+alter table innovation_ideas drop constraint if exists innovation_ideas_kind_check;
+alter table innovation_ideas add constraint innovation_ideas_kind_check check (kind in ('question', 'idea'));
+
+drop table if exists innovation_idea_votes;
+drop function if exists public.toggle_innovation_vote(uuid);
 
 alter table innovation_ideas enable row level security;
 
+-- Only the poster and an admin can ever see a given row - the whole
+-- point of the rework. is_app_admin() (defined at the top of this file)
+-- covers all three team-lead emails, not just one hardcoded address.
 drop policy if exists "innovation_ideas_select_all" on innovation_ideas;
-create policy "innovation_ideas_select_all" on innovation_ideas
-  for select using (auth.uid() is not null);
+drop policy if exists "innovation_ideas_select_own_or_admin" on innovation_ideas;
+create policy "innovation_ideas_select_own_or_admin" on innovation_ideas
+  for select using (user_id = auth.uid() or public.is_app_admin());
 
 drop policy if exists "innovation_ideas_insert_own" on innovation_ideas;
 create policy "innovation_ideas_insert_own" on innovation_ideas
   for insert with check (user_id = auth.uid());
 
--- Status (open -> planned -> shipped, or closed) is admin-curated - the
--- whole point is signaling back to whoever submitted an idea whether
--- it's actually happening, which only means something coming from
--- whoever runs the team. isPrimaryUser() in lib/constants.ts is the
--- client-side mirror of this same admin-email check.
 drop policy if exists "innovation_ideas_update_admin" on innovation_ideas;
-create policy "innovation_ideas_update_admin" on innovation_ideas
-  for update using (auth.jwt() ->> 'email' in ('adamangle@icloud.com'))
-  with check (auth.jwt() ->> 'email' in ('adamangle@icloud.com'));
 
 drop policy if exists "innovation_ideas_delete_own_or_admin" on innovation_ideas;
 create policy "innovation_ideas_delete_own_or_admin" on innovation_ideas
-  for delete using (user_id = auth.uid() or auth.jwt() ->> 'email' in ('adamangle@icloud.com'));
+  for delete using (user_id = auth.uid() or public.is_app_admin());
 
-create table if not exists innovation_idea_votes (
-  idea_id uuid not null references innovation_ideas(id) on delete cascade,
-  voter_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
-  created_at timestamptz not null default now(),
-  primary key (idea_id, voter_id)
-);
-
-alter table innovation_idea_votes enable row level security;
-
-drop policy if exists "innovation_idea_votes_select_all" on innovation_idea_votes;
-create policy "innovation_idea_votes_select_all" on innovation_idea_votes
-  for select using (auth.uid() is not null);
-
-drop policy if exists "innovation_idea_votes_insert_own" on innovation_idea_votes;
-create policy "innovation_idea_votes_insert_own" on innovation_idea_votes
-  for insert with check (voter_id = auth.uid());
-
-drop policy if exists "innovation_idea_votes_delete_own" on innovation_idea_votes;
-create policy "innovation_idea_votes_delete_own" on innovation_idea_votes
-  for delete using (voter_id = auth.uid());
-
--- Every idea with its live vote count and whether the caller has already
--- voted, ranked highest-voted first (ties broken newest-first) - the
--- table joins happen here instead of two separate round trips so the
--- Ideas page has everything it needs in one call.
+-- Every idea/question the caller is allowed to see (their own, or
+-- everyone's if they're an admin), with the poster's name attached -
+-- SECURITY DEFINER purely to resolve first_name/last_name/team across
+-- the auth.users -> profiles boundary in one round trip, not to widen
+-- who can see what (the where clause here mirrors the table's own RLS
+-- above exactly).
 create or replace function public.get_innovation_ideas()
 returns table (
   id uuid,
+  kind text,
   body text,
-  status text,
   user_id uuid,
   first_name text,
   last_name text,
   team text,
-  created_at timestamptz,
-  vote_count int,
-  voted_by_me boolean
+  created_at timestamptz
 )
 language sql
 stable
 security definer
 set search_path = public
 as $$
-  select
-    i.id, i.body, i.status, i.user_id, pr.first_name, pr.last_name, pr.team, i.created_at,
-    coalesce(v.cnt, 0)::int as vote_count,
-    exists (
-      select 1 from innovation_idea_votes mv
-      where mv.idea_id = i.id and mv.voter_id = auth.uid()
-    ) as voted_by_me
+  select i.id, i.kind, i.body, i.user_id, pr.first_name, pr.last_name, pr.team, i.created_at
   from innovation_ideas i
   join profiles pr on pr.id = i.user_id
-  left join (
-    select idea_id, count(*) as cnt from innovation_idea_votes group by idea_id
-  ) v on v.idea_id = i.id
-  order by coalesce(v.cnt, 0) desc, i.created_at desc;
+  where i.user_id = auth.uid() or public.is_app_admin()
+  order by i.created_at desc;
 $$;
 
 grant execute on function public.get_innovation_ideas() to authenticated;
-
--- Upvote toggle - votes again to unvote, same one-tap-to-flip pattern as
--- the Leaderboard's like button.
-create or replace function public.toggle_innovation_vote(p_idea_id uuid)
-returns boolean
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  v_now_voted boolean;
-begin
-  if exists (select 1 from innovation_idea_votes where idea_id = p_idea_id and voter_id = auth.uid()) then
-    delete from innovation_idea_votes where idea_id = p_idea_id and voter_id = auth.uid();
-    v_now_voted := false;
-  else
-    insert into innovation_idea_votes (idea_id, voter_id) values (p_idea_id, auth.uid());
-    v_now_voted := true;
-  end if;
-  return v_now_voted;
-end;
-$$;
-
-grant execute on function public.toggle_innovation_vote(uuid) to authenticated;
 
 -- ============================================================
 -- 21. WEEKLY REFLECTION (private, never shared)
