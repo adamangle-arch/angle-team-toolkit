@@ -7609,7 +7609,11 @@ create policy "innovation_ideas_delete_own_or_admin" on innovation_ideas
 -- SECURITY DEFINER purely to resolve first_name/last_name/team across
 -- the auth.users -> profiles boundary in one round trip, not to widen
 -- who can see what (the where clause here mirrors the table's own RLS
--- above exactly).
+-- above exactly). The old version returned a different column shape
+-- (status/vote_count/voted_by_me instead of kind) - CREATE OR REPLACE
+-- can't change a RETURNS TABLE shape, so the old one has to actually be
+-- dropped first.
+drop function if exists public.get_innovation_ideas();
 create or replace function public.get_innovation_ideas()
 returns table (
   id uuid,
