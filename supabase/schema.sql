@@ -48,6 +48,32 @@ drop table if exists quarterly_goals cascade;
 drop table if exists recognition_log cascade;
 
 -- ============================================================
+-- 0. PROFILES BOOTSTRAP (minimal, early)
+-- The full profiles table (all its columns, constraints, triggers) is
+-- defined properly down in section 5, in its original historical spot.
+-- This bootstrap just creates the bare table (id + email) here, before
+-- ANY earlier section, because a handful of `language sql` functions and
+-- RLS policies above section 5 (Candidate Roadmap's access-code lookup,
+-- candidate_specific_resources' household-sharing policies) reference
+-- profiles.id/household_id, and both `create function ... language sql`
+-- and `create policy ... using (...)` are validated against the catalog
+-- immediately, unlike a plpgsql function body (which only gets checked
+-- when it's actually called, long after the whole file has finished
+-- running). This was invisible on this database - `create table if not
+-- exists` further down has always been a no-op here, since profiles has
+-- existed since early on - but it broke a fresh database (the McGrath
+-- Team Toolkit fork) running this file for the very first time. Every
+-- statement here is a strict subset of section 5's, so section 5 running
+-- afterward is a safe no-op for the parts that overlap, then continues on
+-- to add every other column/constraint/trigger as before.
+-- ============================================================
+create table if not exists profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  email text not null,
+  created_at timestamptz not null default now()
+);
+
+-- ============================================================
 -- 1. PIPELINE TRACKER (one set of buckets per user)
 -- ============================================================
 create table if not exists pipeline_periods (

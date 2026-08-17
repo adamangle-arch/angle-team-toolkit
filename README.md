@@ -7422,6 +7422,28 @@ Supabase error text for a plain-language one ("try a shorter clip, or
 lower the camera's video quality") via a new `friendlyUploadError()`,
 same pattern as Pipeline's `friendlyPeriodError()`.
 
+### Fix: schema.sql failed on a genuinely fresh database
+
+Discovered while duplicating this app for the McGrath team: running the
+full `schema.sql` against a brand-new, empty Supabase project failed
+partway through with `relation "profiles" does not exist`, even though
+this exact file has been re-run against Angle's own database dozens of
+times without issue. Root cause - a handful of `language sql` functions
+and RLS policies (Candidate Roadmap's access-code lookup,
+candidate_specific_resources' household-sharing policies) reference
+`profiles` and sit earlier in the file than section 5, where `profiles`
+is actually created; `create function ... language sql` and `create
+policy ... using (...)` both get validated against the catalog
+immediately, unlike a plpgsql function body (only checked when it's
+actually called). This was invisible here because `profiles` has existed
+on this database since early on, so `create table if not exists`
+further down in section 5 was always a no-op - it only surfaces the
+first time the whole file runs against nothing. Fixed with a new "0.
+PROFILES BOOTSTRAP" section at the very top: a minimal `create table if
+not exists profiles (id, email, created_at)`, a strict subset of what
+section 5 creates later, so section 5's fuller definition still runs
+exactly as before and just adds everything else on top.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)
