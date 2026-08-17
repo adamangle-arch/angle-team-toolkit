@@ -7250,6 +7250,25 @@ tab now counts households, not raw profile rows, so a linked couple
 counts once instead of twice - a more accurate number, but it may look
 lower than before for any team with linked couples in it.
 
+### Split the team re-confirm screen out of ProfileGate
+
+Real feedback: the team-list-trim re-prompt was reusing ProfileGate,
+the full first-time signup form - name, upline account number, "did
+you just launch or are you already active," spouse email - which meant
+a returning member who already had all of that on file (and just
+needed to re-pick their team) saw the whole thing again and reasonably
+assumed they had to redo their entire signup.
+
+New `TeamReconfirmGate.tsx` is just the team `<select>` and a Continue
+button. `components/AuthGate.tsx` now splits what used to be one
+`nameTeamComplete` check into `hasInitialProfile` (first/last name +
+team already on file) and `nameTeamComplete` (that, plus
+`team_confirmed_at`) - a genuinely new signup (missing the first two)
+still gets full ProfileGate, but anyone who already has an initial
+profile and is only missing `team_confirmed_at` gets the lightweight
+screen instead. No schema change - both screens write the same
+`team`/`team_confirmed_at` columns.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

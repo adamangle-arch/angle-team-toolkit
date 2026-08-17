@@ -8,6 +8,7 @@ import LoginForm from "./LoginForm";
 import BottomNav from "./BottomNav";
 import ConfigWarning from "./ConfigWarning";
 import ProfileGate from "./ProfileGate";
+import TeamReconfirmGate from "./TeamReconfirmGate";
 import ProfileDetailsGate from "./ProfileDetailsGate";
 import QuoteOverlay from "./QuoteOverlay";
 import FestiveBackdrop from "./FestiveBackdrop";
@@ -202,9 +203,14 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     applyColorMode(profile?.color_mode || "dark");
   }, [profile?.color_mode]);
 
-  const nameTeamComplete = Boolean(
-    profile?.first_name && profile?.last_name && profile?.team && profile?.team_confirmed_at
-  );
+  // Split from nameTeamComplete below so a returning member who already
+  // has everything on file (just needs to re-pick their team after the
+  // Aug 2026 trim) gets TeamReconfirmGate's single dropdown instead of
+  // ProfileGate's full first-time signup form - confusing someone into
+  // re-entering their upline number and launch status for a one-field
+  // change was real reported feedback, not a hypothetical.
+  const hasInitialProfile = Boolean(profile?.first_name && profile?.last_name && profile?.team);
+  const nameTeamComplete = hasInitialProfile && Boolean(profile?.team_confirmed_at);
   const fullyAuthed = Boolean(user && !profileLoading && profile && nameTeamComplete && profile.profile_prompted);
 
   // Admins always see the whole app - onboarding gating is for brand-new
@@ -422,7 +428,11 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     return (
       <>
         <ConfigWarning />
-        <ProfileGate user={user} profile={profile} onComplete={() => loadProfile(user.id)} />
+        {hasInitialProfile ? (
+          <TeamReconfirmGate user={user} profile={profile} onComplete={() => loadProfile(user.id)} />
+        ) : (
+          <ProfileGate user={user} profile={profile} onComplete={() => loadProfile(user.id)} />
+        )}
       </>
     );
   }
