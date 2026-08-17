@@ -65,6 +65,7 @@ import {
 import { fireNotifyEvent } from "@/lib/notifyClient";
 import {
   periodStartFor,
+  offsetForPeriodStart,
   averagesForPeriods,
   AVERAGES_WINDOW,
   AVERAGE_METRICS,
@@ -193,10 +194,19 @@ function PipelinePageInner() {
   const [period, setPeriod] = useState<PipelinePeriod | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // Tapping the period label opens a native date picker instead of only
+  // stepping one day/week/month at a time via ‹/› - jumping from today
+  // back to, say, three months ago used to mean 12+ taps on ‹.
+  const [pickingDate, setPickingDate] = useState(false);
 
   function switchPeriodType(next: PeriodType) {
     setPeriodType(next);
     setPeriodOffset(0);
+  }
+
+  function pickDate(dateStr: string) {
+    setPeriodOffset(offsetForPeriodStart(periodType, dateStr));
+    setPickingDate(false);
   }
 
   const [candidates, setCandidates] = useState<Candidate[]>([]);
@@ -893,20 +903,40 @@ function PipelinePageInner() {
               </button>
             </div>
 
-            <div className="card flex items-center justify-between">
+            <div className="card flex items-center justify-between gap-2">
               <button
-                className="btn-icon"
+                className="btn-icon shrink-0"
                 onClick={() => setPeriodOffset((o) => o + 1)}
                 aria-label={`Previous ${periodType === "daily" ? "day" : periodType === "weekly" ? "week" : "month"}`}
               >
                 ‹
               </button>
-              <span className="text-sm font-medium text-white">
-                {period ? periodLabelFor(periodType, period.period_start) : "…"}
-                {periodOffset === 0 && <span className="ml-1 text-xs text-slate-500">(current)</span>}
-              </span>
+              {pickingDate ? (
+                <input
+                  type="date"
+                  autoFocus
+                  className="input !w-auto flex-1 text-center text-sm"
+                  defaultValue={period?.period_start || getToday()}
+                  max={getToday()}
+                  onChange={(e) => {
+                    if (e.target.value) pickDate(e.target.value);
+                  }}
+                  onBlur={() => setPickingDate(false)}
+                />
+              ) : (
+                <button
+                  type="button"
+                  className="flex items-center gap-1.5 text-sm font-medium text-white"
+                  onClick={() => setPickingDate(true)}
+                  aria-label="Jump to a specific date"
+                >
+                  <CalendarDays className="h-3.5 w-3.5 text-slate-500" aria-hidden />
+                  {period ? periodLabelFor(periodType, period.period_start) : "…"}
+                  {periodOffset === 0 && <span className="ml-1 text-xs text-slate-500">(current)</span>}
+                </button>
+              )}
               <button
-                className="btn-icon"
+                className="btn-icon shrink-0"
                 onClick={() => setPeriodOffset((o) => Math.max(0, o - 1))}
                 disabled={periodOffset <= 0}
                 aria-label={`Next ${periodType === "daily" ? "day" : periodType === "weekly" ? "week" : "month"}`}

@@ -7386,6 +7386,19 @@ and under the Pipeline card on Team tab's member detail, so a real
 manual correction is self-evident right where the numbers are being
 compared instead of getting reported as broken data each time.
 
+### Pipeline: tap the date to jump straight to a period
+
+The period nav only stepped one day/week/month at a time via ‹/› -
+jumping back a few months meant a dozen-plus taps. The date label
+itself is now a button that opens a native date picker; picking any
+date snaps it to the right period (the exact day for Daily, that
+week's Monday for Weekly, that month's 1st for Monthly) and jumps
+straight there in one step, landing on the current period if a future
+date is picked. New `offsetForPeriodStart()` in `lib/periodAverages.ts`
+is the exact inverse of the existing `periodStartFor()` - converts a
+picked date back into the same `periodOffset` the ‹/› buttons already
+drive, so no other state or query logic needed to change.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

@@ -1,4 +1,4 @@
-import { getDateOffset, getWeekStartOffset, getMonthStartOffset } from "@/lib/dates";
+import { getDateOffset, getWeekStart, getWeekStartOffset, getMonthStartOffset } from "@/lib/dates";
 import type { PipelinePeriod } from "@/lib/types";
 
 export type PeriodType = "daily" | "weekly" | "monthly";
@@ -10,6 +10,31 @@ export function periodStartFor(periodType: PeriodType, offset: number): string {
   if (periodType === "daily") return getDateOffset(offset);
   if (periodType === "weekly") return getWeekStartOffset(offset);
   return getMonthStartOffset(offset);
+}
+
+// The inverse of periodStartFor - given any date someone picked (e.g. from
+// a native date input), works out which offset lands on that same
+// day/week/month, so a manual date pick can feed straight into the same
+// periodOffset state the ‹/› buttons already drive. Ms-difference is safe
+// at day granularity even across a DST transition (at most a 1-hour skew,
+// well under the half-day threshold Math.round needs to land correctly).
+// Clamped to 0 (never negative) since periodOffset never goes into the
+// future - picking a future date just snaps to the current period.
+export function offsetForPeriodStart(periodType: PeriodType, dateStr: string): number {
+  const now = new Date();
+  const target = new Date(`${dateStr}T00:00:00`);
+  if (periodType === "monthly") {
+    const currentIndex = now.getFullYear() * 12 + now.getMonth();
+    const targetIndex = target.getFullYear() * 12 + target.getMonth();
+    return Math.max(0, currentIndex - targetIndex);
+  }
+  if (periodType === "weekly") {
+    const currentMonday = new Date(`${getWeekStart(now)}T00:00:00`);
+    const targetMonday = new Date(`${getWeekStart(target)}T00:00:00`);
+    return Math.max(0, Math.round((currentMonday.getTime() - targetMonday.getTime()) / (7 * 86400000)));
+  }
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.max(0, Math.round((today.getTime() - target.getTime()) / 86400000));
 }
 
 // How many periods back each average window looks - 30 days ~ a month,
