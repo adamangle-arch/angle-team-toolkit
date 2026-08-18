@@ -22,6 +22,7 @@ import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import { PIPELINE_STAGES, READING_UNITS, type PipelineStageKey } from "@/lib/constants";
 import {
+  getToday,
   getDateOffset,
   getWeekStartOffset,
   getMonthStart,
@@ -274,7 +275,7 @@ function InsightsPageInner() {
           .eq("period_type", "monthly")
           .eq("period_start", getMonthStartOffset(0))
           .maybeSingle(),
-        supabase.rpc("get_current_streak", { p_user_id: streakTargetId }),
+        supabase.rpc("get_current_streak", { p_user_id: streakTargetId, p_as_of_day: getToday() }),
         supabase
           .from("streak_days")
           .select("day,read_amount,listen_count")

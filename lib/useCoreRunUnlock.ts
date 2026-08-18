@@ -30,7 +30,7 @@ export function useCoreRunUnlock(userId: string, userEmail: string | null | unde
           .eq("user_id", userId)
           .eq("day", getToday())
           .maybeSingle(),
-        supabase.rpc("get_current_streak", { p_user_id: userId }),
+        supabase.rpc("get_current_streak", { p_user_id: userId, p_as_of_day: getToday() }),
       ]);
       if (cancelled) return;
       setCoreRunDoneToday(

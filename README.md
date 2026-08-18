@@ -7549,6 +7549,38 @@ Leaderboard's `PersonLink` (now reads photo/level/stories together off
 one shared context), and both the public and own Profile pages' big
 avatar.
 
+### Fix: Home's Core Run card disagreed with the real Streak page
+
+Reported as "It says I'm not at a Core Run here but it says I am when I
+open the Core Run tab" - Home showed "0-day streak - At risk" while the
+Core Run Streak page correctly showed a real 24-day streak. Root cause:
+`get_current_streak` and `get_core_run_status` (the two RPCs behind
+Home's card and the header-wide "at risk" dot) both used Postgres's bare
+`current_date`, which resolves in the database session's timezone - UTC
+on Supabase - while every other "what day is it" concept in this app
+(streak_days rows themselves, `getToday()` in lib/dates.ts, the Streak
+page's own `computeStreakAsOf`) is the browser's LOCAL calendar day.
+Anyone west of UTC hits a window every evening where Postgres has
+already rolled to "tomorrow" while the user's actual day hasn't ended -
+during that window these two functions were looking at the wrong two
+days entirely and could report a real, unbroken streak as reset to 0/at
+risk. Reproduced and confirmed against a local test database: asking
+`get_current_streak` for the state "as of" a day artificially one ahead
+of the real data returns 0, asking for the correct local day returns the
+real streak.
+
+Fixed by giving both functions a `p_as_of_day date default current_date`
+parameter (default keeps every existing 1-arg/0-arg call site elsewhere
+in this file - badges, leaderboard, `get_public_profile` - working
+unchanged) and having every client call site (`app/home/page.tsx`,
+`app/dashboard/page.tsx`, `app/insights/page.tsx`,
+`lib/useCoreRunUnlock.ts`, `components/AuthGate.tsx`) pass `getToday()`
+explicitly instead. `useCoreRunUnlock` was a real functional
+consequence beyond just the display, not just cosmetic - it gates
+whether Games are unlocked off the same buggy streak number, so someone
+with a genuine active streak could have been locked out of Games during
+that same evening window.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

@@ -49,7 +49,7 @@ import WhosActive from "@/components/WhosActive";
 import { useAuth } from "@/components/AuthGate";
 import { minSessionFor } from "@/lib/onboarding-gate";
 import { supabase } from "@/lib/supabaseClient";
-import { getWeekStart } from "@/lib/dates";
+import { getWeekStart, getToday } from "@/lib/dates";
 import { ONBOARDING_SESSIONS, type ThemeColor } from "@/lib/constants";
 import type { MyRankEntry } from "@/lib/types";
 
@@ -260,7 +260,7 @@ export default function HomePage() {
     async function load() {
       setHeroLoading(true);
       const [{ data: streak }, { data: pipelineSummary }, { data: rankRows }] = await Promise.all([
-        supabase.rpc("get_current_streak", { p_user_id: user.id }),
+        supabase.rpc("get_current_streak", { p_user_id: user.id, p_as_of_day: getToday() }),
         showPipeline
           ? supabase.rpc("get_my_active_pipeline_summary").maybeSingle()
           : Promise.resolve({ data: null }),

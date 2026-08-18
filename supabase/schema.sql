@@ -1521,7 +1521,27 @@ using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::tex
 -- the client-side streak calculation, just server-side so it can be
 -- surfaced on a public profile. Security definer since streak_days is
 -- otherwise only visible to the owner, their upline, or an admin.
-create or replace function public.get_current_streak(p_user_id uuid)
+-- Dropped first since the old (uuid) signature and the new (uuid, date)
+-- one aren't the same function to `create or replace` - Postgres would
+-- otherwise leave the old 1-arg version around as a separate overload,
+-- and every existing 1-arg call site below would keep silently hitting
+-- the unfixed one instead of resolving to this one's default argument.
+drop function if exists public.get_current_streak(uuid);
+
+-- p_as_of_day defaults to current_date (Postgres session timezone, UTC
+-- on Supabase) so every existing 1-arg call site elsewhere in this file
+-- (badges, leaderboard, get_public_profile, etc.) keeps working
+-- unchanged. But the app's own "today" is always the browser's LOCAL
+-- calendar day (lib/dates.ts's getToday(), the same day streak_days
+-- rows themselves get logged against and computeStreakAsOf on the Core
+-- Run Streak page uses) - for anyone west of UTC, the two disagree for
+-- several hours every evening (Postgres has already rolled to
+-- "tomorrow" while the user's calendar day hasn't), during which this
+-- function would look at the wrong two days and could report the
+-- streak as broken/0 when the Streak page correctly still shows it
+-- intact. Every client call site now passes p_as_of_day explicitly as
+-- getToday() to avoid that window entirely.
+create or replace function public.get_current_streak(p_user_id uuid, p_as_of_day date default current_date)
 returns int
 language sql
 stable
@@ -1531,9 +1551,9 @@ as $$
   with recursive start_day as (
     select case when exists (
       select 1 from streak_days sd
-      where sd.user_id = p_user_id and sd.day = current_date
+      where sd.user_id = p_user_id and sd.day = p_as_of_day
         and (sd.read and sd.listen and sd.daily_update and sd.story_share or sd.off_day)
-    ) then current_date else current_date - 1 end as day
+    ) then p_as_of_day else p_as_of_day - 1 end as day
   ),
   w(day, ok, n) as (
     select
@@ -1560,7 +1580,7 @@ as $$
   select coalesce(count(*) filter (where ok), 0)::int from w;
 $$;
 
-grant execute on function public.get_current_streak(uuid) to authenticated;
+grant execute on function public.get_current_streak(uuid, date) to authenticated;
 
 -- Longest Core Run Streak ever hit (gaps-and-islands over qualifying
 -- days) — this is what milestone badges (1 week, 30/90 days, etc.) are
@@ -1600,7 +1620,21 @@ grant execute on function public.get_longest_streak(uuid) to authenticated;
 -- - exactly the narrow, easy-to-miss gap streakAtRisk's banner flags,
 -- not just "haven't done today yet" (that's 'pending', no urgency, still
 -- all day left).
-create or replace function public.get_core_run_status()
+--
+-- Dropped first since the old 0-arg signature and the new 1-arg one
+-- aren't the same function to `create or replace` (same reasoning as
+-- get_current_streak just above) - without this, AuthGate's call would
+-- keep silently hitting the old, unfixed 0-arg overload.
+drop function if exists public.get_core_run_status();
+
+-- p_as_of_day defaults to current_date (Postgres session timezone, UTC
+-- on Supabase) for the same reason get_current_streak's does above -
+-- AuthGate.tsx passes the browser's local getToday() explicitly so this
+-- doesn't disagree with the Core Run Streak page's own local-date-based
+-- computeStreakAsOf for several hours every evening for anyone west of
+-- UTC (this is what was showing "0-day streak - At risk" on Home while
+-- the Streak page correctly showed the real, unbroken streak).
+create or replace function public.get_core_run_status(p_as_of_day date default current_date)
 returns text
 language plpgsql
 stable
@@ -1615,7 +1649,7 @@ declare
 begin
   select off_day, coalesce(read and listen and daily_update and story_share, false)
     into v_today_off, v_today_ok
-  from streak_days where user_id = auth.uid() and day = current_date;
+  from streak_days where user_id = auth.uid() and day = p_as_of_day;
 
   if coalesce(v_today_off, false) then
     return 'off_day';
@@ -1626,17 +1660,17 @@ begin
 
   select coalesce(read and listen and daily_update and story_share or off_day, false)
     into v_yesterday_ok
-  from streak_days where user_id = auth.uid() and day = current_date - 1;
+  from streak_days where user_id = auth.uid() and day = p_as_of_day - 1;
 
   if coalesce(v_yesterday_ok, false) then
     return 'pending';
   end if;
 
   with recursive w(day, ok, n) as (
-    select (current_date - 2) as day,
+    select (p_as_of_day - 2) as day,
       exists (
         select 1 from streak_days sd
-        where sd.user_id = auth.uid() and sd.day = current_date - 2
+        where sd.user_id = auth.uid() and sd.day = p_as_of_day - 2
           and (sd.read and sd.listen and sd.daily_update and sd.story_share or sd.off_day)
       ),
       0
@@ -1661,7 +1695,7 @@ begin
 end;
 $$;
 
-grant execute on function public.get_core_run_status() to authenticated;
+grant execute on function public.get_core_run_status(date) to authenticated;
 
 -- Public-safe profile view for the "tap a name on the Leaderboard" page.
 -- Security definer so it can read any profile row, but only ever returns

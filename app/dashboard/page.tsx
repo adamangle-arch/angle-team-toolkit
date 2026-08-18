@@ -201,7 +201,7 @@ export default function DashboardPage() {
         { data: staleCandidateRow },
       ] = await Promise.all([
         supabase.from("streak_days").select("*").eq("user_id", user.id).eq("day", today).maybeSingle(),
-        supabase.rpc("get_current_streak", { p_user_id: user.id }),
+        supabase.rpc("get_current_streak", { p_user_id: user.id, p_as_of_day: getToday() }),
         supabase.from("goals").select("*").eq("user_id", user.id).eq("period", "daily"),
         supabase
           .from("calendar_events")

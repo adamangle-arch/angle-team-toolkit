@@ -17,6 +17,7 @@ import RatingJobsProvider from "./RatingJobsProvider";
 import PullToRefresh from "./PullToRefresh";
 import { ONBOARDING_SESSIONS, isPrimaryUser, type ThemeColor } from "@/lib/constants";
 import { applyTheme, applyColorMode } from "@/lib/applyTheme";
+import { getToday } from "@/lib/dates";
 import type { Profile } from "@/lib/types";
 
 type AuthContextValue = {
@@ -289,7 +290,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   }, [fullyAuthed]);
 
   function refreshCoreRunStatus() {
-    supabase.rpc("get_core_run_status").then(({ data, error }) => {
+    supabase.rpc("get_core_run_status", { p_as_of_day: getToday() }).then(({ data, error }) => {
       if (!error) setCoreRunStatus((data as AuthContextValue["coreRunStatus"]) ?? null);
     });
   }
