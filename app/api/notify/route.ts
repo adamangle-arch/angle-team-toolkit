@@ -254,12 +254,14 @@ export async function POST(request: Request) {
       }
 
       case "story_posted": {
-        const { data: recipientRows } = await admin.rpc("get_upline_user_ids", {
-          p_user_id: userId,
-        });
-        const recipients = ((recipientRows as { user_id?: string }[]) ?? [])
-          .map((r) => r.user_id)
-          .filter((id): id is string => Boolean(id));
+        // Whole team, not just upline - unlike every other event here,
+        // get_active_stories() has no upline/downline restriction at all
+        // (every story is visible company-wide), so the notification
+        // follows the same reach as the content itself.
+        const { data: teamRows } = await admin.from("profiles").select("id").not("team", "is", null);
+        const recipients = ((teamRows as { id: string }[]) ?? [])
+          .map((r) => r.id)
+          .filter((id) => id !== userId);
 
         const { data: poster } = await admin
           .from("profiles")

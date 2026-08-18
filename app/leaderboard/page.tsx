@@ -33,7 +33,9 @@ import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import { pointsForBadgeKeys, levelForPoints } from "@/lib/levels";
 import { fireNotifyEvent } from "@/lib/notifyClient";
-import LevelAvatar from "@/components/LevelAvatar";
+import AvatarWithStory from "@/components/AvatarWithStory";
+import { useActiveStories } from "@/lib/useActiveStories";
+import type { StoryPost } from "@/lib/types";
 import {
   getWeekStart,
   getMonthStart,
@@ -109,17 +111,19 @@ function personName(entry: { first_name: string | null; last_name: string | null
 }
 
 // Set once at page level (see the fetch in LeaderboardPage) from two bulk
-// RPCs (get_all_public_photos, get_all_earned_badge_keys) - PersonLink is
-// used from a couple dozen call sites across every leaderboard section
-// below, so a context avoids threading these two maps through every one
-// of them individually.
+// RPCs (get_all_public_photos, get_all_earned_badge_keys) plus
+// useActiveStories - PersonLink is used from a couple dozen call sites
+// across every leaderboard section below, so a context avoids threading
+// these maps through every one of them individually.
 type LevelData = {
   photoByUserId: Map<string, string>;
   levelByUserId: Map<string, number>;
+  storiesByUserId: Map<string, StoryPost[]>;
 };
 const LevelDataContext = createContext<LevelData>({
   photoByUserId: new Map(),
   levelByUserId: new Map(),
+  storiesByUserId: new Map(),
 });
 
 // showAvatar defaults on for the many "one row = one person/couple" list
@@ -134,7 +138,7 @@ function PersonLink({
   entry: { user_id: string; first_name: string | null; last_name: string | null };
   showAvatar?: boolean;
 }) {
-  const { photoByUserId, levelByUserId } = useContext(LevelDataContext);
+  const { photoByUserId, levelByUserId, storiesByUserId } = useContext(LevelDataContext);
   if (!showAvatar) {
     return (
       <Link href={`/profile/${entry.user_id}`} className="underline decoration-dotted underline-offset-2">
@@ -143,15 +147,17 @@ function PersonLink({
     );
   }
   return (
-    <Link href={`/profile/${entry.user_id}`} className="inline-flex items-center gap-1 align-middle">
-      <LevelAvatar
-        photoUrl={photoByUserId.get(entry.user_id) ?? null}
-        level={levelByUserId.get(entry.user_id) ?? 1}
-        size="xs"
-        showLevelChip={false}
-      />
+    <AvatarWithStory
+      userId={entry.user_id}
+      photoUrl={photoByUserId.get(entry.user_id) ?? null}
+      level={levelByUserId.get(entry.user_id) ?? 1}
+      size="xs"
+      showLevelChip={false}
+      stories={storiesByUserId.get(entry.user_id)}
+      className="inline-flex items-center gap-1 align-middle"
+    >
       <span className="underline decoration-dotted underline-offset-2">{personName(entry)}</span>
-    </Link>
+    </AvatarWithStory>
   );
 }
 
@@ -359,6 +365,7 @@ export default function LeaderboardPage() {
 
   const [photoByUserId, setPhotoByUserId] = useState<Map<string, string>>(new Map());
   const [levelByUserId, setLevelByUserId] = useState<Map<string, number>>(new Map());
+  const { storiesByUser } = useActiveStories();
 
   const qi1RhythmThreshold = periodType === "daily" ? 1 : periodType === "weekly" ? 2 : 8;
 
@@ -849,7 +856,7 @@ export default function LeaderboardPage() {
   }
 
   return (
-    <LevelDataContext.Provider value={{ photoByUserId, levelByUserId }}>
+    <LevelDataContext.Provider value={{ photoByUserId, levelByUserId, storiesByUserId: storiesByUser }}>
       <PageHeader
         title="Leaderboard"
         subtitle={

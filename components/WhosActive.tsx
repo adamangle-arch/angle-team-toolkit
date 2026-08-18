@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useAuth } from "@/components/AuthGate";
-import LevelAvatar from "@/components/LevelAvatar";
+import AvatarWithStory from "@/components/AvatarWithStory";
 import { SkeletonList } from "@/components/Skeleton";
 import { supabase } from "@/lib/supabaseClient";
+import { useActiveStories } from "@/lib/useActiveStories";
 import type { TeamMemberBasic } from "@/lib/types";
 
 // A day's worth of staleness - long enough to still be useful ("seen this
@@ -35,6 +35,7 @@ export default function WhosActive() {
   const { user, activeUserIds } = useAuth();
   const [teamMembers, setTeamMembers] = useState<TeamMemberBasic[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { storiesByUser } = useActiveStories();
 
   useEffect(() => {
     let cancelled = false;
@@ -80,30 +81,29 @@ export default function WhosActive() {
       ) : (
         <div className="no-scrollbar flex gap-3 overflow-x-auto pb-0.5">
           {members.map((m) => (
-            <Link
+            <AvatarWithStory
               key={m.user_id}
-              href={`/profile/${m.user_id}`}
+              userId={m.user_id}
+              photoUrl={m.photo_url}
+              level={1}
+              showLevelChip={false}
+              size="sm"
+              name={personName(m)}
+              stories={storiesByUser.get(m.user_id)}
               className="flex w-14 shrink-0 flex-col items-center gap-1 text-center"
-            >
-              <div className="relative">
-                <LevelAvatar
-                  photoUrl={m.photo_url}
-                  level={1}
-                  showLevelChip={false}
-                  size="sm"
-                  name={personName(m)}
-                />
-                {m.isActiveNow && (
+              overlay={
+                m.isActiveNow && (
                   <span
                     className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-400 ring-2 ring-navy"
                     aria-hidden="true"
                   />
-                )}
-              </div>
+                )
+              }
+            >
               <span className="w-full truncate text-[10px] text-slate-300">
                 {m.user_id === user.id ? "You" : m.first_name || "Unnamed"}
               </span>
-            </Link>
+            </AvatarWithStory>
           ))}
         </div>
       )}

@@ -7509,6 +7509,37 @@ Same data underneath (`get_all_team_members` + AuthGate's Realtime
 Presence for who's on right now vs. active in the last 24h) - just
 relocated and re-presented, not rebuilt.
 
+### Stories: notify the whole team, and view them Instagram/Snapchat-style
+
+Two changes, no schema.sql this time - both are pure application code.
+
+Story-post notifications (`story_posted`) previously only reached the
+poster's upline, via the same `get_upline_user_ids` every other
+event-triggered notification here uses. That never matched what Stories
+actually is - `get_active_stories()` has no upline/downline restriction
+at all, every story is visible company-wide - so `app/api/notify/route.ts`
+now notifies everyone on the team (any profile with a `team`) except the
+poster themselves, straight off `profiles`, no new RPC needed.
+
+New `components/StoryViewer.tsx`: a full-screen, tap-to-advance viewer
+for one person's active stories in posting order, with a segmented
+progress bar (auto-advances on a timer for photos, tracks real playback
+position for video), like/take-down, and tap-left-third/right-third or
+arrow keys to navigate. Deliberately self-contained (fetches its own
+like state) since it's opened from four different pages that don't share
+state with each other. New `components/AvatarWithStory.tsx` wraps
+`LevelAvatar` with the "has an active story" ring (`.story-ring` in
+globals.css, an amber conic-gradient bubble around the whole avatar) and
+opens the viewer on tap instead of navigating to their profile - falls
+back to the normal profile Link when they don't have one. New
+`lib/useActiveStories.ts` fetches+groups `get_active_stories()` once per
+page, shared by every one of those four call sites: a new avatar tray at
+the top of the Stories page itself (grouped from the same list already
+loaded for the feed below, no second fetch), Who's Active on Home,
+Leaderboard's `PersonLink` (now reads photo/level/stories together off
+one shared context), and both the public and own Profile pages' big
+avatar.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

@@ -565,6 +565,22 @@ body {
   .chip-btn:hover {
     background: rgb(var(--surface-rgb) / 0.1);
   }
+
+  /* Wraps a LevelAvatar to mark "this person has an active story" - a
+     padded gradient ring around the whole avatar (its own level-tier
+     ring stays untouched inside it), same visual language Instagram/
+     Snapchat use for a story bubble, in the app's own amber instead of
+     borrowing their pink/purple. */
+  .story-ring {
+    @apply inline-flex shrink-0 items-center justify-center rounded-full p-[2.5px];
+    background: conic-gradient(
+      from 45deg,
+      var(--color-amber-light),
+      var(--color-amber),
+      var(--color-amber-dark),
+      var(--color-amber-light)
+    );
+  }
 }
 
 @layer utilities {
@@ -619,6 +635,21 @@ body {
   }
   .animate-glow-pulse {
     animation: glow-pulse 2.4s ease-in-out infinite;
+  }
+
+  /* StoryViewer's per-segment progress bar - fills left to right over a
+     photo story's fixed on-screen duration (a video's own playback
+     drives its segment instead, no animation needed there). */
+  @keyframes story-progress {
+    from {
+      width: 0%;
+    }
+    to {
+      width: 100%;
+    }
+  }
+  .animate-story-progress {
+    animation: story-progress 5s linear forwards;
   }
 
   /* Diagonal shine sweep laid over Home grid tiles under the Gold/

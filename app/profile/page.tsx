@@ -15,7 +15,8 @@ import { guessTimeZone } from "@/lib/timezones";
 import { BADGE_DEFINITIONS } from "@/lib/badges";
 import { pointsForBadgeKeys, levelProgress, frameTierForLevel, FRAME_TIER_LABELS } from "@/lib/levels";
 import BadgePillList from "@/components/BadgePillList";
-import LevelAvatar from "@/components/LevelAvatar";
+import AvatarWithStory from "@/components/AvatarWithStory";
+import { useActiveStories } from "@/lib/useActiveStories";
 import type { Profile, PublicProfile, UserBadge } from "@/lib/types";
 
 export default function MyProfilePage() {
@@ -24,6 +25,7 @@ export default function MyProfilePage() {
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
   const [earnedBadges, setEarnedBadges] = useState<UserBadge[]>([]);
+  const { storiesByUser } = useActiveStories();
 
   const [partner, setPartner] = useState<PublicProfile | null>(null);
   const [partnerEmail, setPartnerEmail] = useState("");
@@ -301,11 +303,14 @@ export default function MyProfilePage() {
         ) : (
           <>
             <div className="card flex items-center gap-3">
-              <LevelAvatar
+              <AvatarWithStory
+                userId={user.id}
                 photoUrl={profile.photo_url}
                 level={myLevel.level}
                 name={[profile.first_name, profile.last_name].filter(Boolean).join(" ")}
                 size="lg"
+                stories={storiesByUser.get(user.id)}
+                linkWhenNoStory={false}
               />
               <div className="min-w-0 flex-1 space-y-1.5">
                 <div className="flex items-center justify-between gap-2">

@@ -6,9 +6,11 @@ import { Camera, Heart, MessageCircle, Video } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { SkeletonList } from "@/components/Skeleton";
 import { useAuth } from "@/components/AuthGate";
+import AvatarWithStory from "@/components/AvatarWithStory";
 import { supabase } from "@/lib/supabaseClient";
 import { getTodayStoryPrompt, isPrimaryUser } from "@/lib/constants";
 import { fireNotifyEvent } from "@/lib/notifyClient";
+import { pointsForBadgeKeys, levelForPoints } from "@/lib/levels";
 import type { StoryPost, StoryComment, Liker } from "@/lib/types";
 
 function uniqueId(): string {
@@ -131,6 +133,12 @@ export default function StoriesPage() {
   const [commentDrafts, setCommentDrafts] = useState<Map<string, string>>(new Map());
   const [postingCommentFor, setPostingCommentFor] = useState<string | null>(null);
 
+  // Avatar/level for the story tray below - same two bulk RPCs and
+  // points->level derivation Leaderboard already uses, fetched once
+  // per page visit since a person's photo/level don't change mid-visit.
+  const [photoByUserId, setPhotoByUserId] = useState<Map<string, string>>(new Map());
+  const [levelByUserId, setLevelByUserId] = useState<Map<string, number>>(new Map());
+
   async function load() {
     const { data } = await supabase.rpc("get_active_stories");
     setStories((data as StoryPost[]) ?? []);
@@ -143,6 +151,40 @@ export default function StoriesPage() {
       if (!cancelled) await load();
     }
     init();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadLevels() {
+      const [{ data: photos }, { data: badgeRows }] = await Promise.all([
+        supabase.rpc("get_all_public_photos"),
+        supabase.rpc("get_all_earned_badge_keys"),
+      ]);
+      if (cancelled) return;
+
+      const photoMap = new Map<string, string>();
+      for (const row of (photos as { user_id: string; photo_url: string }[]) ?? []) {
+        photoMap.set(row.user_id, row.photo_url);
+      }
+
+      const keysByUser = new Map<string, string[]>();
+      for (const row of (badgeRows as { individual_id: string; badge_key: string }[]) ?? []) {
+        const list = keysByUser.get(row.individual_id) ?? [];
+        list.push(row.badge_key);
+        keysByUser.set(row.individual_id, list);
+      }
+      const levelMap = new Map<string, number>();
+      for (const [uid, keys] of keysByUser) {
+        levelMap.set(uid, levelForPoints(pointsForBadgeKeys(keys)));
+      }
+
+      setPhotoByUserId(photoMap);
+      setLevelByUserId(levelMap);
+    }
+    loadLevels();
     return () => {
       cancelled = true;
     };
@@ -336,10 +378,57 @@ export default function StoriesPage() {
     }
   }
 
+  // The tap-a-face tray at the top, Instagram/Snapchat-style: one bubble
+  // per person who currently has an active story (chronological within
+  // each person, oldest first, matching StoryViewer's own playback
+  // order), most-recently-posted person first left to right - grouped
+  // straight from the same flat `stories` list the list below already
+  // has, no second fetch needed.
+  const trayByUser = new Map<string, StoryPost[]>();
+  for (const s of stories) {
+    const list = trayByUser.get(s.user_id) ?? [];
+    list.push(s);
+    trayByUser.set(s.user_id, list);
+  }
+  const tray = Array.from(trayByUser.entries())
+    .map(([userId, userStories]) => ({
+      userId,
+      stories: userStories.slice().sort((a, b) => a.created_at.localeCompare(b.created_at)),
+    }))
+    .sort((a, b) => {
+      const aLatest = a.stories[a.stories.length - 1].created_at;
+      const bLatest = b.stories[b.stories.length - 1].created_at;
+      return bLatest.localeCompare(aLatest);
+    });
+
   return (
     <>
       <PageHeader title="Stories" subtitle="Today's prompt - posts disappear after 24h" />
       <main className="page-main">
+        {tray.length > 0 && (
+          <div className="no-scrollbar flex gap-3 overflow-x-auto pb-0.5">
+            {tray.map((entry) => {
+              const first = entry.stories[0];
+              return (
+                <AvatarWithStory
+                  key={entry.userId}
+                  userId={entry.userId}
+                  photoUrl={photoByUserId.get(entry.userId) ?? null}
+                  level={levelByUserId.get(entry.userId) ?? 1}
+                  size="sm"
+                  showLevelChip={false}
+                  name={personName(first)}
+                  stories={entry.stories}
+                  className="flex w-14 shrink-0 flex-col items-center gap-1 text-center"
+                >
+                  <span className="w-full truncate text-[10px] text-slate-300">
+                    {entry.userId === user.id ? "You" : first.first_name || "Unnamed"}
+                  </span>
+                </AvatarWithStory>
+              );
+            })}
+          </div>
+        )}
         <div className="card space-y-3">
           <p className="section-title flex items-center gap-1.5">
             <Camera className="h-4 w-4" aria-hidden />

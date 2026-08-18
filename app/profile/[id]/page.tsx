@@ -10,7 +10,8 @@ import { STREAK_MILESTONES } from "@/lib/constants";
 import { BADGE_DEFINITIONS } from "@/lib/badges";
 import { checkAndAwardBadges } from "@/lib/badgeEngine";
 import { pointsForBadgeKeys, levelProgress, frameTierForLevel, FRAME_TIER_LABELS } from "@/lib/levels";
-import LevelAvatar from "@/components/LevelAvatar";
+import AvatarWithStory from "@/components/AvatarWithStory";
+import { useActiveStories } from "@/lib/useActiveStories";
 import type { PublicProfile } from "@/lib/types";
 
 export default function PublicProfilePage({
@@ -22,6 +23,7 @@ export default function PublicProfilePage({
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [badges, setBadges] = useState<{ badge_key: string; earned_at: string }[]>([]);
   const [loading, setLoading] = useState(true);
+  const { storiesByUser } = useActiveStories();
 
   useEffect(() => {
     let cancelled = false;
@@ -81,7 +83,15 @@ export default function PublicProfilePage({
         ) : (
           <>
             <div className="card flex items-center gap-3">
-              <LevelAvatar photoUrl={profile.photo_url} level={theirLevel.level} name={name} size="lg" />
+              <AvatarWithStory
+                userId={id}
+                photoUrl={profile.photo_url}
+                level={theirLevel.level}
+                name={name}
+                size="lg"
+                stories={storiesByUser.get(id)}
+                linkWhenNoStory={false}
+              />
               <div className="min-w-0 flex-1 space-y-1.5">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-lg font-semibold text-white">{name}</p>
