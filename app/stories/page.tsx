@@ -125,6 +125,10 @@ export default function StoriesPage() {
   // specific about its schema) instead of a second near-identical table.
   const [likesMap, setLikesMap] = useState<Map<string, LikeInfo>>(new Map());
   const [myName, setMyName] = useState("You");
+  // Who liked - collapsed behind an on-demand "who?" tap next to the
+  // heart (same pattern Leaderboard's LikeButton already uses), rather
+  // than always rendering under every story.
+  const [showLikeNamesFor, setShowLikeNamesFor] = useState<Set<string>>(new Set());
 
   // Comments - collapsed by default per story; only fetched the first
   // time a given story's thread is actually opened.
@@ -583,6 +587,24 @@ export default function StoriesPage() {
                         <Heart className={`h-3.5 w-3.5 ${likes.likedByMe ? "fill-current" : ""}`} aria-hidden />
                         {likes.count > 0 && <span>{likes.count}</span>}
                       </button>
+                      {likes.names.length > 0 && (
+                        <button
+                          onClick={() =>
+                            setShowLikeNamesFor((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(story.story_id)) next.delete(story.story_id);
+                              else next.add(story.story_id);
+                              return next;
+                            })
+                          }
+                          className="text-xs text-slate-500 underline"
+                          aria-label={
+                            showLikeNamesFor.has(story.story_id) ? "Hide who liked this" : "Show who liked this"
+                          }
+                        >
+                          who?
+                        </button>
+                      )}
                       <button
                         onClick={() => toggleComments(story.story_id)}
                         className="flex items-center gap-1 text-sm text-slate-400"
@@ -591,6 +613,10 @@ export default function StoriesPage() {
                         {comments.length > 0 ? comments.length : "Comment"}
                       </button>
                     </div>
+
+                    {showLikeNamesFor.has(story.story_id) && likes.names.length > 0 && (
+                      <p className="text-xs text-slate-400">Liked by {likes.names.join(", ")}</p>
+                    )}
 
                     {commentsOpen && (
                       <div className="space-y-2 border-t border-white/5 pt-2">

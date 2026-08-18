@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { X, Heart, Trash2 } from "lucide-react";
+import { X, Heart, MessageCircle, Send, Trash2 } from "lucide-react";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import { fireNotifyEvent } from "@/lib/notifyClient";
 import { isPrimaryUser } from "@/lib/constants";
-import type { StoryPost } from "@/lib/types";
+import type { StoryComment, StoryPost } from "@/lib/types";
 
 const PHOTO_DURATION_MS = 5000;
 
@@ -27,11 +27,10 @@ function storyLikeKey(storyId: string): string {
 // Full-screen, tap-to-advance viewer for one person's active stories, in
 // posting order (oldest first, same as opening someone's Instagram/
 // Snapchat story from the top). Deliberately self-contained (fetches its
-// own like state, doesn't need the caller to already have Stories page
-// state loaded) since it's opened from four different pages
+// own like/comment state, doesn't need the caller to already have
+// Stories page state loaded) since it's opened from four different pages
 // (Stories, Who's Active, Leaderboard, Profile) that don't share that
-// state - the trade-off is comments stay list-only on the Stories page
-// itself rather than duplicating that whole thread UI here too.
+// state with each other.
 export default function StoryViewer({
   stories,
   startIndex = 0,
@@ -46,15 +45,33 @@ export default function StoryViewer({
   const { user } = useAuth();
   const isAdmin = isPrimaryUser(user.email);
   const [index, setIndex] = useState(Math.min(startIndex, stories.length - 1));
-  const [likes, setLikes] = useState<{ count: number; likedByMe: boolean }>({ count: 0, likedByMe: false });
+  const [likes, setLikes] = useState<{ count: number; likedByMe: boolean; names: string[] }>({
+    count: 0,
+    likedByMe: false,
+    names: [],
+  });
+  const [showLikeNames, setShowLikeNames] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [videoProgressPct, setVideoProgressPct] = useState(0);
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [comments, setComments] = useState<StoryComment[]>([]);
+  const [commentDraft, setCommentDraft] = useState("");
+  const [postingComment, setPostingComment] = useState(false);
+  const [myName, setMyName] = useState("You");
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const story = stories[index];
 
-  function goNext() {
+  function resetForNewStory() {
     setVideoProgressPct(0);
+    setShowLikeNames(false);
+    setCommentsOpen(false);
+    setComments([]);
+    setCommentDraft("");
+  }
+
+  function goNext() {
+    resetForNewStory();
     setIndex((i) => {
       if (i + 1 >= stories.length) {
         onClose();
@@ -65,33 +82,56 @@ export default function StoryViewer({
   }
 
   function goPrev() {
-    setVideoProgressPct(0);
+    resetForNewStory();
     setIndex((i) => Math.max(0, i - 1));
   }
 
   // Auto-advance for photos on a fixed timer; videos advance themselves
   // via onEnded below instead, since their real length is what matters.
+  // Paused entirely while the comment thread is open, same as tapping
+  // and holding a real Instagram/Snapchat story.
   useEffect(() => {
-    if (!story || story.media_type === "video") return;
+    if (!story || story.media_type === "video" || commentsOpen) return;
     timerRef.current = setTimeout(goNext, PHOTO_DURATION_MS);
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [index, story?.media_type]);
+  }, [index, story?.media_type, commentsOpen]);
 
   useEffect(() => {
     if (!story) return;
     let cancelled = false;
     supabase.rpc("get_likers", { p_entry_keys: [storyLikeKey(story.story_id)] }).then(({ data }) => {
       if (cancelled) return;
-      const rows = (data as { user_id: string }[]) ?? [];
-      setLikes({ count: rows.length, likedByMe: rows.some((r) => r.user_id === user.id) });
+      const rows = (data as { user_id: string; first_name: string | null; last_name: string | null }[]) ?? [];
+      setLikes({
+        count: rows.length,
+        likedByMe: rows.some((r) => r.user_id === user.id),
+        names: rows.map((r) => personName(r)),
+      });
     });
     return () => {
       cancelled = true;
     };
   }, [story, user.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    supabase
+      .from("profiles")
+      .select("first_name,last_name")
+      .eq("id", user.id)
+      .single()
+      .then(({ data }) => {
+        if (cancelled || !data) return;
+        const n = personName(data);
+        if (n) setMyName(n);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user.id]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -110,14 +150,54 @@ export default function StoryViewer({
     if (!story) return;
     const key = storyLikeKey(story.story_id);
     if (likes.likedByMe) {
-      setLikes((prev) => ({ count: Math.max(0, prev.count - 1), likedByMe: false }));
+      setLikes((prev) => ({
+        count: Math.max(0, prev.count - 1),
+        likedByMe: false,
+        names: prev.names.filter((n) => n !== myName),
+      }));
       await supabase.from("leaderboard_likes").delete().eq("entry_key", key).eq("liker_id", user.id);
     } else {
-      setLikes((prev) => ({ count: prev.count + 1, likedByMe: true }));
+      setLikes((prev) => ({ count: prev.count + 1, likedByMe: true, names: [...prev.names, myName] }));
       await supabase.from("leaderboard_likes").insert({ entry_key: key, liker_id: user.id });
       if (story.user_id !== user.id) {
         fireNotifyEvent({ kind: "story_liked", targetUserId: story.user_id });
       }
+    }
+  }
+
+  async function toggleComments() {
+    if (!story) return;
+    const opening = !commentsOpen;
+    setCommentsOpen(opening);
+    if (opening && comments.length === 0) {
+      const { data } = await supabase.rpc("get_story_comments", { p_story_id: story.story_id });
+      setComments((data as StoryComment[]) ?? []);
+    }
+  }
+
+  async function postComment() {
+    if (!story) return;
+    const body = commentDraft.trim();
+    if (!body) return;
+    setPostingComment(true);
+    const { data, error } = await supabase
+      .from("story_comments")
+      .insert({ story_id: story.story_id, user_id: user.id, body })
+      .select("*")
+      .single();
+    setPostingComment(false);
+    if (error || !data) return;
+    setComments((prev) => [
+      ...prev,
+      { id: data.id, user_id: user.id, first_name: myName, last_name: null, team: null, body, created_at: data.created_at },
+    ]);
+    setCommentDraft("");
+    if (story.user_id !== user.id) {
+      fireNotifyEvent({
+        kind: "story_commented",
+        targetUserId: story.user_id,
+        commentPreview: body.length > 80 ? `${body.slice(0, 80)}…` : body,
+      });
     }
   }
 
@@ -230,22 +310,82 @@ export default function StoryViewer({
         )}
       </div>
 
-      <div className="space-y-2 px-4 pb-6 pt-2">
+      <div className="space-y-2 px-4 pb-6 pt-2" onClick={(e) => e.stopPropagation()}>
         <p className="text-xs text-white/50">{story.prompt}</p>
         {story.caption && <p className="text-sm text-white">{story.caption}</p>}
-        <button
-          type="button"
-          className={`flex items-center gap-1.5 text-sm transition active:scale-90 ${
-            likes.likedByMe ? "text-amber-light" : "text-white/70"
-          }`}
-          onClick={(e) => {
-            e.stopPropagation();
-            toggleLike();
-          }}
-        >
-          <Heart className={`h-4 w-4 ${likes.likedByMe ? "fill-current" : ""}`} aria-hidden />
-          {likes.count > 0 ? likes.count : "Like"}
-        </button>
+
+        <div className="flex items-center gap-4">
+          <button
+            type="button"
+            className={`flex items-center gap-1.5 text-sm transition active:scale-90 ${
+              likes.likedByMe ? "text-amber-light" : "text-white/70"
+            }`}
+            onClick={toggleLike}
+          >
+            <Heart className={`h-4 w-4 ${likes.likedByMe ? "fill-current" : ""}`} aria-hidden />
+            {likes.count > 0 ? likes.count : "Like"}
+          </button>
+          <button
+            type="button"
+            className="flex items-center gap-1.5 text-sm text-white/70 transition active:scale-90"
+            onClick={toggleComments}
+          >
+            <MessageCircle className="h-4 w-4" aria-hidden />
+            {comments.length > 0 || commentsOpen ? comments.length : "Comment"}
+          </button>
+        </div>
+
+        {likes.names.length > 0 && (
+          <button
+            type="button"
+            className="text-xs text-white/50 underline"
+            onClick={() => setShowLikeNames((v) => !v)}
+          >
+            {showLikeNames ? "Hide who liked this" : "See who liked this"}
+          </button>
+        )}
+        {showLikeNames && likes.names.length > 0 && (
+          <p className="text-xs text-white/60">Liked by {likes.names.join(", ")}</p>
+        )}
+
+        {commentsOpen && (
+          <div className="space-y-2 border-t border-white/15 pt-2">
+            <div className="max-h-40 space-y-1.5 overflow-y-auto">
+              {comments.length === 0 ? (
+                <p className="text-xs text-white/40">No comments yet - be the first.</p>
+              ) : (
+                comments.map((c) => (
+                  <div key={c.id} className="text-xs">
+                    <span className="font-medium text-white">{personName(c)}</span>{" "}
+                    <span className="text-white/70">{c.body}</span>{" "}
+                    <span className="text-white/40">· {timeAgoLabel(c.created_at)}</span>
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="flex gap-2">
+              <input
+                className="input flex-1 !border-white/15 !bg-white/5 !py-1.5 text-xs !text-white"
+                placeholder="Add a comment…"
+                value={commentDraft}
+                onChange={(e) => setCommentDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") postComment();
+                }}
+                disabled={postingComment}
+              />
+              <button
+                type="button"
+                className="rounded-lg bg-white/10 p-2 text-white active:scale-90 disabled:opacity-40"
+                aria-label="Send comment"
+                onClick={postComment}
+                disabled={postingComment || !commentDraft.trim()}
+              >
+                <Send className="h-4 w-4" aria-hidden />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

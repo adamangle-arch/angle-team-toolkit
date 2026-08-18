@@ -7525,9 +7525,18 @@ New `components/StoryViewer.tsx`: a full-screen, tap-to-advance viewer
 for one person's active stories in posting order, with a segmented
 progress bar (auto-advances on a timer for photos, tracks real playback
 position for video), like/take-down, and tap-left-third/right-third or
-arrow keys to navigate. Deliberately self-contained (fetches its own
-like state) since it's opened from four different pages that don't share
-state with each other. New `components/AvatarWithStory.tsx` wraps
+arrow keys to navigate. Also shows who liked it (a "See who liked this"
+toggle, same collapsed-by-default pattern as Leaderboard's `LikeButton`
+rather than always rendering names under every story) and a full comment
+thread with its own input, reusing the same `story_comments`/
+`get_story_comments` the main Stories feed already has - auto-advance
+pauses while the comment panel is open, same as pressing and holding a
+real Instagram/Snapchat story. The main Stories feed's own like button
+also gained the same "who?" name-reveal it was missing (it already
+tracked likers' names, just never showed them). Deliberately
+self-contained (fetches its own like/comment state) since it's opened
+from four different pages that don't share state with each other. New
+`components/AvatarWithStory.tsx` wraps
 `LevelAvatar` with the "has an active story" ring (`.story-ring` in
 globals.css, an amber conic-gradient bubble around the whole avatar) and
 opens the viewer on tap instead of navigating to their profile - falls
