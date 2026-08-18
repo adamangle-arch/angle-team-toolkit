@@ -570,15 +570,17 @@ body {
      padded gradient ring around the whole avatar (its own level-tier
      ring stays untouched inside it), same visual language Instagram/
      Snapchat use for a story bubble, in the app's own amber instead of
-     borrowing their pink/purple. */
+     borrowing their pink/purple. linear-gradient rather than
+     conic-gradient - conic-gradient has a real history of rendering as
+     solid black on some iOS Safari versions instead of falling back
+     gracefully, which linear-gradient doesn't share. */
   .story-ring {
     @apply inline-flex shrink-0 items-center justify-center rounded-full p-[2.5px];
-    background: conic-gradient(
-      from 45deg,
+    background: linear-gradient(
+      135deg,
       var(--color-amber-light),
-      var(--color-amber),
-      var(--color-amber-dark),
-      var(--color-amber-light)
+      var(--color-amber) 50%,
+      var(--color-amber-dark)
     );
   }
 }
