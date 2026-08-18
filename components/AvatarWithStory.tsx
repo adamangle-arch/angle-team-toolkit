@@ -64,6 +64,7 @@ export default function AvatarWithStory({
         {open && (
           <StoryViewer
             stories={activeStories}
+            posterPhotoUrl={photoUrl}
             onClose={() => setOpen(false)}
             onStoryRemoved={() => {
               if (activeStories.length <= 1) setOpen(false);

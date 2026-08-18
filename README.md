@@ -7581,6 +7581,32 @@ whether Games are unlocked off the same buggy streak number, so someone
 with a genuine active streak could have been locked out of Games during
 that same evening window.
 
+### Fix: StoryViewer rendered as a small black box instead of full-screen
+
+Reported as "It still does this whenever I click on a story" after an
+earlier attempt (swapping `.story-ring`'s `conic-gradient` for a
+`linear-gradient`) didn't actually fix it. Real root cause:
+`components/StoryViewer.tsx`'s `fixed inset-0` root was rendered as a
+plain inline child of `AvatarWithStory`, which is always used from
+inside `.page-main` (`overflow-y-auto` plus
+`-webkit-overflow-scrolling: touch` for momentum scrolling on iOS) - the
+same containing-block quirk already fixed once on `BadgePillList`
+(see "Badges tab and points/leveling display" above): a `position:
+fixed` descendant of an ancestor using `-webkit-overflow-scrolling:
+touch` renders relative to that ancestor's scrollable bounds instead of
+the true viewport in iOS Safari, so the "full-screen" story viewer was
+actually confined to roughly where the Who's Active card sits. Fixed
+the same way - `createPortal(..., document.body)` so `StoryViewer` is no
+longer a DOM descendant of `.page-main` at all.
+
+Also added the story poster's profile photo to the viewer header (it
+previously showed only their name/team/time-ago) per "it should still
+show their profile along with the story when you click it." No new
+fetch needed - `AvatarWithStory` already receives a per-user `photoUrl`
+prop for the avatar it wraps, so it's threaded straight through as a new
+`posterPhotoUrl` prop on `StoryViewer` and rendered next to the name,
+falling back to a plain icon circle when the poster has no photo set.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

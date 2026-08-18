@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { X, Heart, MessageCircle, Send, Trash2 } from "lucide-react";
+import { createPortal } from "react-dom";
+import { X, Heart, MessageCircle, Send, Trash2, Smile } from "lucide-react";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import { fireNotifyEvent } from "@/lib/notifyClient";
@@ -34,11 +35,16 @@ function storyLikeKey(storyId: string): string {
 export default function StoryViewer({
   stories,
   startIndex = 0,
+  posterPhotoUrl,
   onClose,
   onStoryRemoved,
 }: {
   stories: StoryPost[];
   startIndex?: number;
+  // The story poster's profile photo, passed through from AvatarWithStory
+  // (which already has it for the avatar it wraps) so the header can show
+  // whose story this is at a glance, not just their name.
+  posterPhotoUrl?: string | null;
   onClose: () => void;
   onStoryRemoved?: (storyId: string) => void;
 }) {
@@ -215,7 +221,13 @@ export default function StoryViewer({
     }
   }
 
-  return (
+  // Portaled to document.body rather than rendered in place - AvatarWithStory
+  // (the only caller) is always mounted inside .page-main (overflow-y-auto),
+  // and a `fixed inset-0` element nested inside a scrolling ancestor renders
+  // relative to that ancestor's bounds instead of the true viewport in iOS
+  // Safari standalone mode, clipping the viewer into a small black box
+  // instead of covering the full screen. See the same fix on BadgePillList.
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex flex-col bg-black"
       onClick={(e) => {
@@ -248,12 +260,26 @@ export default function StoryViewer({
       </div>
 
       <div className="flex items-center justify-between px-4 pt-3 text-white">
-        <div>
-          <p className="text-sm font-semibold">{personName(story)}</p>
-          <p className="text-xs text-white/60">
-            {story.team ? `${story.team} — ` : ""}
-            {timeAgoLabel(story.created_at)}
-          </p>
+        <div className="flex items-center gap-2">
+          {posterPhotoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={posterPhotoUrl}
+              alt={personName(story)}
+              className="h-8 w-8 rounded-full object-cover ring-2 ring-white/20"
+            />
+          ) : (
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 ring-2 ring-white/20">
+              <Smile className="h-4 w-4 text-white/70" aria-hidden />
+            </span>
+          )}
+          <div>
+            <p className="text-sm font-semibold">{personName(story)}</p>
+            <p className="text-xs text-white/60">
+              {story.team ? `${story.team} — ` : ""}
+              {timeAgoLabel(story.created_at)}
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           {(story.user_id === user.id || isAdmin) && (
@@ -386,6 +412,7 @@ export default function StoryViewer({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
