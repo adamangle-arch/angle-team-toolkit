@@ -289,7 +289,6 @@ export default function StoryViewer({
           <video
             key={story.story_id}
             src={story.media_url}
-            autoPlay
             playsInline
             controls
             className="max-h-full max-w-full rounded-xl"
