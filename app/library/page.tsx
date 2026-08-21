@@ -749,6 +749,7 @@ function CandidateResourcesSection() {
   return (
     <>
       {isPrimaryUser(user.email) && <InfoSessionSpeakerAdmin />}
+      {isPrimaryUser(user.email) && <FU1VideoAdminToggle />}
       {isPrimaryUser(user.email) && <OptionalResourcesAdmin onChange={setLibraryResources} />}
 
       <div className="card space-y-1">
@@ -1185,6 +1186,69 @@ function OnboardingResourcesSection() {
         );
       })}
     </>
+  );
+}
+
+// Team-wide kill switch for the FU1 video, backed by the app_settings
+// singleton row (same id-boolean-primary-key-default-true pattern as
+// info_session_flyer) - overrides every individual candidate's own
+// fu1_video_enabled the moment it's turned off, since an admin deciding
+// the whole team shouldn't use this outranks any one IBO's per-candidate
+// setting.
+function FU1VideoAdminToggle() {
+  const [enabled, setEnabled] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function load() {
+      const { data } = await supabase
+        .from("app_settings")
+        .select("fu1_video_enabled")
+        .eq("id", true)
+        .maybeSingle();
+      setEnabled((data as { fu1_video_enabled: boolean } | null)?.fu1_video_enabled ?? true);
+      setLoading(false);
+    }
+    load();
+  }, []);
+
+  async function toggle() {
+    const next = !enabled;
+    setSaving(true);
+    setError(null);
+    setEnabled(next);
+    const { error } = await supabase.from("app_settings").update({ fu1_video_enabled: next }).eq("id", true);
+    setSaving(false);
+    if (error) {
+      setEnabled(!next);
+      setError(error.message);
+    }
+  }
+
+  if (loading) return null;
+
+  return (
+    <div className="card space-y-2">
+      <p className="section-title">FU1 Video</p>
+      <p className="text-xs text-slate-400">
+        Team-wide switch for the video shown to candidates at FU1. Turning this off hides it for
+        every candidate, everywhere, regardless of what any individual IBO has set below on their
+        own candidates.
+      </p>
+      <label className="flex items-center gap-2 text-xs text-slate-300">
+        <input
+          type="checkbox"
+          className="h-4 w-4 accent-amber"
+          checked={enabled}
+          onChange={toggle}
+          disabled={saving}
+        />
+        <span className="font-medium">Show the FU1 video to candidates</span>
+      </label>
+      {error && <p className="text-xs text-red-400">{error}</p>}
+    </div>
   );
 }
 

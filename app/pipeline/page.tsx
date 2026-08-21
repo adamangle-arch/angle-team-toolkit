@@ -1817,6 +1817,18 @@ function CandidateCard({
               }
             />
           )}
+          {candidate.current_step >= 4 && (
+            <label className="flex items-center gap-2 text-xs text-slate-400">
+              <input
+                type="checkbox"
+                className="h-4 w-4 accent-amber"
+                checked={candidate.fu1_video_enabled}
+                onChange={(e) => onUpdate(candidate.id, { fu1_video_enabled: e.target.checked })}
+              />
+              <span className="font-medium text-slate-300">Show FU1 video to this candidate</span>
+            </label>
+          )}
+
           {candidate.current_step >= 5 && (
             <InfoSessionPicker
               label="IS2"

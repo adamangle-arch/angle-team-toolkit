@@ -395,6 +395,11 @@ export type Candidate = {
   is2_webinar_selected_at: string | null;
   is2_watched: boolean;
   is2_watched_at: string | null;
+  fu1_video_watched: boolean;
+  fu1_video_watched_at: string | null;
+  // The IBO's per-candidate opt-out for the FU1 video - separate from
+  // whether they've actually watched it (fu1_video_watched above).
+  fu1_video_enabled: boolean;
   timezone: string | null;
   created_at: string;
   updated_at: string;

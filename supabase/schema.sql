@@ -4847,9 +4847,39 @@ alter table candidates add column if not exists is2_watched_at timestamptz;
 -- FU1 video: a single fixed video (not an IBO-chosen session mode like
 -- IS1/IS2 above) that the candidate is shown once they reach FU1 (step
 -- 4) - same one-way "watched" lock as IS1/IS2, so it disappears from
--- /prospect for good the moment they mark it watched.
+-- /prospect for good the moment they mark it watched. Two additional
+-- opt-outs on top of that, both folded into the single fu1_video_active
+-- computed column below rather than making the client re-derive "should
+-- this actually show" from three separate facts:
+--   - fu1_video_enabled (per-candidate): the IBO's call, same as
+--     choosing an IS1/IS2 mode, for a candidate who doesn't need it.
+--   - app_settings.fu1_video_enabled (team-wide): an admin kill switch
+--     for the whole feature, see app_settings below.
 alter table candidates add column if not exists fu1_video_watched boolean not null default false;
 alter table candidates add column if not exists fu1_video_watched_at timestamptz;
+alter table candidates add column if not exists fu1_video_enabled boolean not null default true;
+
+-- Single-row app-wide settings table - same singleton pattern as
+-- info_session_flyer above (id boolean primary key default true, a
+-- check constraint enforcing exactly one row). Starts with just the FU1
+-- video's team-wide switch; future admin-level toggles can grow here as
+-- columns instead of a new table each time.
+create table if not exists app_settings (
+  id boolean primary key default true,
+  fu1_video_enabled boolean not null default true,
+  constraint app_settings_singleton check (id)
+);
+
+insert into app_settings (id) values (true) on conflict (id) do nothing;
+
+alter table app_settings enable row level security;
+
+drop policy if exists "app_settings_read_all" on app_settings;
+create policy "app_settings_read_all" on app_settings for select using (true);
+
+drop policy if exists "app_settings_update_admin" on app_settings;
+create policy "app_settings_update_admin" on app_settings
+for update using (public.is_app_admin()) with check (public.is_app_admin());
 
 -- get_candidate_by_access_code now also returns IS1/IS2/FU1 state so
 -- /prospect can render the right card - dropped first since the return
@@ -4869,7 +4899,8 @@ returns table (
   is2_session_mode text,
   is2_webinar_slot text,
   is2_watched boolean,
-  fu1_video_watched boolean
+  fu1_video_watched boolean,
+  fu1_video_active boolean
 )
 language sql
 stable
@@ -4879,7 +4910,13 @@ as $$
   select c.id, c.name, c.current_step, c.launched, p.first_name, p.last_name,
     c.is1_session_mode, c.is1_webinar_slot, c.is1_watched,
     c.is2_session_mode, c.is2_webinar_slot, c.is2_watched,
-    c.fu1_video_watched
+    c.fu1_video_watched,
+    (
+      c.current_step = 4
+      and c.fu1_video_enabled
+      and not c.fu1_video_watched
+      and coalesce((select s.fu1_video_enabled from app_settings s limit 1), true)
+    )
   from candidates c
   join profiles p on p.id = c.creator_id
   where upper(c.access_code) = upper(p_code) and c.filtered_out = false;

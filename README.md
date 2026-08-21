@@ -7660,6 +7660,18 @@ virtual. `get_candidate_by_access_code()` and
 `mark_candidate_virtual_watched()` both grew a `fu1` case rather than
 introducing a parallel set of functions.
 
+Two opt-outs on top of that, both folded into a single computed
+`fu1_video_active` column (`current_step = 4 and` per-candidate enabled
+`and not` watched `and` team-wide enabled) rather than making the client
+re-derive "should this actually show" from three separate facts:
+- **Per-candidate** - a checkbox on the Candidate Roadmap card
+  (`candidates.fu1_video_enabled`), the IBO's own call for one candidate,
+  same idea as choosing an IS1/IS2 mode.
+- **Team-wide** - an admin-only switch in the Resources hub, backed by a
+  new `app_settings` singleton row (same `id boolean primary key default
+  true` pattern `info_session_flyer` already uses). Turning this off
+  overrides every individual candidate's own setting.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

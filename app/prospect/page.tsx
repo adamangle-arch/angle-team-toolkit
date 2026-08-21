@@ -42,6 +42,10 @@ type CandidateInfo = {
   is2_webinar_slot: string | null;
   is2_watched: boolean;
   fu1_video_watched: boolean;
+  // Combines current_step === 4, the IBO's own per-candidate opt-out,
+  // and the admin's team-wide kill switch into one field so the client
+  // doesn't have to re-derive "should this actually show" itself.
+  fu1_video_active: boolean;
 };
 
 // Unlisted/public YouTube video shown once a candidate reaches FU1 (step
@@ -156,8 +160,11 @@ export default function ProspectPage() {
   async function markWatched(step: "is1" | "is2" | "fu1") {
     if (!info) return;
     setSessionError(null);
-    const field = step === "is1" ? "is1_watched" : step === "is2" ? "is2_watched" : "fu1_video_watched";
-    setInfo({ ...info, [field]: true });
+    if (step === "fu1") {
+      setInfo({ ...info, fu1_video_watched: true, fu1_video_active: false });
+    } else {
+      setInfo({ ...info, [step === "is1" ? "is1_watched" : "is2_watched"]: true });
+    }
     const { error } = await supabase.rpc("mark_candidate_virtual_watched", {
       p_code: verifiedCode,
       p_step: step,
@@ -331,7 +338,7 @@ export default function ProspectPage() {
           />
         )}
 
-        {info.current_step === 4 && !info.fu1_video_watched && (
+        {info.fu1_video_active && (
           <FU1VideoCard error={sessionError} onMarkWatched={() => markWatched("fu1")} />
         )}
 
