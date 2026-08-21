@@ -7648,6 +7648,18 @@ rotates day to day instead of stacking every applicable nag onto Home at
 once. Whichever one is acted on naturally drops out of the applicable
 set on the next check - no dismiss button or tracking table needed.
 
+### FU1 video: a fixed video shown once, same one-way lock as Info Session
+
+A candidate reaching FU1 (step 4) sees a single fixed YouTube video
+embedded directly in `/prospect`, with an "I've watched it" button below
+it - tapping that sets `candidates.fu1_video_watched` and the card stops
+rendering for good, the same one-way lock `is1_watched`/`is2_watched`
+already use for Info Session. No mode picker here (unlike IS1/IS2) since
+there's only ever the one video, not an IBO choice between in-person and
+virtual. `get_candidate_by_access_code()` and
+`mark_candidate_virtual_watched()` both grew a `fu1` case rather than
+introducing a parallel set of functions.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

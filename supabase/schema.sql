@@ -4844,7 +4844,14 @@ alter table candidates add column if not exists is2_webinar_selected_at timestam
 alter table candidates add column if not exists is2_watched boolean not null default false;
 alter table candidates add column if not exists is2_watched_at timestamptz;
 
--- get_candidate_by_access_code now also returns IS1/IS2 state so
+-- FU1 video: a single fixed video (not an IBO-chosen session mode like
+-- IS1/IS2 above) that the candidate is shown once they reach FU1 (step
+-- 4) - same one-way "watched" lock as IS1/IS2, so it disappears from
+-- /prospect for good the moment they mark it watched.
+alter table candidates add column if not exists fu1_video_watched boolean not null default false;
+alter table candidates add column if not exists fu1_video_watched_at timestamptz;
+
+-- get_candidate_by_access_code now also returns IS1/IS2/FU1 state so
 -- /prospect can render the right card - dropped first since the return
 -- table shape is changing.
 drop function if exists public.get_candidate_by_access_code(text);
@@ -4861,7 +4868,8 @@ returns table (
   is1_watched boolean,
   is2_session_mode text,
   is2_webinar_slot text,
-  is2_watched boolean
+  is2_watched boolean,
+  fu1_video_watched boolean
 )
 language sql
 stable
@@ -4870,7 +4878,8 @@ set search_path = public
 as $$
   select c.id, c.name, c.current_step, c.launched, p.first_name, p.last_name,
     c.is1_session_mode, c.is1_webinar_slot, c.is1_watched,
-    c.is2_session_mode, c.is2_webinar_slot, c.is2_watched
+    c.is2_session_mode, c.is2_webinar_slot, c.is2_watched,
+    c.fu1_video_watched
   from candidates c
   join profiles p on p.id = c.creator_id
   where upper(c.access_code) = upper(p_code) and c.filtered_out = false;
@@ -4904,6 +4913,9 @@ begin
     where upper(access_code) = upper(p_code) and filtered_out = false;
   elsif p_step = 'is2' then
     update candidates set is2_watched = true, is2_watched_at = coalesce(is2_watched_at, now())
+    where upper(access_code) = upper(p_code) and filtered_out = false;
+  elsif p_step = 'fu1' then
+    update candidates set fu1_video_watched = true, fu1_video_watched_at = coalesce(fu1_video_watched_at, now())
     where upper(access_code) = upper(p_code) and filtered_out = false;
   else
     raise exception 'invalid step';

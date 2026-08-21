@@ -41,7 +41,14 @@ type CandidateInfo = {
   is2_session_mode: SessionMode;
   is2_webinar_slot: string | null;
   is2_watched: boolean;
+  fu1_video_watched: boolean;
 };
+
+// Unlisted/public YouTube video shown once a candidate reaches FU1 (step
+// 4) - a single fixed video, not an IBO-chosen mode like IS1/IS2, so
+// there's no mode picker here at all. Swap this id any time the video
+// changes; nothing else needs to.
+const FU1_VIDEO_YOUTUBE_ID = "OdO2yddaCyc";
 
 type InfoSessionFlyer = {
   image_url: string | null;
@@ -146,10 +153,11 @@ export default function ProspectPage() {
     pingProspectEvent({ kind: "prospect_link_visited", code: trimmed });
   }
 
-  async function markWatched(step: "is1" | "is2") {
+  async function markWatched(step: "is1" | "is2" | "fu1") {
     if (!info) return;
     setSessionError(null);
-    setInfo({ ...info, [step === "is1" ? "is1_watched" : "is2_watched"]: true });
+    const field = step === "is1" ? "is1_watched" : step === "is2" ? "is2_watched" : "fu1_video_watched";
+    setInfo({ ...info, [field]: true });
     const { error } = await supabase.rpc("mark_candidate_virtual_watched", {
       p_code: verifiedCode,
       p_step: step,
@@ -321,6 +329,10 @@ export default function ProspectPage() {
             error={sessionError}
             onMarkWatched={() => markWatched(infoSessionStep)}
           />
+        )}
+
+        {info.current_step === 4 && !info.fu1_video_watched && (
+          <FU1VideoCard error={sessionError} onMarkWatched={() => markWatched("fu1")} />
         )}
 
         <div className="card space-y-2">
@@ -543,6 +555,41 @@ function InfoSessionCard({
         </>
       )}
 
+      {error && <p className="text-xs text-red-400">{error}</p>}
+    </div>
+  );
+}
+
+// A single fixed video shown once at FU1 - no mode picker (there's only
+// ever one video), and the same one-way "I've watched it" lock as
+// InfoSessionCard: once marked, this stops rendering here for good since
+// the caller only mounts it while !info.fu1_video_watched.
+function FU1VideoCard({
+  error,
+  onMarkWatched,
+}: {
+  error: string | null;
+  onMarkWatched: () => void;
+}) {
+  return (
+    <div className="card space-y-3">
+      <p className="section-title flex items-center gap-1.5">
+        <Mic className="h-4 w-4" aria-hidden />
+        Watch This Before We Meet Again
+      </p>
+      <div className="aspect-video w-full overflow-hidden rounded-xl bg-black">
+        <iframe
+          className="h-full w-full"
+          src={`https://www.youtube.com/embed/${FU1_VIDEO_YOUTUBE_ID}`}
+          title="FU1 video"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+        />
+      </div>
+      <button className="btn-secondary w-full" onClick={onMarkWatched}>
+        I&apos;ve watched it
+        <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+      </button>
       {error && <p className="text-xs text-red-400">{error}</p>}
     </div>
   );
