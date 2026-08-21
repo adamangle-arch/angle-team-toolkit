@@ -7626,6 +7626,28 @@ different prompt than the one that rotated in for everyone else today.
 `STORY_PROMPTS` also grew from 31 to 51 entries so there's a genuinely
 wide pool to pick from, not just the same handful on repeat.
 
+### Home: rotating activity reminder (Volume/Goals/Core Run/Stories)
+
+A single card on Home points at whichever one of four things is
+currently behind: no PV logged this month, no goal ever set, nothing
+qualifying logged on Core Run in the last 3 days, or no story posted
+this week. New `get_activity_reminder_flags(p_as_of_day)` RPC computes
+all four booleans in one call (same `p_as_of_day` pattern as
+`get_current_streak`/`get_core_run_status`, so it agrees with the
+browser's local calendar day rather than Postgres's own UTC
+`current_date`) - Core Run's "qualifying day" shape matches
+`get_current_streak` exactly, and Goals checks "ever set one, at all,"
+same one-time-only framing `send-daily-nudges`' `goals_reminder` already
+uses rather than a recurring nag.
+
+Deliberately shows at most one at a time even when more than one
+applies - `components/ActivityReminderCard.tsx` picks among the
+currently-applicable set with the same hash-of-the-date-string technique
+`getTodayStoryPrompt()` uses, so it's a stable, non-random pick that
+rotates day to day instead of stacking every applicable nag onto Home at
+once. Whichever one is acted on naturally drops out of the applicable
+set on the next check - no dismiss button or tracking table needed.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

@@ -8060,3 +8060,62 @@ where bw.user_id = p.id
 alter table profiles add column if not exists color_mode text not null default 'dark';
 alter table profiles drop constraint if exists profiles_color_mode_check;
 alter table profiles add constraint profiles_color_mode_check check (color_mode in ('dark', 'light'));
+
+-- ============================================================
+-- 25. HOME ACTIVITY REMINDERS (Volume / Goals / Core Run / Stories)
+-- One card on Home points at whichever one of these four is currently
+-- behind - which one to show (never more than one at once, see
+-- components/ActivityReminderCard.tsx) is decided client-side, but
+-- which ones currently qualify is decided here so the "is this person
+-- behind" logic lives in one place instead of being re-derived in the
+-- client from four separate table shapes.
+--
+-- p_as_of_day defaults to current_date (Postgres session timezone, UTC
+-- on Supabase) for the same reason get_current_streak/get_core_run_status
+-- take it explicitly above - the client passes the browser's local
+-- getToday() so someone west of UTC doesn't get judged against the
+-- wrong calendar day for a few hours every evening.
+--
+-- Goals intentionally checks "ever set one, at all" rather than "this
+-- period" - same one-time-only framing send-daily-nudges' goals_reminder
+-- already uses (once set, this stops forever), not a recurring nag.
+-- Core Run's qualifying-day shape matches get_current_streak's exactly
+-- (full day or an off day), and Stories/Volume are straightforward
+-- current-week/current-month windows off p_as_of_day.
+-- ============================================================
+create or replace function public.get_activity_reminder_flags(p_as_of_day date default current_date)
+returns table (
+  needs_volume boolean,
+  needs_goals boolean,
+  needs_core_run boolean,
+  needs_stories boolean
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    not exists (
+      select 1 from monthly_pv
+      where user_id = auth.uid()
+        and period_start = date_trunc('month', p_as_of_day)::date
+        and pv > 0
+    ),
+    not exists (
+      select 1 from goals where user_id = auth.uid()
+    ),
+    not exists (
+      select 1 from streak_days
+      where user_id = auth.uid()
+        and day between p_as_of_day - 3 and p_as_of_day
+        and (read and listen and daily_update and story_share or off_day)
+    ),
+    not exists (
+      select 1 from story_posts
+      where user_id = auth.uid()
+        and created_at >= date_trunc('week', p_as_of_day)
+    );
+$$;
+
+grant execute on function public.get_activity_reminder_flags(date) to authenticated;
