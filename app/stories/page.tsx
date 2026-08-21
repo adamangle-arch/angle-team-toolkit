@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Camera, Heart, MessageCircle, Video } from "lucide-react";
+import { Camera, Heart, MessageCircle, Video, Shuffle } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { SkeletonList } from "@/components/Skeleton";
 import { useAuth } from "@/components/AuthGate";
@@ -104,7 +104,6 @@ export default function StoriesPage() {
   // can swap in a different one from the full list before posting, via
   // the picker next to "Today's Prompt" below.
   const [prompt, setPrompt] = useState<string>(() => getTodayStoryPrompt());
-  const [showPromptPicker, setShowPromptPicker] = useState(false);
 
   const [stories, setStories] = useState<StoryPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -445,29 +444,20 @@ export default function StoriesPage() {
             </span>
             <button
               type="button"
-              className="text-xs font-normal text-slate-400 underline"
-              onClick={() => setShowPromptPicker((v) => !v)}
+              className="flex items-center gap-1 text-xs font-normal text-slate-400 underline"
+              onClick={() => {
+                // Picks a different prompt than the one currently shown -
+                // with 51 options a plain random pick would rarely but
+                // occasionally repeat, which would read as a broken button.
+                const options = STORY_PROMPTS.filter((p) => p !== prompt);
+                setPrompt(options[Math.floor(Math.random() * options.length)]);
+              }}
             >
-              {showPromptPicker ? "Cancel" : "Change"}
+              <Shuffle className="h-3 w-3" aria-hidden />
+              Shuffle
             </button>
           </p>
               <p className="text-sm text-slate-200">{prompt}</p>
-              {showPromptPicker && (
-                <select
-                  className="select"
-                  value={prompt}
-                  onChange={(e) => {
-                    setPrompt(e.target.value);
-                    setShowPromptPicker(false);
-                  }}
-                >
-                  {STORY_PROMPTS.map((p) => (
-                    <option key={p} value={p}>
-                      {p}
-                    </option>
-                  ))}
-                </select>
-              )}
 
               {pendingMedia ? (
                 <>
