@@ -7607,6 +7607,25 @@ prop for the avatar it wraps, so it's threaded straight through as a new
 `posterPhotoUrl` prop on `StoryViewer` and rendered next to the name,
 falling back to a plain icon circle when the poster has no photo set.
 
+### Cover photo on My Profile/public profile, and a changeable Stories prompt
+
+Two additions. First, a wide cover photo banner shown above the round
+avatar on both My Profile and the public profile page - reuses the
+existing `avatars` storage bucket rather than a second bucket (same
+per-user folder, just a `cover.<ext>` filename alongside `photo.<ext>`,
+so the bucket's existing public-read/insert-own/update-own/delete-own
+policies already cover it unchanged). New `profiles.cover_photo_url`
+column, added to `get_public_profile()`'s return shape, uploaded from
+the same `ProfileForm` card that already handles the avatar photo.
+
+Second, the daily Stories prompt is no longer fixed - `getTodayStoryPrompt()`
+still picks a sensible default (the same deterministic hash-of-the-date
+as before), but a "Change" link next to "Today's Prompt" reveals a
+dropdown of every prompt in `STORY_PROMPTS`, so anyone can post to a
+different prompt than the one that rotated in for everyone else today.
+`STORY_PROMPTS` also grew from 31 to 51 entries so there's a genuinely
+wide pool to pick from, not just the same handful on repeat.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

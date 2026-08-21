@@ -82,6 +82,15 @@ export default function PublicProfilePage({
           <div className="empty-state">Profile not found.</div>
         ) : (
           <>
+            {profile.cover_photo_url && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={profile.cover_photo_url}
+                alt="Cover photo"
+                className="h-28 w-full rounded-2xl object-cover"
+              />
+            )}
+
             <div className="card flex items-center gap-3">
               <AvatarWithStory
                 userId={id}

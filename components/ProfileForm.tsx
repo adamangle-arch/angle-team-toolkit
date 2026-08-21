@@ -7,6 +7,7 @@ import type { Profile } from "@/lib/types";
 
 type FormFields = {
   photo_url: string | null;
+  cover_photo_url: string | null;
   hometown: string;
   background: string;
   favorite_audio_1: string;
@@ -21,6 +22,7 @@ type FormFields = {
 function toFields(profile: Profile): FormFields {
   return {
     photo_url: profile.photo_url,
+    cover_photo_url: profile.cover_photo_url,
     hometown: profile.hometown ?? "",
     background: profile.background ?? "",
     favorite_audio_1: profile.favorite_audio_1 ?? "",
@@ -46,6 +48,7 @@ export default function ProfileForm({
 }) {
   const [fields, setFields] = useState<FormFields>(toFields(profile));
   const [uploading, setUploading] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -53,24 +56,45 @@ export default function ProfileForm({
     setFields((prev) => ({ ...prev, [key]: value }));
   }
 
-  async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setError(null);
-    setUploading(true);
+  // Shared by both the round avatar and the wide cover banner - same
+  // bucket/folder, just a different filename, so both photos live at
+  // avatars/<user_id>/{photo,cover}.<ext> and are covered by the same
+  // storage policies with no changes needed there.
+  async function uploadProfileImage(
+    file: File,
+    filenameStem: "photo" | "cover"
+  ): Promise<string | null> {
     const ext = file.name.split(".").pop() || "jpg";
-    const path = `${userId}/photo.${ext}`;
+    const path = `${userId}/${filenameStem}.${ext}`;
     const { error: uploadError } = await supabase.storage
       .from("avatars")
       .upload(path, file, { upsert: true });
     if (uploadError) {
       setError(uploadError.message);
-      setUploading(false);
-      return;
+      return null;
     }
     const { data } = supabase.storage.from("avatars").getPublicUrl(path);
-    set("photo_url", `${data.publicUrl}?t=${Date.now()}`);
+    return `${data.publicUrl}?t=${Date.now()}`;
+  }
+
+  async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setError(null);
+    setUploading(true);
+    const url = await uploadProfileImage(file, "photo");
+    if (url) set("photo_url", url);
     setUploading(false);
+  }
+
+  async function handleCoverPhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setError(null);
+    setUploadingCover(true);
+    const url = await uploadProfileImage(file, "cover");
+    if (url) set("cover_photo_url", url);
+    setUploadingCover(false);
   }
 
   async function handleSave() {
@@ -97,6 +121,29 @@ export default function ProfileForm({
 
   return (
     <div className="space-y-3">
+      <div className="card space-y-2">
+        {fields.cover_photo_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={fields.cover_photo_url}
+            alt="Cover photo"
+            className="h-28 w-full rounded-xl object-cover"
+          />
+        ) : (
+          <div className="h-28 w-full rounded-xl bg-navy" />
+        )}
+        <label className="btn-secondary cursor-pointer">
+          {uploadingCover ? "Uploading…" : "Change Cover Photo"}
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleCoverPhotoChange}
+            disabled={uploadingCover}
+          />
+        </label>
+      </div>
+
       <div className="card flex items-center gap-3">
         {fields.photo_url ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -204,7 +251,11 @@ export default function ProfileForm({
             Skip for now
           </button>
         )}
-        <button className="btn-primary flex-1" onClick={handleSave} disabled={saving || uploading}>
+        <button
+          className="btn-primary flex-1"
+          onClick={handleSave}
+          disabled={saving || uploading || uploadingCover}
+        >
           {saving ? "Saving…" : "Save"}
         </button>
       </div>

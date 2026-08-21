@@ -1500,6 +1500,14 @@ insert into storage.buckets (id, name, public)
 values ('avatars', 'avatars', true)
 on conflict (id) do nothing;
 
+-- Cover photo: a wide banner shown above the avatar on My Profile/public
+-- profile, separate from the round avatar photo. Reuses the avatars
+-- bucket/policies above rather than a second bucket - it's still just
+-- one more file in the same per-user folder (avatars/<user_id>/cover.*),
+-- so the existing public-read/insert-own/update-own/delete-own policies
+-- already cover it with no changes.
+alter table profiles add column if not exists cover_photo_url text;
+
 drop policy if exists "avatars_public_read" on storage.objects;
 create policy "avatars_public_read" on storage.objects for select
 using (bucket_id = 'avatars');
@@ -1711,6 +1719,7 @@ returns table (
   last_name text,
   team text,
   photo_url text,
+  cover_photo_url text,
   hometown text,
   background text,
   favorite_audio_1 text,
@@ -1733,7 +1742,7 @@ security definer
 set search_path = public
 as $$
   select
-    pr.first_name, pr.last_name, pr.team, pr.photo_url, pr.hometown, pr.background,
+    pr.first_name, pr.last_name, pr.team, pr.photo_url, pr.cover_photo_url, pr.hometown, pr.background,
     pr.favorite_audio_1, pr.favorite_audio_2, pr.favorite_audio_3,
     pr.favorite_book_1, pr.favorite_book_2, pr.favorite_book_3, pr.team_impact,
     public.get_current_streak(p_user_id),

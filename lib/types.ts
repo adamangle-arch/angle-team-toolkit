@@ -14,6 +14,7 @@ export type Profile = {
   // Team tab) just to force them back through the gate.
   team_confirmed_at: string | null;
   photo_url: string | null;
+  cover_photo_url: string | null;
   hometown: string | null;
   background: string | null;
   favorite_audio_1: string | null;
@@ -56,6 +57,7 @@ export type PublicProfile = {
   last_name: string | null;
   team: string | null;
   photo_url: string | null;
+  cover_photo_url: string | null;
   hometown: string | null;
   background: string | null;
   favorite_audio_1: string | null;

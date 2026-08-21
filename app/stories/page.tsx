@@ -8,7 +8,7 @@ import { SkeletonList } from "@/components/Skeleton";
 import { useAuth } from "@/components/AuthGate";
 import AvatarWithStory from "@/components/AvatarWithStory";
 import { supabase } from "@/lib/supabaseClient";
-import { getTodayStoryPrompt, isPrimaryUser } from "@/lib/constants";
+import { getTodayStoryPrompt, isPrimaryUser, STORY_PROMPTS } from "@/lib/constants";
 import { fireNotifyEvent } from "@/lib/notifyClient";
 import { pointsForBadgeKeys, levelForPoints } from "@/lib/levels";
 import type { StoryPost, StoryComment, Liker } from "@/lib/types";
@@ -100,7 +100,11 @@ const NO_LIKES: LikeInfo = { count: 0, likedByMe: false, names: [] };
 export default function StoriesPage() {
   const { user } = useAuth();
   const isAdmin = isPrimaryUser(user.email);
-  const prompt = getTodayStoryPrompt();
+  // Starts on the day's rotating prompt, but isn't locked to it - anyone
+  // can swap in a different one from the full list before posting, via
+  // the picker next to "Today's Prompt" below.
+  const [prompt, setPrompt] = useState<string>(() => getTodayStoryPrompt());
+  const [showPromptPicker, setShowPromptPicker] = useState(false);
 
   const [stories, setStories] = useState<StoryPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -434,11 +438,36 @@ export default function StoriesPage() {
           </div>
         )}
         <div className="card space-y-3">
-          <p className="section-title flex items-center gap-1.5">
-            <Camera className="h-4 w-4" aria-hidden />
-            Today&apos;s Prompt
+          <p className="section-title flex items-center justify-between gap-1.5">
+            <span className="flex items-center gap-1.5">
+              <Camera className="h-4 w-4" aria-hidden />
+              Today&apos;s Prompt
+            </span>
+            <button
+              type="button"
+              className="text-xs font-normal text-slate-400 underline"
+              onClick={() => setShowPromptPicker((v) => !v)}
+            >
+              {showPromptPicker ? "Cancel" : "Change"}
+            </button>
           </p>
               <p className="text-sm text-slate-200">{prompt}</p>
+              {showPromptPicker && (
+                <select
+                  className="select"
+                  value={prompt}
+                  onChange={(e) => {
+                    setPrompt(e.target.value);
+                    setShowPromptPicker(false);
+                  }}
+                >
+                  {STORY_PROMPTS.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
+              )}
 
               {pendingMedia ? (
                 <>
