@@ -405,6 +405,18 @@ export type Candidate = {
   // an IBO can send it earlier for a candidate they think is ready
   // sooner.
   fu1_video_reveal_step: number;
+  questionnaire_response_1: string;
+  questionnaire_response_2: string;
+  questionnaire_response_3: string;
+  questionnaire_response_4: string;
+  questionnaire_response_5: string;
+  questionnaire_response_6: string;
+  questionnaire_response_7: string;
+  questionnaire_response_8: string;
+  questionnaire_response_9: string;
+  // The IBO's per-candidate opt-out for the in-app Pre-Launch
+  // Questionnaire.
+  questionnaire_enabled: boolean;
   timezone: string | null;
   created_at: string;
   updated_at: string;

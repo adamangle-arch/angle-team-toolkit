@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabaseClient";
 import {
   VIRTUAL_WEBINAR_SLOTS,
   effectiveResourcesForStep,
+  QUESTIONNAIRE_QUESTIONS,
   type CandidateResourceOverrideEntry,
 } from "@/lib/constants";
 import { nextWebinarOccurrence, formatWebinarTime } from "@/lib/dates";
@@ -46,6 +47,19 @@ type CandidateInfo = {
   // and the admin's team-wide kill switch into one field so the client
   // doesn't have to re-derive "should this actually show" itself.
   fu1_video_active: boolean;
+  questionnaire_enabled: boolean;
+};
+
+type QuestionnaireResponses = {
+  response_1: string;
+  response_2: string;
+  response_3: string;
+  response_4: string;
+  response_5: string;
+  response_6: string;
+  response_7: string;
+  response_8: string;
+  response_9: string;
 };
 
 // Unlisted/public YouTube video shown once a candidate reaches FU1 (step
@@ -114,6 +128,8 @@ export default function ProspectPage() {
   const [addingQuestion, setAddingQuestion] = useState(false);
   const [questionError, setQuestionError] = useState<string | null>(null);
 
+  const [questionnaireResponses, setQuestionnaireResponses] = useState<QuestionnaireResponses | null>(null);
+
   async function lookup(codeToTry: string, persist: boolean) {
     const trimmed = codeToTry.trim();
     if (!trimmed) return;
@@ -127,6 +143,7 @@ export default function ProspectPage() {
       { data: flyerRow },
       { data: completionRows },
       { data: questionRows },
+      { data: questionnaireRow },
     ] = await Promise.all([
       supabase.rpc("get_candidate_by_access_code", { p_code: trimmed }).maybeSingle(),
       supabase.rpc("get_candidate_upcoming_events", { p_code: trimmed }),
@@ -135,6 +152,7 @@ export default function ProspectPage() {
       supabase.rpc("get_current_info_session_flyer").maybeSingle(),
       supabase.rpc("get_candidate_resource_completions", { p_code: trimmed }),
       supabase.rpc("get_candidate_questions", { p_code: trimmed }),
+      supabase.rpc("get_candidate_questionnaire_responses", { p_code: trimmed }).maybeSingle(),
     ]);
     setLoading(false);
     setCheckedStorage(true);
@@ -148,6 +166,7 @@ export default function ProspectPage() {
     setOverrides((overrideRows as CandidateResourceOverrideEntry[]) ?? []);
     setSpecificResources((specificRows as SpecificResource[]) ?? []);
     setFlyer((flyerRow as InfoSessionFlyer) ?? null);
+    setQuestionnaireResponses((questionnaireRow as QuestionnaireResponses) ?? null);
     setCompletedLabels(
       new Set(((completionRows as { resource_label: string }[]) ?? []).map((r) => r.resource_label))
     );
@@ -168,6 +187,18 @@ export default function ProspectPage() {
     const { error } = await supabase.rpc("mark_candidate_virtual_watched", {
       p_code: verifiedCode,
       p_step: step,
+    });
+    if (error) setSessionError(error.message);
+  }
+
+  // Saves on blur, not on every keystroke - same pattern as candidate
+  // notes on the Roadmap side. One field at a time so switching between
+  // questions never risks clobbering an answer still mid-save.
+  async function saveQuestionnaireAnswer(index: number, answer: string) {
+    const { error } = await supabase.rpc("save_candidate_questionnaire_response", {
+      p_code: verifiedCode,
+      p_index: index,
+      p_answer: answer,
     });
     if (error) setSessionError(error.message);
   }
@@ -340,6 +371,14 @@ export default function ProspectPage() {
 
         {info.fu1_video_active && (
           <FU1VideoCard error={sessionError} onMarkWatched={() => markWatched("fu1")} />
+        )}
+
+        {info.current_step === 7 && info.questionnaire_enabled && questionnaireResponses && (
+          <QuestionnaireCard
+            responses={questionnaireResponses}
+            error={sessionError}
+            onSave={saveQuestionnaireAnswer}
+          />
         )}
 
         <div className="card space-y-2">
@@ -605,6 +644,77 @@ function FU1VideoCard({
   );
 }
 
+// The team's real 9-question Pre-Launch Questionnaire, answered directly
+// in-app - always visible/editable at step 7 rather than a one-way
+// "watched" lock like FU1's video, since a candidate should be able to
+// revise an answer. Each field saves independently on blur (see
+// QuestionnaireField below) so switching between questions never risks
+// losing one answer while another is still saving.
+function QuestionnaireCard({
+  responses,
+  error,
+  onSave,
+}: {
+  responses: QuestionnaireResponses;
+  error: string | null;
+  onSave: (index: number, answer: string) => void;
+}) {
+  return (
+    <div className="card space-y-4">
+      <div>
+        <p className="section-title flex items-center gap-1.5">
+          <ClipboardList className="h-4 w-4" aria-hidden />
+          Pre-Launch Questionnaire
+        </p>
+        <p className="mt-1 text-xs text-slate-400">
+          We&apos;re looking for your honest and in-depth responses to the questions below, to
+          make sure we&apos;re on the same page prior to your business launch.
+        </p>
+      </div>
+      {QUESTIONNAIRE_QUESTIONS.map((question, i) => (
+        <QuestionnaireField
+          key={i}
+          index={i + 1}
+          question={question}
+          initialValue={responses[`response_${i + 1}` as keyof QuestionnaireResponses]}
+          onSave={onSave}
+        />
+      ))}
+      {error && <p className="text-xs text-red-400">{error}</p>}
+    </div>
+  );
+}
+
+function QuestionnaireField({
+  index,
+  question,
+  initialValue,
+  onSave,
+}: {
+  index: number;
+  question: string;
+  initialValue: string;
+  onSave: (index: number, answer: string) => void;
+}) {
+  const [value, setValue] = useState(initialValue);
+  return (
+    <div className="space-y-1.5">
+      <p className="text-sm font-medium text-white">
+        {index}. {question}
+      </p>
+      <textarea
+        className="textarea min-h-40"
+        placeholder="Type your answer…"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={() => {
+          if (value !== initialValue) onSave(index, value);
+        }}
+      />
+    </div>
+  );
+}
+
 // Lets the candidate check a resource off as done - a plain toggle (not
 // a one-way lock like Info Session's "watched"), since unchecking a
 // mis-tap should be just as easy as checking it. Completion is keyed by
@@ -656,6 +766,12 @@ function ResourceRow({
           {detail}
           {estimate && <span className="text-slate-500"> · {estimate}</span>}
         </p>
+        {url?.includes("gemini.google.com") && (
+          <p className="text-xs text-amber-light">
+            Requires a Google account — sign in first or it&apos;ll open plain Gemini instead of
+            the real assistant.
+          </p>
+        )}
       </div>
     </div>
   );

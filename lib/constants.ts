@@ -485,6 +485,23 @@ export type CandidateResourceOverrideEntry = {
   estimate?: string | null;
 };
 
+// Pre-Launch Questionnaire (step 7) - the team's real 9-question
+// document, answered in-app instead of over a call/paper copy so the
+// IBO gets a written record of what the candidate actually said. Fixed
+// editorial content, same "lives here, not a table" convention as
+// STORY_PROMPTS/CANDIDATE_STEPS above.
+export const QUESTIONNAIRE_QUESTIONS: string[] = [
+  "Why do you feel that you would be a good investment of our time and resources, and what separates you from other potential candidates?",
+  "What are you looking to accomplish through this opportunity? Why are you excited about that?",
+  "What is the difference between Amway and LTD? What makes our program different than other network marketing businesses out there?",
+  "What are the dates of the next Apprenticeship Workshop, Masterclass, and Major Conference? Why is attending each team event essential to a successful business?",
+  "Are you willing to go through a budgeting session? If so, why do you feel this would be valuable to you?",
+  "What are the monthly personal PV standards that we've discussed? Why is DITTO necessary for developing a stable, long-term business?",
+  "Why is transparent and consistent communication with your mentor in all areas (life, business, finances, etc.) so important for a successful business?",
+  "As you face adversity in life and in business, are you willing to press into the mentorship that is available to you? Why is it so important to avoid pulling away/trying to navigate obstacles on your own?",
+  "Are there any other questions or concerns that you would like to address with us prior to moving forward?",
+];
+
 // Merges a candidate owner's own customizations (see the "Candidate
 // Resources" section of the Resources tab) into the team-wide defaults -
 // a "remove" hides a default with that exact label for this step, an

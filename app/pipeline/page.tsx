@@ -46,6 +46,7 @@ import {
   CALENDAR_DURATION_OPTIONS,
   effectiveResourcesForStep,
   isGeminiGroupOwner,
+  QUESTIONNAIRE_QUESTIONS,
   type CandidateResourceOverrideEntry,
   type PipelineStageKey,
 } from "@/lib/constants";
@@ -1531,6 +1532,37 @@ export default function PipelinePage() {
 // with them actually went. This just writes straight to the candidates
 // row (candidate.is1_/is2_* fields), same as any other roadmap edit -
 // /prospect only reads it back and lets the candidate mark it watched.
+// Read-only - only the candidate can honestly answer these (same
+// reasoning as Info Session's "watched" only being settable by them),
+// so the IBO just reads whatever's been saved so far. Skips entries with
+// no answer yet rather than showing nine mostly-empty rows.
+function QuestionnaireAnswers({ candidate }: { candidate: Candidate }) {
+  const answered = QUESTIONNAIRE_QUESTIONS.map((question, i) => ({
+    question,
+    answer: candidate[`questionnaire_response_${i + 1}` as keyof Candidate] as string,
+  })).filter((entry) => entry.answer.trim().length > 0);
+
+  if (answered.length === 0) {
+    return (
+      <p className="rounded-lg bg-navy px-3 py-2 text-xs text-slate-500">
+        No Pre-Launch Questionnaire answers yet.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-2 rounded-lg bg-navy px-3 py-2">
+      <p className="text-xs font-semibold text-slate-200">Pre-Launch Questionnaire</p>
+      {answered.map((entry, i) => (
+        <div key={i} className="space-y-0.5">
+          <p className="text-xs text-slate-400">{entry.question}</p>
+          <p className="whitespace-pre-wrap text-sm text-white">{entry.answer}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function InfoSessionPicker({
   label,
   mode,
@@ -1841,6 +1873,20 @@ function CandidateCard({
               ))}
             </select>
           </label>
+
+          <label className="flex items-center gap-2 text-xs text-slate-400">
+            <input
+              type="checkbox"
+              className="h-4 w-4 accent-amber"
+              checked={candidate.questionnaire_enabled}
+              onChange={(e) => onUpdate(candidate.id, { questionnaire_enabled: e.target.checked })}
+            />
+            <span className="font-medium text-slate-300">
+              Show the Pre-Launch Questionnaire to this candidate
+            </span>
+          </label>
+
+          {candidate.current_step >= 7 && <QuestionnaireAnswers candidate={candidate} />}
 
           {candidate.current_step >= 5 && (
             <InfoSessionPicker

@@ -7679,6 +7679,41 @@ client re-derive "should this actually show" from four separate facts:
   default true` pattern `info_session_flyer` already uses). Turning this
   off overrides every individual candidate's own setting.
 
+### Pre-Launch Questionnaire, answered in-app at step 7
+
+The team's real 9-question document is now answered directly in
+`/prospect` instead of over a call or a paper copy - nine fixed
+`candidates.questionnaire_response_1..9` columns (typed columns for a
+small fixed set of fields, same convention as IS1/IS2's own columns)
+rather than a normalized one-row-per-answer table. Always visible/
+editable while at step 7, no one-way "watched" lock like the FU1 video -
+a candidate should be able to revise an answer. Each field saves
+independently on blur via `save_candidate_questionnaire_response(p_code,
+p_index, p_answer)`, so switching between questions never risks
+clobbering one answer while another is still saving; a separate
+`get_candidate_questionnaire_responses(p_code)` fetches all nine at once
+rather than bloating `get_candidate_by_access_code()` further (that one
+just grew a `questionnaire_enabled` boolean, for whether to show the
+card at all).
+
+The IBO reads the answers read-only on Candidate Roadmap straight off
+the same `candidates` row already covered by existing RLS - no new
+policy needed - and gets a `questionnaire_enabled` checkbox to turn the
+whole feature off for one candidate, same idea as the FU1 video's own
+per-candidate opt-out.
+
+### Gemini sign-in reminder wherever a Gemini link is shown to someone else
+
+Both `/prospect` (a candidate looking at a resource that happens to be a
+Gemini link) and the in-app Assistant page (an IBO opening the team's
+Gemini Gem for themselves) now say plainly that a Google account has to
+be signed in first, or the link opens plain Gemini instead of the real
+assistant - the actual, unfixable-from-our-side cause of "it just took
+me to normal Gemini." `ResourceRow` checks for `gemini.google.com` in
+any resource's URL rather than hard-coding one specific resource, so the
+note follows automatically wherever a Gemini link ever gets sent to a
+candidate, not just this one.
+
 ## Tech stack
 
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)

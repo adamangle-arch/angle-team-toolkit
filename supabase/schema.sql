@@ -8184,3 +8184,135 @@ as $$
 $$;
 
 grant execute on function public.get_activity_reminder_flags(date) to authenticated;
+
+-- ============================================================
+-- 26. PRE-LAUNCH QUESTIONNAIRE (in-app, step 7)
+-- The team's real 9-question document (see QUESTIONNAIRE_QUESTIONS in
+-- lib/constants.ts), answered directly in /prospect instead of over a
+-- call or a paper copy - nine fixed columns rather than a normalized
+-- one-row-per-answer table, same "typed columns for a fixed, small set
+-- of fields" convention as IS1/IS2's own columns above. Always visible/
+-- editable while at step 7 (no one-way "watched" lock like the FU1
+-- video - a candidate should be able to revise an answer), and the IBO
+-- reads them straight off the same candidates row via the existing
+-- owner/household/admin RLS - no new policy needed there.
+-- ============================================================
+alter table candidates add column if not exists questionnaire_response_1 text not null default '';
+alter table candidates add column if not exists questionnaire_response_2 text not null default '';
+alter table candidates add column if not exists questionnaire_response_3 text not null default '';
+alter table candidates add column if not exists questionnaire_response_4 text not null default '';
+alter table candidates add column if not exists questionnaire_response_5 text not null default '';
+alter table candidates add column if not exists questionnaire_response_6 text not null default '';
+alter table candidates add column if not exists questionnaire_response_7 text not null default '';
+alter table candidates add column if not exists questionnaire_response_8 text not null default '';
+alter table candidates add column if not exists questionnaire_response_9 text not null default '';
+
+-- Per-candidate opt-out - the IBO's call, same idea as the FU1 video's
+-- own on/off switch, for a candidate they'd rather handle this some
+-- other way.
+alter table candidates add column if not exists questionnaire_enabled boolean not null default true;
+
+-- get_candidate_by_access_code now also returns questionnaire_enabled
+-- (whether to show the card at all) - the 9 answers themselves are
+-- fetched/saved through the two functions below instead of bloating
+-- this one further, since they're only ever relevant right at step 7.
+drop function if exists public.get_candidate_by_access_code(text);
+create or replace function public.get_candidate_by_access_code(p_code text)
+returns table (
+  candidate_id uuid,
+  candidate_name text,
+  current_step int,
+  launched boolean,
+  inviter_first_name text,
+  inviter_last_name text,
+  is1_session_mode text,
+  is1_webinar_slot text,
+  is1_watched boolean,
+  is2_session_mode text,
+  is2_webinar_slot text,
+  is2_watched boolean,
+  fu1_video_watched boolean,
+  fu1_video_active boolean,
+  questionnaire_enabled boolean
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select c.id, c.name, c.current_step, c.launched, p.first_name, p.last_name,
+    c.is1_session_mode, c.is1_webinar_slot, c.is1_watched,
+    c.is2_session_mode, c.is2_webinar_slot, c.is2_watched,
+    c.fu1_video_watched,
+    (
+      c.current_step >= c.fu1_video_reveal_step
+      and c.fu1_video_enabled
+      and not c.fu1_video_watched
+      and coalesce((select s.fu1_video_enabled from app_settings s limit 1), true)
+    ),
+    c.questionnaire_enabled
+  from candidates c
+  join profiles p on p.id = c.creator_id
+  where upper(c.access_code) = upper(p_code) and c.filtered_out = false;
+$$;
+
+grant execute on function public.get_candidate_by_access_code(text) to anon, authenticated;
+
+create or replace function public.get_candidate_questionnaire_responses(p_code text)
+returns table (
+  response_1 text, response_2 text, response_3 text, response_4 text, response_5 text,
+  response_6 text, response_7 text, response_8 text, response_9 text
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    questionnaire_response_1, questionnaire_response_2, questionnaire_response_3,
+    questionnaire_response_4, questionnaire_response_5, questionnaire_response_6,
+    questionnaire_response_7, questionnaire_response_8, questionnaire_response_9
+  from candidates
+  where upper(access_code) = upper(p_code) and filtered_out = false;
+$$;
+
+grant execute on function public.get_candidate_questionnaire_responses(text) to anon, authenticated;
+
+-- Candidate self-service, same access-code-only trust model as
+-- mark_candidate_virtual_watched - saves one answer at a time (on blur,
+-- from the client) rather than the whole set, so switching fields never
+-- risks clobbering one answer while saving another.
+create or replace function public.save_candidate_questionnaire_response(
+  p_code text, p_index int, p_answer text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if p_index = 1 then
+    update candidates set questionnaire_response_1 = p_answer where upper(access_code) = upper(p_code) and filtered_out = false;
+  elsif p_index = 2 then
+    update candidates set questionnaire_response_2 = p_answer where upper(access_code) = upper(p_code) and filtered_out = false;
+  elsif p_index = 3 then
+    update candidates set questionnaire_response_3 = p_answer where upper(access_code) = upper(p_code) and filtered_out = false;
+  elsif p_index = 4 then
+    update candidates set questionnaire_response_4 = p_answer where upper(access_code) = upper(p_code) and filtered_out = false;
+  elsif p_index = 5 then
+    update candidates set questionnaire_response_5 = p_answer where upper(access_code) = upper(p_code) and filtered_out = false;
+  elsif p_index = 6 then
+    update candidates set questionnaire_response_6 = p_answer where upper(access_code) = upper(p_code) and filtered_out = false;
+  elsif p_index = 7 then
+    update candidates set questionnaire_response_7 = p_answer where upper(access_code) = upper(p_code) and filtered_out = false;
+  elsif p_index = 8 then
+    update candidates set questionnaire_response_8 = p_answer where upper(access_code) = upper(p_code) and filtered_out = false;
+  elsif p_index = 9 then
+    update candidates set questionnaire_response_9 = p_answer where upper(access_code) = upper(p_code) and filtered_out = false;
+  else
+    raise exception 'invalid question index';
+  end if;
+end;
+$$;
+
+grant execute on function public.save_candidate_questionnaire_response(text, int, text) to anon, authenticated;
