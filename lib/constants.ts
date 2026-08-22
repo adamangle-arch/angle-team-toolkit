@@ -494,7 +494,7 @@ export const QUESTIONNAIRE_QUESTIONS: string[] = [
   "Why do you feel that you would be a good investment of our time and resources, and what separates you from other potential candidates?",
   "What are you looking to accomplish through this opportunity? Why are you excited about that?",
   "What is the difference between Amway and LTD? What makes our program different than other network marketing businesses out there?",
-  "What are the dates of the next Apprenticeship Workshop, Masterclass, and Major Conference? Why is attending each team event essential to a successful business?",
+  "What are the dates of the next Weekly Training, Monthly Masterclass, and Quarterly Major Conference? Why is attending each team event essential to a successful business?",
   "Are you willing to go through a budgeting session? If so, why do you feel this would be valuable to you?",
   "What are the monthly personal PV standards that we've discussed? Why is DITTO necessary for developing a stable, long-term business?",
   "Why is transparent and consistent communication with your mentor in all areas (life, business, finances, etc.) so important for a successful business?",
