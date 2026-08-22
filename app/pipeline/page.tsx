@@ -1817,17 +1817,30 @@ function CandidateCard({
               }
             />
           )}
-          {candidate.current_step >= 4 && (
-            <label className="flex items-center gap-2 text-xs text-slate-400">
-              <input
-                type="checkbox"
-                className="h-4 w-4 accent-amber"
-                checked={candidate.fu1_video_enabled}
-                onChange={(e) => onUpdate(candidate.id, { fu1_video_enabled: e.target.checked })}
-              />
-              <span className="font-medium text-slate-300">Show FU1 video to this candidate</span>
-            </label>
-          )}
+          <label className="flex items-center gap-2 text-xs text-slate-400">
+            <span className="shrink-0 font-medium text-slate-300">
+              &quot;How Does an IBO Earn Income&quot; video:
+            </span>
+            <select
+              className="select"
+              value={candidate.fu1_video_enabled ? candidate.fu1_video_reveal_step : "off"}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value === "off") {
+                  onUpdate(candidate.id, { fu1_video_enabled: false });
+                } else {
+                  onUpdate(candidate.id, { fu1_video_enabled: true, fu1_video_reveal_step: Number(value) });
+                }
+              }}
+            >
+              <option value="off">Don&apos;t send</option>
+              {CANDIDATE_STEPS.slice(0, 5).map((step, i) => (
+                <option key={i} value={i}>
+                  Send at {step.label}
+                </option>
+              ))}
+            </select>
+          </label>
 
           {candidate.current_step >= 5 && (
             <InfoSessionPicker

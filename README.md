@@ -7648,29 +7648,36 @@ rotates day to day instead of stacking every applicable nag onto Home at
 once. Whichever one is acted on naturally drops out of the applicable
 set on the next check - no dismiss button or tracking table needed.
 
-### FU1 video: a fixed video shown once, same one-way lock as Info Session
+### "How Does an IBO Earn Income" video: a fixed video, same one-way lock as Info Session
 
-A candidate reaching FU1 (step 4) sees a single fixed YouTube video
-embedded directly in `/prospect`, with an "I've watched it" button below
-it - tapping that sets `candidates.fu1_video_watched` and the card stops
-rendering for good, the same one-way lock `is1_watched`/`is2_watched`
-already use for Info Session. No mode picker here (unlike IS1/IS2) since
-there's only ever the one video, not an IBO choice between in-person and
-virtual. `get_candidate_by_access_code()` and
-`mark_candidate_virtual_watched()` both grew a `fu1` case rather than
-introducing a parallel set of functions.
+A candidate reaching FU1 (step 4) by default sees a single fixed YouTube
+video embedded directly in `/prospect`, titled "How Does an IBO Earn
+Income" (internally still `fu1_video_*` throughout the schema/code -
+only the display name changed, renaming every column/function too would
+just be churn for no behavior change). An "I've watched it" button below
+it sets `candidates.fu1_video_watched` and the card stops rendering for
+good, the same one-way lock `is1_watched`/`is2_watched` already use for
+Info Session. No mode picker here (unlike IS1/IS2) since there's only
+ever the one video, not an IBO choice between in-person and virtual.
+`get_candidate_by_access_code()` and `mark_candidate_virtual_watched()`
+both grew a `fu1` case rather than introducing a parallel set of
+functions.
 
-Two opt-outs on top of that, both folded into a single computed
-`fu1_video_active` column (`current_step = 4 and` per-candidate enabled
-`and not` watched `and` team-wide enabled) rather than making the client
-re-derive "should this actually show" from three separate facts:
-- **Per-candidate** - a checkbox on the Candidate Roadmap card
-  (`candidates.fu1_video_enabled`), the IBO's own call for one candidate,
-  same idea as choosing an IS1/IS2 mode.
-- **Team-wide** - an admin-only switch in the Resources hub, backed by a
-  new `app_settings` singleton row (same `id boolean primary key default
-  true` pattern `info_session_flyer` already uses). Turning this off
-  overrides every individual candidate's own setting.
+Three knobs on top of that, all folded into a single computed
+`fu1_video_active` column (`current_step >= reveal_step and` per-candidate
+enabled `and not` watched `and` team-wide enabled) rather than making the
+client re-derive "should this actually show" from four separate facts:
+- **When to send it** - `candidates.fu1_video_reveal_step` (0-4, default
+  4/FU1) lets an IBO send it earlier than FU1 for a candidate they think
+  is ready sooner - one combined "Don't send / Send at Yes / Send at
+  QI1 / ... / Send at FU1" select on Candidate Roadmap, rather than a
+  separate on/off checkbox plus a separate step picker.
+- **Per-candidate off** - the same select's "Don't send" option
+  (`candidates.fu1_video_enabled = false`).
+- **Team-wide off** - an admin-only switch in the Resources hub, backed
+  by a new `app_settings` singleton row (same `id boolean primary key
+  default true` pattern `info_session_flyer` already uses). Turning this
+  off overrides every individual candidate's own setting.
 
 ## Tech stack
 

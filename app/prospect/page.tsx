@@ -567,10 +567,13 @@ function InfoSessionCard({
   );
 }
 
-// A single fixed video shown once at FU1 - no mode picker (there's only
-// ever one video), and the same one-way "I've watched it" lock as
-// InfoSessionCard: once marked, this stops rendering here for good since
-// the caller only mounts it while !info.fu1_video_watched.
+// "How Does an IBO Earn Income" - a single fixed video, no mode picker
+// (there's only ever one video). Defaults to showing at FU1 but the IBO
+// can send it earlier per candidate (info.fu1_video_active already
+// folds that choice in, see get_candidate_by_access_code). Same one-way
+// "I've watched it" lock as InfoSessionCard: once marked, this stops
+// rendering here for good since the caller only mounts it while
+// info.fu1_video_active.
 function FU1VideoCard({
   error,
   onMarkWatched,
@@ -582,13 +585,13 @@ function FU1VideoCard({
     <div className="card space-y-3">
       <p className="section-title flex items-center gap-1.5">
         <Mic className="h-4 w-4" aria-hidden />
-        Watch This Before We Meet Again
+        How Does an IBO Earn Income
       </p>
       <div className="aspect-video w-full overflow-hidden rounded-xl bg-black">
         <iframe
           className="h-full w-full"
           src={`https://www.youtube.com/embed/${FU1_VIDEO_YOUTUBE_ID}`}
-          title="FU1 video"
+          title="How Does an IBO Earn Income"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
         />

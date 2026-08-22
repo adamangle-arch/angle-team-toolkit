@@ -397,9 +397,14 @@ export type Candidate = {
   is2_watched_at: string | null;
   fu1_video_watched: boolean;
   fu1_video_watched_at: string | null;
-  // The IBO's per-candidate opt-out for the FU1 video - separate from
-  // whether they've actually watched it (fu1_video_watched above).
+  // The IBO's per-candidate opt-out for the "How Does an IBO Earn
+  // Income" video - separate from whether they've actually watched it
+  // (fu1_video_watched above).
   fu1_video_enabled: boolean;
+  // Which step (0-4) to start showing it at - defaults to FU1 (4), but
+  // an IBO can send it earlier for a candidate they think is ready
+  // sooner.
+  fu1_video_reveal_step: number;
   timezone: string | null;
   created_at: string;
   updated_at: string;

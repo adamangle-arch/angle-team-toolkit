@@ -1231,11 +1231,12 @@ function FU1VideoAdminToggle() {
 
   return (
     <div className="card space-y-2">
-      <p className="section-title">FU1 Video</p>
+      <p className="section-title">&quot;How Does an IBO Earn Income&quot; Video</p>
       <p className="text-xs text-slate-400">
-        Team-wide switch for the video shown to candidates at FU1. Turning this off hides it for
-        every candidate, everywhere, regardless of what any individual IBO has set below on their
-        own candidates.
+        Team-wide switch for this video (shown by default at FU1, though an IBO can send it
+        earlier per candidate from Candidate Roadmap). Turning this off hides it for every
+        candidate, everywhere, regardless of what any individual IBO has set for their own
+        candidates.
       </p>
       <label className="flex items-center gap-2 text-xs text-slate-300">
         <input
@@ -1245,7 +1246,7 @@ function FU1VideoAdminToggle() {
           onChange={toggle}
           disabled={saving}
         />
-        <span className="font-medium">Show the FU1 video to candidates</span>
+        <span className="font-medium">Show this video to candidates</span>
       </label>
       {error && <p className="text-xs text-red-400">{error}</p>}
     </div>

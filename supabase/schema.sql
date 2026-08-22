@@ -4844,20 +4844,36 @@ alter table candidates add column if not exists is2_webinar_selected_at timestam
 alter table candidates add column if not exists is2_watched boolean not null default false;
 alter table candidates add column if not exists is2_watched_at timestamptz;
 
--- FU1 video: a single fixed video (not an IBO-chosen session mode like
--- IS1/IS2 above) that the candidate is shown once they reach FU1 (step
--- 4) - same one-way "watched" lock as IS1/IS2, so it disappears from
--- /prospect for good the moment they mark it watched. Two additional
--- opt-outs on top of that, both folded into the single fu1_video_active
--- computed column below rather than making the client re-derive "should
--- this actually show" from three separate facts:
---   - fu1_video_enabled (per-candidate): the IBO's call, same as
---     choosing an IS1/IS2 mode, for a candidate who doesn't need it.
+-- "How Does an IBO Earn Income" video: a single fixed video (not an
+-- IBO-chosen session mode like IS1/IS2 above), shown by default once a
+-- candidate reaches FU1 (step 4) - same one-way "watched" lock as
+-- IS1/IS2, so it disappears from /prospect for good the moment they
+-- mark it watched. Three knobs on top of that, all folded into the
+-- single fu1_video_active computed column below rather than making the
+-- client re-derive "should this actually show" from four separate
+-- facts:
+--   - fu1_video_reveal_step (per-candidate): which step to start
+--     showing it at - an IBO can send it earlier than FU1 for a
+--     candidate they think is ready sooner (see the check constraint
+--     below; capped at FU1 itself, not later - "earlier," not "later").
+--   - fu1_video_enabled (per-candidate): the IBO's call to turn it off
+--     entirely for one candidate, same as choosing an IS1/IS2 mode.
 --   - app_settings.fu1_video_enabled (team-wide): an admin kill switch
 --     for the whole feature, see app_settings below.
 alter table candidates add column if not exists fu1_video_watched boolean not null default false;
 alter table candidates add column if not exists fu1_video_watched_at timestamptz;
 alter table candidates add column if not exists fu1_video_enabled boolean not null default true;
+
+-- Which step to start showing it at - defaults to FU1 (4) but an IBO can
+-- send it earlier for a candidate they think is ready sooner. Column
+-- name kept as "fu1_video_*" throughout even though it's no longer
+-- locked to FU1 specifically - only the display name ("How Does an IBO
+-- Earn Income") is user-facing; renaming the columns/functions too would
+-- just be churn for no behavior change.
+alter table candidates add column if not exists fu1_video_reveal_step int not null default 4;
+alter table candidates drop constraint if exists candidates_fu1_video_reveal_step_check;
+alter table candidates add constraint candidates_fu1_video_reveal_step_check
+  check (fu1_video_reveal_step between 0 and 4);
 
 -- Single-row app-wide settings table - same singleton pattern as
 -- info_session_flyer above (id boolean primary key default true, a
@@ -4912,7 +4928,7 @@ as $$
     c.is2_session_mode, c.is2_webinar_slot, c.is2_watched,
     c.fu1_video_watched,
     (
-      c.current_step = 4
+      c.current_step >= c.fu1_video_reveal_step
       and c.fu1_video_enabled
       and not c.fu1_video_watched
       and coalesce((select s.fu1_video_enabled from app_settings s limit 1), true)
