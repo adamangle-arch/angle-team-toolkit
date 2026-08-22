@@ -1539,7 +1539,12 @@ export default function PipelinePage() {
 function QuestionnaireAnswers({ candidate }: { candidate: Candidate }) {
   const answered = QUESTIONNAIRE_QUESTIONS.map((question, i) => ({
     question,
-    answer: candidate[`questionnaire_response_${i + 1}` as keyof Candidate] as string,
+    // Falls back to "" rather than crashing on .trim() if this candidate
+    // row predates the questionnaire_response_* columns existing (e.g.
+    // the migration hasn't been run yet) - select("*") just omits an
+    // unknown column instead of erroring, so this can genuinely be
+    // undefined rather than the empty string the column defaults to.
+    answer: (candidate[`questionnaire_response_${i + 1}` as keyof Candidate] as string | undefined) ?? "",
   })).filter((entry) => entry.answer.trim().length > 0);
 
   if (answered.length === 0) {
