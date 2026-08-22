@@ -392,19 +392,19 @@ export const CANDIDATE_STEP_RESOURCES: CandidateStepResource[][] = [
   // 2. QI2
   [
     {
-      label: "📄 Summary: Business of the 21st Century",
+      label: "Summary: Business of the 21st Century",
       detail: "By Robert Kiyosaki.",
       url: "https://www.dropbox.com/scl/fi/i8w3xa044x2ulwsdz3dhf/FILE_5085.pdf?rlkey=6usnhsbvivt23l5loggb528jr&st=9x5tos9p&dl=0",
       estimate: "~20 min read",
     },
     {
-      label: "📰 What Is Network Marketing?",
+      label: "What Is Network Marketing?",
       detail: "Entrepreneur.com",
       url: "https://www.entrepreneur.com/building-a-business/marketing/types-of-marketing/what-is-network-marketing",
       estimate: "~5 min read",
     },
     {
-      label: "📰 Why Gen Z Is Betting on Direct Selling",
+      label: "Why Gen Z Is Betting on Direct Selling",
       detail: "Entrepreneur.com — and why that matters for the future of work.",
       url: "https://apac.entrepreneur.com/news-and-trends/why-gen-z-is-betting-on-direct-selling-and-why-that-matters/498981",
       estimate: "~5 min read",
@@ -413,13 +413,13 @@ export const CANDIDATE_STEP_RESOURCES: CandidateStepResource[][] = [
   // 3. IS1
   [
     {
-      label: "🎧 Digital Flea Market of Dreams",
+      label: "Digital Flea Market of Dreams",
       detail: "Podcast by John Resch.",
       url: "https://www.dropbox.com/scl/fi/hweysii7kmg5bouqffb0h/Digital-Flea-Market-of-Dreams.m4a?rlkey=1xj0oe66ffhew7i34rx7aau5d&st=0ako2bu6&dl=0",
       estimate: "~17 min listen",
     },
     {
-      label: "📖 The Go-Giver",
+      label: "The Go-Giver",
       detail: "A Little Story About a Powerful Business Idea.",
       url: "https://static1.squarespace.com/static/60393221d492e05ee012873d/t/6a0a719fcc48ee3edc7304e8/1779069345436/The+Go-Giver_+A+Little+Story+About+a+Powerful+Business+Idea.pdf",
       estimate: "~2 hr read",
@@ -428,13 +428,13 @@ export const CANDIDATE_STEP_RESOURCES: CandidateStepResource[][] = [
   // 4. FU1
   [
     {
-      label: "🎧 How Do You Want to Live?",
+      label: "How Do You Want to Live?",
       detail: "By Alex and Laura Angle.",
       url: "https://www.dropbox.com/scl/fi/y4p9por067phvvbqrth1c/How-Do-You-Want-to-LIve-S15-1349-AUD.mp3?rlkey=j4oac7vz8tn7l11uac6oen2nx&st=q3gf0eho&dl=0",
       estimate: "~1 hr 12 min listen",
     },
     {
-      label: "🎧 Financial Stability of the 21st Century",
+      label: "Financial Stability of the 21st Century",
       detail: "By Greg Duncan.",
       url: "https://www.dropbox.com/scl/fi/3nyufs0dzu18631ipdws4/NLA-Financial-Stability-in-the-21st-Century-L15-1347-AUD.mp3?rlkey=k6jfttm6qu2yu7vdeahjwjw7d&st=w6aj44pc&dl=0",
       estimate: "~1 hr 19 min listen",
@@ -443,13 +443,13 @@ export const CANDIDATE_STEP_RESOURCES: CandidateStepResource[][] = [
   // 5. IS2
   [
     {
-      label: "📄 The 25 Laws of Doing the Impossible",
+      label: "The 25 Laws of Doing the Impossible",
       detail: "By Patrick Bet-David.",
       url: "https://www.patrickbetdavid.com/wp-content/uploads/2014/09/Doing-the-Impossible-by-Patrick-Bet-David.pdf",
       estimate: "~2 hr read",
     },
     {
-      label: "🎧 List Ditto Associate",
+      label: "List Ditto Associate",
       detail: "A Successful Business Start — by Dirk and Laura Taylor.",
       url: "https://www.dropbox.com/scl/fi/aqva3wgmylgqtbrmq1cuk/NLA-List-Ditto-Associate-A-Successful-Business-Start-L15-1599-AUD.mp3?rlkey=q7qwyzqhltsvriaxjxxdnuvsw&st=xwloolsq&dl=0",
       estimate: "~42 min listen",
@@ -458,13 +458,13 @@ export const CANDIDATE_STEP_RESOURCES: CandidateStepResource[][] = [
   // 6. FU2
   [
     {
-      label: "🎧 Dissatisfied",
+      label: "Dissatisfied",
       detail: "By Manny Winston.",
       url: "https://www.dropbox.com/scl/fi/0qwvy8fjneyujka5ktol4/Dissatisfied-L16-1961-AUD.mp3?rlkey=bfht15w18iks4d3ol055sh320&st=yjzjnrzh&dl=0",
       estimate: "~26 min listen",
     },
     {
-      label: "🎧 At the Highest Level",
+      label: "At the Highest Level",
       detail: "By Mark Nathan.",
       url: "https://www.dropbox.com/scl/fi/uqu8f0lafz9pgt3n8lmln/NLA-At-the-Highest-Level-L14-1058-AUD.mp3?rlkey=3dns0ztlonxxb825akxy2ef88&st=y06uv48f&dl=0",
       estimate: "~50 min listen",
