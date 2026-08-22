@@ -173,8 +173,8 @@ export default function AssistantPage() {
             you to the team&apos;s Gemini Assistant, then open it below.
           </p>
           <p className="text-xs text-amber-light">
-            You&apos;ll need to be signed into a Google account first — if it opens plain Gemini
-            instead of our assistant, that&apos;s the fix.
+            Before you tap the button, sign in to a Google account in your browser. If you skip
+            this step, the link opens plain Gemini instead of the team&apos;s assistant.
           </p>
           <a
             href="https://gemini.google.com/gem/1NkM3ZlEKZxU2sUFvSIaEEQ9i7DTw2So9?usp=sharing"

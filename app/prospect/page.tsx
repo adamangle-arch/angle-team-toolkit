@@ -768,8 +768,8 @@ function ResourceRow({
         </p>
         {url?.includes("gemini.google.com") && (
           <p className="text-xs text-amber-light">
-            Requires a Google account — sign in first or it&apos;ll open plain Gemini instead of
-            the real assistant.
+            Tell them to sign in to a Google account first. If they skip this step, the link
+            opens plain Gemini instead of the real assistant.
           </p>
         )}
       </div>
