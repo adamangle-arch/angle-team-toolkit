@@ -1854,12 +1854,12 @@ function CandidateCard({
               }
             />
           )}
-          <label className="flex items-center gap-2 text-xs text-slate-400">
-            <span className="shrink-0 font-medium text-slate-300">
-              &quot;How Does an IBO Earn Income&quot; video:
+          <label className="flex flex-col gap-1.5 text-xs text-slate-400">
+            <span className="font-medium text-slate-300">
+              &quot;How Does an IBO Earn Income&quot; video
             </span>
             <select
-              className="select"
+              className="select w-full"
               value={candidate.fu1_video_enabled ? candidate.fu1_video_reveal_step : "off"}
               onChange={(e) => {
                 const value = e.target.value;
