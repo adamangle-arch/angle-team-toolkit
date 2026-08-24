@@ -1487,6 +1487,29 @@ Income / Self / Team) is a static image (`public/9-core-steps.jpg`,
 served via `next/image`) in its own card at the top of the Process tab —
 first thing anyone sees, ahead of the pre-launch stages below it.
 
+### Team Story
+
+A shareable page about the *team*, not Amway as a company — the
+differentiator IBOs actually lean on early in the process.
+
+- **`/team-story`** (in-app, on the Home hub grid) — any IBO can submit
+  their own story: a quote, an optional photo, an optional video link.
+  Saving (or editing an already-live one) sends it to an admin for
+  approval — an author can never publish their own edit directly. Admins
+  see a "Needs Your Approval" queue right on the same page to
+  approve/remove pending submissions, plus a live preview of what's
+  currently public.
+- **`/our-team`** — the actual shareable link. Fully public, no access
+  code, no sign-in (same `AuthGate` exemption as `/prospect`), showing
+  only approved testimonials. Copy the link from `/team-story` and send
+  it to anyone, whether or not they're already a candidate in your
+  pipeline — it's entirely optional and isn't wired into the pipeline or
+  Candidate Resources at all. Add it to the Optional Resources library
+  from the Resources tab if you'd also like it offered there.
+
+Backed by `team_testimonials` (one row per IBO, `unique (author_id)`)
+and the public `get_public_team_testimonials()` RPC.
+
 ### Global search
 
 A 🔍 icon in the header on every page (`components/PageHeader.tsx`) opens
