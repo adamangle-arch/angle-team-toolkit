@@ -160,7 +160,7 @@ export default function AssistantPage() {
   }
 
   return (
-    <FeatureGate minSession={5}>
+    <FeatureGate minSession={1}>
       <PageHeader title="Assistant" subtitle="Role-play conversations, and rate your meetings" />
       <div className="px-4 pt-3">
         <div className="card space-y-2">

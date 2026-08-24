@@ -16,12 +16,18 @@
 // streak-building momentum someone has right when it's highest, so it's
 // available from signup now like Today/Calendar/Leaderboard are.
 //
-// Resources requires full completion (same tier as Team/Games/
-// Assistant) rather than session 1 like it used to - once real PDF/
-// audio links live there (the Books/Audios tabs auto-link to whatever's
-// in the Optional Resources library), it stops being a safe "browse
-// everything on day one" area and becomes something to earn by actually
-// finishing onboarding instead of self-serving ahead of it.
+// Resources requires full completion (same tier as Team/Games) rather
+// than session 1 like it used to - once real PDF/audio links live there
+// (the Books/Audios tabs auto-link to whatever's in the Optional
+// Resources library), it stops being a safe "browse everything on day
+// one" area and becomes something to earn by actually finishing
+// onboarding instead of self-serving ahead of it.
+//
+// Assistant dropped from session 5 to session 1: a candidate could
+// already reach the team's AI assistant before they ever signed up (see
+// the Gemini Assistant resource on /prospect), so gating a brand-new
+// IBO's own account behind 4 sessions of onboarding took access away
+// the moment they launched, right when they'd want it most.
 export const FEATURE_MIN_SESSION: Record<string, number> = {
   "/contacts": 2,
   "/volume": 2,
@@ -30,7 +36,6 @@ export const FEATURE_MIN_SESSION: Record<string, number> = {
   "/goals": 5,
   "/team": 5,
   "/games": 5,
-  "/assistant": 5,
   "/insights": 5,
 };
 
