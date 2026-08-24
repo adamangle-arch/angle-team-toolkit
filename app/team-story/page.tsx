@@ -204,8 +204,19 @@ export default function TeamStoryPage() {
                   </span>
                 )}
                 {status === "pending" && (
-                  <span className="rounded-full bg-amber/15 px-2 py-0.5 text-[11px] font-semibold text-amber-light">
-                    Waiting on approval
+                  <span className="flex items-center gap-2">
+                    <span className="rounded-full bg-amber/15 px-2 py-0.5 text-[11px] font-semibold text-amber-light">
+                      Waiting on approval
+                    </span>
+                    {isAdmin && mine && (
+                      <button
+                        type="button"
+                        className="text-[11px] font-semibold text-emerald-400 underline"
+                        onClick={() => approve(mine.id)}
+                      >
+                        Approve your own (admin)
+                      </button>
+                    )}
                   </span>
                 )}
               </div>
