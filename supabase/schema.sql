@@ -8445,3 +8445,67 @@ as $$
 $$;
 
 grant execute on function public.get_pending_team_testimonials() to authenticated;
+
+-- ============================================================
+-- 28. CLAIM CANDIDATE HISTORY
+-- ============================================================
+-- A launched candidate's pre-launch stuff (the extra resources their
+-- IBO sent them one-off, their Pre-Launch Questionnaire answers, which
+-- resources they'd already checked off, IS1/IS2/FU1-video watched
+-- state) all lives keyed by candidate_id, with no link at all to the
+-- profiles row they get once they actually sign up and launch - those
+-- are two entirely separate flows (the anon/access-code /prospect view
+-- vs. a real authenticated account). This lets a brand-new IBO type
+-- their old access code into Classroom once to link the two, after
+-- which the Classroom page reads their history straight through the
+-- exact same anon-callable /prospect RPCs
+-- (get_candidate_by_access_code, get_candidate_questionnaire_responses,
+-- get_candidate_specific_resources, get_candidate_resource_completions)
+-- using the claimed code - no new read RPCs needed for the data itself,
+-- just this link.
+alter table candidates add column if not exists claimed_by_user_id uuid references profiles(id) on delete set null;
+
+-- One-way lock, same shape as the IS1/IS2/FU1 "watched" locks: a code
+-- can only ever be claimed once, and an account can only ever claim
+-- once - not a real uniqueness constraint (partial-null-friendly) but
+-- application-level, same reasoning as the FU1 reveal-step check
+-- constraint elsewhere in this file.
+create or replace function public.claim_candidate_history(p_code text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_candidate_id uuid;
+begin
+  if exists (select 1 from candidates where claimed_by_user_id = auth.uid()) then
+    raise exception 'You''ve already claimed a candidate history.';
+  end if;
+  select id into v_candidate_id from candidates where upper(access_code) = upper(p_code);
+  if v_candidate_id is null then
+    raise exception 'That code doesn''t match anyone.';
+  end if;
+  update candidates set claimed_by_user_id = auth.uid()
+  where id = v_candidate_id and claimed_by_user_id is null;
+  if not found then
+    raise exception 'That code has already been claimed.';
+  end if;
+end;
+$$;
+
+grant execute on function public.claim_candidate_history(text) to authenticated;
+
+-- Lets the Classroom page find its own claimed code (if any) on load,
+-- then feed it straight into the existing /prospect RPCs above.
+create or replace function public.get_my_claimed_candidate_code()
+returns text
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select access_code from candidates where claimed_by_user_id = auth.uid() limit 1;
+$$;
+
+grant execute on function public.get_my_claimed_candidate_code() to authenticated;

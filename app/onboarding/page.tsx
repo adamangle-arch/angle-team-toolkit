@@ -20,6 +20,7 @@ import PageHeader from "@/components/PageHeader";
 import ProgressBar from "@/components/ProgressBar";
 import { SkeletonList } from "@/components/Skeleton";
 import WelcomeVideoLockCard from "@/components/WelcomeVideoLockCard";
+import ClaimCandidateHistoryCard from "@/components/ClaimCandidateHistoryCard";
 import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import {
@@ -208,6 +209,8 @@ export default function OnboardingPage() {
             </p>
           </div>
         )}
+
+        <ClaimCandidateHistoryCard />
 
         <div className="card space-y-3">
           <button
