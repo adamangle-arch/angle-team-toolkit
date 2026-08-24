@@ -21,8 +21,7 @@ export default function OurTeamPage() {
   return (
     <>
       <header className="app-header">
-        <h1 className="app-title">More Than a Company</h1>
-        <p className="app-subtitle">What our team means to the people in it</p>
+        <h1 className="app-title">What our team means to the people in it</h1>
       </header>
       <main className="page-main">
         {testimonials === null ? (
