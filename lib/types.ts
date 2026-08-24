@@ -499,6 +499,12 @@ export type PublicTeamTestimonial = {
   video_url: string | null;
 };
 
+// get_pending_team_testimonials() RPC shape - same name resolution as
+// PublicTeamTestimonial, but not-yet-approved rows (admin-only).
+export type PendingTeamTestimonial = PublicTeamTestimonial & {
+  author_id: string;
+};
+
 export type OnboardingResourceOverride = {
   id: string;
   user_id: string;

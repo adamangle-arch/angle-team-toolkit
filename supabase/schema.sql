@@ -8374,7 +8374,12 @@ for delete using (public.is_app_admin());
 -- Public, anon-callable (the whole point is a link anyone can open with
 -- no code and no login) - only approved rows, joined to the author's
 -- name/photo so a submission without its own photo_url falls back to
--- their normal profile photo instead of showing nothing.
+-- their normal profile photo instead of showing nothing. First name
+-- only, no last name. household_id can be set on either half of a
+-- linked-spouse couple (see the "deferring side" comment further up
+-- this file), so the partner lookup checks both directions - same
+-- pattern get_individual_leaders() uses - and renders as "Alex & Laura"
+-- when a partner is found.
 create or replace function public.get_public_team_testimonials()
 returns table (
   id uuid,
@@ -8389,14 +8394,54 @@ security definer
 set search_path = public
 as $$
   select t.id,
-    trim(concat(p.first_name, ' ', coalesce(p.last_name, ''))),
+    case
+      when partner.id is not null then p.first_name || ' & ' || partner.first_name
+      else p.first_name
+    end,
     coalesce(t.photo_url, p.photo_url),
     t.quote,
     t.video_url
   from team_testimonials t
   join profiles p on p.id = t.author_id
+  left join profiles partner on partner.id = p.household_id or partner.household_id = p.id
   where t.approved = true
   order by t.created_at desc;
 $$;
 
 grant execute on function public.get_public_team_testimonials() to anon, authenticated;
+
+-- Admin-only counterpart for the "Needs Your Approval" queue on
+-- /team-story - same author-name resolution (first name only, both
+-- halves of a linked-spouse couple) as get_public_team_testimonials
+-- above, just over the not-yet-approved rows instead. Gated by
+-- is_app_admin() in the where clause rather than a separate RLS policy -
+-- a non-admin calling this just gets an empty result, no error.
+create or replace function public.get_pending_team_testimonials()
+returns table (
+  id uuid,
+  author_id uuid,
+  author_name text,
+  photo_url text,
+  quote text,
+  video_url text
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select t.id, t.author_id,
+    case
+      when partner.id is not null then p.first_name || ' & ' || partner.first_name
+      else p.first_name
+    end,
+    t.photo_url,
+    t.quote,
+    t.video_url
+  from team_testimonials t
+  join profiles p on p.id = t.author_id
+  left join profiles partner on partner.id = p.household_id or partner.household_id = p.id
+  where t.approved = false and public.is_app_admin();
+$$;
+
+grant execute on function public.get_pending_team_testimonials() to authenticated;

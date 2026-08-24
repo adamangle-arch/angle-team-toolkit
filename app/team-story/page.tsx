@@ -10,14 +10,12 @@ import TestimonialCard from "@/components/TestimonialCard";
 import { supabase } from "@/lib/supabaseClient";
 import { isPrimaryUser } from "@/lib/constants";
 import { extractYoutubeId } from "@/lib/youtube";
-import type { PublicTeamTestimonial, TeamTestimonial } from "@/lib/types";
+import type { PendingTeamTestimonial, PublicTeamTestimonial, TeamTestimonial } from "@/lib/types";
 
 // The public, no-login page these testimonials show up on once
 // approved - see app/our-team/page.tsx and the AuthGate exemption that
 // lets it render outside the sign-in wall the same way /prospect does.
 const PUBLIC_PATH = "/our-team";
-
-type PendingRow = TeamTestimonial & { author_name: string };
 
 export default function TeamStoryPage() {
   const { user } = useAuth();
@@ -26,7 +24,7 @@ export default function TeamStoryPage() {
   const [loading, setLoading] = useState(true);
   const [live, setLive] = useState<PublicTeamTestimonial[]>([]);
   const [mine, setMine] = useState<TeamTestimonial | null>(null);
-  const [needsReview, setNeedsReview] = useState<PendingRow[]>([]);
+  const [needsReview, setNeedsReview] = useState<PendingTeamTestimonial[]>([]);
   const [copied, setCopied] = useState(false);
 
   const [quote, setQuote] = useState("");
@@ -56,20 +54,9 @@ export default function TeamStoryPage() {
       setVideoUrl(ownRow?.video_url ?? "");
 
       if (isAdmin) {
-        const { data: pendingRows } = await supabase
-          .from("team_testimonials")
-          .select("*, profiles!team_testimonials_author_id_fkey(first_name,last_name)")
-          .eq("approved", false);
+        const { data: pendingRows } = await supabase.rpc("get_pending_team_testimonials");
         setNeedsReview(
-          ((pendingRows as (TeamTestimonial & {
-            profiles: { first_name: string | null; last_name: string | null } | null;
-          })[]) ?? [])
-            .filter((r) => r.author_id !== user.id)
-            .map((r) => ({
-              ...r,
-              author_name:
-                [r.profiles?.first_name, r.profiles?.last_name].filter(Boolean).join(" ") || "Someone",
-            }))
+          ((pendingRows as PendingTeamTestimonial[]) ?? []).filter((r) => r.author_id !== user.id)
         );
       }
       setLoading(false);
