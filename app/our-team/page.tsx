@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Video } from "lucide-react";
+import TestimonialCard from "@/components/TestimonialCard";
 import { supabase } from "@/lib/supabaseClient";
 import type { PublicTeamTestimonial } from "@/lib/types";
 
@@ -31,29 +31,13 @@ export default function OurTeamPage() {
           <p className="text-sm text-slate-400">Nothing to show yet — check back soon.</p>
         ) : (
           testimonials.map((t) => (
-            <div key={t.id} className="card space-y-2">
-              <div className="flex items-center gap-3">
-                {t.photo_url && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={t.photo_url}
-                    alt={t.author_name}
-                    className="h-12 w-12 rounded-full object-cover"
-                  />
-                )}
-                <p className="text-sm font-semibold text-white">{t.author_name}</p>
-              </div>
-              <p className="text-sm text-slate-300">{t.quote}</p>
-              {t.video_url && (
-                <a
-                  href={t.video_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-xs text-amber-light underline"
-                >
-                  <Video className="h-3 w-3" aria-hidden /> Watch video
-                </a>
-              )}
+            <div key={t.id} className="card">
+              <TestimonialCard
+                authorName={t.author_name}
+                photoUrl={t.photo_url}
+                quote={t.quote}
+                videoUrl={t.video_url}
+              />
             </div>
           ))
         )}

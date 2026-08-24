@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Copy, Video } from "lucide-react";
+import { Check, Copy } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
 import FeatureGate from "@/components/FeatureGate";
 import { SkeletonList } from "@/components/Skeleton";
+import TestimonialCard from "@/components/TestimonialCard";
 import { supabase } from "@/lib/supabaseClient";
 import { isPrimaryUser } from "@/lib/constants";
+import { extractYoutubeId } from "@/lib/youtube";
 import type { PublicTeamTestimonial, TeamTestimonial } from "@/lib/types";
 
 // The public, no-login page these testimonials show up on once
@@ -98,6 +100,11 @@ export default function TeamStoryPage() {
   async function save() {
     const trimmed = quote.trim();
     if (!trimmed) return;
+    const trimmedVideo = videoUrl.trim();
+    if (trimmedVideo && !extractYoutubeId(trimmedVideo)) {
+      setError("That doesn't look like a YouTube link - paste the full youtube.com or youtu.be URL.");
+      return;
+    }
     setSaving(true);
     setError(null);
     // Always false here, never true - only an admin can publish this
@@ -108,7 +115,7 @@ export default function TeamStoryPage() {
       author_id: user.id,
       quote: trimmed,
       photo_url: photoUrl,
-      video_url: videoUrl.trim() || null,
+      video_url: trimmedVideo || null,
       approved: false,
     };
     const { data, error } = await supabase
@@ -252,7 +259,7 @@ export default function TeamStoryPage() {
               </div>
               <input
                 className="input"
-                placeholder="Video link instead/in addition (optional)"
+                placeholder="YouTube link, instead or in addition (optional)"
                 value={videoUrl}
                 onChange={(e) => setVideoUrl(e.target.value)}
               />
@@ -278,29 +285,13 @@ export default function TeamStoryPage() {
               <div className="card space-y-3">
                 <p className="section-title">Needs Your Approval</p>
                 {needsReview.map((row) => (
-                  <div key={row.id} className="space-y-2 rounded-xl border border-white/10 p-3">
-                    <div className="flex items-center gap-2">
-                      {row.photo_url && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={row.photo_url}
-                          alt={row.author_name}
-                          className="h-10 w-10 rounded-full object-cover"
-                        />
-                      )}
-                      <p className="text-sm font-semibold text-white">{row.author_name}</p>
-                    </div>
-                    <p className="text-sm text-slate-300">{row.quote}</p>
-                    {row.video_url && (
-                      <a
-                        href={row.video_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1 text-xs text-amber-light underline"
-                      >
-                        <Video className="h-3 w-3" aria-hidden /> Watch video
-                      </a>
-                    )}
+                  <div key={row.id} className="space-y-3">
+                    <TestimonialCard
+                      authorName={row.author_name}
+                      photoUrl={row.photo_url}
+                      quote={row.quote}
+                      videoUrl={row.video_url}
+                    />
                     <div className="flex gap-2">
                       <button
                         type="button"
@@ -326,30 +317,13 @@ export default function TeamStoryPage() {
                 </p>
               ) : (
                 live.map((t) => (
-                  <div key={t.id} className="space-y-2 rounded-xl border border-white/10 p-3">
-                    <div className="flex items-center gap-2">
-                      {t.photo_url && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={t.photo_url}
-                          alt={t.author_name}
-                          className="h-10 w-10 rounded-full object-cover"
-                        />
-                      )}
-                      <p className="text-sm font-semibold text-white">{t.author_name}</p>
-                    </div>
-                    <p className="text-sm text-slate-300">{t.quote}</p>
-                    {t.video_url && (
-                      <a
-                        href={t.video_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1 text-xs text-amber-light underline"
-                      >
-                        <Video className="h-3 w-3" aria-hidden /> Watch video
-                      </a>
-                    )}
-                  </div>
+                  <TestimonialCard
+                    key={t.id}
+                    authorName={t.author_name}
+                    photoUrl={t.photo_url}
+                    quote={t.quote}
+                    videoUrl={t.video_url}
+                  />
                 ))
               )}
             </div>
