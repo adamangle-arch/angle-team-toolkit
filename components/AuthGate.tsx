@@ -379,8 +379,11 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   // session, not a normal signed-in one), so it has to render before the
   // profile-completeness checks below ever run - an already-onboarded
   // account clicking a reset link would otherwise just get dropped
-  // straight into the app instead of the password form.
-  if (pathname === "/prospect" || pathname === "/reset-password") {
+  // straight into the app instead of the password form. /our-team is the
+  // same idea as /prospect but with no code at all - a plain shareable
+  // link to the Team Story page (see app/team-story), meant to work for
+  // absolutely anyone it's sent to.
+  if (pathname === "/prospect" || pathname === "/reset-password" || pathname === "/our-team") {
     return <>{children}</>;
   }
 

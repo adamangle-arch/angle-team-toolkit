@@ -45,6 +45,7 @@ const HOME_HUB_ROUTES = [
   "/pipeline",
   "/streak",
   "/leaderboard",
+  "/team-story",
 ];
 
 // Core Run's little status dot - done (green)/at-risk (red, pulses)/

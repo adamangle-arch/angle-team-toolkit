@@ -197,6 +197,12 @@ const HOME_ITEMS: { href: string; label: string; icon: LucideIcon; description: 
   { href: "/badges", label: "Badges", icon: Medal, description: "Achievements you've earned." },
   { href: "/events", label: "Team Events", icon: PartyPopper, description: "Photos and videos." },
   { href: "/ideas", label: "Innovation Box", icon: Lightbulb, description: "Ask questions, share ideas." },
+  {
+    href: "/team-story",
+    label: "Team Story",
+    icon: HeartHandshake,
+    description: "What the team means to us - optional to share.",
+  },
 ];
 
 function HeroCard({

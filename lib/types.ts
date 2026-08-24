@@ -477,6 +477,28 @@ export type OptionalResource = {
   created_at: string;
 };
 
+// The signed-in author's own row (app/team-story) - see PublicTeamTestimonial
+// for the shape the public /our-team page reads instead.
+export type TeamTestimonial = {
+  id: string;
+  author_id: string;
+  quote: string;
+  photo_url: string | null;
+  video_url: string | null;
+  approved: boolean;
+  created_at: string;
+};
+
+// get_public_team_testimonials() RPC shape - approved rows only, author
+// name/photo already resolved server-side.
+export type PublicTeamTestimonial = {
+  id: string;
+  author_name: string;
+  photo_url: string | null;
+  quote: string;
+  video_url: string | null;
+};
+
 export type OnboardingResourceOverride = {
   id: string;
   user_id: string;

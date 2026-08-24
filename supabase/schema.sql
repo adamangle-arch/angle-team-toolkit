@@ -8316,3 +8316,87 @@ end;
 $$;
 
 grant execute on function public.save_candidate_questionnaire_response(text, int, text) to anon, authenticated;
+
+-- ============================================================
+-- 27. TEAM STORY / TESTIMONIALS
+-- ============================================================
+-- A shareable page about the *team*, not Amway as a company - the
+-- differentiator IBOs actually lean on early in the process. One
+-- testimonial per IBO (a quote, an optional photo, an optional video
+-- link), self-submitted and admin-approved before it ever shows up on
+-- the public page. Same self-serve-but-gated shape as everything else
+-- here: RLS lets an author see/edit only their own row, and any edit
+-- they make resets approved back to false (the with check below) - only
+-- an admin can flip it to true. Deliberately not wired into the
+-- pipeline/candidate-resource machinery at all: it's a standalone public
+-- page (see get_public_team_testimonials + /our-team) an IBO can send to
+-- anyone, in or out of the pipeline, optional the same way every other
+-- resource is - add it to the Optional Resources library from the
+-- Resources tab if you also want it offered through Candidate Resources,
+-- nothing here requires that.
+create table if not exists team_testimonials (
+  id uuid primary key default gen_random_uuid(),
+  author_id uuid not null references profiles(id) on delete cascade,
+  quote text not null,
+  photo_url text,
+  video_url text,
+  approved boolean not null default false,
+  created_at timestamptz not null default now(),
+  unique (author_id)
+);
+
+alter table team_testimonials enable row level security;
+
+drop policy if exists "team_testimonials_select_own_or_admin" on team_testimonials;
+create policy "team_testimonials_select_own_or_admin" on team_testimonials
+for select using (author_id = auth.uid() or public.is_app_admin());
+
+drop policy if exists "team_testimonials_insert_own" on team_testimonials;
+create policy "team_testimonials_insert_own" on team_testimonials
+for insert with check (author_id = auth.uid() and approved = false);
+
+drop policy if exists "team_testimonials_update_own" on team_testimonials;
+create policy "team_testimonials_update_own" on team_testimonials
+for update using (author_id = auth.uid()) with check (author_id = auth.uid() and approved = false);
+
+drop policy if exists "team_testimonials_update_admin" on team_testimonials;
+create policy "team_testimonials_update_admin" on team_testimonials
+for update using (public.is_app_admin()) with check (public.is_app_admin());
+
+drop policy if exists "team_testimonials_delete_own" on team_testimonials;
+create policy "team_testimonials_delete_own" on team_testimonials
+for delete using (author_id = auth.uid());
+
+drop policy if exists "team_testimonials_delete_admin" on team_testimonials;
+create policy "team_testimonials_delete_admin" on team_testimonials
+for delete using (public.is_app_admin());
+
+-- Public, anon-callable (the whole point is a link anyone can open with
+-- no code and no login) - only approved rows, joined to the author's
+-- name/photo so a submission without its own photo_url falls back to
+-- their normal profile photo instead of showing nothing.
+create or replace function public.get_public_team_testimonials()
+returns table (
+  id uuid,
+  author_name text,
+  photo_url text,
+  quote text,
+  video_url text
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select t.id,
+    trim(concat(p.first_name, ' ', coalesce(p.last_name, ''))),
+    coalesce(t.photo_url, p.photo_url),
+    t.quote,
+    t.video_url
+  from team_testimonials t
+  join profiles p on p.id = t.author_id
+  where t.approved = true
+  order by t.created_at desc;
+$$;
+
+grant execute on function public.get_public_team_testimonials() to anon, authenticated;
