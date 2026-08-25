@@ -8,6 +8,7 @@ import {
   VIRTUAL_WEBINAR_SLOTS,
   effectiveResourcesForStep,
   QUESTIONNAIRE_QUESTIONS,
+  FU1_VIDEO_YOUTUBE_ID,
   type CandidateResourceOverrideEntry,
 } from "@/lib/constants";
 import { nextWebinarOccurrence, formatWebinarTime } from "@/lib/dates";
@@ -62,11 +63,6 @@ type QuestionnaireResponses = {
   response_9: string;
 };
 
-// Unlisted/public YouTube video shown once a candidate reaches FU1 (step
-// 4) - a single fixed video, not an IBO-chosen mode like IS1/IS2, so
-// there's no mode picker here at all. Swap this id any time the video
-// changes; nothing else needs to.
-const FU1_VIDEO_YOUTUBE_ID = "OdO2yddaCyc";
 
 type InfoSessionFlyer = {
   image_url: string | null;

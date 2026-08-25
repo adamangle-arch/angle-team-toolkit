@@ -1,24 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckCircle2, GraduationCap } from "lucide-react";
+import { CheckCircle2, GraduationCap, Video } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
-import { QUESTIONNAIRE_QUESTIONS } from "@/lib/constants";
+import {
+  QUESTIONNAIRE_QUESTIONS,
+  effectiveResourcesForStep,
+  FU1_VIDEO_YOUTUBE_ID,
+  type CandidateResourceOverrideEntry,
+  type CandidateStepResource,
+} from "@/lib/constants";
 
 type ClaimedCandidate = {
   candidate_name: string;
+  current_step: number;
   is1_watched: boolean;
   is2_watched: boolean;
   fu1_video_watched: boolean;
 };
 
-type ClaimedResource = {
-  id: string;
-  label: string;
-  detail: string;
-  url: string | null;
-  estimate: string | null;
-};
+type ClaimedResource = CandidateStepResource & { id?: string };
 
 type QuestionnaireResponses = {
   response_1: string;
@@ -32,14 +33,17 @@ type QuestionnaireResponses = {
   response_9: string;
 };
 
-// Pre-launch stuff (extra resources an IBO sent them one-off, Pre-Launch
+// Pre-launch stuff (every resource that showed up automatically at each
+// step, extra resources an IBO sent them one-off, Pre-Launch
 // Questionnaire answers, which resources they'd checked off, IS1/IS2/
 // FU1-video watched state) all lives keyed by candidate_id with no link
 // to the profiles row a new IBO gets once they actually launch - see
 // claim_candidate_history() in schema.sql. Once claimed, this reads that
 // history through the exact same anon-callable /prospect RPCs the
 // candidate view itself uses, just fed the claimed code instead of one
-// typed in live.
+// typed in live - including the same effectiveResourcesForStep() merge
+// /prospect uses, so the step-default resources (not just the one-off
+// extras) are back here as real, clickable links too.
 export default function ClaimCandidateHistoryCard() {
   const [loading, setLoading] = useState(true);
   const [code, setCode] = useState<string | null>(null);
@@ -48,7 +52,7 @@ export default function ClaimCandidateHistoryCard() {
   const [error, setError] = useState<string | null>(null);
 
   const [candidate, setCandidate] = useState<ClaimedCandidate | null>(null);
-  const [resources, setResources] = useState<ClaimedResource[]>([]);
+  const [allResources, setAllResources] = useState<ClaimedResource[]>([]);
   const [completedLabels, setCompletedLabels] = useState<Set<string>>(new Set());
   const [responses, setResponses] = useState<QuestionnaireResponses | null>(null);
   const [expanded, setExpanded] = useState(false);
@@ -62,14 +66,37 @@ export default function ClaimCandidateHistoryCard() {
         return;
       }
       setCode(claimedCode as string);
-      const [{ data: info }, { data: res }, { data: completions }, { data: qResponses }] = await Promise.all([
-        supabase.rpc("get_candidate_by_access_code", { p_code: claimedCode }).maybeSingle(),
-        supabase.rpc("get_candidate_specific_resources", { p_code: claimedCode }),
-        supabase.rpc("get_candidate_resource_completions", { p_code: claimedCode }),
-        supabase.rpc("get_candidate_questionnaire_responses", { p_code: claimedCode }).maybeSingle(),
-      ]);
-      setCandidate((info as ClaimedCandidate) ?? null);
-      setResources((res as ClaimedResource[]) ?? []);
+      const [{ data: info }, { data: specific }, { data: overrideRows }, { data: completions }, { data: qResponses }] =
+        await Promise.all([
+          supabase.rpc("get_candidate_by_access_code", { p_code: claimedCode }).maybeSingle(),
+          supabase.rpc("get_candidate_specific_resources", { p_code: claimedCode }),
+          supabase.rpc("get_candidate_resource_overrides", { p_code: claimedCode }),
+          supabase.rpc("get_candidate_resource_completions", { p_code: claimedCode }),
+          supabase.rpc("get_candidate_questionnaire_responses", { p_code: claimedCode }).maybeSingle(),
+        ]);
+      const candidateInfo = (info as ClaimedCandidate) ?? null;
+      setCandidate(candidateInfo);
+
+      // Same merge /prospect itself uses: every default for every step
+      // up through where they got to, plus anything one-off sent - a
+      // launched IBO should see the exact same list they had access to
+      // as a candidate, not just the extras.
+      const overrides = (overrideRows as CandidateResourceOverrideEntry[]) ?? [];
+      const stepDefaults = candidateInfo
+        ? Array.from({ length: candidateInfo.current_step + 1 }, (_, step) => step).flatMap((step) =>
+            effectiveResourcesForStep(step, overrides)
+          )
+        : [];
+      const oneOff = (specific as ClaimedResource[]) ?? [];
+      const seen = new Set<string>();
+      const merged: ClaimedResource[] = [];
+      for (const r of [...stepDefaults, ...oneOff]) {
+        if (seen.has(r.label)) continue;
+        seen.add(r.label);
+        merged.push(r);
+      }
+      setAllResources(merged);
+
       setCompletedLabels(
         new Set(((completions as { resource_label: string }[]) ?? []).map((r) => r.resource_label))
       );
@@ -153,7 +180,7 @@ export default function ClaimCandidateHistoryCard() {
 
       {expanded && (
         <>
-          {candidate && (
+          {candidate && (candidate.is1_watched || candidate.is2_watched) && (
             <div className="flex flex-wrap gap-2 text-xs text-slate-400">
               {candidate.is1_watched && (
                 <span className="flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-emerald-400">
@@ -165,28 +192,35 @@ export default function ClaimCandidateHistoryCard() {
                   <CheckCircle2 className="h-3 w-3" aria-hidden /> IS2 watched
                 </span>
               )}
-              {candidate.fu1_video_watched && (
-                <span className="flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-emerald-400">
-                  <CheckCircle2 className="h-3 w-3" aria-hidden /> &quot;How Does an IBO Earn Income&quot;
-                  watched
-                </span>
-              )}
             </div>
           )}
 
-          {resources.length > 0 && (
+          {candidate?.fu1_video_watched && (
+            <a
+              href={`https://www.youtube.com/watch?v=${FU1_VIDEO_YOUTUBE_ID}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 text-sm text-amber-light underline"
+            >
+              <Video className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              &quot;How Does an IBO Earn Income&quot; video
+            </a>
+          )}
+
+          {allResources.length > 0 && (
             <div className="space-y-1.5">
               <p className="text-xs font-semibold text-slate-300">Resources you were sent</p>
-              {resources.map((r) => (
+              {allResources.map((r, i) => (
                 <a
-                  key={r.id}
+                  key={r.id ?? i}
                   href={r.url ?? undefined}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={`block text-sm ${
-                    completedLabels.has(r.label) ? "text-slate-500 line-through" : "text-amber-light underline"
-                  }`}
+                  className="flex items-center gap-1.5 text-sm text-amber-light underline"
                 >
+                  {completedLabels.has(r.label) && (
+                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-400" aria-hidden />
+                  )}
                   {r.label}
                 </a>
               ))}
@@ -205,7 +239,7 @@ export default function ClaimCandidateHistoryCard() {
             </div>
           )}
 
-          {resources.length === 0 && answeredQuestions.length === 0 && !candidate?.is1_watched && (
+          {allResources.length === 0 && answeredQuestions.length === 0 && !candidate?.is1_watched && (
             <p className="text-sm text-slate-400">Nothing on record for this code yet.</p>
           )}
         </>

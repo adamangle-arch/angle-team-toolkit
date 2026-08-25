@@ -476,6 +476,11 @@ export const CANDIDATE_STEP_RESOURCES: CandidateStepResource[][] = [
   [],
 ];
 
+// The "How Does an IBO Earn Income" video (see app/prospect/page.tsx's
+// FU1VideoCard) - exported so ClaimCandidateHistoryCard can link back to
+// the same video for someone revisiting their pre-launch resources.
+export const FU1_VIDEO_YOUTUBE_ID = "OdO2yddaCyc";
+
 export type CandidateResourceOverrideEntry = {
   step: number;
   action: "add" | "remove";
@@ -506,9 +511,11 @@ export const QUESTIONNAIRE_QUESTIONS: string[] = [
 // Resources" section of the Resources tab) into the team-wide defaults -
 // a "remove" hides a default with that exact label for this step, an
 // "add" is a resource this owner tacked on beyond the defaults. Shared
-// between app/prospect/page.tsx (the candidate's own view) and
-// app/pipeline/page.tsx (the IBO's read-only progress view), so both
-// sides always agree on exactly which resources a candidate has.
+// between app/prospect/page.tsx (the candidate's own view),
+// app/pipeline/page.tsx (the IBO's read-only progress view), and
+// components/ClaimCandidateHistoryCard.tsx (a launched IBO revisiting
+// their own pre-launch resources), so everywhere always agrees on
+// exactly which resources a candidate had.
 export function effectiveResourcesForStep(
   step: number,
   overrides: CandidateResourceOverrideEntry[]
