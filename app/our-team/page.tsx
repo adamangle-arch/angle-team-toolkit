@@ -36,6 +36,8 @@ export default function OurTeamPage() {
                 photoUrl={t.photo_url}
                 quote={t.quote}
                 videoUrl={t.video_url}
+                background={t.background}
+                location={t.location}
               />
             </div>
           ))

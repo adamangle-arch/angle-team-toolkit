@@ -8345,6 +8345,11 @@ create table if not exists team_testimonials (
   unique (author_id)
 );
 
+-- Optional fields alongside the quote, same "just a couple more text
+-- columns on the same row" shape as everything else here.
+alter table team_testimonials add column if not exists background text;
+alter table team_testimonials add column if not exists location text;
+
 alter table team_testimonials enable row level security;
 
 drop policy if exists "team_testimonials_select_own_or_admin" on team_testimonials;
@@ -8354,6 +8359,14 @@ for select using (author_id = auth.uid() or public.is_app_admin());
 drop policy if exists "team_testimonials_insert_own" on team_testimonials;
 create policy "team_testimonials_insert_own" on team_testimonials
 for insert with check (author_id = auth.uid() and approved = false);
+
+-- Lets an admin fill in (and directly publish) a story on someone
+-- else's behalf - collected informally and typed in, same as the
+-- "Admin enters them" idea considered and not used for the normal
+-- self-serve flow, now added just for admins on top of it.
+drop policy if exists "team_testimonials_insert_admin" on team_testimonials;
+create policy "team_testimonials_insert_admin" on team_testimonials
+for insert with check (public.is_app_admin());
 
 drop policy if exists "team_testimonials_update_own" on team_testimonials;
 create policy "team_testimonials_update_own" on team_testimonials
@@ -8386,7 +8399,9 @@ returns table (
   author_name text,
   photo_url text,
   quote text,
-  video_url text
+  video_url text,
+  background text,
+  location text
 )
 language sql
 stable
@@ -8400,7 +8415,9 @@ as $$
     end,
     coalesce(t.photo_url, p.photo_url),
     t.quote,
-    t.video_url
+    t.video_url,
+    t.background,
+    t.location
   from team_testimonials t
   join profiles p on p.id = t.author_id
   left join profiles partner on partner.id = p.household_id or partner.household_id = p.id
@@ -8423,7 +8440,9 @@ returns table (
   author_name text,
   photo_url text,
   quote text,
-  video_url text
+  video_url text,
+  background text,
+  location text
 )
 language sql
 stable
@@ -8437,7 +8456,9 @@ as $$
     end,
     t.photo_url,
     t.quote,
-    t.video_url
+    t.video_url,
+    t.background,
+    t.location
   from team_testimonials t
   join profiles p on p.id = t.author_id
   left join profiles partner on partner.id = p.household_id or partner.household_id = p.id

@@ -12,11 +12,15 @@ export default function TestimonialCard({
   photoUrl,
   quote,
   videoUrl,
+  background,
+  location,
 }: {
   authorName: string;
   photoUrl: string | null;
   quote: string;
   videoUrl: string | null;
+  background?: string | null;
+  location?: string | null;
 }) {
   const youtubeId = videoUrl ? extractYoutubeId(videoUrl) : null;
 
@@ -30,7 +34,14 @@ export default function TestimonialCard({
           className="aspect-square w-full rounded-xl object-cover"
         />
       )}
-      <p className="text-sm font-semibold text-white">{authorName}</p>
+      <div>
+        <p className="text-sm font-semibold text-white">{authorName}</p>
+        {(background || location) && (
+          <p className="text-xs text-slate-400">
+            {[background, location].filter(Boolean).join(" · ")}
+          </p>
+        )}
+      </div>
       <p className="text-sm text-slate-300">{quote}</p>
       {youtubeId && (
         <div className="aspect-video w-full overflow-hidden rounded-xl bg-black">

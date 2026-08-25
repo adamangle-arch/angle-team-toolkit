@@ -485,6 +485,8 @@ export type TeamTestimonial = {
   quote: string;
   photo_url: string | null;
   video_url: string | null;
+  background: string | null;
+  location: string | null;
   approved: boolean;
   created_at: string;
 };
@@ -497,6 +499,8 @@ export type PublicTeamTestimonial = {
   photo_url: string | null;
   quote: string;
   video_url: string | null;
+  background: string | null;
+  location: string | null;
 };
 
 // get_pending_team_testimonials() RPC shape - same name resolution as

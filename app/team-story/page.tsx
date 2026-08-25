@@ -30,6 +30,8 @@ export default function TeamStoryPage() {
   const [quote, setQuote] = useState("");
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState("");
+  const [background, setBackground] = useState("");
+  const [location, setLocation] = useState("");
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,6 +54,8 @@ export default function TeamStoryPage() {
       setQuote(ownRow?.quote ?? "");
       setPhotoUrl(ownRow?.photo_url ?? null);
       setVideoUrl(ownRow?.video_url ?? "");
+      setBackground(ownRow?.background ?? "");
+      setLocation(ownRow?.location ?? "");
 
       if (isAdmin) {
         const { data: pendingRows } = await supabase.rpc("get_pending_team_testimonials");
@@ -103,6 +107,8 @@ export default function TeamStoryPage() {
       quote: trimmed,
       photo_url: photoUrl,
       video_url: trimmedVideo || null,
+      background: background.trim() || null,
+      location: location.trim() || null,
       approved: false,
     };
     const { data, error } = await supabase
@@ -132,6 +138,8 @@ export default function TeamStoryPage() {
     setQuote("");
     setPhotoUrl(null);
     setVideoUrl("");
+    setBackground("");
+    setLocation("");
     setRefreshKey((k) => k + 1);
   }
 
@@ -144,6 +152,19 @@ export default function TeamStoryPage() {
 
   async function reject(id: string) {
     setNeedsReview((prev) => prev.filter((r) => r.id !== id));
+    const { error } = await supabase.from("team_testimonials").delete().eq("id", id);
+    if (error) setError(error.message);
+  }
+
+  async function unpublish(id: string) {
+    setLive((prev) => prev.filter((r) => r.id !== id));
+    const { error } = await supabase.from("team_testimonials").update({ approved: false }).eq("id", id);
+    if (error) setError(error.message);
+    setRefreshKey((k) => k + 1);
+  }
+
+  async function removeLive(id: string) {
+    setLive((prev) => prev.filter((r) => r.id !== id));
     const { error } = await supabase.from("team_testimonials").delete().eq("id", id);
     if (error) setError(error.message);
   }
@@ -224,6 +245,20 @@ export default function TeamStoryPage() {
                 value={quote}
                 onChange={(e) => setQuote(e.target.value)}
               />
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  className="input"
+                  placeholder="Background (optional)"
+                  value={background}
+                  onChange={(e) => setBackground(e.target.value)}
+                />
+                <input
+                  className="input"
+                  placeholder="Location (optional)"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                />
+              </div>
               <div className="flex items-center gap-3">
                 {photoUrl && (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -272,26 +307,13 @@ export default function TeamStoryPage() {
               <div className="card space-y-3">
                 <p className="section-title">Needs Your Approval</p>
                 {needsReview.map((row) => (
-                  <div key={row.id} className="space-y-3">
-                    <TestimonialCard
-                      authorName={row.author_name}
-                      photoUrl={row.photo_url}
-                      quote={row.quote}
-                      videoUrl={row.video_url}
-                    />
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        className="btn-primary flex-1"
-                        onClick={() => approve(row.id)}
-                      >
-                        Approve
-                      </button>
-                      <button type="button" className="btn-secondary" onClick={() => reject(row.id)}>
-                        Remove
-                      </button>
-                    </div>
-                  </div>
+                  <AdminEditableTestimonial
+                    key={row.id}
+                    row={row}
+                    onApprove={() => approve(row.id)}
+                    onRemove={() => reject(row.id)}
+                    onSaved={() => setRefreshKey((k) => k + 1)}
+                  />
                 ))}
               </div>
             )}
@@ -302,6 +324,16 @@ export default function TeamStoryPage() {
                 <p className="text-sm text-slate-400">
                   Nothing&apos;s live yet — be the first to add your story above.
                 </p>
+              ) : isAdmin ? (
+                live.map((t) => (
+                  <AdminEditableTestimonial
+                    key={t.id}
+                    row={t}
+                    onUnpublish={() => unpublish(t.id)}
+                    onRemove={() => removeLive(t.id)}
+                    onSaved={() => setRefreshKey((k) => k + 1)}
+                  />
+                ))
               ) : (
                 live.map((t) => (
                   <TestimonialCard
@@ -310,6 +342,8 @@ export default function TeamStoryPage() {
                     photoUrl={t.photo_url}
                     quote={t.quote}
                     videoUrl={t.video_url}
+                    background={t.background}
+                    location={t.location}
                   />
                 ))
               )}
@@ -318,5 +352,108 @@ export default function TeamStoryPage() {
         )}
       </main>
     </FeatureGate>
+  );
+}
+
+// Admin can fill in or fix up anyone's story directly - fields start
+// pre-filled with whatever's already there (blank if the person left
+// something out) and Save writes straight to the row, independent of
+// Approve/Unpublish/Remove. Author's own photo isn't editable here -
+// only they can pick that, via their own storage folder.
+function AdminEditableTestimonial({
+  row,
+  onApprove,
+  onUnpublish,
+  onRemove,
+  onSaved,
+}: {
+  row: { id: string; author_name: string; photo_url: string | null; quote: string; video_url: string | null; background: string | null; location: string | null };
+  onApprove?: () => void;
+  onUnpublish?: () => void;
+  onRemove: () => void;
+  onSaved: () => void;
+}) {
+  const [quote, setQuote] = useState(row.quote);
+  const [background, setBackground] = useState(row.background ?? "");
+  const [location, setLocation] = useState(row.location ?? "");
+  const [videoUrl, setVideoUrl] = useState(row.video_url ?? "");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function save() {
+    const trimmedVideo = videoUrl.trim();
+    if (trimmedVideo && !extractYoutubeId(trimmedVideo)) {
+      setError("That doesn't look like a YouTube link - paste the full youtube.com or youtu.be URL.");
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    const { error } = await supabase
+      .from("team_testimonials")
+      .update({
+        quote: quote.trim(),
+        background: background.trim() || null,
+        location: location.trim() || null,
+        video_url: trimmedVideo || null,
+      })
+      .eq("id", row.id);
+    setSaving(false);
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    onSaved();
+  }
+
+  return (
+    <div className="space-y-2 rounded-xl border border-white/10 p-3">
+      <div className="flex items-center gap-2">
+        {row.photo_url && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={row.photo_url} alt={row.author_name} className="h-10 w-10 rounded-full object-cover" />
+        )}
+        <p className="text-sm font-semibold text-white">{row.author_name}</p>
+      </div>
+      <textarea className="textarea min-h-24" value={quote} onChange={(e) => setQuote(e.target.value)} />
+      <div className="grid grid-cols-2 gap-2">
+        <input
+          className="input"
+          placeholder="Background (optional)"
+          value={background}
+          onChange={(e) => setBackground(e.target.value)}
+        />
+        <input
+          className="input"
+          placeholder="Location (optional)"
+          value={location}
+          onChange={(e) => setLocation(e.target.value)}
+        />
+      </div>
+      <input
+        className="input"
+        placeholder="YouTube link (optional)"
+        value={videoUrl}
+        onChange={(e) => setVideoUrl(e.target.value)}
+      />
+      {error && <p className="text-xs text-red-400">{error}</p>}
+      <div className="flex flex-wrap gap-2">
+        <button type="button" className="btn-secondary" onClick={save} disabled={saving}>
+          {saving ? "Saving..." : "Save"}
+        </button>
+        {onApprove && (
+          <button type="button" className="btn-primary flex-1" onClick={onApprove}>
+            Approve
+          </button>
+        )}
+        {onUnpublish && (
+          <button type="button" className="btn-secondary" onClick={onUnpublish}>
+            Unpublish
+          </button>
+        )}
+        <button type="button" className="btn-secondary" onClick={onRemove}>
+          Remove
+        </button>
+      </div>
+    </div>
   );
 }
