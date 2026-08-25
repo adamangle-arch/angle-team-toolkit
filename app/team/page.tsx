@@ -1548,6 +1548,26 @@ export default function TeamPage() {
                         )}
                         /{ONBOARDING_SESSIONS.length} sessions unlocked
                       </p>
+                      <p
+                        className={`flex items-center gap-1 text-xs ${selectedProfile?.welcome_video_watched_at ? "text-slate-500" : "text-amber-light"}`}
+                      >
+                        {selectedProfile?.welcome_video_watched_at ? (
+                          <>
+                            <Check className="h-3 w-3 shrink-0" aria-hidden />
+                            Welcome video watched{" "}
+                            {new Date(selectedProfile.welcome_video_watched_at).toLocaleDateString(undefined, {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            })}
+                          </>
+                        ) : (
+                          <>
+                            <Circle className="h-3 w-3 shrink-0" aria-hidden />
+                            Welcome video not watched yet
+                          </>
+                        )}
+                      </p>
                       {grantError && <p className="text-xs text-red-400">{grantError}</p>}
                       {unlockingSession4 && (
                         <div className="space-y-0.5">
