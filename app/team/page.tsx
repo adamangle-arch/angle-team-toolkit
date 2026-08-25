@@ -36,6 +36,7 @@ import {
   GOAL_ITEMS_BY_PERIOD,
   GOAL_PERIODS,
   NOTIFICATION_KINDS,
+  effectiveResourcesForSession,
   type PipelineStageKey,
 } from "@/lib/constants";
 import { periodEndExclusive } from "@/lib/periodAverages";
@@ -66,6 +67,7 @@ import type {
   Goal,
   MonthlyPv,
   BudgetWorksheet,
+  OnboardingResourceOverride,
 } from "@/lib/types";
 
 type ViewMode = "members" | "teams" | "my-tree" | "whole-tree" | "diagnostics";
@@ -135,6 +137,8 @@ type MemberData = {
   goals: Goal[];
   monthlyPv: MonthlyPv | null;
   budgetWorksheet: BudgetWorksheet | null;
+  onboardingCompletions: { session: number; resource_label: string }[];
+  onboardingOverrides: OnboardingResourceOverride[];
 };
 
 export default function TeamPage() {
@@ -432,6 +436,8 @@ export default function TeamPage() {
         { data: calendarEvents },
         { data: callRatings },
         { data: goals },
+        { data: onboardingCompletions },
+        { data: onboardingOverrides },
         { data: monthlyPv },
         { data: budgetWorksheet },
         dailyRowsForPeriodResult,
@@ -476,6 +482,11 @@ export default function TeamPage() {
           .eq("user_id", selectedId)
           .order("created_at", { ascending: false }),
         supabase.from("goals").select("*").eq("user_id", selectedId),
+        supabase
+          .from("onboarding_resource_completions")
+          .select("session,resource_label")
+          .eq("user_id", selectedId),
+        supabase.from("onboarding_resource_overrides").select("*").eq("user_id", selectedId),
         // PV/Ditto is always tracked by calendar month regardless of
         // which period-type tab (daily/weekly/monthly) is selected above
         // - same as the Volume page itself, which has no period-type
@@ -527,6 +538,8 @@ export default function TeamPage() {
           goals: (goals as Goal[]) ?? [],
           monthlyPv: (monthlyPv as MonthlyPv) ?? null,
           budgetWorksheet: (budgetWorksheet as BudgetWorksheet) ?? null,
+          onboardingCompletions: (onboardingCompletions as { session: number; resource_label: string }[]) ?? [],
+          onboardingOverrides: (onboardingOverrides as OnboardingResourceOverride[]) ?? [],
         });
         setLoadingMember(false);
       }
@@ -550,6 +563,31 @@ export default function TeamPage() {
   const contactRequirementMet = networkContactCount >= SESSION_4_CONTACT_MINIMUM;
   const readingRequirementMet = Boolean(selectedProfile?.thinking_big_chapters_confirmed);
   const session4Gated = unlockingSession4 && (!contactRequirementMet || !readingRequirementMet);
+
+  // Same "resources actually completed, not just unlocked" progress
+  // read as the person's own Classroom page shows themselves (see
+  // overallTotal/overallDone in app/onboarding/page.tsx) - lets an
+  // upline see how much of what's unlocked someone has actually done,
+  // not just how many sessions are open to them.
+  const completedKeys = new Set(
+    (memberData?.onboardingCompletions ?? []).map((c) => `${c.session}:${c.resource_label}`)
+  );
+  const classroomUnlockedCount = Math.min(
+    selectedProfile?.onboarding_unlocked_through ?? 1,
+    ONBOARDING_SESSIONS.length
+  );
+  let classroomDone = selectedProfile?.welcome_video_watched_at ? 1 : 0;
+  let classroomTotal = 1;
+  for (let i = 0; i < classroomUnlockedCount; i++) {
+    const sessionNumber = i + 1;
+    const resources = effectiveResourcesForSession(
+      sessionNumber,
+      ONBOARDING_SESSIONS[i].resources,
+      memberData?.onboardingOverrides ?? []
+    );
+    classroomTotal += resources.length;
+    classroomDone += resources.filter((r) => completedKeys.has(`${sessionNumber}:${r.label}`)).length;
+  }
 
   // Reset the delete-confirmation fields whenever the selected member
   // changes, adjusted during render rather than in an effect.
@@ -1547,6 +1585,9 @@ export default function TeamPage() {
                           ONBOARDING_SESSIONS.length
                         )}
                         /{ONBOARDING_SESSIONS.length} sessions unlocked
+                      </p>
+                      <p className="text-xs text-slate-400">
+                        {classroomDone}/{classroomTotal} resources completed within those sessions
                       </p>
                       <p
                         className={`flex items-center gap-1 text-xs ${selectedProfile?.welcome_video_watched_at ? "text-slate-500" : "text-amber-light"}`}

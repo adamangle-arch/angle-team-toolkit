@@ -598,9 +598,16 @@ create table if not exists onboarding_resource_completions (
 
 alter table onboarding_resource_completions enable row level security;
 
+-- Widened from self-only to also let an upline (at any level) or admin
+-- read it - the Team page's member detail view shows a downline's
+-- Classroom resource-completion progress, same as it already shows
+-- their goals/streak/etc.
 drop policy if exists "onboarding_resource_completions_select_own" on onboarding_resource_completions;
-create policy "onboarding_resource_completions_select_own" on onboarding_resource_completions for select using (
+drop policy if exists "onboarding_resource_completions_select_own_or_upline_or_admin" on onboarding_resource_completions;
+create policy "onboarding_resource_completions_select_own_or_upline_or_admin" on onboarding_resource_completions for select using (
   user_id = auth.uid()
+  or public.is_upline_of(auth.uid(), user_id)
+  or public.is_app_admin()
 );
 
 drop policy if exists "onboarding_resource_completions_insert_own" on onboarding_resource_completions;
