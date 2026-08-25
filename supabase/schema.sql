@@ -8393,6 +8393,7 @@ for delete using (public.is_app_admin());
 -- this file), so the partner lookup checks both directions - same
 -- pattern get_individual_leaders() uses - and renders as "Alex & Laura"
 -- when a partner is found.
+drop function if exists public.get_public_team_testimonials();
 create or replace function public.get_public_team_testimonials()
 returns table (
   id uuid,
@@ -8433,6 +8434,7 @@ grant execute on function public.get_public_team_testimonials() to anon, authent
 -- above, just over the not-yet-approved rows instead. Gated by
 -- is_app_admin() in the where clause rather than a separate RLS policy -
 -- a non-admin calling this just gets an empty result, no error.
+drop function if exists public.get_pending_team_testimonials();
 create or replace function public.get_pending_team_testimonials()
 returns table (
   id uuid,
