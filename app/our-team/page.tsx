@@ -1,15 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import TestimonialCard from "@/components/TestimonialCard";
 import { supabase } from "@/lib/supabaseClient";
 import type { PublicTeamTestimonial } from "@/lib/types";
 
 // Public, unauthenticated page - no access code, no sign-in, meant to be
-// sent as a plain link (see the "Copy Link" button on /team-story). Same
+// sent as a plain link (see the "Copy Link" buttons on /team-story). Same
 // AuthGate exemption pattern as /prospect, so it renders standalone
 // instead of hitting the sign-in wall.
-export default function OurTeamPage() {
+//
+// An optional ?ids=a,b,c query param (from "Copy Link - Handpicked" on
+// /team-story) filters down to just those testimonials, in whatever
+// order they already sort in - no server change needed for this, since
+// every approved testimonial was already being fetched here anyway.
+function OurTeamContent() {
+  const searchParams = useSearchParams();
+  const idsParam = searchParams.get("ids");
   const [testimonials, setTestimonials] = useState<PublicTeamTestimonial[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,9 +27,15 @@ export default function OurTeamPage() {
         setError(error.message);
         return;
       }
-      setTestimonials((data as PublicTeamTestimonial[]) ?? []);
+      const all = (data as PublicTeamTestimonial[]) ?? [];
+      if (idsParam) {
+        const ids = new Set(idsParam.split(","));
+        setTestimonials(all.filter((t) => ids.has(t.id)));
+      } else {
+        setTestimonials(all);
+      }
     });
-  }, []);
+  }, [idsParam]);
 
   return (
     <>
@@ -51,5 +65,17 @@ export default function OurTeamPage() {
         )}
       </main>
     </>
+  );
+}
+
+export default function OurTeamPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex flex-1 items-center justify-center text-sm text-slate-400">Loading…</div>
+      }
+    >
+      <OurTeamContent />
+    </Suspense>
   );
 }

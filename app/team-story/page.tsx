@@ -25,7 +25,8 @@ export default function TeamStoryPage() {
   const [live, setLive] = useState<PublicTeamTestimonial[]>([]);
   const [mine, setMine] = useState<TeamTestimonial | null>(null);
   const [needsReview, setNeedsReview] = useState<PendingTeamTestimonial[]>([]);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<"all" | "selected" | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const [quote, setQuote] = useState("");
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
@@ -185,11 +186,23 @@ export default function TeamStoryPage() {
     );
   }
 
-  function copyLink() {
-    const url = `${window.location.origin}${PUBLIC_PATH}`;
+  function copyLink(which: "all" | "selected") {
+    const url =
+      which === "selected"
+        ? `${window.location.origin}${PUBLIC_PATH}?ids=${Array.from(selectedIds).join(",")}`
+        : `${window.location.origin}${PUBLIC_PATH}`;
     navigator.clipboard.writeText(url).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setCopied(which);
+      setTimeout(() => setCopied(null), 2000);
+    });
+  }
+
+  function toggleSelected(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
     });
   }
 
@@ -211,16 +224,34 @@ export default function TeamStoryPage() {
               <p className="text-xs text-slate-400">
                 This is its own public page — no access code, no sign-in. Send it to anyone,
                 anytime, whether or not they&apos;re already in your pipeline. It&apos;s never
-                required.
+                required. Check off specific stories below (in &quot;Live on the Page Now&quot;)
+                if you&apos;d rather send just a handpicked few instead of everyone.
               </p>
-              <button type="button" className="btn-secondary w-full" onClick={copyLink}>
-                {copied ? (
+              <button type="button" className="btn-secondary w-full" onClick={() => copyLink("all")}>
+                {copied === "all" ? (
                   <span className="flex items-center justify-center gap-1.5">
                     <Check className="h-4 w-4" aria-hidden /> Copied
                   </span>
                 ) : (
                   <span className="flex items-center justify-center gap-1.5">
-                    <Copy className="h-4 w-4" aria-hidden /> Copy Link
+                    <Copy className="h-4 w-4" aria-hidden /> Copy Link — All Testimonials
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                className="btn-secondary w-full"
+                onClick={() => copyLink("selected")}
+                disabled={selectedIds.size === 0}
+              >
+                {copied === "selected" ? (
+                  <span className="flex items-center justify-center gap-1.5">
+                    <Check className="h-4 w-4" aria-hidden /> Copied
+                  </span>
+                ) : (
+                  <span className="flex items-center justify-center gap-1.5">
+                    <Copy className="h-4 w-4" aria-hidden />
+                    Copy Link — {selectedIds.size > 0 ? `${selectedIds.size} Handpicked` : "Handpicked"}
                   </span>
                 )}
               </button>
@@ -341,27 +372,47 @@ export default function TeamStoryPage() {
                 </p>
               ) : isAdmin ? (
                 live.map((t, i) => (
-                  <AdminEditableTestimonial
-                    key={t.id}
-                    row={t}
-                    onUnpublish={() => unpublish(t.id)}
-                    onRemove={() => removeLive(t.id)}
-                    onSaved={() => setRefreshKey((k) => k + 1)}
-                    onMoveUp={i > 0 ? () => reorderLive(i, -1) : undefined}
-                    onMoveDown={i < live.length - 1 ? () => reorderLive(i, 1) : undefined}
-                  />
+                  <div key={t.id} className="flex items-start gap-2">
+                    <input
+                      type="checkbox"
+                      className="mt-4 h-4 w-4 shrink-0 accent-amber"
+                      checked={selectedIds.has(t.id)}
+                      onChange={() => toggleSelected(t.id)}
+                      aria-label={`Include ${t.author_name} in a handpicked link`}
+                    />
+                    <div className="flex-1">
+                      <AdminEditableTestimonial
+                        row={t}
+                        onUnpublish={() => unpublish(t.id)}
+                        onRemove={() => removeLive(t.id)}
+                        onSaved={() => setRefreshKey((k) => k + 1)}
+                        onMoveUp={i > 0 ? () => reorderLive(i, -1) : undefined}
+                        onMoveDown={i < live.length - 1 ? () => reorderLive(i, 1) : undefined}
+                      />
+                    </div>
+                  </div>
                 ))
               ) : (
                 live.map((t) => (
-                  <TestimonialCard
-                    key={t.id}
-                    authorName={t.author_name}
-                    photoUrl={t.photo_url}
-                    quote={t.quote}
-                    videoUrl={t.video_url}
-                    background={t.background}
-                    location={t.location}
-                  />
+                  <div key={t.id} className="flex items-start gap-2">
+                    <input
+                      type="checkbox"
+                      className="mt-4 h-4 w-4 shrink-0 accent-amber"
+                      checked={selectedIds.has(t.id)}
+                      onChange={() => toggleSelected(t.id)}
+                      aria-label={`Include ${t.author_name} in a handpicked link`}
+                    />
+                    <div className="flex-1">
+                      <TestimonialCard
+                        authorName={t.author_name}
+                        photoUrl={t.photo_url}
+                        quote={t.quote}
+                        videoUrl={t.video_url}
+                        background={t.background}
+                        location={t.location}
+                      />
+                    </div>
+                  </div>
                 ))
               )}
             </div>
