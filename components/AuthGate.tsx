@@ -381,7 +381,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   // account clicking a reset link would otherwise just get dropped
   // straight into the app instead of the password form. /our-team is the
   // same idea as /prospect but with no code at all - a plain shareable
-  // link to the Team Story page (see app/team-story), meant to work for
+  // link to the Testimonials page (see app/team-story), meant to work for
   // absolutely anyone it's sent to.
   if (pathname === "/prospect" || pathname === "/reset-password" || pathname === "/our-team") {
     return <>{children}</>;

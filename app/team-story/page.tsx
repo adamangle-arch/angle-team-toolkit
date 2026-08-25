@@ -198,7 +198,7 @@ export default function TeamStoryPage() {
   return (
     <FeatureGate minSession={1}>
       <PageHeader
-        title="Team Story"
+        title="Testimonials"
         subtitle="What our team means to us — not just Amway. Totally optional to send."
       />
       <main className="page-main">

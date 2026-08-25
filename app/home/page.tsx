@@ -199,7 +199,7 @@ const HOME_ITEMS: { href: string; label: string; icon: LucideIcon; description: 
   { href: "/ideas", label: "Innovation Box", icon: Lightbulb, description: "Ask questions, share ideas." },
   {
     href: "/team-story",
-    label: "Team Story",
+    label: "Testimonials",
     icon: HeartHandshake,
     description: "What the team means to us - optional to share.",
   },

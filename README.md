@@ -1487,12 +1487,12 @@ Income / Self / Team) is a static image (`public/9-core-steps.jpg`,
 served via `next/image`) in its own card at the top of the Process tab —
 first thing anyone sees, ahead of the pre-launch stages below it.
 
-### Team Story
+### Testimonials
 
 A shareable page about the *team*, not Amway as a company — the
 differentiator IBOs actually lean on early in the process.
 
-- **`/team-story`** (in-app, on the Home hub grid) — any IBO can submit
+- **`/team-story`** (labeled "Testimonials" in-app, on the Home hub grid) — any IBO can submit
   their own story: a quote, an optional photo, an optional video link.
   Saving (or editing an already-live one) sends it to an admin for
   approval — an author can never publish their own edit directly. Admins
