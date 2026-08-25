@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Copy } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, Copy } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
 import FeatureGate from "@/components/FeatureGate";
@@ -169,6 +169,22 @@ export default function TeamStoryPage() {
     if (error) setError(error.message);
   }
 
+  // Swaps two adjacent cards, then writes explicit sequential 0..n-1
+  // display_order values across the whole live list at once - avoids
+  // ever having a mix of some rows manually ordered and some still
+  // falling back to created_at, which would make the next reorder
+  // unpredictable.
+  async function reorderLive(index: number, direction: -1 | 1) {
+    const swapIndex = index + direction;
+    if (swapIndex < 0 || swapIndex >= live.length) return;
+    const next = [...live];
+    [next[index], next[swapIndex]] = [next[swapIndex], next[index]];
+    setLive(next);
+    await Promise.all(
+      next.map((t, i) => supabase.from("team_testimonials").update({ display_order: i }).eq("id", t.id))
+    );
+  }
+
   function copyLink() {
     const url = `${window.location.origin}${PUBLIC_PATH}`;
     navigator.clipboard.writeText(url).then(() => {
@@ -324,13 +340,15 @@ export default function TeamStoryPage() {
                   Nothing&apos;s live yet — be the first to add your story above.
                 </p>
               ) : isAdmin ? (
-                live.map((t) => (
+                live.map((t, i) => (
                   <AdminEditableTestimonial
                     key={t.id}
                     row={t}
                     onUnpublish={() => unpublish(t.id)}
                     onRemove={() => removeLive(t.id)}
                     onSaved={() => setRefreshKey((k) => k + 1)}
+                    onMoveUp={i > 0 ? () => reorderLive(i, -1) : undefined}
+                    onMoveDown={i < live.length - 1 ? () => reorderLive(i, 1) : undefined}
                   />
                 ))
               ) : (
@@ -365,12 +383,16 @@ function AdminEditableTestimonial({
   onUnpublish,
   onRemove,
   onSaved,
+  onMoveUp,
+  onMoveDown,
 }: {
   row: { id: string; author_name: string; photo_url: string | null; quote: string; video_url: string | null; background: string | null; location: string | null };
   onApprove?: () => void;
   onUnpublish?: () => void;
   onRemove: () => void;
   onSaved: () => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
 }) {
   const [quote, setQuote] = useState(row.quote);
   const [background, setBackground] = useState(row.background ?? "");
@@ -407,12 +429,36 @@ function AdminEditableTestimonial({
 
   return (
     <div className="space-y-2 rounded-xl border border-white/10 p-3">
-      <div className="flex items-center gap-2">
-        {row.photo_url && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={row.photo_url} alt={row.author_name} className="h-10 w-10 rounded-full object-cover" />
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          {row.photo_url && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={row.photo_url} alt={row.author_name} className="h-10 w-10 rounded-full object-cover" />
+          )}
+          <p className="text-sm font-semibold text-white">{row.author_name}</p>
+        </div>
+        {(onMoveUp || onMoveDown) && (
+          <div className="flex shrink-0 gap-1">
+            <button
+              type="button"
+              className="chip-btn h-8 w-8 !p-0"
+              aria-label="Move up"
+              onClick={onMoveUp}
+              disabled={!onMoveUp}
+            >
+              <ChevronUp className="mx-auto h-4 w-4" aria-hidden />
+            </button>
+            <button
+              type="button"
+              className="chip-btn h-8 w-8 !p-0"
+              aria-label="Move down"
+              onClick={onMoveDown}
+              disabled={!onMoveDown}
+            >
+              <ChevronDown className="mx-auto h-4 w-4" aria-hidden />
+            </button>
+          </div>
         )}
-        <p className="text-sm font-semibold text-white">{row.author_name}</p>
       </div>
       <textarea className="textarea min-h-24" value={quote} onChange={(e) => setQuote(e.target.value)} />
       <textarea

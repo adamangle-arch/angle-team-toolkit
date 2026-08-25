@@ -8350,6 +8350,15 @@ create table if not exists team_testimonials (
 alter table team_testimonials add column if not exists background text;
 alter table team_testimonials add column if not exists location text;
 
+-- Admin-controlled display order on the public page - null (the
+-- default, every existing row before this) falls back to newest-first
+-- via the "nulls last" + created_at tiebreak below, so nothing needs
+-- backfilling. The moment an admin reorders anything on /team-story, the
+-- client writes explicit sequential 0..n-1 values across every live
+-- testimonial at once (see reorderLive in app/team-story/page.tsx), so
+-- there's never a mix of some rows ordered and some not.
+alter table team_testimonials add column if not exists display_order int;
+
 alter table team_testimonials enable row level security;
 
 drop policy if exists "team_testimonials_select_own_or_admin" on team_testimonials;
@@ -8423,7 +8432,7 @@ as $$
   join profiles p on p.id = t.author_id
   left join profiles partner on partner.id = p.household_id or partner.household_id = p.id
   where t.approved = true
-  order by t.created_at desc;
+  order by t.display_order asc nulls last, t.created_at desc;
 $$;
 
 grant execute on function public.get_public_team_testimonials() to anon, authenticated;
