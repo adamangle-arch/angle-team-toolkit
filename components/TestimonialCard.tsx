@@ -36,13 +36,10 @@ export default function TestimonialCard({
       )}
       <div>
         <p className="text-sm font-semibold text-white">{authorName}</p>
-        {(background || location) && (
-          <p className="text-xs text-slate-400">
-            {[background, location].filter(Boolean).join(" · ")}
-          </p>
-        )}
+        {location && <p className="text-xs text-slate-400">{location}</p>}
       </div>
-      <p className="text-sm text-slate-300">{quote}</p>
+      {background && <p className="whitespace-pre-line text-xs text-slate-400">{background}</p>}
+      <p className="whitespace-pre-line text-sm text-slate-300">{quote}</p>
       {youtubeId && (
         <div className="aspect-video w-full overflow-hidden rounded-xl bg-black">
           <iframe

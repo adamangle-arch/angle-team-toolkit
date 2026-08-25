@@ -246,20 +246,18 @@ export default function TeamStoryPage() {
                 value={quote}
                 onChange={(e) => setQuote(e.target.value)}
               />
-              <div className="grid grid-cols-2 gap-2">
-                <input
-                  className="input"
-                  placeholder="Background"
-                  value={background}
-                  onChange={(e) => setBackground(e.target.value)}
-                />
-                <input
-                  className="input"
-                  placeholder="Location"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                />
-              </div>
+              <textarea
+                className="textarea min-h-20"
+                placeholder="Background (careers, education, family - both spouses if that's you)"
+                value={background}
+                onChange={(e) => setBackground(e.target.value)}
+              />
+              <input
+                className="input"
+                placeholder="Location"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+              />
               <div className="flex items-center gap-3">
                 {photoUrl && (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -417,20 +415,18 @@ function AdminEditableTestimonial({
         <p className="text-sm font-semibold text-white">{row.author_name}</p>
       </div>
       <textarea className="textarea min-h-24" value={quote} onChange={(e) => setQuote(e.target.value)} />
-      <div className="grid grid-cols-2 gap-2">
-        <input
-          className="input"
-          placeholder="Background"
-          value={background}
-          onChange={(e) => setBackground(e.target.value)}
-        />
-        <input
-          className="input"
-          placeholder="Location"
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
-        />
-      </div>
+      <textarea
+        className="textarea min-h-20"
+        placeholder="Background (careers, education, family)"
+        value={background}
+        onChange={(e) => setBackground(e.target.value)}
+      />
+      <input
+        className="input"
+        placeholder="Location"
+        value={location}
+        onChange={(e) => setLocation(e.target.value)}
+      />
       <input
         className="input"
         placeholder="YouTube link (optional)"
