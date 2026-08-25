@@ -90,7 +90,7 @@ export default function TeamStoryPage() {
 
   async function save() {
     const trimmed = quote.trim();
-    if (!trimmed) return;
+    if (!trimmed || !background.trim() || !location.trim() || !photoUrl) return;
     const trimmedVideo = videoUrl.trim();
     if (trimmedVideo && !extractYoutubeId(trimmedVideo)) {
       setError("That doesn't look like a YouTube link - paste the full youtube.com or youtu.be URL.");
@@ -236,8 +236,9 @@ export default function TeamStoryPage() {
                 )}
               </div>
               <p className="text-xs text-slate-400">
-                What has this team specifically done for you? Saving (or editing) sends it to an
-                admin for approval before it goes on the public page.
+                What has this team specifically done for you? Story, background, location, and a
+                photo are all required - only the YouTube link is optional. Saving (or editing)
+                sends it to an admin for approval before it goes on the public page.
               </p>
               <textarea
                 className="textarea min-h-32"
@@ -248,13 +249,13 @@ export default function TeamStoryPage() {
               <div className="grid grid-cols-2 gap-2">
                 <input
                   className="input"
-                  placeholder="Background (optional)"
+                  placeholder="Background"
                   value={background}
                   onChange={(e) => setBackground(e.target.value)}
                 />
                 <input
                   className="input"
-                  placeholder="Location (optional)"
+                  placeholder="Location"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
                 />
@@ -269,7 +270,7 @@ export default function TeamStoryPage() {
                   />
                 )}
                 <label className="chip-btn cursor-pointer">
-                  {uploadingPhoto ? "Uploading..." : photoUrl ? "Change Photo" : "Add Photo (optional)"}
+                  {uploadingPhoto ? "Uploading..." : photoUrl ? "Change Photo" : "Add Photo"}
                   <input
                     type="file"
                     accept="image/*"
@@ -291,7 +292,7 @@ export default function TeamStoryPage() {
                   type="button"
                   className="btn-primary flex-1"
                   onClick={save}
-                  disabled={saving || !quote.trim()}
+                  disabled={saving || !quote.trim() || !background.trim() || !location.trim() || !photoUrl}
                 >
                   {saving ? "Saving..." : mine ? "Save Changes" : "Submit"}
                 </button>
@@ -381,6 +382,7 @@ function AdminEditableTestimonial({
   const [error, setError] = useState<string | null>(null);
 
   async function save() {
+    if (!quote.trim() || !background.trim() || !location.trim()) return;
     const trimmedVideo = videoUrl.trim();
     if (trimmedVideo && !extractYoutubeId(trimmedVideo)) {
       setError("That doesn't look like a YouTube link - paste the full youtube.com or youtu.be URL.");
@@ -418,13 +420,13 @@ function AdminEditableTestimonial({
       <div className="grid grid-cols-2 gap-2">
         <input
           className="input"
-          placeholder="Background (optional)"
+          placeholder="Background"
           value={background}
           onChange={(e) => setBackground(e.target.value)}
         />
         <input
           className="input"
-          placeholder="Location (optional)"
+          placeholder="Location"
           value={location}
           onChange={(e) => setLocation(e.target.value)}
         />
@@ -435,13 +437,29 @@ function AdminEditableTestimonial({
         value={videoUrl}
         onChange={(e) => setVideoUrl(e.target.value)}
       />
+      {!row.photo_url && (
+        <p className="text-xs text-slate-500">
+          No photo yet - only they can add one (only they have the upload permission for their own
+          folder). Can&apos;t approve until it&apos;s there.
+        </p>
+      )}
       {error && <p className="text-xs text-red-400">{error}</p>}
       <div className="flex flex-wrap gap-2">
-        <button type="button" className="btn-secondary" onClick={save} disabled={saving}>
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={save}
+          disabled={saving || !quote.trim() || !background.trim() || !location.trim()}
+        >
           {saving ? "Saving..." : "Save"}
         </button>
         {onApprove && (
-          <button type="button" className="btn-primary flex-1" onClick={onApprove}>
+          <button
+            type="button"
+            className="btn-primary flex-1"
+            onClick={onApprove}
+            disabled={!quote.trim() || !background.trim() || !location.trim() || !row.photo_url}
+          >
             Approve
           </button>
         )}
