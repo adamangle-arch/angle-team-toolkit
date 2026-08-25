@@ -11,9 +11,14 @@ import type { PublicTeamTestimonial } from "@/lib/types";
 // instead of hitting the sign-in wall.
 export default function OurTeamPage() {
   const [testimonials, setTestimonials] = useState<PublicTeamTestimonial[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase.rpc("get_public_team_testimonials").then(({ data }) => {
+    supabase.rpc("get_public_team_testimonials").then(({ data, error }) => {
+      if (error) {
+        setError(error.message);
+        return;
+      }
       setTestimonials((data as PublicTeamTestimonial[]) ?? []);
     });
   }, []);
@@ -24,7 +29,9 @@ export default function OurTeamPage() {
         <h1 className="app-title">What our team means to the people in it</h1>
       </header>
       <main className="page-main">
-        {testimonials === null ? (
+        {error ? (
+          <p className="text-sm text-red-400">Couldn&apos;t load this page — {error}</p>
+        ) : testimonials === null ? (
           <div className="flex flex-1 items-center justify-center text-sm text-slate-400">Loading…</div>
         ) : testimonials.length === 0 ? (
           <p className="text-sm text-slate-400">Nothing to show yet — check back soon.</p>
