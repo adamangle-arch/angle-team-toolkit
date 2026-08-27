@@ -866,6 +866,39 @@ export type StoryPost = {
   created_at: string;
 };
 
+// Grocery-store ad sales lead gen (/leads) - see isLeadsToolOwner() in
+// lib/constants.ts. Owned entirely by user_id, no household/upline
+// sharing like the rest of this file's types.
+export type Lead = {
+  id: string;
+  user_id: string;
+  business_name: string;
+  category: string;
+  address: string;
+  phone: string;
+  website: string;
+  lat: number | null;
+  lng: number | null;
+  google_place_id: string | null;
+  status: string;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+};
+
+// A single Google Places result from POST /api/leads/discover - not yet
+// saved to `leads`; the client inserts whichever of these someone picks.
+export type DiscoveredBusiness = {
+  google_place_id: string;
+  business_name: string;
+  category: string;
+  address: string;
+  phone: string;
+  website: string;
+  lat: number | null;
+  lng: number | null;
+};
+
 export type StoryComment = {
   id: string;
   user_id: string;

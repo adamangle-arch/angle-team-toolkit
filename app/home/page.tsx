@@ -40,6 +40,7 @@ import {
   Leaf,
   Sprout,
   Clock,
+  Megaphone,
   type LucideIcon,
 } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
@@ -51,7 +52,7 @@ import { useAuth } from "@/components/AuthGate";
 import { minSessionFor } from "@/lib/onboarding-gate";
 import { supabase } from "@/lib/supabaseClient";
 import { getWeekStart, getToday } from "@/lib/dates";
-import { ONBOARDING_SESSIONS, type ThemeColor } from "@/lib/constants";
+import { ONBOARDING_SESSIONS, isLeadsToolOwner, type ThemeColor } from "@/lib/constants";
 import type { MyRankEntry } from "@/lib/types";
 
 // Plain wording, not a status enum lookup like BottomNav's dot colors -
@@ -246,7 +247,16 @@ export default function HomePage() {
   // onWatched below) so the AuthGate-level value (and everything else
   // derived from it, like Onboarding Session 1's own lock) catches up too.
   const [videoWatched, setVideoWatched] = useState(Boolean(welcomeVideoWatchedAt));
-  const visibleItems = HOME_ITEMS.filter((item) => unlockedThrough >= minSessionFor(item.href));
+  // Ad Sales Leads is Adam's own separate side business, not part of the
+  // LTD onboarding curriculum the rest of this grid gates on - shown to
+  // him alone, regardless of unlockedThrough, rather than folded into the
+  // session-gated filter below.
+  const visibleItems = [
+    ...HOME_ITEMS.filter((item) => unlockedThrough >= minSessionFor(item.href)),
+    ...(isLeadsToolOwner(user.email)
+      ? [{ href: "/leads", label: "Ad Sales Leads", icon: Megaphone, description: "Grocery-store TV ad prospects." }]
+      : []),
+  ];
   const flavorTiles = FLAVOR_TILES[themeColor];
   const shineTiles = SHINE_THEMES.includes(themeColor);
   // Pipeline and Assistant are session-gated everywhere else (BottomNav,

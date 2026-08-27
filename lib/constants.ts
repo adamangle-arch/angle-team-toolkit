@@ -33,6 +33,41 @@ export function isBadgeExcluded(email: string | null | undefined): boolean {
   return BADGE_EXCLUDED_EMAILS.some((e) => e.toLowerCase() === normalized);
 }
 
+// Grocery-store checkout-TV ad sales lead gen (/leads) is Adam's own
+// separate side business, not the LTD business the rest of this app
+// supports - unlike everything else here, it's gated to this one account
+// rather than shared team-wide or even admin-wide (see the RLS policies
+// on `leads` in supabase/schema.sql, which give it no admin bypass at
+// all), so it never shows up for Alex/Laura or any other team member.
+const LEADS_TOOL_OWNER_EMAIL = "adamangle@icloud.com";
+
+export function isLeadsToolOwner(email: string | null | undefined): boolean {
+  const normalized = (email ?? "").trim().toLowerCase();
+  return normalized === LEADS_TOOL_OWNER_EMAIL;
+}
+
+// Business categories worth pitching a checkout-TV ad, each mapped to a
+// Google Places "type" where one exists (used as the `type` param on a
+// Nearby Search - see app/api/leads/discover/route.ts) so results come
+// back tightly scoped instead of relying on a fuzzy keyword match.
+// "Other" has no type - it searches by keyword instead.
+export const LEAD_CATEGORIES = [
+  { key: "restaurant", label: "Restaurants & Cafes", placeType: "restaurant" },
+  { key: "salon", label: "Salons & Spas", placeType: "hair_care" },
+  { key: "auto_repair", label: "Auto Repair", placeType: "car_repair" },
+  { key: "real_estate", label: "Real Estate", placeType: "real_estate_agency" },
+  { key: "dental_medical", label: "Dental & Medical", placeType: "dentist" },
+  { key: "fitness", label: "Fitness & Gyms", placeType: "gym" },
+  { key: "home_services", label: "Home Services", placeType: "home_goods_store" },
+  { key: "retail", label: "Retail & Boutiques", placeType: "clothing_store" },
+  { key: "financial", label: "Financial & Insurance", placeType: "insurance_agency" },
+  { key: "other", label: "Other Local Business", placeType: null },
+] as const;
+export type LeadCategoryKey = (typeof LEAD_CATEGORIES)[number]["key"];
+
+export const LEAD_STATUSES = ["New", "Contacted", "Responded", "Not Interested", "Customer"] as const;
+export type LeadStatus = (typeof LEAD_STATUSES)[number];
+
 // Meeting types the Rate a Call feature can score, each against its own
 // rubric (lib/<type>-call-rating-prompt.txt) — must match the
 // call_ratings.call_type check constraint in supabase/schema.sql.

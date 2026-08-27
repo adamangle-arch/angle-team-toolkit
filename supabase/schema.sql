@@ -8548,3 +8548,54 @@ as $$
 $$;
 
 grant execute on function public.get_my_claimed_candidate_code() to authenticated;
+
+-- ============================================================
+-- 29. GROCERY-STORE AD SALES LEADS
+-- A completely separate side business (Adam's cash-register-TV ad sales,
+-- not the LTD business every other table in this file supports) - gated
+-- app-side to a single owner (isLeadsToolOwner() in lib/constants.ts),
+-- so unlike `contacts`/`monthly_pv`/etc. this deliberately does NOT join
+-- the household-shareable or upline/admin-readable RLS loops above: it's
+-- one person's own prospect list, not team data, and no one else
+-- (including other admins) should be able to read it.
+-- ============================================================
+create table if not exists leads (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  business_name text not null,
+  category text not null default 'Other',
+  address text not null default '',
+  phone text not null default '',
+  website text not null default '',
+  lat double precision,
+  lng double precision,
+  -- Set when this row came from a Google Places search (see
+  -- /api/leads/discover) - null for a manually-typed lead. Unique per
+  -- user so re-running the same search doesn't create duplicate rows.
+  google_place_id text,
+  status text not null default 'New',
+  notes text not null default '',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table leads drop constraint if exists leads_status_check;
+alter table leads add constraint leads_status_check check (
+  status in ('New', 'Contacted', 'Responded', 'Not Interested', 'Customer')
+);
+
+create unique index if not exists leads_user_place_unique on leads(user_id, google_place_id) where google_place_id is not null;
+
+alter table leads enable row level security;
+
+drop policy if exists "leads_select_own" on leads;
+create policy "leads_select_own" on leads for select using (user_id = auth.uid());
+
+drop policy if exists "leads_insert_own" on leads;
+create policy "leads_insert_own" on leads for insert with check (user_id = auth.uid());
+
+drop policy if exists "leads_update_own" on leads;
+create policy "leads_update_own" on leads for update using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+drop policy if exists "leads_delete_own" on leads;
+create policy "leads_delete_own" on leads for delete using (user_id = auth.uid());
