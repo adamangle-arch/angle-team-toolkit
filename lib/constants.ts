@@ -749,6 +749,11 @@ export const ONBOARDING_SESSIONS: OnboardingSession[] = [
         url: "https://www.dropbox.com/scl/fi/uk77jor2r0zbqjqewy81c/List-Builder.jpg?rlkey=5ddroczo5hp2mhzlqdb9mbzsz&st=vel3s2wu&dl=0",
       },
       {
+        label: "📋 Build Your List (in-app)",
+        detail: "Add names straight into your Contact Builder as you go through the worksheet — your mentor can see it fill in.",
+        url: "/contacts",
+      },
+      {
         label: "🎧 Crush Your List",
         detail: "Audio by Jim Mueller and John Resch — listen before working through your worksheet.",
         url: "https://www.dropbox.com/scl/fi/u0882axmar8z7hqasf110/Crudh-your-List.m4a?rlkey=rjqmmqtn30vqpkwi1liyjosgk&st=ikn3lgnt&dl=0",
