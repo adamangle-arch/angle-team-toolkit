@@ -641,11 +641,6 @@ export default function BudgetPage() {
                   </span>
                 )}
               </button>
-              <p className="text-xs text-slate-500">
-                Your upline can already see your numbers at any time to help coach you — same as your
-                Pipeline and Core Run numbers — but this copies a plain-text summary too, in case you&apos;d
-                rather send it directly.
-              </p>
             </div>
           </>
         )}
