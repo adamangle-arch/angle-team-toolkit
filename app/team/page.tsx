@@ -37,6 +37,13 @@ import {
   GOAL_PERIODS,
   NOTIFICATION_KINDS,
   effectiveResourcesForSession,
+  BUDGET_INCOME_ITEMS,
+  BUDGET_FIXED_EXPENSE_ITEMS,
+  BUDGET_VARIABLE_EXPENSE_ITEMS,
+  BUDGET_DEBT_ITEMS,
+  BUDGET_INVESTMENT_ITEMS,
+  BUDGET_SAVINGS_ITEMS,
+  BUDGET_DUE_HALVES,
   type PipelineStageKey,
 } from "@/lib/constants";
 import { periodEndExclusive } from "@/lib/periodAverages";
@@ -174,6 +181,7 @@ export default function TeamPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [memberData, setMemberData] = useState<MemberData | null>(null);
   const [loadingMember, setLoadingMember] = useState(false);
+  const [showFullBudget, setShowFullBudget] = useState(false);
   // A linked spouse's own sponsorship line needs folding into "My Tree"/
   // "My Upline" - unlike the Members list (a flat filter over whatever
   // profiles RLS already returns), those two are built by literally
@@ -596,6 +604,7 @@ export default function TeamPage() {
     setSyncedSelectedId(selectedId);
     setConfirmEmail("");
     setDeleteError("");
+    setShowFullBudget(false);
   }
 
   async function handleGrantOnboarding() {
@@ -1355,6 +1364,16 @@ export default function TeamPage() {
                           </div>
                         );
                       })()}
+                      <button
+                        type="button"
+                        className="flex items-center gap-1 text-xs text-amber-light"
+                        onClick={() => setShowFullBudget((prev) => !prev)}
+                      >
+                        {showFullBudget ? "▾" : "▸"} {showFullBudget ? "Hide" : "View"} Full Budget
+                      </button>
+                      {showFullBudget && (
+                        <BudgetLineItemBreakdown worksheet={memberData.budgetWorksheet} />
+                      )}
                     </>
                   ) : (
                     <p className="text-xs text-slate-500">Not started yet.</p>
@@ -1718,5 +1737,84 @@ export default function TeamPage() {
         )}
       </main>
     </FeatureGate>
+  );
+}
+
+// Read-only line-item breakdown of a downline member's Budget Session
+// worksheet - the summary card above only ever showed the three
+// Cash Flow totals (see computeBudgetTotals in lib/budget.ts); this is
+// everything underneath those totals, same category labels as the
+// person's own editing page (app/budget/page.tsx), skipping any item
+// left at zero so this doesn't turn into a wall of blank rows.
+function BudgetLineItemBreakdown({ worksheet }: { worksheet: BudgetWorksheet }) {
+  const dueLabel = (due: "first_half" | "second_half" | null) =>
+    due ? ` (due ${BUDGET_DUE_HALVES.find((h) => h.key === due)?.label})` : "";
+
+  const incomeRows = BUDGET_INCOME_ITEMS.map((item) => ({
+    label: item.label,
+    amount: worksheet.income[item.slug] ?? 0,
+  })).filter((r) => r.amount);
+
+  const fixedRows = BUDGET_FIXED_EXPENSE_ITEMS.map((item) => {
+    const entry = worksheet.fixed_expenses[item.slug];
+    return { label: item.label, amount: entry?.amount ?? 0, suffix: dueLabel(entry?.due ?? null) };
+  }).filter((r) => r.amount);
+
+  const variableRows = BUDGET_VARIABLE_EXPENSE_ITEMS.map((item) => ({
+    label: item.label,
+    amount: worksheet.variable_expenses[item.slug] ?? 0,
+  })).filter((r) => r.amount);
+
+  const debtRows = BUDGET_DEBT_ITEMS.map((item) => {
+    const entry = worksheet.debts[item.slug];
+    return {
+      label: item.label,
+      amount: entry?.payment ?? 0,
+      suffix: entry?.total_owed
+        ? ` (${entry.total_owed.toLocaleString()} owed${entry.interest_rate ? ` @ ${entry.interest_rate}%` : ""})`
+        : "",
+    };
+  }).filter((r) => r.amount || r.suffix);
+
+  const investmentRows = BUDGET_INVESTMENT_ITEMS.map((item) => ({
+    label: item.label,
+    amount: worksheet.business_investments[item.slug] ?? 0,
+  })).filter((r) => r.amount);
+
+  const savingsRows = BUDGET_SAVINGS_ITEMS.map((item) => ({
+    label: item.label,
+    amount: worksheet.savings[item.slug] ?? 0,
+  })).filter((r) => r.amount);
+
+  const sections = [
+    { title: "Income", rows: incomeRows },
+    { title: "Fixed Expenses", rows: fixedRows },
+    { title: "Variable Expenses", rows: variableRows },
+    { title: "Debt", rows: debtRows },
+    { title: "Business Investments", rows: investmentRows },
+    { title: "Savings", rows: savingsRows },
+  ].filter((s) => s.rows.length > 0);
+
+  if (sections.length === 0) {
+    return <p className="text-xs text-slate-500">Every line item is still at zero.</p>;
+  }
+
+  return (
+    <div className="space-y-2">
+      {sections.map((section) => (
+        <div key={section.title}>
+          <p className="text-xs font-semibold text-slate-300">{section.title}</p>
+          {section.rows.map((r, i) => (
+            <div key={i} className="flex items-center justify-between text-xs text-slate-400">
+              <span>
+                {r.label}
+                {"suffix" in r ? r.suffix : ""}
+              </span>
+              <span className="font-medium text-slate-200">${r.amount.toLocaleString()}</span>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
   );
 }
