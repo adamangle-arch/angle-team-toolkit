@@ -40,7 +40,7 @@ function OurTeamContent() {
   return (
     <>
       <header className="app-header">
-        <h1 className="app-title">What our team means to the people in it</h1>
+        <h1 className="app-title">Team Impact</h1>
       </header>
       <main className="page-main">
         {error ? (
