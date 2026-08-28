@@ -2,12 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Download, Trash2, Phone, Globe, MapPin, Plus } from "lucide-react";
+import { Search, Download, Trash2, Phone, Globe, MapPin, Plus, EyeOff } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
 import { SkeletonList } from "@/components/Skeleton";
 import { supabase } from "@/lib/supabaseClient";
 import { LEAD_CATEGORIES, LEAD_STATUSES, isLeadsToolOwner } from "@/lib/constants";
+import { getLeadsHiddenForDemo, setLeadsHiddenForDemo } from "@/lib/demoMode";
 import type { Lead, DiscoveredBusiness } from "@/lib/types";
 
 const RADIUS_OPTIONS = [5, 10, 15, 25];
@@ -36,6 +37,22 @@ export default function LeadsPage() {
   useEffect(() => {
     if (!isOwner) router.replace("/home");
   }, [isOwner, router]);
+
+  // See lib/demoMode.ts - a local-only switch to pull the Home tile for
+  // this before showing the app to a prospect, flipped from the button
+  // below rather than anywhere it'd need a round trip to Supabase.
+  const [hiddenForDemo, setHiddenForDemo] = useState(false);
+  useEffect(() => {
+    function syncFromStorage() {
+      setHiddenForDemo(getLeadsHiddenForDemo());
+    }
+    syncFromStorage();
+  }, []);
+
+  function hideForDemo() {
+    setLeadsHiddenForDemo(true);
+    router.push("/home");
+  }
 
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
@@ -237,6 +254,26 @@ export default function LeadsPage() {
     <>
       <PageHeader title="Ad Sales Leads" subtitle="Find and track local businesses for checkout-TV ads" />
       <main className="page-main">
+        {hiddenForDemo ? (
+          <div className="card flex items-center justify-between gap-3">
+            <p className="text-xs text-slate-300">Hidden from the Home menu on this device.</p>
+            <button
+              className="chip-btn shrink-0"
+              onClick={() => {
+                setLeadsHiddenForDemo(false);
+                setHiddenForDemo(false);
+              }}
+            >
+              Unhide
+            </button>
+          </div>
+        ) : (
+          <button className="chip-btn flex w-fit items-center gap-1.5" onClick={hideForDemo}>
+            <EyeOff className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
+            Hide before showing a prospect
+          </button>
+        )}
+
         <div className="card space-y-3">
           <p className="section-title">Find Businesses</p>
           <input
