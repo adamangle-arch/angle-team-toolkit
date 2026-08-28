@@ -8599,3 +8599,170 @@ create policy "leads_update_own" on leads for update using (user_id = auth.uid()
 
 drop policy if exists "leads_delete_own" on leads;
 create policy "leads_delete_own" on leads for delete using (user_id = auth.uid());
+
+-- Google Places has never returned an email address (not even in Place
+-- Details) - this is filled in by the free website-scraping step in
+-- /api/leads/discover (or typed in manually), separate from the search
+-- results themselves.
+alter table leads add column if not exists email text not null default '';
+
+-- ============================================================
+-- 30. AD SALES: STORES + PUBLIC AVAILABILITY/INTEREST
+-- The master list of grocery stores Adam has checkout-TV access to (kept
+-- as a Google Sheet outside this app - see get_public_store_availability
+-- below and /api/stores/sync for how it gets in here), each with how
+-- many ad spaces are still open. Same single-owner isolation as `leads`
+-- - no admin/team sharing.
+-- ============================================================
+create table if not exists stores (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  name text not null,
+  address text not null default '',
+  lat double precision,
+  lng double precision,
+  spaces_total int not null default 0,
+  spaces_available int not null default 0,
+  -- The source sheet's row number (2-based - row 1 is the header), so a
+  -- re-sync updates the same store instead of creating a duplicate. Not
+  -- a real external id since these sheets don't have one of their own.
+  sheet_row int,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create unique index if not exists stores_user_sheet_row_unique on stores(user_id, sheet_row) where sheet_row is not null;
+
+alter table stores enable row level security;
+
+drop policy if exists "stores_select_own" on stores;
+create policy "stores_select_own" on stores for select using (user_id = auth.uid());
+drop policy if exists "stores_insert_own" on stores;
+create policy "stores_insert_own" on stores for insert with check (user_id = auth.uid());
+drop policy if exists "stores_update_own" on stores;
+create policy "stores_update_own" on stores for update using (user_id = auth.uid()) with check (user_id = auth.uid());
+drop policy if exists "stores_delete_own" on stores;
+create policy "stores_delete_own" on stores for delete using (user_id = auth.uid());
+
+-- Which store a lead was discovered near - lets a synced business's
+-- outreach link (see get_public_store_availability below) point at the
+-- right store instead of asking Adam to remember which search it came
+-- from. Null for a manually-added lead.
+alter table leads add column if not exists store_id uuid references stores(id) on delete set null;
+
+-- Plain haversine distance in miles - no PostGIS/earthdistance extension
+-- needed for "how far apart are two stores," which is all this is used
+-- for (get_public_store_availability's radius filter below).
+create or replace function public.miles_between(lat1 double precision, lng1 double precision, lat2 double precision, lng2 double precision)
+returns double precision
+language sql
+immutable
+as $$
+  select 3959 * acos(
+    greatest(-1, least(1,
+      cos(radians(lat1)) * cos(radians(lat2)) * cos(radians(lng2) - radians(lng1))
+      + sin(radians(lat1)) * sin(radians(lat2))
+    ))
+  );
+$$;
+
+-- Powers the public link included in outreach emails: given the store a
+-- lead was found near, list that store plus any others (same owner)
+-- within p_radius_miles, with how many spaces are open at each. Only
+-- ever returns name/address/spaces_available - no user_id, no lead data,
+-- nothing that isn't meant to be public - safe to grant to anon.
+create or replace function public.get_public_store_availability(p_store_id uuid, p_radius_miles double precision default 50)
+returns table (
+  id uuid,
+  name text,
+  address text,
+  spaces_available int
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select s2.id, s2.name, s2.address, s2.spaces_available
+  from stores s1
+  join stores s2 on s2.user_id = s1.user_id
+  where s1.id = p_store_id
+    and (
+      s2.id = s1.id
+      or (
+        s1.lat is not null and s1.lng is not null and s2.lat is not null and s2.lng is not null
+        and public.miles_between(s1.lat, s1.lng, s2.lat, s2.lng) <= p_radius_miles
+      )
+    )
+  order by s2.spaces_available desc, s2.name asc;
+$$;
+
+grant execute on function public.get_public_store_availability(uuid, double precision) to anon, authenticated;
+
+-- A business that clicked the "I'm interested" button on the public
+-- availability page. Not tied to a `leads` row directly (the businesses
+-- clicking this link were never necessarily saved as a lead, and
+-- shouldn't need to be to submit interest) - Adam reviews these
+-- separately and matches them up himself if needed.
+create table if not exists ad_interest_submissions (
+  id uuid primary key default gen_random_uuid(),
+  store_id uuid references stores(id) on delete set null,
+  business_name text not null default '',
+  contact_name text not null default '',
+  email text not null default '',
+  phone text not null default '',
+  message text not null default '',
+  created_at timestamptz not null default now()
+);
+
+alter table ad_interest_submissions enable row level security;
+
+-- Visible only to the owner of the store it names - same one-hop
+-- ownership check as everywhere else in this section, since this table
+-- itself has no user_id column (a submission isn't "owned" by anyone
+-- until Adam reviews it).
+drop policy if exists "ad_interest_select_store_owner" on ad_interest_submissions;
+create policy "ad_interest_select_store_owner" on ad_interest_submissions for select using (
+  store_id in (select id from stores where user_id = auth.uid())
+);
+drop policy if exists "ad_interest_delete_store_owner" on ad_interest_submissions;
+create policy "ad_interest_delete_store_owner" on ad_interest_submissions for delete using (
+  store_id in (select id from stores where user_id = auth.uid())
+);
+
+-- No insert policy for anon/authenticated on the table itself - every
+-- submission goes through this function instead, so it's validated the
+-- same way regardless of who's calling it.
+create or replace function public.submit_ad_interest(
+  p_store_id uuid,
+  p_business_name text,
+  p_contact_name text,
+  p_email text,
+  p_phone text,
+  p_message text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if p_business_name is null or trim(p_business_name) = '' then
+    raise exception 'Business name is required.';
+  end if;
+  if (p_email is null or trim(p_email) = '') and (p_phone is null or trim(p_phone) = '') then
+    raise exception 'An email or phone number is required.';
+  end if;
+  insert into ad_interest_submissions (store_id, business_name, contact_name, email, phone, message)
+  values (
+    p_store_id,
+    trim(p_business_name),
+    trim(coalesce(p_contact_name, '')),
+    trim(coalesce(p_email, '')),
+    trim(coalesce(p_phone, '')),
+    trim(coalesce(p_message, ''))
+  );
+end;
+$$;
+
+grant execute on function public.submit_ad_interest(uuid, text, text, text, text, text) to anon, authenticated;

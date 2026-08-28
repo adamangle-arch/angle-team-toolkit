@@ -383,7 +383,16 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   // same idea as /prospect but with no code at all - a plain shareable
   // link to the Testimonials page (see app/team-story), meant to work for
   // absolutely anyone it's sent to.
-  if (pathname === "/prospect" || pathname === "/reset-password" || pathname === "/our-team") {
+  // /availability/[storeId] is the same idea again: the public "which
+  // stores near you still have ad space" page a business gets linked to
+  // from Adam's outreach email - no account, works for anyone it's sent
+  // to. startsWith (not ===) since the store id is part of the path.
+  if (
+    pathname === "/prospect" ||
+    pathname === "/reset-password" ||
+    pathname === "/our-team" ||
+    pathname?.startsWith("/availability")
+  ) {
     return <>{children}</>;
   }
 

@@ -2,23 +2,51 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Download, Trash2, Phone, Globe, MapPin, Plus, EyeOff } from "lucide-react";
+import {
+  Search,
+  Download,
+  Trash2,
+  Phone,
+  Globe,
+  MapPin,
+  Plus,
+  EyeOff,
+  Mail,
+  RefreshCw,
+  Link as LinkIcon,
+  Store as StoreIcon,
+} from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
 import { SkeletonList } from "@/components/Skeleton";
 import { supabase } from "@/lib/supabaseClient";
 import { LEAD_CATEGORIES, LEAD_STATUSES, isLeadsToolOwner } from "@/lib/constants";
 import { getLeadsHiddenForDemo, setLeadsHiddenForDemo } from "@/lib/demoMode";
-import type { Lead, DiscoveredBusiness } from "@/lib/types";
+import type { Lead, DiscoveredBusiness, Store } from "@/lib/types";
 
 const RADIUS_OPTIONS = [5, 10, 15, 25];
 
-function downloadCsv(leads: Lead[]) {
-  const header = ["Business Name", "Category", "Address", "Phone", "Website", "Status", "Notes"];
+function downloadCsv(leads: Lead[], storesById: Map<string, Store>, origin: string) {
+  const header = ["Business Name", "Category", "Address", "Phone", "Website", "Email", "Status", "Notes", "Store", "Availability Link"];
   const escape = (value: string) => `"${value.replace(/"/g, '""')}"`;
-  const rows = leads.map((l) =>
-    [l.business_name, l.category, l.address, l.phone, l.website, l.status, l.notes].map(escape).join(",")
-  );
+  const rows = leads.map((l) => {
+    const store = l.store_id ? storesById.get(l.store_id) : undefined;
+    const availabilityLink = l.store_id ? `${origin}/availability/${l.store_id}` : "";
+    return [
+      l.business_name,
+      l.category,
+      l.address,
+      l.phone,
+      l.website,
+      l.email,
+      l.status,
+      l.notes,
+      store?.name ?? "",
+      availabilityLink,
+    ]
+      .map(escape)
+      .join(",");
+  });
   const csv = [header.join(","), ...rows].join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
@@ -85,15 +113,95 @@ export default function LeadsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOwner]);
 
+  // --- Stores (synced from the master Google Sheet) ---
+  const [stores, setStores] = useState<Store[]>([]);
+  const [storesLoading, setStoresLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const storesById = useMemo(() => new Map(stores.map((s) => [s.id, s])), [stores]);
+
+  async function loadStores() {
+    setStoresLoading(true);
+    const { data } = await supabase
+      .from("stores")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("name", { ascending: true });
+    setStores((data as Store[]) ?? []);
+    setStoresLoading(false);
+  }
+
+  useEffect(() => {
+    if (!isOwner) return;
+    async function load() {
+      setStoresLoading(true);
+      const { data } = await supabase
+        .from("stores")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("name", { ascending: true });
+      setStores((data as Store[]) ?? []);
+      setStoresLoading(false);
+    }
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOwner]);
+
+  async function syncStores() {
+    setSyncing(true);
+    setSyncError(null);
+    setSyncMessage(null);
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    try {
+      const res = await fetch("/api/stores/sync", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setSyncError(data.error || "Sync failed.");
+        setSyncing(false);
+        return;
+      }
+      setSyncMessage(
+        `Synced ${(data.stores as Store[] | undefined)?.length ?? 0} stores.` +
+          (data.geocodingSkipped ? " (Set GOOGLE_PLACES_API_KEY to also map new addresses.)" : "")
+      );
+      loadStores();
+    } catch {
+      setSyncError("Couldn't reach the sync endpoint - check your connection and try again.");
+    }
+    setSyncing(false);
+  }
+
   // --- Discover (Google Places search) ---
   const [searchAddress, setSearchAddress] = useState("");
   const [searchRadius, setSearchRadius] = useState(10);
-  const [searchCategory, setSearchCategory] = useState<string>(LEAD_CATEGORIES[0].key);
+  const [searchCategory, setSearchCategory] = useState<string>("all");
+  const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const [discovering, setDiscovering] = useState(false);
   const [discoverError, setDiscoverError] = useState<string | null>(null);
   const [discoverResults, setDiscoverResults] = useState<DiscoveredBusiness[] | null>(null);
   const [selectedPlaceIds, setSelectedPlaceIds] = useState<Set<string>>(new Set());
   const [addingSelected, setAddingSelected] = useState(false);
+
+  function searchNearStore(store: Store) {
+    setSelectedStoreId(store.id);
+    setSearchAddress(store.address || store.name);
+    setSearchCategory("all");
+    setDiscoverResults(null);
+    setDiscoverError(null);
+  }
+
+  function copyAvailabilityLink(storeId: string) {
+    const link = `${window.location.origin}/availability/${storeId}`;
+    navigator.clipboard.writeText(link).then(
+      () => setSyncMessage("Availability link copied."),
+      () => setSyncError("Couldn't copy the link - copy it from the address bar instead.")
+    );
+  }
 
   const existingPlaceIds = useMemo(
     () => new Set(leads.map((l) => l.google_place_id).filter((id): id is string => Boolean(id))),
@@ -152,9 +260,11 @@ export default function LeadsPage() {
         address: r.address,
         phone: r.phone,
         website: r.website,
+        email: r.email,
         lat: r.lat,
         lng: r.lng,
         google_place_id: r.google_place_id,
+        store_id: selectedStoreId,
       }));
     const { error } = await supabase.from("leads").upsert(rows, { onConflict: "user_id,google_place_id", ignoreDuplicates: true });
     setAddingSelected(false);
@@ -165,6 +275,7 @@ export default function LeadsPage() {
     setDiscoverResults(null);
     setSelectedPlaceIds(new Set());
     setSearchAddress("");
+    setSelectedStoreId(null);
     loadLeads();
   }
 
@@ -175,6 +286,7 @@ export default function LeadsPage() {
   const [manualAddress, setManualAddress] = useState("");
   const [manualPhone, setManualPhone] = useState("");
   const [manualWebsite, setManualWebsite] = useState("");
+  const [manualEmail, setManualEmail] = useState("");
   const [manualAdding, setManualAdding] = useState(false);
 
   async function addManualLead() {
@@ -190,6 +302,7 @@ export default function LeadsPage() {
         address: manualAddress.trim(),
         phone: manualPhone.trim(),
         website: manualWebsite.trim(),
+        email: manualEmail.trim(),
       })
       .select("*")
       .single();
@@ -203,6 +316,7 @@ export default function LeadsPage() {
     setManualAddress("");
     setManualPhone("");
     setManualWebsite("");
+    setManualEmail("");
     setManualOpen(false);
   }
 
@@ -275,12 +389,74 @@ export default function LeadsPage() {
         )}
 
         <div className="card space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="section-title">Stores ({stores.length})</p>
+            <button className="chip-btn flex items-center gap-1.5" onClick={syncStores} disabled={syncing}>
+              <RefreshCw className={`h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`} strokeWidth={2.5} aria-hidden />
+              {syncing ? "Syncing…" : "Sync from Sheet"}
+            </button>
+          </div>
+          {syncError && <p className="text-xs text-red-300">{syncError}</p>}
+          {syncMessage && <p className="text-xs text-amber-light">{syncMessage}</p>}
+          {storesLoading ? (
+            <SkeletonList cards={1} lines={2} />
+          ) : stores.length === 0 ? (
+            <p className="text-sm text-slate-400">
+              No stores synced yet - hit &quot;Sync from Sheet&quot; once GOOGLE_SHEET_ID is configured.
+            </p>
+          ) : (
+            <div className="max-h-64 space-y-1.5 overflow-y-auto">
+              {stores.map((store) => (
+                <div
+                  key={store.id}
+                  className={`flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-sm ${
+                    selectedStoreId === store.id ? "ring-1 ring-amber" : ""
+                  }`}
+                  style={{ background: "rgb(var(--surface-rgb) / 0.04)" }}
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="flex items-center gap-1.5 truncate font-semibold text-white">
+                      <StoreIcon className="h-3.5 w-3.5 shrink-0 text-amber-light" strokeWidth={2} aria-hidden />
+                      {store.name}
+                    </p>
+                    <p className="truncate text-xs text-slate-400">
+                      {store.address || "No address"} · {store.spaces_available}/{store.spaces_total} spaces open
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 gap-1.5">
+                    <button className="chip-btn" onClick={() => searchNearStore(store)}>
+                      Search Near
+                    </button>
+                    <button
+                      className="btn-icon"
+                      onClick={() => copyAvailabilityLink(store.id)}
+                      aria-label={`Copy availability link for ${store.name}`}
+                    >
+                      <LinkIcon className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="card space-y-3">
           <p className="section-title">Find Businesses</p>
+          {selectedStoreId && (
+            <p className="flex items-center gap-1.5 text-xs text-amber-light">
+              <StoreIcon className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
+              Searching near {storesById.get(selectedStoreId)?.name} - results will be tagged to this store.
+            </p>
+          )}
           <input
             className="input"
             placeholder="Address or zip code to search near"
             value={searchAddress}
-            onChange={(e) => setSearchAddress(e.target.value)}
+            onChange={(e) => {
+              setSearchAddress(e.target.value);
+              setSelectedStoreId(null);
+            }}
           />
           <div className="flex gap-2">
             <select className="select flex-1" value={searchRadius} onChange={(e) => setSearchRadius(Number(e.target.value))}>
@@ -291,7 +467,8 @@ export default function LeadsPage() {
               ))}
             </select>
             <select className="select flex-1" value={searchCategory} onChange={(e) => setSearchCategory(e.target.value)}>
-              {LEAD_CATEGORIES.map((c) => (
+              <option value="all">All Categories</option>
+              {LEAD_CATEGORIES.filter((c) => c.key !== "other").map((c) => (
                 <option key={c.key} value={c.key}>
                   {c.label}
                 </option>
@@ -300,7 +477,7 @@ export default function LeadsPage() {
           </div>
           <button className="btn-primary w-full" onClick={runDiscover} disabled={discovering}>
             <Search className="h-4 w-4" strokeWidth={2.5} aria-hidden />
-            {discovering ? "Searching…" : "Search"}
+            {discovering ? "Searching all categories may take a bit…" : "Search"}
           </button>
           {discoverError && <p className="text-xs text-red-300">{discoverError}</p>}
 
@@ -337,6 +514,7 @@ export default function LeadsPage() {
                             <p className="text-xs text-slate-400">
                               {r.phone || "No phone listed"} {r.website ? "· has website" : "· no website"}
                             </p>
+                            <p className="text-xs text-slate-400">{r.email || "No email found"}</p>
                           </div>
                         </label>
                       );
@@ -369,6 +547,7 @@ export default function LeadsPage() {
               <input className="input" placeholder="Address" value={manualAddress} onChange={(e) => setManualAddress(e.target.value)} />
               <input className="input" placeholder="Phone" value={manualPhone} onChange={(e) => setManualPhone(e.target.value)} />
               <input className="input" placeholder="Website" value={manualWebsite} onChange={(e) => setManualWebsite(e.target.value)} />
+              <input className="input" type="email" placeholder="Email" value={manualEmail} onChange={(e) => setManualEmail(e.target.value)} />
               <button className="btn-primary w-full" onClick={addManualLead} disabled={manualAdding || !manualName.trim()}>
                 {manualAdding ? "Adding…" : "Add Lead"}
               </button>
@@ -378,7 +557,11 @@ export default function LeadsPage() {
 
         <div className="flex items-center justify-between">
           <p className="section-title">Leads ({filteredLeads.length})</p>
-          <button className="chip-btn flex items-center gap-1" onClick={() => downloadCsv(filteredLeads)} disabled={filteredLeads.length === 0}>
+          <button
+            className="chip-btn flex items-center gap-1"
+            onClick={() => downloadCsv(filteredLeads, storesById, window.location.origin)}
+            disabled={filteredLeads.length === 0}
+          >
             <Download className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
             Export CSV
           </button>
@@ -439,6 +622,18 @@ export default function LeadsPage() {
                     <Globe className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
                     {lead.website}
                   </a>
+                )}
+                {lead.email && (
+                  <a href={`mailto:${lead.email}`} className="flex items-center gap-1.5 truncate text-xs text-amber-light">
+                    <Mail className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
+                    {lead.email}
+                  </a>
+                )}
+                {lead.store_id && storesById.get(lead.store_id) && (
+                  <p className="flex items-center gap-1.5 text-xs text-slate-400">
+                    <StoreIcon className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
+                    Near {storesById.get(lead.store_id)?.name}
+                  </p>
                 )}
                 <div className="flex gap-2 pt-1">
                   <select

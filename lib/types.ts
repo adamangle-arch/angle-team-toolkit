@@ -877,9 +877,17 @@ export type Lead = {
   address: string;
   phone: string;
   website: string;
+  // Best-effort, pulled from the business's own website by the free
+  // scraper in /api/leads/discover (or typed in manually) - Google
+  // Places itself never returns an email. Empty when nothing was found.
+  email: string;
   lat: number | null;
   lng: number | null;
   google_place_id: string | null;
+  // Which store this business was found searching near - the outreach
+  // link (see AdSalesToolkit's public availability page) uses this to
+  // show the right store. Null for a manually-added lead.
+  store_id: string | null;
   status: string;
   notes: string;
   created_at: string;
@@ -895,8 +903,36 @@ export type DiscoveredBusiness = {
   address: string;
   phone: string;
   website: string;
+  email: string;
   lat: number | null;
   lng: number | null;
+};
+
+// Grocery store with checkout-TV ad access - see stores in
+// supabase/schema.sql. Synced from Adam's master Google Sheet via
+// /api/stores/sync, or added manually.
+export type Store = {
+  id: string;
+  user_id: string;
+  name: string;
+  address: string;
+  lat: number | null;
+  lng: number | null;
+  spaces_total: number;
+  spaces_available: number;
+  sheet_row: number | null;
+  created_at: string;
+  updated_at: string;
+};
+
+// get_public_store_availability() RPC shape - the public "spaces near
+// you" page's data. Deliberately thin (no user_id, no lead data) since
+// this is served to anonymous visitors.
+export type PublicStoreAvailability = {
+  id: string;
+  name: string;
+  address: string;
+  spaces_available: number;
 };
 
 export type StoryComment = {
