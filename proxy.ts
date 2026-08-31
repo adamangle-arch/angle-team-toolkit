@@ -20,6 +20,11 @@ const ICON_REWRITES: Record<string, string> = {
   "/apple-touch-icon-precomposed.png": "/the-way/apple-icon",
   "/icon-512.png": "/the-way/icon",
   "/favicon.ico": "/the-way/icon",
+  // Same story as the icons above: app/manifest.ts only exists at the
+  // app root (Next.js has no per-segment manifest convention), so the
+  // root's Angle Team Toolkit manifest - and its "Angle Team" short_name -
+  // is what browsers fetch from /manifest.webmanifest regardless of page.
+  "/manifest.webmanifest": "/the-way/manifest.webmanifest",
 };
 
 export function proxy(request: NextRequest) {
@@ -40,5 +45,12 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/apple-touch-icon.png", "/apple-touch-icon-precomposed.png", "/icon-512.png", "/favicon.ico"],
+  matcher: [
+    "/",
+    "/apple-touch-icon.png",
+    "/apple-touch-icon-precomposed.png",
+    "/icon-512.png",
+    "/favicon.ico",
+    "/manifest.webmanifest",
+  ],
 };
