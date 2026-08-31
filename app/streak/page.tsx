@@ -31,6 +31,7 @@ import {
   ACTIVE_PIPELINE_MIN_STEP,
   READING_UNITS,
   STREAK_MILESTONES,
+  hasUnlimitedOffDays,
   type PipelineStageKey,
   type ReadingUnit,
 } from "@/lib/constants";
@@ -917,7 +918,8 @@ export default function StreakPage() {
     () => offDaysUsedInWindow(history, selectedDay),
     [history, selectedDay]
   );
-  const offDayAvailable = offDaysUsed < OFF_DAY_CAP;
+  const unlimitedOffDays = hasUnlimitedOffDays(user.email);
+  const offDayAvailable = unlimitedOffDays || offDaysUsed < OFF_DAY_CAP;
 
   function markOffDay() {
     saveToday({ off_day: true });
@@ -1141,9 +1143,11 @@ export default function StreakPage() {
           ) : !selectedQualifies ? (
             <div className="flex items-center justify-between gap-2 rounded-lg bg-navy p-2.5">
               <p className="text-xs text-slate-400">
-                On vacation or sick? {offDayAvailable
-                  ? `${OFF_DAY_CAP - offDaysUsed} of ${OFF_DAY_CAP} Off Days left in the last ${OFF_DAY_WINDOW_DAYS} days.`
-                  : `You've used all ${OFF_DAY_CAP} Off Days available in the last ${OFF_DAY_WINDOW_DAYS} days.`}
+                On vacation or sick? {unlimitedOffDays
+                  ? "No limit on Off Days for your account."
+                  : offDayAvailable
+                    ? `${OFF_DAY_CAP - offDaysUsed} of ${OFF_DAY_CAP} Off Days left in the last ${OFF_DAY_WINDOW_DAYS} days.`
+                    : `You've used all ${OFF_DAY_CAP} Off Days available in the last ${OFF_DAY_WINDOW_DAYS} days.`}
               </p>
               <button
                 className="chip-btn flex shrink-0 items-center justify-center gap-1 text-xs"

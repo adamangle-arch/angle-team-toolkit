@@ -23,6 +23,20 @@ export const BADGE_EXCLUDED_EMAILS = ["alexangle@me.com", "laurasangle@gmail.com
 // to every admin isPrimaryUser() would otherwise cover.
 const GEMINI_GROUP_OWNER_EMAIL = "adamangle@icloud.com";
 
+// An exception for Adam specifically (not the other two PRIMARY_EMAILS)
+// on the Core Run Off Day cap (see OFF_DAY_CAP in app/streak/page.tsx) -
+// same "runs the whole team's operations, not just their own business"
+// reasoning as BADGE_EXCLUDED_EMAILS above, just for Off Days instead of
+// Badges. This only lifts the cap on how many Off Days he can mark - a
+// real day still has to either be logged or marked off to count; his
+// streak isn't otherwise touched.
+const UNLIMITED_OFF_DAY_EMAILS = ["adamangle@icloud.com"];
+
+export function hasUnlimitedOffDays(email: string | null | undefined): boolean {
+  const normalized = (email ?? "").trim().toLowerCase();
+  return UNLIMITED_OFF_DAY_EMAILS.some((e) => e.toLowerCase() === normalized);
+}
+
 export function isGeminiGroupOwner(email: string | null | undefined): boolean {
   const normalized = (email ?? "").trim().toLowerCase();
   return normalized === GEMINI_GROUP_OWNER_EMAIL;
