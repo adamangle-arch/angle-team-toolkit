@@ -142,6 +142,7 @@ function normalizeRow(row: StreakDay): StreakDay {
     read_minutes: row.read_minutes ?? 0,
     depth_texts: row.depth_texts ?? 0,
     off_day: row.off_day ?? false,
+    conversations: row.conversations ?? 0,
   };
 }
 
@@ -161,6 +162,7 @@ function emptyDay(userId: string, day: string): StreakDay {
     listen_count: 0,
     listen_items: [],
     story_shares: 0,
+    conversations: 0,
     questions: 0,
     yeses: 0,
     meetings: 0,
@@ -682,6 +684,7 @@ export default function StreakPage() {
             listen_count: merged.listen_count,
             listen_items: merged.listen_items,
             story_shares: merged.story_shares,
+            conversations: merged.conversations,
             questions: merged.questions,
             yeses: merged.yeses,
             meetings: merged.meetings,
@@ -735,7 +738,7 @@ export default function StreakPage() {
   // changed Story Shares too, with no visible cause - Story Shares is
   // its own real count with its own +/- buttons, so it only changes when
   // someone actually touches it.
-  function logActivityCount(key: "questions" | "yeses", next: number) {
+  function logActivityCount(key: "questions" | "yeses" | "story_shares" | "conversations", next: number) {
     const delta = next - (selectedRow[key] as number);
     saveToday({ [key]: next });
     if (delta !== 0) {
@@ -946,7 +949,7 @@ export default function StreakPage() {
       `📖 Read: ${selectedRow.read_what || "—"}${selectedRow.read_amount ? ` — ${selectedRow.read_amount} ${readingUnit}` : ""}`,
       `🎧 Listened: ${selectedRow.listen_what || "—"}${selectedRow.listen_count ? ` — ${selectedRow.listen_count} audio(s)` : ""}`,
       "",
-      `💬 Story Shares: ${selectedRow.story_shares} | Questions: ${selectedRow.questions} | Yeses: ${selectedRow.yeses}`
+      `💬 Story Shares: ${selectedRow.story_shares} | Conversations: ${selectedRow.conversations} | Questions: ${selectedRow.questions} | Yeses: ${selectedRow.yeses}`
     );
 
     section(
@@ -1449,7 +1452,12 @@ export default function StreakPage() {
               <Counter
                 label="Story Shares"
                 value={selectedRow.story_shares}
-                onChange={(next) => saveToday({ story_shares: next })}
+                onChange={(next) => logActivityCount("story_shares", next)}
+              />
+              <Counter
+                label="Conversations"
+                value={selectedRow.conversations}
+                onChange={(next) => logActivityCount("conversations", next)}
               />
               <Counter
                 label="Questions"

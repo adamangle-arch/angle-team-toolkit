@@ -369,6 +369,12 @@ export type PipelinePeriod = {
   manually_adjusted: boolean;
   created_at: string;
   updated_at: string;
+  // Deliberately not part of PIPELINE_STAGES/PipelineStageKey - tracked
+  // on the Tally tab and mirrored into Core Run Streak the same way
+  // Questions/Yeses are, but not everyone tracks these, so they're left
+  // out of the Leaderboard's per-stage funnel/rankings entirely.
+  conversations: number;
+  story_shares: number;
 } & Record<PipelineStageKey, number>;
 
 export type Candidate = {
@@ -560,6 +566,7 @@ export type StreakDay = {
   listen_count: number;
   listen_items: string[];
   story_shares: number;
+  conversations: number;
   questions: number;
   yeses: number;
   meetings: number;

@@ -231,6 +231,17 @@ alter table pipeline_periods add column if not exists last_edited_by uuid refere
 -- Daily sum."
 alter table pipeline_periods add column if not exists manually_adjusted boolean not null default false;
 
+-- Conversations and Story Shares: tally-tracked here just like every
+-- other pipeline stage (same +/- stepper, same Daily/Weekly/Monthly
+-- cascade via bump_pipeline_stage), but deliberately NOT added to
+-- PIPELINE_STAGES/PipelineStageKey in lib/constants.ts - not everyone
+-- tracks these two, so they're left out of the Leaderboard's per-stage
+-- funnel and rankings entirely. Mirrored into streak_days (see
+-- mirror_pipeline_stage_to_streak below) so logging either one on the
+-- Tally tab also shows up on that same day's Core Run Daily Update.
+alter table pipeline_periods add column if not exists conversations int not null default 0;
+alter table pipeline_periods add column if not exists story_shares int not null default 0;
+
 -- ============================================================
 -- 2. CANDIDATE ROADMAP
 -- current_step is an index (0-9) into the 10 roadmap steps defined in
@@ -763,6 +774,13 @@ alter table streak_days add column if not exists depth_texts int not null defaul
 -- page.tsx already has every day's row in state for the last 120 days,
 -- so it's a plain count over what's already loaded - no RPC needed).
 alter table streak_days add column if not exists off_day boolean not null default false;
+
+-- Pure daily activity count, same as questions/yeses - no bearing on
+-- the 4 qualifying streak flags. Editable from either this page or the
+-- Tally tab's own Conversations counter, kept in sync the same way
+-- questions/yeses already are (see mirror_pipeline_stage_to_streak and
+-- bump_pipeline_stage below).
+alter table streak_days add column if not exists conversations int not null default 0;
 
 -- ============================================================
 -- 4b. PERSONAL CIRCLE PV
@@ -2870,7 +2888,8 @@ declare
   v_month_start date := date_trunc('month', p_period_start)::date;
 begin
   if p_stage not in (
-    'questions', 'yeses', 'qi1', 'qi2', 'is1', 'fu1', 'is2', 'fu2', 'questionnaire', 'launches'
+    'questions', 'yeses', 'qi1', 'qi2', 'is1', 'fu1', 'is2', 'fu2', 'questionnaire', 'launches',
+    'conversations', 'story_shares'
   ) then
     raise exception 'Invalid pipeline stage: %', p_stage;
   end if;
@@ -2914,15 +2933,20 @@ $$;
 grant execute on function public.bump_pipeline_stage(uuid, date, text, int) to authenticated;
 
 -- The other half of the Pipeline <-> Core Run Streak sync: logging a
--- Question or Yes on the Daily Tally also bumps that same day's Core Run
--- Streak "Today's Activity" counter, and - since asking the question (or
--- getting a yes) is itself a story-sharing moment - Story Shares goes up
--- by the same amount too, on top of the existing story_share boolean
--- already being satisfied by either count (see the OR below). Always
--- targets the caller's own streak_days regardless of whose pipeline row
--- was touched, since story-sharing is inherently personal - the caller
--- only invokes this for their own Daily Tally edits, never while filling
--- in for a downline.
+-- Question, Yes, Story Share, or Conversation on the Daily Tally also
+-- bumps that same day's Core Run Streak "Today's Activity" counters.
+--
+-- Questions/Yeses keep their existing special case: asking the question
+-- (or getting a yes) is itself a story-sharing moment, so Story Shares
+-- goes up by the same amount too, on top of the story_share boolean
+-- already being satisfied by either count. Story Shares and
+-- Conversations mirror one-for-one with no second column touched - a
+-- direct Story Shares edit shouldn't double-bump itself.
+--
+-- Always targets the caller's own streak_days regardless of whose
+-- pipeline row was touched, since these are inherently personal - the
+-- caller only invokes this for their own Daily Tally edits, never while
+-- filling in for a downline.
 create or replace function public.mirror_pipeline_stage_to_streak(
   p_period_start date,
   p_stage text,
@@ -2934,18 +2958,28 @@ security definer
 set search_path = public
 as $$
 begin
-  if p_stage not in ('questions', 'yeses') then
+  if p_stage not in ('questions', 'yeses', 'story_shares', 'conversations') then
     raise exception 'Invalid streak-mirror stage: %', p_stage;
   end if;
 
-  execute format(
-    'insert into streak_days (user_id, day, %1$I, story_shares)
-     values ($1, $2, greatest(0, $3), greatest(0, $3))
-     on conflict (user_id, day)
-     do update set %1$I = greatest(0, streak_days.%1$I + $3),
-                   story_shares = greatest(0, streak_days.story_shares + $3)',
-    p_stage
-  ) using auth.uid(), p_period_start, p_delta;
+  if p_stage in ('questions', 'yeses') then
+    execute format(
+      'insert into streak_days (user_id, day, %1$I, story_shares)
+       values ($1, $2, greatest(0, $3), greatest(0, $3))
+       on conflict (user_id, day)
+       do update set %1$I = greatest(0, streak_days.%1$I + $3),
+                     story_shares = greatest(0, streak_days.story_shares + $3)',
+      p_stage
+    ) using auth.uid(), p_period_start, p_delta;
+  else
+    execute format(
+      'insert into streak_days (user_id, day, %1$I)
+       values ($1, $2, greatest(0, $3))
+       on conflict (user_id, day)
+       do update set %1$I = greatest(0, streak_days.%1$I + $3)',
+      p_stage
+    ) using auth.uid(), p_period_start, p_delta;
+  end if;
 
   update streak_days
   set story_share = (story_shares > 0 or questions > 0)

@@ -398,6 +398,8 @@ function PipelinePageInner() {
             manually_adjusted: false,
             created_at: "",
             updated_at: "",
+            conversations: 0,
+            story_shares: 0,
             ...zeroStages,
           });
           setLoading(false);
@@ -638,7 +640,7 @@ function PipelinePageInner() {
       }));
   }, [trendHistory, period, periodType, trendStage]);
 
-  async function updateStage(key: PipelineStageKey, delta: number) {
+  async function updateStage(key: PipelineStageKey | "conversations" | "story_shares", delta: number) {
     if (!period) return;
     const previousValue = period[key] as number;
     const nextValue = Math.max(0, previousValue + delta);
@@ -722,11 +724,16 @@ function PipelinePageInner() {
     }
     setUpdateError(null);
 
-    // Questions/Yeses also mirror into Core Run Streak's own Today's
-    // Activity counters (and count toward Story Share) - only when
-    // editing your own tally, not filling in for a downline member,
-    // since that shouldn't touch the filler's own personal streak.
-    if ((key === "questions" || key === "yeses") && !actingFor && appliedDelta !== 0) {
+    // Questions/Yeses/Story Shares/Conversations also mirror into Core
+    // Run Streak's own Today's Activity counters (Questions/Yeses count
+    // toward Story Share too) - only when editing your own tally, not
+    // filling in for a downline member, since that shouldn't touch the
+    // filler's own personal streak.
+    if (
+      (key === "questions" || key === "yeses" || key === "story_shares" || key === "conversations") &&
+      !actingFor &&
+      appliedDelta !== 0
+    ) {
       await supabase.rpc("mirror_pipeline_stage_to_streak", {
         p_period_start: period.period_start,
         p_stage: key,
@@ -744,7 +751,7 @@ function PipelinePageInner() {
     if (refreshed) setPeriod(refreshed as PipelinePeriod);
   }
 
-  function setStageAbsolute(key: PipelineStageKey, value: number) {
+  function setStageAbsolute(key: PipelineStageKey | "conversations" | "story_shares", value: number) {
     if (!period) return;
     updateStage(key, value - (period[key] as number));
   }
@@ -1128,6 +1135,35 @@ function PipelinePageInner() {
                     </div>
                   );
                 })}
+              </div>
+            )}
+
+            {!loadError && !loading && period && (
+              <div className="space-y-2">
+                <p className="section-title">
+                  Other Activity{" "}
+                  <span className="text-xs font-normal text-slate-500">(not on the Leaderboard)</span>
+                </p>
+                <div className="card flex items-center justify-between">
+                  <p className="font-medium text-white">Conversations</p>
+                  <StageCount
+                    label="Conversations"
+                    value={period.conversations}
+                    onDelta={(delta) => updateStage("conversations", delta)}
+                    onSetAbsolute={(value) => setStageAbsolute("conversations", value)}
+                    directEditHint={periodType !== "daily"}
+                  />
+                </div>
+                <div className="card flex items-center justify-between">
+                  <p className="font-medium text-white">Story Shares</p>
+                  <StageCount
+                    label="Story Shares"
+                    value={period.story_shares}
+                    onDelta={(delta) => updateStage("story_shares", delta)}
+                    onSetAbsolute={(value) => setStageAbsolute("story_shares", value)}
+                    directEditHint={periodType !== "daily"}
+                  />
+                </div>
               </div>
             )}
 
