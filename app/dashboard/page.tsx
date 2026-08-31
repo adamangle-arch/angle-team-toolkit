@@ -384,10 +384,14 @@ export default function DashboardPage() {
 
   // Same treatment for the downline total: only stages someone actually
   // logged something in show up, rather than a wall of "QI1: 0"s.
+  // Conversations/Story Shares aren't part of DownlinePipelineTotals -
+  // get_team_pipeline_totals never summed them team-wide, same reason
+  // they're excluded from the Leaderboard entirely - so they're skipped
+  // here rather than widening that RPC just for this one card.
   const downlineStats = downlineTodayTotals
-    ? PIPELINE_STAGES.map((s) => ({ label: s.label, value: downlineTodayTotals[s.key] })).filter(
-        (s) => s.value > 0
-      )
+    ? PIPELINE_STAGES.filter((s) => s.key in downlineTodayTotals)
+        .map((s) => ({ label: s.label, value: downlineTodayTotals[s.key as keyof DownlinePipelineTotals] }))
+        .filter((s) => s.value > 0)
     : [];
 
   return (

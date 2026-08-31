@@ -87,7 +87,13 @@ type PeriodType = "daily" | "weekly" | "monthly";
 type LikeInfo = { count: number; likedByMe: boolean; names: string[] };
 const NO_LIKES: LikeInfo = { count: 0, likedByMe: false, names: [] };
 
-const CATEGORIES = PIPELINE_STAGES.filter((s) => s.key !== "questions");
+// Conversations/Story Shares are tracked on the Tally tab like every
+// other stage, but not everyone tracks them - excluded here the same
+// way "questions" already is, so neither shows up as a Leaders category
+// or a Challenge you can create against.
+const CATEGORIES = PIPELINE_STAGES.filter(
+  (s) => s.key !== "questions" && s.key !== "conversations" && s.key !== "story_shares"
+);
 
 // The old layout was ten-plus individually-collapsed accordions in one
 // long scroll - picking a category tab up front instead means whatever's
@@ -1544,7 +1550,7 @@ export default function LeaderboardPage() {
                           value={newChallengeStage}
                           onChange={(e) => setNewChallengeStage(e.target.value as PipelineStageKey)}
                         >
-                          {PIPELINE_STAGES.map((s) => (
+                          {CATEGORIES.map((s) => (
                             <option key={s.key} value={s.key}>
                               {s.label}
                             </option>

@@ -22,7 +22,12 @@ type WithPartnerName = {
   partner_last_name: string | null;
 };
 
-const CATEGORY_ORDER = PIPELINE_STAGES.filter((s) => s.key !== "questions").map((s) => s.key);
+// Conversations/Story Shares aren't tracked by everyone - excluded from
+// this digest the same way "questions" already is (see CATEGORIES in
+// app/leaderboard/page.tsx for the matching client-side exclusion).
+const CATEGORY_ORDER = PIPELINE_STAGES.filter(
+  (s) => s.key !== "questions" && s.key !== "conversations" && s.key !== "story_shares"
+).map((s) => s.key);
 const CATEGORY_LABELS: Record<string, string> = Object.fromEntries(
   PIPELINE_STAGES.map((s) => [s.key, s.label])
 );

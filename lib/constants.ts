@@ -322,6 +322,8 @@ export const TEAMS = [
 
 // Pipeline Tracker: ordered stages
 export const PIPELINE_STAGES = [
+  { key: "conversations", label: "Conversations" },
+  { key: "story_shares", label: "Story Shares" },
   { key: "questions", label: "Questions" },
   { key: "yeses", label: "Yeses" },
   { key: "qi1", label: "QI1" },
