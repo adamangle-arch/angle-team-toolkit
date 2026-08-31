@@ -9,6 +9,7 @@ import {
   effectiveResourcesForStep,
   QUESTIONNAIRE_QUESTIONS,
   FU1_VIDEO_YOUTUBE_ID,
+  US_TIMEZONES,
   type CandidateResourceOverrideEntry,
 } from "@/lib/constants";
 import { nextWebinarOccurrence, formatWebinarTime } from "@/lib/dates";
@@ -49,6 +50,10 @@ type CandidateInfo = {
   // doesn't have to re-derive "should this actually show" itself.
   fu1_video_active: boolean;
   questionnaire_enabled: boolean;
+  // Null until either the candidate or their IBO sets it - see
+  // TimezonePrompt below and the "Time zone: Same as me" field on
+  // Candidate Roadmap, which write the exact same column.
+  timezone: string | null;
 };
 
 type QuestionnaireResponses = {
@@ -339,6 +344,14 @@ export default function ProspectPage() {
         <p className="app-subtitle">Resources from {inviterName}</p>
       </header>
       <main className="page-main">
+        {!info.timezone && (
+          <TimezonePrompt
+            onSaved={(tz) => setInfo({ ...info, timezone: tz })}
+            code={verifiedCode}
+            inviterName={inviterName}
+          />
+        )}
+
         {info.launched && (
           <div className="card space-y-2 text-center !border-amber bg-amber/10">
             <p className="flex items-center justify-center gap-1.5 text-lg font-semibold text-white">
@@ -597,6 +610,69 @@ function InfoSessionCard({
         </>
       )}
 
+      {error && <p className="text-xs text-red-400">{error}</p>}
+    </div>
+  );
+}
+
+// Asked once, the first time a candidate has no time zone on file - the
+// IBO could set this by hand on Candidate Roadmap ("Time zone: Same as
+// me"), but they may not actually know it. Whichever side answers first
+// wins; once info.timezone is set (by either side) this stops rendering
+// for good, same one-way shape as the IS1/IS2/FU1 "watched" locks.
+function TimezonePrompt({
+  code,
+  inviterName,
+  onSaved,
+}: {
+  code: string;
+  inviterName: string;
+  onSaved: (tz: string) => void;
+}) {
+  const [timezone, setTimezone] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function save() {
+    if (!timezone) return;
+    setSaving(true);
+    setError(null);
+    const { error } = await supabase.rpc("set_candidate_timezone", {
+      p_code: code,
+      p_timezone: timezone,
+    });
+    setSaving(false);
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    onSaved(timezone);
+  }
+
+  return (
+    <div className="card space-y-2">
+      <p className="section-title">What time zone are you in?</p>
+      <p className="text-xs text-slate-400">
+        Just so {inviterName} knows what time actually works for you when scheduling something
+        with you.
+      </p>
+      <div className="flex gap-2">
+        <select
+          className="select flex-1"
+          value={timezone}
+          onChange={(e) => setTimezone(e.target.value)}
+        >
+          <option value="">Choose one...</option>
+          {US_TIMEZONES.map((tz) => (
+            <option key={tz.key} value={tz.key}>
+              {tz.label}
+            </option>
+          ))}
+        </select>
+        <button className="btn-primary shrink-0 px-4" onClick={save} disabled={saving || !timezone}>
+          {saving ? "Saving…" : "Save"}
+        </button>
+      </div>
       {error && <p className="text-xs text-red-400">{error}</p>}
     </div>
   );

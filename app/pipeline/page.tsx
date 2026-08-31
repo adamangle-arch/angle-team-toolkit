@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   Pencil,
@@ -2170,6 +2170,12 @@ function BookMeetingButton({ candidate }: { candidate: Candidate }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [myTimezone, setMyTimezone] = useState<string | null>(null);
+  // A fast double-tap can fire two click events before `disabled` (which
+  // only takes effect after the setSaving(true) re-render) actually
+  // blocks the second one - this ref-based guard is synchronous, so it
+  // catches the second tap even within the same event loop turn, unlike
+  // the `disabled` prop alone.
+  const submittingRef = useRef(false);
 
   useEffect(() => {
     async function load() {
@@ -2191,12 +2197,14 @@ function BookMeetingButton({ candidate }: { candidate: Candidate }) {
     setTimezone(candidate.timezone ?? myTimezone ?? guessTimeZone());
     setNotes("");
     setError(null);
+    submittingRef.current = false;
     setShowModal(true);
   }
 
   async function save() {
     const trimmedTitle = title.trim();
-    if (!trimmedTitle || !eventAt) return;
+    if (!trimmedTitle || !eventAt || submittingRef.current) return;
+    submittingRef.current = true;
     setSaving(true);
     setError(null);
     // Routed through an RPC rather than a direct insert - calendar_events'
@@ -2215,6 +2223,7 @@ function BookMeetingButton({ candidate }: { candidate: Candidate }) {
       p_event_timezone: timezone,
     });
     setSaving(false);
+    submittingRef.current = false;
     if (error) {
       setError(error.message);
       return;

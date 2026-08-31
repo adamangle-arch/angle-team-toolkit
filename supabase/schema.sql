@@ -8594,3 +8594,83 @@ as $$
 $$;
 
 grant execute on function public.get_my_claimed_candidate_code() to authenticated;
+
+-- ============================================================
+-- 29. CANDIDATE SELF-SERVICE TIME ZONE
+-- ============================================================
+-- The IBO could already set a candidate's time zone by hand on the
+-- Candidate Roadmap (candidates.timezone, added earlier - "Same as me"
+-- means null, falling back to the IBO's own zone), but that means
+-- guessing or asking separately. This lets the candidate set it
+-- themselves the first time they open /prospect, same access-code-only
+-- trust model as every other anon /prospect RPC - it's the same column
+-- either side can set, so whichever one actually knows the answer can
+-- fill it in.
+--
+-- get_candidate_by_access_code now also returns timezone, so /prospect
+-- knows whether to show the one-time picker at all (null = never set,
+-- show it; anything else = already answered, stay hidden for good).
+drop function if exists public.get_candidate_by_access_code(text);
+create or replace function public.get_candidate_by_access_code(p_code text)
+returns table (
+  candidate_id uuid,
+  candidate_name text,
+  current_step int,
+  launched boolean,
+  inviter_first_name text,
+  inviter_last_name text,
+  is1_session_mode text,
+  is1_webinar_slot text,
+  is1_watched boolean,
+  is2_session_mode text,
+  is2_webinar_slot text,
+  is2_watched boolean,
+  fu1_video_watched boolean,
+  fu1_video_active boolean,
+  questionnaire_enabled boolean,
+  timezone text
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select c.id, c.name, c.current_step, c.launched, p.first_name, p.last_name,
+    c.is1_session_mode, c.is1_webinar_slot, c.is1_watched,
+    c.is2_session_mode, c.is2_webinar_slot, c.is2_watched,
+    c.fu1_video_watched,
+    (
+      c.current_step >= c.fu1_video_reveal_step
+      and c.fu1_video_enabled
+      and not c.fu1_video_watched
+      and coalesce((select s.fu1_video_enabled from app_settings s limit 1), true)
+    ),
+    c.questionnaire_enabled,
+    c.timezone
+  from candidates c
+  join profiles p on p.id = c.creator_id
+  where upper(c.access_code) = upper(p_code) and c.filtered_out = false;
+$$;
+
+grant execute on function public.get_candidate_by_access_code(text) to anon, authenticated;
+
+create or replace function public.set_candidate_timezone(p_code text, p_timezone text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if p_timezone not in (
+    'America/New_York', 'America/Chicago', 'America/Denver', 'America/Phoenix',
+    'America/Los_Angeles', 'America/Anchorage', 'Pacific/Honolulu'
+  ) then
+    raise exception 'Invalid time zone: %', p_timezone;
+  end if;
+
+  update candidates set timezone = p_timezone
+  where upper(access_code) = upper(p_code) and filtered_out = false;
+end;
+$$;
+
+grant execute on function public.set_candidate_timezone(text, text) to anon, authenticated;
