@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Hand } from "lucide-react";
+import { Hand, X } from "lucide-react";
 import { waySupabase } from "@/lib/way/supabaseClient";
 
-// Unlisted/public YouTube video id for the one-time welcome message shown
-// before a member's first course. Set NEXT_PUBLIC_WAY_WELCOME_VIDEO_YOUTUBE_ID
-// once you have a real video — until then this renders a plain "Continue"
-// screen instead of blocking signup on a video that doesn't exist yet.
+// Unlisted/public YouTube video id for the welcome message shown before a
+// member's first course. Set NEXT_PUBLIC_WAY_WELCOME_VIDEO_YOUTUBE_ID —
+// until then this renders a plain "Continue" screen instead of blocking
+// signup on a video that doesn't exist yet.
 const WELCOME_VIDEO_YOUTUBE_ID = process.env.NEXT_PUBLIC_WAY_WELCOME_VIDEO_YOUTUBE_ID || "";
 
 type YTPlayer = { destroy: () => void };
@@ -48,15 +48,26 @@ function loadYouTubeApi(onReady: () => void) {
   }
 }
 
-// Shown once, before a member's first course — profiles.welcome_video_watched_at
-// gates it (see app/the-way/layout.tsx). Marking it watched is permanent;
-// there's no "skip for now" the way angle-team-toolkit's own overlay has,
-// since the product brief calls for "marked watched once and never shown
-// again," not a repeat-on-every-open reminder.
-export default function WelcomeVideoGate({ onWatched }: { onWatched: () => void }) {
+// The first-watch case (replay=false, from WayShell) requires finishing
+// the video before continuing, and marks profiles.welcome_video_watched_at
+// via onWatched — there's no "skip for now" here, unlike angle-team-toolkit's
+// own overlay, since the product brief calls for "marked watched once and
+// never shown again." Unlike that app though, anyone can rewatch it anytime
+// after that (the "Watch welcome video" button in WayHeader) — that's the
+// replay=true case, which can be closed at any point via onClose and never
+// touches welcome_video_watched_at again (it's already set).
+export default function WelcomeVideoGate({
+  replay = false,
+  onWatched,
+  onClose,
+}: {
+  replay?: boolean;
+  onWatched?: () => void;
+  onClose?: () => void;
+}) {
   const playerHostRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<YTPlayer | null>(null);
-  const [ended, setEnded] = useState(!WELCOME_VIDEO_YOUTUBE_ID);
+  const [ended, setEnded] = useState(replay || !WELCOME_VIDEO_YOUTUBE_ID);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -91,16 +102,26 @@ export default function WelcomeVideoGate({ onWatched }: { onWatched: () => void 
       setError(`Couldn't save that: ${error.message}`);
       return;
     }
-    onWatched();
+    onWatched?.();
   }
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 overflow-y-auto bg-navy px-4 py-8">
+      {replay && (
+        <button
+          type="button"
+          aria-label="Close"
+          className="btn-icon absolute right-4 top-4"
+          onClick={onClose}
+        >
+          <X className="h-4 w-4" aria-hidden />
+        </button>
+      )}
       <div className="w-full max-w-md space-y-1 text-center">
         <Hand className="mx-auto h-6 w-6 text-white" aria-hidden />
         <p className="text-lg font-bold text-white">Welcome to The Way</p>
         <p className="text-sm text-slate-400">
-          A quick message before you start your first course.
+          {replay ? "The welcome message." : "A quick message before you start your first course."}
         </p>
       </div>
       {WELCOME_VIDEO_YOUTUBE_ID && (
@@ -109,9 +130,11 @@ export default function WelcomeVideoGate({ onWatched }: { onWatched: () => void 
         </div>
       )}
       {error && <p className="max-w-md text-center text-xs text-red-400">{error}</p>}
-      <button className="btn-primary w-full max-w-md" onClick={markWatched} disabled={saving || !ended}>
-        {saving ? "…" : "Continue"}
-      </button>
+      {!replay && (
+        <button className="btn-primary w-full max-w-md" onClick={markWatched} disabled={saving || !ended}>
+          {saving ? "…" : "Continue"}
+        </button>
+      )}
     </div>
   );
 }
