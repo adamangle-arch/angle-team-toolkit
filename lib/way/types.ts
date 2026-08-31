@@ -55,11 +55,12 @@ export type LessonCompletion = {
 };
 
 // A course plus the pieces the Courses list page needs to render its
-// progress readout and lock state, computed client-side from
+// progress readout, computed client-side from
 // courses + lesson_items + lesson_completions rather than stored
-// redundantly on the course itself.
+// redundantly on the course itself. Every published course is open to
+// everyone from the start - no sequential unlock gating - so this has no
+// locked/unlocked field.
 export type CourseWithProgress = Course & {
   totalItems: number;
   completedItems: number;
-  unlocked: boolean;
 };

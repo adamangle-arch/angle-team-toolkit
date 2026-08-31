@@ -49,7 +49,6 @@ export default function CoursesPage() {
           ...course,
           totalItems: courseItems.length,
           completedItems,
-          unlocked: profile.role === "admin" || profile.unlocked_through >= course.order_index,
         };
       });
 
@@ -61,7 +60,7 @@ export default function CoursesPage() {
     return () => {
       cancelled = true;
     };
-  }, [profile.id, profile.role, profile.unlocked_through]);
+  }, [profile.id]);
 
   return (
     <>

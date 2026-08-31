@@ -15,19 +15,21 @@
 --
 --   /the-way                       redirects to /the-way/courses
 --   /the-way/courses               Courses list — one card per course, with
---                                   progress readout + lock state, gated by
---                                   the one-time Welcome Video
+--                                   a progress readout, gated by the
+--                                   one-time Welcome Video
 --   /the-way/courses/[courseId]    Course detail — ordered lesson items with
 --                                   checkboxes; checking one off writes a
 --                                   lesson_completions row and drives the
 --                                   parent course's progress bar
---   /the-way/mentor                (not built in this pass) — a mentor's
---                                   assigned members with each one's course
---                                   progress, plus advance/roll-back controls
---                                   for unlocked_through and a "grant all"
---                                   override for admins. The RLS + RPCs below
---                                   already support this; only the UI is
---                                   left for a follow-up.
+--   /the-way/mentor                (not built) — a mentor's assigned
+--                                   members with each one's course progress
+--
+-- Every published course is open to every member from the start - no
+-- sequential unlock gating in the app. profiles.unlocked_through and the
+-- mentor_set_unlock()/mentor_grant_all() RPCs below still exist and are
+-- harmless to leave as-is (nothing reads them), kept only so gating can be
+-- turned back on later by wiring the UI back up to them, without another
+-- schema change.
 --
 -- Courses/lesson items are real tables (not a hardcoded constants array):
 -- a pastor/mentor editing the curriculum (new lesson, reworded description,

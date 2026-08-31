@@ -1,8 +1,7 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
-import Link from "next/link";
-import { CircleCheckBig, Circle, ExternalLink, Lock } from "lucide-react";
+import { CircleCheckBig, Circle, ExternalLink } from "lucide-react";
 import WayHeader from "@/components/way/WayHeader";
 import ProgressBar from "@/components/ProgressBar";
 import { SkeletonList } from "@/components/Skeleton";
@@ -42,16 +41,6 @@ export default function CourseDetailPage({ params }: { params: Promise<{ courseI
         return;
       }
 
-      const unlocked =
-        profile.role === "admin" || profile.unlocked_through >= (courseRow as Course).order_index;
-
-      if (!unlocked) {
-        setCourse(courseRow as Course);
-        setItems([]);
-        setLoading(false);
-        return;
-      }
-
       const { data: itemRows, error: itemError } = await waySupabase
         .from("lesson_items")
         .select("*")
@@ -87,7 +76,7 @@ export default function CourseDetailPage({ params }: { params: Promise<{ courseI
     return () => {
       cancelled = true;
     };
-  }, [courseId, profile.id, profile.role, profile.unlocked_through]);
+  }, [courseId, profile.id]);
 
   async function toggleItem(itemId: string) {
     const wasCompleted = completedIds.has(itemId);
@@ -118,7 +107,6 @@ export default function CourseDetailPage({ params }: { params: Promise<{ courseI
     }
   }
 
-  const unlocked = course ? profile.role === "admin" || profile.unlocked_through >= course.order_index : true;
   const pct = items.length > 0 ? Math.round((completedIds.size / items.length) * 100) : 0;
 
   return (
@@ -131,15 +119,6 @@ export default function CourseDetailPage({ params }: { params: Promise<{ courseI
           <p className="empty-state">Couldn&apos;t load this course: {error}</p>
         ) : !course ? (
           <p className="empty-state">Course not found.</p>
-        ) : !unlocked ? (
-          <div className="card space-y-2 text-center">
-            <Lock className="mx-auto h-6 w-6 text-slate-400" aria-hidden />
-            <p className="text-sm font-semibold text-white">This course is locked</p>
-            <p className="text-sm text-slate-400">Ask your mentor to unlock it when you&apos;re ready.</p>
-            <Link href="/the-way/courses" className="btn-secondary mt-2 inline-flex">
-              Back to Courses
-            </Link>
-          </div>
         ) : (
           <>
             <div
