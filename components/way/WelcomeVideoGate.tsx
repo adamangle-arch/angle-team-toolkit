@@ -78,7 +78,12 @@ export default function WelcomeVideoGate({
       if (cancelled || !playerHostRef.current || !window.YT) return;
       playerRef.current = new window.YT.Player(playerHostRef.current, {
         videoId: WELCOME_VIDEO_YOUTUBE_ID,
-        playerVars: { rel: 0, playsinline: 1 },
+        // autoplay + mute together, not autoplay alone - browsers (mobile
+        // Safari especially) block autoplay-with-sound before any user
+        // interaction with the page, but reliably allow it muted. The
+        // player's own controls include an unmute button, visible as soon
+        // as it starts.
+        playerVars: { rel: 0, playsinline: 1, autoplay: 1, mute: 1 },
         events: {
           onStateChange: (e) => {
             if (window.YT && e.data === window.YT.PlayerState.ENDED) setEnded(true);
