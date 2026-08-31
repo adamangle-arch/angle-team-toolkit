@@ -7742,3 +7742,44 @@ candidate, not just this one.
 - [Next.js](https://nextjs.org) 16 (App Router, TypeScript)
 - [Tailwind CSS](https://tailwindcss.com) v4 (navy `#0f172a` / amber `#f59e0b` theme)
 - [Supabase](https://supabase.com) (Postgres + Auth + client SDK, no server API layer needed)
+
+## The Way (separate discipleship app)
+
+`app/the-way/**` is a second, unrelated app — a discipleship course
+platform for a church — that happens to live in this same repo purely to
+reuse its Next.js/Tailwind scaffolding. It shares no users, no data, and
+no auth with Angle Team Toolkit: it talks to its own Supabase project via
+its own env vars (`lib/way/supabaseClient.ts`), and `components/AuthGate.tsx`
+bypasses itself entirely for any `/the-way` path so it never touches the
+Angle Team Toolkit login flow. See `supabase/the-way-schema.sql` for its
+schema (tables, RLS, seed curriculum).
+
+Required env vars for `/the-way` to work:
+
+```
+NEXT_PUBLIC_WAY_SUPABASE_URL=<the-way Supabase project URL>
+NEXT_PUBLIC_WAY_SUPABASE_ANON_KEY=<the-way Supabase anon key>
+```
+
+Optional:
+
+```
+NEXT_PUBLIC_WAY_WELCOME_VIDEO_YOUTUBE_ID=<youtube video id>   # one-time welcome video; omitted = simple "Continue" screen
+WAY_STANDALONE=true                                            # see below
+```
+
+### Deploying it as its own separate link
+
+The Way can be deployed as a second, independent Vercel project pointed
+at this same GitHub repo, so it gets its own domain with no visible tie
+to Angle Team Toolkit:
+
+1. In Vercel, **Add New Project** → import this same repo again under a
+   new project name (e.g. `the-way`) → deploy from the
+   `claude/the-way-discipleship-ojjk6r` branch (or `main`, once merged).
+2. Add the env vars above, plus `WAY_STANDALONE=true`.
+3. `middleware.ts` checks that flag: when set, the bare `/` root redirects
+   straight to `/the-way` instead of Angle Team Toolkit's own `/leaderboard`
+   redirect. It's a no-op on any deployment where the flag isn't set
+   (including the main `angle-team-toolkit` Vercel project), so the two
+   deployments stay fully independent from the same codebase.
