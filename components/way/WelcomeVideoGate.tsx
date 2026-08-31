@@ -4,11 +4,33 @@ import { useEffect, useRef, useState } from "react";
 import { Hand, X } from "lucide-react";
 import { waySupabase } from "@/lib/way/supabaseClient";
 
+// Accepts either a bare video id or a full YouTube URL (youtu.be/<id>,
+// youtube.com/watch?v=<id>, youtube.com/embed/<id>) - pasting the full
+// share link instead of just the id is an easy mistake to make when
+// setting the env var, and the YouTube Player API silently fails to load
+// anything useful if handed a full URL as a videoId.
+function extractYouTubeId(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  if (!/^https?:\/\//i.test(trimmed)) return trimmed;
+  try {
+    const url = new URL(trimmed);
+    if (url.hostname === "youtu.be") return url.pathname.slice(1);
+    const vParam = url.searchParams.get("v");
+    if (vParam) return vParam;
+    const embedMatch = url.pathname.match(/\/embed\/([^/?]+)/);
+    if (embedMatch) return embedMatch[1];
+  } catch {
+    // Fall through to returning the raw value below.
+  }
+  return trimmed;
+}
+
 // Unlisted/public YouTube video id for the welcome message shown before a
 // member's first course. Set NEXT_PUBLIC_WAY_WELCOME_VIDEO_YOUTUBE_ID —
 // until then this renders a plain "Continue" screen instead of blocking
 // signup on a video that doesn't exist yet.
-const WELCOME_VIDEO_YOUTUBE_ID = process.env.NEXT_PUBLIC_WAY_WELCOME_VIDEO_YOUTUBE_ID || "";
+const WELCOME_VIDEO_YOUTUBE_ID = extractYouTubeId(process.env.NEXT_PUBLIC_WAY_WELCOME_VIDEO_YOUTUBE_ID || "");
 
 type YTPlayer = { destroy: () => void };
 type YTPlayerStateEvent = { data: number };
