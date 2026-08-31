@@ -2176,6 +2176,11 @@ function BookMeetingButton({ candidate }: { candidate: Candidate }) {
   // catches the second tap even within the same event loop turn, unlike
   // the `disabled` prop alone.
   const submittingRef = useRef(false);
+  // Catches accidentally booking a second meeting for this same
+  // candidate close to one already on the books - e.g. once from here,
+  // then again by linking them to a separate event on the Calendar tab.
+  // First tap just warns; a second tap (already true) books anyway.
+  const [duplicateWarning, setDuplicateWarning] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -2198,12 +2203,30 @@ function BookMeetingButton({ candidate }: { candidate: Candidate }) {
     setNotes("");
     setError(null);
     submittingRef.current = false;
+    setDuplicateWarning(false);
     setShowModal(true);
   }
 
   async function save() {
     const trimmedTitle = title.trim();
     if (!trimmedTitle || !eventAt || submittingRef.current) return;
+
+    if (!duplicateWarning) {
+      const windowMs = 4 * 60 * 60 * 1000;
+      const newAtMs = zonedInputToUtc(eventAt, timezone).getTime();
+      const { data: nearby } = await supabase
+        .from("calendar_events")
+        .select("id")
+        .eq("candidate_id", candidate.id)
+        .gte("event_at", new Date(newAtMs - windowMs).toISOString())
+        .lte("event_at", new Date(newAtMs + windowMs).toISOString())
+        .limit(1);
+      if ((nearby?.length ?? 0) > 0) {
+        setDuplicateWarning(true);
+        return;
+      }
+    }
+
     submittingRef.current = true;
     setSaving(true);
     setError(null);
@@ -2273,7 +2296,10 @@ function BookMeetingButton({ candidate }: { candidate: Candidate }) {
                 type="datetime-local"
                 className="input flex-1"
                 value={eventAt}
-                onChange={(e) => setEventAt(e.target.value)}
+                onChange={(e) => {
+                  setEventAt(e.target.value);
+                  setDuplicateWarning(false);
+                }}
               />
               <select
                 className="select w-28 shrink-0"
@@ -2304,8 +2330,14 @@ function BookMeetingButton({ candidate }: { candidate: Candidate }) {
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
             />
+            {duplicateWarning && (
+              <p className="text-xs text-amber-light">
+                {candidate.name} already has a meeting on the books within a few hours of this
+                time. Tap again to book this one too.
+              </p>
+            )}
             <button className="btn-primary w-full" onClick={save} disabled={saving || !title.trim()}>
-              {saving ? "Booking…" : "Book Meeting"}
+              {saving ? "Booking…" : duplicateWarning ? "Book Anyway" : "Book Meeting"}
             </button>
             {error && <p className="text-xs text-red-400">{error}</p>}
           </div>

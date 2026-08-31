@@ -366,6 +366,13 @@ export default function CalendarPage() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  // Catches accidentally booking a second meeting for the same candidate
+  // close to one already on the books - e.g. once via "Book a Meeting"
+  // on their Candidate Roadmap card, then again here by linking them to
+  // a separate event. First Save just warns instead of saving; a second
+  // tap (duplicateWarning already true) goes through anyway, since two
+  // real meetings the same day for one candidate isn't impossible.
+  const [duplicateWarning, setDuplicateWarning] = useState(false);
   // The Add Event form (and, for admins, Team Events underneath it) now
   // lives in a bottom-sheet opened from a floating "+" button - same
   // "tap the FAB, fill the sheet, it dismisses on save" pattern as Google
@@ -631,6 +638,7 @@ export default function CalendarPage() {
     setBroadcast(false);
     setSelectedRecipientIds([]);
     setSaveError(null);
+    setDuplicateWarning(false);
     setShowAddModal(true);
   }
 
@@ -661,6 +669,7 @@ export default function CalendarPage() {
     setBroadcast(false);
     setSelectedRecipientIds([]);
     setSaveError(null);
+    setDuplicateWarning(false);
     setShowAddModal(true);
   }
 
@@ -681,10 +690,30 @@ export default function CalendarPage() {
   async function saveEvent() {
     const trimmedTitle = title.trim();
     if (!trimmedTitle || !eventAt) return;
-    setSaving(true);
-    setSaveError(null);
     const isoEventAt = zonedInputToUtc(eventAt, timezone).toISOString();
     const linkedCandidate = candidateId || null;
+
+    // Only guards a brand-new event with a linked candidate - editing an
+    // existing row isn't creating a second one, and an unlinked event
+    // has no candidate to collide with.
+    if (!editingEventId && linkedCandidate && !duplicateWarning) {
+      const windowMs = 4 * 60 * 60 * 1000;
+      const newAtMs = new Date(isoEventAt).getTime();
+      const { data: nearby } = await supabase
+        .from("calendar_events")
+        .select("id")
+        .eq("candidate_id", linkedCandidate)
+        .gte("event_at", new Date(newAtMs - windowMs).toISOString())
+        .lte("event_at", new Date(newAtMs + windowMs).toISOString())
+        .limit(1);
+      if ((nearby?.length ?? 0) > 0) {
+        setDuplicateWarning(true);
+        return;
+      }
+    }
+
+    setSaving(true);
+    setSaveError(null);
     const isoRecurrenceUntil = recurrenceUntil
       ? zonedInputToUtc(`${recurrenceUntil}T23:59`, timezone).toISOString()
       : null;
@@ -1444,7 +1473,10 @@ export default function CalendarPage() {
                   type="datetime-local"
                   className="input flex-1"
                   value={eventAt}
-                  onChange={(e) => setEventAt(e.target.value)}
+                  onChange={(e) => {
+                    setEventAt(e.target.value);
+                    setDuplicateWarning(false);
+                  }}
                 />
                 <select
                   className="select w-28 shrink-0"
@@ -1477,6 +1509,7 @@ export default function CalendarPage() {
                 value={candidateId}
                 onChange={(id) => {
                   setCandidateId(id);
+                  setDuplicateWarning(false);
                   // Auto-fill the candidate's own saved zone, if they
                   // have one - the whole point of tagging a candidate's
                   // zone is not having to remember/convert it by hand
@@ -1625,12 +1658,24 @@ export default function CalendarPage() {
                   )}
                 </div>
               )}
+              {duplicateWarning && (
+                <p className="text-xs text-amber-light">
+                  This candidate already has a meeting on the books within a few hours of this
+                  time. Tap again to book this one too.
+                </p>
+              )}
               <button
                 className="btn-primary w-full"
                 onClick={saveEvent}
                 disabled={saving || !title.trim()}
               >
-                {saving ? "Saving…" : editingEventId ? "Save Changes" : "Add Event"}
+                {saving
+                  ? "Saving…"
+                  : duplicateWarning
+                    ? "Add Anyway"
+                    : editingEventId
+                      ? "Save Changes"
+                      : "Add Event"}
               </button>
               {saveError && <p className="text-xs text-red-400">{saveError}</p>}
             </div>
