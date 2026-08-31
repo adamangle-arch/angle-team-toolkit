@@ -42,22 +42,24 @@ export default function WayLoginForm() {
 
   return (
     <div className="flex flex-1 flex-col items-center justify-center px-6">
-      <div className="w-full max-w-xs space-y-4">
+      <div className="w-full max-w-xs space-y-5">
         <div className="text-center">
-          <p className="text-2xl font-bold text-white">The Way</p>
-          <p className="text-sm text-slate-400">
+          <p className="way-wordmark text-3xl" style={{ color: "var(--way-text)" }}>
+            The Way
+          </p>
+          <p className="mt-1 text-sm" style={{ color: "var(--way-text-dim)" }}>
             {mode === "signin" && "Sign in to continue your courses"}
             {mode === "signup" && "Create your account"}
             {mode === "forgot" && "Reset your password"}
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="card space-y-3">
+        <form onSubmit={handleSubmit} className="way-card space-y-3">
           <input
             type="email"
             required
             autoComplete="email"
-            className="input"
+            className="way-input"
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -68,15 +70,23 @@ export default function WayLoginForm() {
               required
               autoComplete={mode === "signin" ? "current-password" : "new-password"}
               minLength={6}
-              className="input"
+              className="way-input"
               placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
           )}
-          {error && <p className="text-xs text-red-400">{error}</p>}
-          {info && <p className="text-xs text-amber-light">{info}</p>}
-          <button className="btn-primary w-full" disabled={loading}>
+          {error && (
+            <p className="text-xs" style={{ color: "var(--way-danger)" }}>
+              {error}
+            </p>
+          )}
+          {info && (
+            <p className="text-xs" style={{ color: "var(--way-accent)" }}>
+              {info}
+            </p>
+          )}
+          <button className="way-btn way-btn-primary w-full" disabled={loading}>
             {mode === "signin" && "Sign In"}
             {mode === "signup" && "Create Account"}
             {mode === "forgot" && (loading ? "Sending…" : "Send Reset Link")}
@@ -85,7 +95,8 @@ export default function WayLoginForm() {
 
         {mode === "signin" && (
           <button
-            className="w-full text-center text-xs text-slate-400"
+            className="w-full text-center text-xs"
+            style={{ color: "var(--way-text-dim)" }}
             onClick={() => {
               setMode("forgot");
               setError(null);
@@ -97,7 +108,8 @@ export default function WayLoginForm() {
         )}
 
         <button
-          className="w-full text-center text-xs text-slate-400"
+          className="w-full text-center text-xs"
+          style={{ color: "var(--way-text-dim)" }}
           onClick={() => {
             setMode(mode === "signin" ? "signup" : "signin");
             setError(null);

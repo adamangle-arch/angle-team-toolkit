@@ -106,32 +106,41 @@ export default function WelcomeVideoGate({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 overflow-y-auto bg-navy px-4 py-8">
+    <div
+      className="way-scope fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 overflow-y-auto px-4 py-8"
+      style={{ background: "var(--way-bg)" }}
+    >
       {replay && (
         <button
           type="button"
           aria-label="Close"
-          className="btn-icon absolute right-4 top-4"
+          className="way-btn-icon absolute right-4 top-4"
           onClick={onClose}
         >
           <X className="h-4 w-4" aria-hidden />
         </button>
       )}
       <div className="w-full max-w-md space-y-1 text-center">
-        <Hand className="mx-auto h-6 w-6 text-white" aria-hidden />
-        <p className="text-lg font-bold text-white">Welcome to The Way</p>
-        <p className="text-sm text-slate-400">
+        <Hand className="mx-auto h-6 w-6" style={{ color: "var(--way-accent)" }} aria-hidden />
+        <p className="way-wordmark text-2xl" style={{ color: "var(--way-text)" }}>
+          Welcome to The Way
+        </p>
+        <p className="text-sm" style={{ color: "var(--way-text-dim)" }}>
           {replay ? "The welcome message." : "A quick message before you start your first course."}
         </p>
       </div>
       {WELCOME_VIDEO_YOUTUBE_ID && (
-        <div className="aspect-video w-full max-w-md overflow-hidden rounded-xl bg-black">
+        <div className="aspect-video w-full max-w-md overflow-hidden rounded-[14px] bg-black">
           <div ref={playerHostRef} className="h-full w-full" />
         </div>
       )}
-      {error && <p className="max-w-md text-center text-xs text-red-400">{error}</p>}
+      {error && (
+        <p className="max-w-md text-center text-xs" style={{ color: "var(--way-danger)" }}>
+          {error}
+        </p>
+      )}
       {!replay && (
-        <button className="btn-primary w-full max-w-md" onClick={markWatched} disabled={saving || !ended}>
+        <button className="way-btn way-btn-primary w-full max-w-md" onClick={markWatched} disabled={saving || !ended}>
           {saving ? "…" : "Continue"}
         </button>
       )}

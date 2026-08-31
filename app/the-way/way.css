@@ -1,0 +1,263 @@
+/* The Way's own visual identity — scoped entirely under .way-scope so it
+   never leaks into (or fights with) Angle Team Toolkit's navy/amber
+   dashboard look in app/globals.css. Concept: a lantern lighting a path at
+   dusk — a warm honey-gold light against an indigo-plum evening, with a
+   soft sage green marking growth/completion. Petrona (serif, headings) +
+   Karla (sans, everything else) instead of Geist, so it reads as its own
+   app rather than a reskinned dashboard. */
+
+.way-scope {
+  --way-bg: #f3f0f6;
+  --way-surface: #ffffff;
+  --way-surface-2: #ece7f0;
+  --way-border: #dad2e3;
+  --way-text: #251f30;
+  --way-text-dim: #6e6480;
+  --way-accent: #b5652b;
+  --way-accent-ink: #fdf8ef;
+  --way-accent-2: #4f6b4f;
+  --way-danger: #a8452f;
+  --way-shadow: rgba(60, 40, 20, 0.08);
+
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  background: var(--way-bg);
+  color: var(--way-text);
+  font-family: var(--font-way-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  .way-scope {
+    --way-bg: #1a1625;
+    --way-surface: #221c30;
+    --way-surface-2: #2a233a;
+    --way-border: #37304a;
+    --way-text: #ece7f3;
+    --way-text-dim: #a89bc0;
+    --way-accent: #d98c4a;
+    --way-accent-ink: #1a1625;
+    --way-accent-2: #7a9878;
+    --way-danger: #d97a63;
+    --way-shadow: rgba(0, 0, 0, 0.4);
+  }
+}
+
+.way-scope .way-serif {
+  font-family: var(--font-way-serif), Georgia, serif;
+}
+
+.way-wordmark {
+  font-family: var(--font-way-serif), Georgia, serif;
+  font-style: italic;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.way-page-main {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 16px 18px 112px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.way-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  padding: 16px 18px;
+  background: var(--way-surface);
+  border-bottom: 1px solid var(--way-border);
+}
+
+.way-title {
+  font-family: var(--font-way-serif), Georgia, serif;
+  font-weight: 600;
+  font-size: 19px;
+  letter-spacing: -0.005em;
+  color: var(--way-text);
+}
+
+.way-subtitle {
+  font-size: 12.5px;
+  color: var(--way-text-dim);
+}
+
+.way-card {
+  position: relative;
+  border-radius: 14px;
+  padding: 16px 16px 16px 18px;
+  background: var(--way-surface);
+  border: 1px solid var(--way-border);
+  border-left: 3px solid var(--way-accent);
+  box-shadow: 0 10px 24px -18px var(--way-shadow);
+}
+
+.way-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  transition: transform 0.12s ease, filter 0.12s ease, background 0.12s ease;
+}
+.way-btn:active {
+  transform: scale(0.97);
+}
+.way-btn:disabled {
+  opacity: 0.45;
+  transform: none;
+}
+
+.way-btn-primary {
+  background: var(--way-accent);
+  color: var(--way-accent-ink);
+  box-shadow: 0 8px 20px -10px var(--way-shadow);
+}
+.way-btn-primary:hover {
+  filter: brightness(1.06);
+}
+
+.way-btn-secondary {
+  background: transparent;
+  color: var(--way-text);
+  border: 1px solid var(--way-border);
+}
+.way-btn-secondary:hover {
+  background: var(--way-surface-2);
+}
+
+.way-btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  width: 36px;
+  border-radius: 999px;
+  border: 1px solid var(--way-border);
+  color: var(--way-text);
+  background: var(--way-surface);
+  transition: background 0.12s ease, transform 0.12s ease;
+}
+.way-btn-icon:active {
+  transform: scale(0.93);
+}
+.way-btn-icon:hover {
+  background: var(--way-surface-2);
+}
+
+.way-chip {
+  border-radius: 999px;
+  border: 1px solid var(--way-border);
+  background: var(--way-surface);
+  color: var(--way-text-dim);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 14px;
+  transition: background 0.12s ease;
+}
+.way-chip:hover {
+  background: var(--way-surface-2);
+}
+
+.way-input {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--way-border);
+  background: var(--way-surface);
+  color: var(--way-text);
+  padding: 11px 13px;
+  font-size: 14.5px;
+  font-family: inherit;
+}
+.way-input::placeholder {
+  color: var(--way-text-dim);
+}
+.way-input:focus {
+  outline: none;
+  border-color: var(--way-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--way-accent) 18%, transparent);
+}
+
+.way-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid var(--way-border);
+  background: var(--way-surface-2);
+  color: var(--way-text-dim);
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 4px 10px;
+}
+
+.way-pill-accent {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--way-accent) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--way-accent) 35%, transparent);
+  color: var(--way-accent);
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 4px 10px;
+}
+
+.way-empty-state {
+  border-radius: 14px;
+  border: 1px dashed var(--way-border);
+  background: color-mix(in srgb, var(--way-surface) 60%, transparent);
+  padding: 26px 18px;
+  text-align: center;
+  font-size: 13.5px;
+  color: var(--way-text-dim);
+}
+
+.way-progress-track {
+  width: 100%;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--way-surface-2);
+  overflow: hidden;
+}
+
+.way-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--way-accent-2);
+  transition: width 0.3s ease;
+}
+
+.way-skeleton {
+  border-radius: 5px;
+  background: var(--way-surface-2);
+  animation: way-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes way-pulse {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .way-skeleton {
+    animation: none;
+  }
+  .way-btn,
+  .way-btn-icon,
+  .way-chip {
+    transition: none;
+  }
+}

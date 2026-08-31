@@ -43,21 +43,23 @@ export function renderCourseIcon(icon: string, className?: string) {
   }
 }
 
-// Tailwind gradient stop classes for each course.color_theme, applied as
-// `bg-gradient-to-br ${courseGradient(theme)}` on the card banner.
-export const COURSE_GRADIENTS: Record<CourseColorTheme, string> = {
-  amber: "from-amber-400 to-orange-600",
-  indigo: "from-indigo-400 to-blue-700",
-  emerald: "from-emerald-400 to-teal-700",
-  rose: "from-rose-400 to-red-600",
-  sky: "from-sky-400 to-blue-600",
-  violet: "from-violet-400 to-purple-700",
-  fuchsia: "from-fuchsia-400 to-pink-700",
-  teal: "from-teal-400 to-cyan-700",
+// Flat, muted earth tones per course.color_theme (not Tailwind's stock
+// saturated palette, not a glossy gradient) — banner background + the ink
+// color that reads on it, keeping the calmer "waypoint marker" feel
+// rather than a gamified dashboard badge.
+export const COURSE_COLORS: Record<CourseColorTheme, { bg: string; ink: string }> = {
+  amber: { bg: "#8a5a2e", ink: "#fdf3e4" },
+  indigo: { bg: "#3d3a63", ink: "#eee9fb" },
+  emerald: { bg: "#3f5c46", ink: "#eaf3ea" },
+  rose: { bg: "#7a3f42", ink: "#fbe9ea" },
+  sky: { bg: "#3c5566", ink: "#e8f1f5" },
+  violet: { bg: "#5a4470", ink: "#f1e9f7" },
+  fuchsia: { bg: "#75405d", ink: "#f8e9f0" },
+  teal: { bg: "#2f5955", ink: "#e6f3f0" },
 };
 
-export function courseGradient(theme: CourseColorTheme): string {
-  return COURSE_GRADIENTS[theme] ?? COURSE_GRADIENTS.amber;
+export function courseColor(theme: CourseColorTheme): { bg: string; ink: string } {
+  return COURSE_COLORS[theme] ?? COURSE_COLORS.amber;
 }
 
 export function renderLessonTypeIcon(type: LessonItemType, className?: string) {

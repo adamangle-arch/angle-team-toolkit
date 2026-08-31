@@ -106,9 +106,11 @@ export default function WayAuthGate({ children }: { children: React.ReactNode })
   if (authError) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
-        <p className="text-sm text-slate-400">{authError}</p>
+        <p className="text-sm" style={{ color: "var(--way-text-dim)" }}>
+          {authError}
+        </p>
         <button
-          className="btn-secondary"
+          className="way-btn way-btn-secondary"
           onClick={() => {
             setAuthError(null);
             setLoading(true);
@@ -128,7 +130,9 @@ export default function WayAuthGate({ children }: { children: React.ReactNode })
 
   if (loading) {
     return (
-      <div className="flex flex-1 items-center justify-center text-sm text-slate-400">Loading…</div>
+      <div className="flex flex-1 items-center justify-center text-sm" style={{ color: "var(--way-text-dim)" }}>
+        Loading…
+      </div>
     );
   }
 
@@ -138,7 +142,9 @@ export default function WayAuthGate({ children }: { children: React.ReactNode })
 
   if (profileLoading || !profile) {
     return (
-      <div className="flex flex-1 items-center justify-center text-sm text-slate-400">Loading…</div>
+      <div className="flex flex-1 items-center justify-center text-sm" style={{ color: "var(--way-text-dim)" }}>
+        Loading…
+      </div>
     );
   }
 

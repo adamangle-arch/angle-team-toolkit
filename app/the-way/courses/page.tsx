@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import WayHeader from "@/components/way/WayHeader";
 import CourseCard from "@/components/way/CourseCard";
-import { SkeletonList } from "@/components/Skeleton";
+import { WaySkeletonList } from "@/components/way/WaySkeleton";
 import { useWayAuth } from "@/components/way/WayAuthGate";
 import { waySupabase } from "@/lib/way/supabaseClient";
 import type { Course, CourseWithProgress, LessonItem, LessonCompletion } from "@/lib/way/types";
@@ -65,13 +65,13 @@ export default function CoursesPage() {
   return (
     <>
       <WayHeader title="The Way" subtitle="Your discipleship journey" />
-      <main className="page-main">
+      <main className="way-page-main">
         {loading ? (
-          <SkeletonList cards={4} />
+          <WaySkeletonList cards={4} />
         ) : error ? (
-          <p className="empty-state">Couldn&apos;t load your courses: {error}</p>
+          <p className="way-empty-state">Couldn&apos;t load your courses: {error}</p>
         ) : courses.length === 0 ? (
-          <p className="empty-state">No courses yet — check back soon.</p>
+          <p className="way-empty-state">No courses yet — check back soon.</p>
         ) : (
           courses.map((course) => <CourseCard key={course.id} course={course} />)
         )}

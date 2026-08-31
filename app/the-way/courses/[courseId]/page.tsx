@@ -3,11 +3,11 @@
 import { use, useEffect, useState } from "react";
 import { CircleCheckBig, Circle, ExternalLink } from "lucide-react";
 import WayHeader from "@/components/way/WayHeader";
-import ProgressBar from "@/components/ProgressBar";
-import { SkeletonList } from "@/components/Skeleton";
+import WayProgressBar from "@/components/way/WayProgressBar";
+import { WaySkeletonList } from "@/components/way/WaySkeleton";
 import { useWayAuth } from "@/components/way/WayAuthGate";
 import { waySupabase } from "@/lib/way/supabaseClient";
-import { renderCourseIcon, courseGradient, renderLessonTypeIcon, LESSON_TYPE_LABELS } from "@/lib/way/theme";
+import { renderCourseIcon, courseColor, renderLessonTypeIcon, LESSON_TYPE_LABELS } from "@/lib/way/theme";
 import type { Course, LessonItem } from "@/lib/way/types";
 
 export default function CourseDetailPage({ params }: { params: Promise<{ courseId: string }> }) {
@@ -108,48 +108,53 @@ export default function CourseDetailPage({ params }: { params: Promise<{ courseI
   }
 
   const pct = items.length > 0 ? Math.round((completedIds.size / items.length) * 100) : 0;
+  const color = course ? courseColor(course.color_theme) : null;
 
   return (
     <>
       <WayHeader title={course?.title ?? "Course"} backHref="/the-way/courses" />
-      <main className="page-main">
+      <main className="way-page-main">
         {loading ? (
-          <SkeletonList cards={3} />
+          <WaySkeletonList cards={3} />
         ) : error && !course ? (
-          <p className="empty-state">Couldn&apos;t load this course: {error}</p>
-        ) : !course ? (
-          <p className="empty-state">Course not found.</p>
+          <p className="way-empty-state">Couldn&apos;t load this course: {error}</p>
+        ) : !course || !color ? (
+          <p className="way-empty-state">Course not found.</p>
         ) : (
           <>
-            <div
-              className={`flex items-center gap-3 rounded-xl bg-gradient-to-br p-4 ${courseGradient(course.color_theme)}`}
-            >
-              {renderCourseIcon(course.icon, "h-7 w-7 shrink-0 text-white")}
-              <p className="min-w-0 truncate text-lg font-bold text-white">{course.title}</p>
+            <div className="flex items-center gap-3 rounded-[10px] p-4" style={{ background: color.bg, color: color.ink }}>
+              {renderCourseIcon(course.icon, "h-6 w-6 shrink-0")}
+              <p className="way-serif min-w-0 truncate text-lg font-semibold">{course.title}</p>
             </div>
 
-            <p className="text-sm text-slate-300">{course.description}</p>
+            <p className="text-sm" style={{ color: "var(--way-text-dim)" }}>
+              {course.description}
+            </p>
 
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-xs text-slate-400">
+              <div className="flex items-center justify-between text-xs" style={{ color: "var(--way-text-dim)" }}>
                 <span>
                   {completedIds.size}/{items.length} done
                 </span>
                 <span>{pct}%</span>
               </div>
-              <ProgressBar pct={pct} />
+              <WayProgressBar pct={pct} />
             </div>
 
-            {error && <p className="text-xs text-red-400">{error}</p>}
+            {error && (
+              <p className="text-xs" style={{ color: "var(--way-danger)" }}>
+                {error}
+              </p>
+            )}
 
             {items.length === 0 ? (
-              <p className="empty-state">No lessons in this course yet.</p>
+              <p className="way-empty-state">No lessons in this course yet.</p>
             ) : (
               <div className="space-y-2">
                 {items.map((item) => {
                   const done = completedIds.has(item.id);
                   return (
-                    <div key={item.id} className="card flex items-start gap-3">
+                    <div key={item.id} className="way-card flex items-start gap-3">
                       <button
                         type="button"
                         aria-label={done ? "Mark not done" : "Mark done"}
@@ -158,28 +163,42 @@ export default function CourseDetailPage({ params }: { params: Promise<{ courseI
                         disabled={savingId === item.id}
                       >
                         {done ? (
-                          <CircleCheckBig className="h-6 w-6 text-amber" aria-hidden />
+                          <CircleCheckBig className="h-6 w-6" style={{ color: "var(--way-accent-2)" }} aria-hidden />
                         ) : (
-                          <Circle className="h-6 w-6 text-slate-600" aria-hidden />
+                          <Circle className="h-6 w-6" style={{ color: "var(--way-border)" }} aria-hidden />
                         )}
                       </button>
                       <div className="min-w-0 flex-1 space-y-1">
                         <div className="flex items-center gap-1.5">
-                          {renderLessonTypeIcon(item.type, "h-3.5 w-3.5 shrink-0 text-slate-400")}
-                          <span className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                          {renderLessonTypeIcon(item.type, "h-3.5 w-3.5 shrink-0")}
+                          <span
+                            className="text-xs font-semibold uppercase tracking-wide"
+                            style={{ color: "var(--way-text-dim)" }}
+                          >
                             {LESSON_TYPE_LABELS[item.type]}
                           </span>
                         </div>
-                        <p className={`text-sm font-semibold ${done ? "text-slate-400 line-through" : "text-white"}`}>
+                        <p
+                          className="text-sm font-semibold"
+                          style={{
+                            color: done ? "var(--way-text-dim)" : "var(--way-text)",
+                            textDecoration: done ? "line-through" : "none",
+                          }}
+                        >
                           {item.title}
                         </p>
-                        {item.description && <p className="text-sm text-slate-400">{item.description}</p>}
+                        {item.description && (
+                          <p className="text-sm" style={{ color: "var(--way-text-dim)" }}>
+                            {item.description}
+                          </p>
+                        )}
                         {item.content_url && (
                           <a
                             href={item.content_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-xs text-amber-light underline"
+                            className="inline-flex items-center gap-1 text-xs underline"
+                            style={{ color: "var(--way-accent)" }}
                           >
                             Open <ExternalLink className="h-3 w-3" aria-hidden />
                           </a>
