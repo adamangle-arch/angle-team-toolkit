@@ -382,8 +382,18 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   // straight into the app instead of the password form. /our-team is the
   // same idea as /prospect but with no code at all - a plain shareable
   // link to the Testimonials page (see app/team-story), meant to work for
-  // absolutely anyone it's sent to.
-  if (pathname === "/prospect" || pathname === "/reset-password" || pathname === "/our-team") {
+  // absolutely anyone it's sent to. /the-way is a wholly separate app
+  // ("The Way" discipleship courses) living in this same repo/deploy for
+  // scaffolding convenience only - its own Supabase project, its own
+  // users, its own WayAuthGate (see app/the-way/layout.tsx) - so it must
+  // never be routed through this Angle-Team-specific gate at all.
+  if (
+    pathname === "/prospect" ||
+    pathname === "/reset-password" ||
+    pathname === "/our-team" ||
+    pathname === "/the-way" ||
+    pathname?.startsWith("/the-way/")
+  ) {
     return <>{children}</>;
   }
 
