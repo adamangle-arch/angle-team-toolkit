@@ -2177,7 +2177,19 @@ grant execute on function public.get_individual_leaders(text, date) to authentic
 
 -- Everyone currently on a Core Run Streak (all 4 activities, every day,
 -- ending today or yesterday) and how many consecutive days it's been.
-create or replace function public.get_streak_leaderboard()
+--
+-- p_as_of_day defaults to current_date (Postgres/UTC) for any old call
+-- site, but the client now always passes getToday() explicitly - same
+-- fix, same reasoning, as get_current_streak's own p_as_of_day above.
+-- Without it, "today or yesterday" was measured in the SERVER's UTC day,
+-- not the browser's local one: anyone west of UTC who simply hadn't
+-- logged their (still-in-progress) local today yet would silently
+-- vanish from this leaderboard every evening, because Postgres's UTC
+-- "yesterday" had already rolled onto their local today - leaving their
+-- actual, still-completed local yesterday unchecked entirely, not just
+-- unrewarded.
+drop function if exists public.get_streak_leaderboard();
+create or replace function public.get_streak_leaderboard(p_as_of_day date default current_date)
 returns table (
   first_name text,
   last_name text,
@@ -2198,7 +2210,7 @@ as $$
   walk(user_id, day, streak_days) as (
     select q.user_id, q.day, 1
     from qualifying q
-    where q.day = current_date or q.day = current_date - 1
+    where q.day = p_as_of_day or q.day = p_as_of_day - 1
     union all
     select w.user_id, q.day, w.streak_days + 1
     from walk w
@@ -2215,7 +2227,7 @@ as $$
   order by b.streak_days desc;
 $$;
 
-grant execute on function public.get_streak_leaderboard() to authenticated;
+grant execute on function public.get_streak_leaderboard(date) to authenticated;
 
 -- Everyone at Core 300 (300+ personal circle PV) for the given month,
 -- ranked by PV.

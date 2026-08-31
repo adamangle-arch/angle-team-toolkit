@@ -443,7 +443,7 @@ export default function LeaderboardPage() {
 
   useEffect(() => {
     let cancelled = false;
-    supabase.rpc("get_streak_leaderboard").then(({ data }) => {
+    supabase.rpc("get_streak_leaderboard", { p_as_of_day: getToday() }).then(({ data }) => {
       if (!cancelled) setStreakLeaders((data as StreakLeaderboardEntry[]) ?? []);
     });
     return () => {
