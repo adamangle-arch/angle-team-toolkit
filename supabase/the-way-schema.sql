@@ -491,3 +491,33 @@ create policy journal_entries_delete on journal_entries
 insert into devotionals (devotional_date, reflection) values
   (current_date, 'Add your own verse and reflection here from the Supabase table editor — this placeholder just shows what the card looks like.')
 on conflict (devotional_date) do nothing;
+
+-- A rotating pool of verses shown as a full-screen overlay on every app
+-- open (see VerseOverlay.tsx) - distinct from `devotionals`, which is one
+-- specific date-keyed card. Add as many rows as you like from the table
+-- editor; one is picked at random client-side each time the app opens.
+create table if not exists verses (
+  id uuid primary key default gen_random_uuid(),
+  reference text not null,
+  text text not null,
+  created_at timestamptz not null default now()
+);
+
+alter table verses enable row level security;
+
+drop policy if exists verses_select on verses;
+create policy verses_select on verses
+  for select
+  using (true);
+
+drop policy if exists verses_write on verses;
+create policy verses_write on verses
+  for all
+  using (is_admin())
+  with check (is_admin());
+
+-- Placeholder - replace with real verses from the table editor. Add more
+-- rows any time; the overlay rotates through whatever is in this table.
+insert into verses (reference, text)
+select 'Add a real verse here', 'Add your own verse text from the Supabase table editor — this placeholder just shows what the overlay looks like.'
+where not exists (select 1 from verses);

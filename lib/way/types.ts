@@ -64,6 +64,13 @@ export type Devotional = {
   created_at: string;
 };
 
+export type Verse = {
+  id: string;
+  reference: string;
+  text: string;
+  created_at: string;
+};
+
 export type JournalEntryType = "prayer" | "gratitude";
 
 export type JournalEntry = {
