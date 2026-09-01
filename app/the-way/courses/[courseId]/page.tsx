@@ -4,11 +4,15 @@ import { use, useEffect, useState } from "react";
 import { CircleCheckBig, Circle, ExternalLink } from "lucide-react";
 import WayHeader from "@/components/way/WayHeader";
 import WayProgressBar from "@/components/way/WayProgressBar";
+import MilestoneToast from "@/components/way/MilestoneToast";
+import CompletionCelebration from "@/components/way/CompletionCelebration";
 import { WaySkeletonList } from "@/components/way/WaySkeleton";
 import { useWayAuth } from "@/components/way/WayAuthGate";
 import { waySupabase } from "@/lib/way/supabaseClient";
 import { renderCourseIcon, courseColor, renderLessonTypeIcon, LESSON_TYPE_LABELS } from "@/lib/way/theme";
 import type { Course, LessonItem } from "@/lib/way/types";
+
+const MILESTONE_THRESHOLDS = [25, 50, 75] as const;
 
 export default function CourseDetailPage({ params }: { params: Promise<{ courseId: string }> }) {
   const { courseId } = use(params);
@@ -20,6 +24,8 @@ export default function CourseDetailPage({ params }: { params: Promise<{ courseI
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [milestone, setMilestone] = useState<number | null>(null);
+  const [showCompletion, setShowCompletion] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -78,8 +84,15 @@ export default function CourseDetailPage({ params }: { params: Promise<{ courseI
     };
   }, [courseId, profile.id]);
 
+  useEffect(() => {
+    if (milestone === null) return;
+    const timer = setTimeout(() => setMilestone(null), 3200);
+    return () => clearTimeout(timer);
+  }, [milestone]);
+
   async function toggleItem(itemId: string) {
     const wasCompleted = completedIds.has(itemId);
+    const oldSize = completedIds.size;
     setSavingId(itemId);
 
     // Optimistic — reverted below if the write fails.
@@ -104,6 +117,20 @@ export default function CourseDetailPage({ params }: { params: Promise<{ courseI
         return next;
       });
       setError(`Couldn't save that: ${error.message}`);
+      return;
+    }
+
+    // Milestones only fire on forward progress (checking something off,
+    // not unchecking it), compared against pct just before this change.
+    if (!wasCompleted && items.length > 0) {
+      const oldPct = Math.round((oldSize / items.length) * 100);
+      const newPct = Math.round(((oldSize + 1) / items.length) * 100);
+      if (newPct >= 100 && oldPct < 100) {
+        setShowCompletion(true);
+      } else {
+        const crossed = MILESTONE_THRESHOLDS.filter((t) => oldPct < t && newPct >= t).pop();
+        if (crossed) setMilestone(crossed);
+      }
     }
   }
 
@@ -212,6 +239,14 @@ export default function CourseDetailPage({ params }: { params: Promise<{ courseI
           </>
         )}
       </main>
+      {milestone !== null && <MilestoneToast pct={milestone} />}
+      {showCompletion && course && (
+        <CompletionCelebration
+          courseTitle={course.title}
+          completionMessage={course.completion_message}
+          onDone={() => setShowCompletion(false)}
+        />
+      )}
     </>
   );
 }

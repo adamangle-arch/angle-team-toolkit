@@ -87,9 +87,18 @@ create table if not exists courses (
   ),
   order_index integer not null unique,
   is_published boolean not null default true,
+  -- Optional short message shown in the completion celebration when a
+  -- member finishes every lesson in this course - falls back to a plain
+  -- generic message in the UI when null, so setting this per course is
+  -- optional, not required content.
+  completion_message text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- Safe to re-run on an already-provisioned project: adds the column
+-- above if this database predates it.
+alter table courses add column if not exists completion_message text;
 
 alter table courses enable row level security;
 
@@ -393,6 +402,13 @@ insert into courses (slug, title, description, icon, color_theme, order_index) v
   ('church-and-community', 'Church & Community', 'Why the local church matters and how to belong to one.', 'users', 'emerald', 3),
   ('living-on-mission', 'Living on Mission', 'Sharing your faith and serving others in everyday life.', 'flame', 'rose', 4)
 on conflict (slug) do nothing;
+
+-- Example completion messages - edit these, or set your own per course
+-- from the Supabase table editor. Safe to re-run.
+update courses set completion_message = 'You now have a foundation to build the rest of your walk on. Well done.' where slug = 'foundations-of-faith' and completion_message is null;
+update courses set completion_message = 'A daily rhythm of prayer and Scripture is one of the best gifts you can give yourself. Keep it going.' where slug = 'prayer-and-the-word' and completion_message is null;
+update courses set completion_message = 'You were not meant to walk this out alone. Glad you are more connected to this church now.' where slug = 'church-and-community' and completion_message is null;
+update courses set completion_message = 'You are ready to take what you have learned and share it. Someone needs what you have.' where slug = 'living-on-mission' and completion_message is null;
 
 insert into lesson_items (course_id, type, title, description, order_index) values
   ((select id from courses where slug = 'foundations-of-faith'), 'reading', 'Who is God?', 'A short reading on the character of God.', 1),

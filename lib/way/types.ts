@@ -32,6 +32,7 @@ export type Course = {
   color_theme: CourseColorTheme;
   order_index: number;
   is_published: boolean;
+  completion_message: string | null;
   created_at: string;
   updated_at: string;
 };
