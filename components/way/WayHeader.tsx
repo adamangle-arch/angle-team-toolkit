@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, CirclePlay } from "lucide-react";
+import { ArrowLeft, BookHeart, CirclePlay } from "lucide-react";
 import { useWayAuth } from "./WayAuthGate";
 import WelcomeVideoGate from "./WelcomeVideoGate";
 
@@ -33,6 +33,9 @@ export default function WayHeader({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          <Link href="/the-way/journal" aria-label="Journal" className="way-btn-icon">
+            <BookHeart className="h-4 w-4" aria-hidden />
+          </Link>
           <button
             type="button"
             aria-label="Watch welcome video"

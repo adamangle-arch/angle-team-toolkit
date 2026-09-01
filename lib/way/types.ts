@@ -55,6 +55,25 @@ export type LessonCompletion = {
   completed_at: string;
 };
 
+export type Devotional = {
+  id: string;
+  devotional_date: string;
+  verse_reference: string | null;
+  verse_text: string | null;
+  reflection: string;
+  created_at: string;
+};
+
+export type JournalEntryType = "prayer" | "gratitude";
+
+export type JournalEntry = {
+  id: string;
+  user_id: string;
+  entry_type: JournalEntryType;
+  content: string;
+  created_at: string;
+};
+
 // A course plus the pieces the Courses list page needs to render its
 // progress readout, computed client-side from
 // courses + lesson_items + lesson_completions rather than stored

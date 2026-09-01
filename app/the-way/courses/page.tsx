@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Flame, CirclePlay } from "lucide-react";
+import { Flame, CirclePlay, Sunrise } from "lucide-react";
 import WayHeader from "@/components/way/WayHeader";
 import CourseCard from "@/components/way/CourseCard";
 import WayProgressBar from "@/components/way/WayProgressBar";
@@ -11,15 +11,25 @@ import { useWayAuth } from "@/components/way/WayAuthGate";
 import { waySupabase } from "@/lib/way/supabaseClient";
 import { computeStreak } from "@/lib/way/streak";
 import { renderCourseIcon, courseColor } from "@/lib/way/theme";
-import type { Course, CourseWithProgress, LessonItem } from "@/lib/way/types";
+import type { Course, CourseWithProgress, Devotional, LessonItem } from "@/lib/way/types";
 
 type CompletionRow = { lesson_item_id: string; completed_at: string };
+
+// Local calendar date as YYYY-MM-DD, matching devotionals.devotional_date
+// (a plain date column) — deliberately the viewer's own local day, not a
+// server/UTC one, so "today's devotional" flips over at their own midnight.
+function todayIso(): string {
+  const now = new Date();
+  const offset = now.getTimezoneOffset() * 60000;
+  return new Date(now.getTime() - offset).toISOString().slice(0, 10);
+}
 
 export default function CoursesPage() {
   const { profile } = useWayAuth();
   const [courses, setCourses] = useState<CourseWithProgress[]>([]);
   const [streak, setStreak] = useState(0);
   const [resumeCourse, setResumeCourse] = useState<CourseWithProgress | null>(null);
+  const [devotional, setDevotional] = useState<Devotional | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,12 +40,19 @@ export default function CoursesPage() {
       setLoading(true);
       setError(null);
 
-      const [{ data: courseRows, error: courseError }, { data: itemRows, error: itemError }, { data: completionRows, error: completionError }] =
-        await Promise.all([
-          waySupabase.from("courses").select("*").eq("is_published", true).order("order_index", { ascending: true }),
-          waySupabase.from("lesson_items").select("id,course_id"),
-          waySupabase.from("lesson_completions").select("lesson_item_id,completed_at").eq("user_id", profile.id),
-        ]);
+      const [
+        { data: courseRows, error: courseError },
+        { data: itemRows, error: itemError },
+        { data: completionRows, error: completionError },
+        { data: devotionalRow },
+      ] = await Promise.all([
+        waySupabase.from("courses").select("*").eq("is_published", true).order("order_index", { ascending: true }),
+        waySupabase.from("lesson_items").select("id,course_id"),
+        waySupabase.from("lesson_completions").select("lesson_item_id,completed_at").eq("user_id", profile.id),
+        // Missing entirely just means no card today — not an error worth
+        // blocking the rest of the page over.
+        waySupabase.from("devotionals").select("*").eq("devotional_date", todayIso()).maybeSingle(),
+      ]);
 
       if (cancelled) return;
 
@@ -45,6 +62,8 @@ export default function CoursesPage() {
         setLoading(false);
         return;
       }
+
+      setDevotional((devotionalRow as Devotional) ?? null);
 
       const items = (itemRows as Pick<LessonItem, "id" | "course_id">[]) ?? [];
       const completions = (completionRows as CompletionRow[]) ?? [];
@@ -101,6 +120,28 @@ export default function CoursesPage() {
           <p className="way-empty-state">No courses yet — check back soon.</p>
         ) : (
           <>
+            {devotional && (
+              <div className="way-card space-y-1.5">
+                <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--way-text-dim)" }}>
+                  <Sunrise className="h-3.5 w-3.5" aria-hidden />
+                  Today
+                </div>
+                {devotional.verse_reference && (
+                  <p className="way-serif text-base font-semibold" style={{ color: "var(--way-text)" }}>
+                    {devotional.verse_reference}
+                  </p>
+                )}
+                {devotional.verse_text && (
+                  <p className="text-sm italic" style={{ color: "var(--way-text)" }}>
+                    &ldquo;{devotional.verse_text}&rdquo;
+                  </p>
+                )}
+                <p className="text-sm" style={{ color: "var(--way-text-dim)" }}>
+                  {devotional.reflection}
+                </p>
+              </div>
+            )}
+
             {streak > 0 && (
               <div className="way-pill inline-flex w-fit items-center gap-1.5">
                 <Flame className="h-3.5 w-3.5" style={{ color: "var(--way-accent)" }} aria-hidden />

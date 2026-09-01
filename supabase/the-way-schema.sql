@@ -422,3 +422,72 @@ insert into lesson_items (course_id, type, title, description, order_index) valu
   ((select id from courses where slug = 'living-on-mission'), 'reading', 'Your Story Matters', 'How to share your own faith story simply.', 1),
   ((select id from courses where slug = 'living-on-mission'), 'worksheet', 'Serve Somewhere', 'Pick one way to serve this month and write it down.', 2)
 on conflict (course_id, order_index) do nothing;
+
+-- ============================================================================
+-- Phase 2 — personal spiritual practice: daily devotional, prayer
+-- journal, gratitude log.
+-- ============================================================================
+
+-- One row per calendar date - content is entirely yours to write and
+-- manage (Supabase table editor, or a future admin screen), on purpose:
+-- verse text/translation choice is a pastoral and licensing decision for
+-- your church to make, not something to hardcode here. The seed row
+-- below is a placeholder, not real content.
+create table if not exists devotionals (
+  id uuid primary key default gen_random_uuid(),
+  devotional_date date not null unique,
+  verse_reference text,
+  verse_text text,
+  reflection text not null,
+  created_at timestamptz not null default now()
+);
+
+alter table devotionals enable row level security;
+
+drop policy if exists devotionals_select on devotionals;
+create policy devotionals_select on devotionals
+  for select
+  using (true);
+
+drop policy if exists devotionals_write on devotionals;
+create policy devotionals_write on devotionals
+  for all
+  using (is_admin())
+  with check (is_admin());
+
+-- Prayer requests and gratitude notes - strictly private to the person
+-- who wrote them, not visible to mentors/admins (unlike lesson_completions,
+-- there's no select policy for is_mentor_of() here on purpose; a personal
+-- journal is a different kind of private than course progress).
+create table if not exists journal_entries (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references profiles (id) on delete cascade,
+  entry_type text not null check (entry_type in ('prayer', 'gratitude')),
+  content text not null,
+  created_at timestamptz not null default now()
+);
+
+alter table journal_entries enable row level security;
+
+create index if not exists journal_entries_user_idx on journal_entries (user_id, created_at desc);
+
+drop policy if exists journal_entries_select on journal_entries;
+create policy journal_entries_select on journal_entries
+  for select
+  using (user_id = auth.uid());
+
+drop policy if exists journal_entries_insert on journal_entries;
+create policy journal_entries_insert on journal_entries
+  for insert
+  with check (user_id = auth.uid());
+
+drop policy if exists journal_entries_delete on journal_entries;
+create policy journal_entries_delete on journal_entries
+  for delete
+  using (user_id = auth.uid());
+
+-- Placeholder - replace with today's real verse/reflection, or set up a
+-- week's worth ahead of time from the table editor.
+insert into devotionals (devotional_date, reflection) values
+  (current_date, 'Add your own verse and reflection here from the Supabase table editor — this placeholder just shows what the card looks like.')
+on conflict (devotional_date) do nothing;
