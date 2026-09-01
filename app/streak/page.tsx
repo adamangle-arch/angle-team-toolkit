@@ -949,7 +949,7 @@ export default function StreakPage() {
       `📖 Read: ${selectedRow.read_what || "—"}${selectedRow.read_amount ? ` — ${selectedRow.read_amount} ${readingUnit}` : ""}`,
       `🎧 Listened: ${selectedRow.listen_what || "—"}${selectedRow.listen_count ? ` — ${selectedRow.listen_count} audio(s)` : ""}`,
       "",
-      `💬 Story Shares: ${selectedRow.story_shares} | Conversations: ${selectedRow.conversations} | Questions: ${selectedRow.questions} | Yeses: ${selectedRow.yeses}`
+      `💬 Conversations: ${selectedRow.conversations} | Story Shares: ${selectedRow.story_shares} | Questions: ${selectedRow.questions} | Yeses: ${selectedRow.yeses}`
     );
 
     section(
@@ -1450,14 +1450,14 @@ export default function StreakPage() {
                 {selectedDay === today ? "Today's" : formatDateLabel(selectedDay)} Activity
               </p>
               <Counter
-                label="Story Shares"
-                value={selectedRow.story_shares}
-                onChange={(next) => logActivityCount("story_shares", next)}
-              />
-              <Counter
                 label="Conversations"
                 value={selectedRow.conversations}
                 onChange={(next) => logActivityCount("conversations", next)}
+              />
+              <Counter
+                label="Story Shares"
+                value={selectedRow.story_shares}
+                onChange={(next) => logActivityCount("story_shares", next)}
               />
               <Counter
                 label="Questions"
