@@ -2041,13 +2041,19 @@ on conflict (team) do update set root_user_id = excluded.root_user_id, updated_a
 -- full private stage breakdown. Both are callable by any signed-in
 -- user, since the Leaderboard is visible to the whole team.
 -- ============================================================
-create or replace function public.get_team_pipeline_totals(
+-- Return columns changed (added conversations/story_shares) - create or
+-- replace can't change those, so the old signature has to go first.
+drop function if exists public.get_team_pipeline_totals(text, date);
+
+create function public.get_team_pipeline_totals(
   p_period_type text,
   p_period_start date
 )
 returns table (
   team text,
   member_count int,
+  conversations int,
+  story_shares int,
   questions int,
   yeses int,
   qi1 int,
@@ -2098,6 +2104,8 @@ as $$
   select
     m.team,
     count(distinct m.owner_id)::int as member_count,
+    coalesce(sum(pp.conversations), 0)::int as conversations,
+    coalesce(sum(pp.story_shares), 0)::int as story_shares,
     coalesce(sum(pp.questions), 0)::int as questions,
     coalesce(sum(pp.yeses), 0)::int as yeses,
     coalesce(sum(pp.qi1), 0)::int as qi1,
