@@ -949,6 +949,8 @@ export default function StreakPage() {
 
     lines.push(`📋 Daily Update — ${formatDateLabel(selectedDay)}`);
 
+    section("🧠 Takeaways From Today:", selectedRow.takeaways.trim() || "—");
+
     section(
       "Today:",
       `📖 Read: ${selectedRow.read_what || "—"}${selectedRow.read_amount ? ` — ${selectedRow.read_amount} ${readingUnit}` : ""}`,
@@ -961,8 +963,6 @@ export default function StreakPage() {
       `🤝 Meetings Today (${selectedRow.meeting_items.length}):`,
       selectedRow.meeting_items.length > 0 ? selectedRow.meeting_items.join("\n") : "None today."
     );
-
-    section("🧠 Takeaways From Today:", selectedRow.takeaways.trim() || "—");
 
     section(
       `👋 New Contacts Today (${newCandidatesForDay.length}):`,
