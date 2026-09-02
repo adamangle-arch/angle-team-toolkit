@@ -140,15 +140,21 @@ const LevelDataContext = createContext<LevelData>({
 function PersonLink({
   entry,
   showAvatar = true,
+  firstNameOnly = false,
 }: {
   entry: { user_id: string; first_name: string | null; last_name: string | null };
   showAvatar?: boolean;
+  // Set by CoupleLink when both halves share a last name, so it only
+  // has to appear once ("Ryan & Kelly Piterski" instead of "Ryan
+  // Piterski & Kelly Piterski").
+  firstNameOnly?: boolean;
 }) {
   const { photoByUserId, levelByUserId, storiesByUserId } = useContext(LevelDataContext);
+  const label = firstNameOnly ? entry.first_name || "Unnamed" : personName(entry);
   if (!showAvatar) {
     return (
       <Link href={`/profile/${entry.user_id}`} className="underline decoration-dotted underline-offset-2">
-        {personName(entry)}
+        {label}
       </Link>
     );
   }
@@ -162,7 +168,7 @@ function PersonLink({
       stories={storiesByUserId.get(entry.user_id)}
       className="inline-flex items-center gap-1 align-middle"
     >
-      <span className="underline decoration-dotted underline-offset-2">{personName(entry)}</span>
+      <span className="underline decoration-dotted underline-offset-2">{label}</span>
     </AvatarWithStory>
   );
 }
@@ -191,9 +197,14 @@ function CoupleLink({
   if (!entry.partner_user_id) {
     return <PersonLink entry={entry} showAvatar={showAvatar} />;
   }
+  const sharedLastName = Boolean(
+    entry.last_name &&
+      entry.partner_last_name &&
+      entry.last_name.trim().toLowerCase() === entry.partner_last_name.trim().toLowerCase()
+  );
   return (
     <>
-      <PersonLink entry={entry} showAvatar={showAvatar} /> &{" "}
+      <PersonLink entry={entry} showAvatar={showAvatar} firstNameOnly={sharedLastName} /> &{" "}
       <PersonLink
         entry={{
           user_id: entry.partner_user_id,
@@ -269,7 +280,7 @@ function Card({ title, children }: { title: React.ReactNode; children: React.Rea
   return (
     <div className="card space-y-1.5">
       <p className="section-title flex items-center gap-1.5">{title}</p>
-      <div className="space-y-1.5">{children}</div>
+      <div className="space-y-3">{children}</div>
     </div>
   );
 }
