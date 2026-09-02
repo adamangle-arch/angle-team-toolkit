@@ -188,79 +188,6 @@ function withDerived(row: StreakDay): StreakDay {
   };
 }
 
-function Counter({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  onChange: (next: number) => void;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [editValue, setEditValue] = useState("");
-
-  function commit() {
-    const parsed = Math.max(0, parseInt(editValue, 10) || 0);
-    setEditing(false);
-    if (parsed !== value) onChange(parsed);
-  }
-
-  return (
-    <div className="flex items-center justify-between rounded-lg bg-navy px-2 py-1.5">
-      <span className="text-xs text-slate-400">{label}</span>
-      <div className="flex items-center gap-2">
-        <button
-          className="btn-icon !h-6 !w-6 text-xs"
-          onClick={() => onChange(Math.max(0, value - 1))}
-          disabled={value <= 0}
-          aria-label={`Decrease ${label}`}
-        >
-          −
-        </button>
-        {editing ? (
-          <input
-            type="number"
-            min={0}
-            inputMode="numeric"
-            autoFocus
-            className="w-10 rounded bg-white/10 text-center text-sm font-bold text-white outline-none"
-            value={editValue}
-            onChange={(e) => setEditValue(e.target.value)}
-            onBlur={commit}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") e.currentTarget.blur();
-              if (e.key === "Escape") setEditing(false);
-            }}
-          />
-        ) : (
-          // Tapping the number opens direct entry - catching up after a
-          // live event (e.g. 15 Yeses at once) used to mean 15 separate
-          // taps on "+".
-          <button
-            type="button"
-            className="w-5 text-center text-sm font-bold text-white"
-            onClick={() => {
-              setEditValue(String(value));
-              setEditing(true);
-            }}
-            aria-label={`Edit ${label} directly`}
-          >
-            {value}
-          </button>
-        )}
-        <button
-          className="btn-icon !h-6 !w-6 text-xs"
-          onClick={() => onChange(value + 1)}
-          aria-label={`Increase ${label}`}
-        >
-          +
-        </button>
-      </div>
-    </div>
-  );
-}
-
 export default function StreakPage() {
   const { user, ownerId, refreshCoreRunStatus } = useAuth();
   const [history, setHistory] = useState<Record<string, StreakDay>>({});
@@ -733,27 +660,6 @@ export default function StreakPage() {
     };
     saveQueueRef.current = saveQueueRef.current.then(run, run);
     return saveQueueRef.current;
-  }
-
-  // Questions/Yeses are shared with the Pipeline Tracker's Daily Tally -
-  // logging one here also bumps that same day's Daily/Weekly/Monthly
-  // pipeline totals (bump_pipeline_stage). Story Shares used to
-  // auto-follow Questions (on the theory that asking a question is the
-  // story-sharing moment), but that meant every Questions edit silently
-  // changed Story Shares too, with no visible cause - Story Shares is
-  // its own real count with its own +/- buttons, so it only changes when
-  // someone actually touches it.
-  function logActivityCount(key: "questions" | "yeses" | "story_shares" | "conversations", next: number) {
-    const delta = next - (selectedRow[key] as number);
-    saveToday({ [key]: next });
-    if (delta !== 0) {
-      supabase.rpc("bump_pipeline_stage", {
-        p_owner_id: ownerId,
-        p_period_start: selectedDay,
-        p_stage: key,
-        p_delta: delta,
-      });
-    }
   }
 
   // Recently logged titles, most-recent-first, one per distinct title,
@@ -1454,32 +1360,6 @@ export default function StreakPage() {
                 {selectedRow.daily_update ? "Done" : "Not yet"}
               </span>
             </label>
-
-            <div className="card space-y-1.5">
-              <p className="section-title">
-                {selectedDay === today ? "Today's" : formatDateLabel(selectedDay)} Activity
-              </p>
-              <Counter
-                label="Conversations"
-                value={selectedRow.conversations}
-                onChange={(next) => logActivityCount("conversations", next)}
-              />
-              <Counter
-                label="Story Shares"
-                value={selectedRow.story_shares}
-                onChange={(next) => logActivityCount("story_shares", next)}
-              />
-              <Counter
-                label="Questions"
-                value={selectedRow.questions}
-                onChange={(next) => logActivityCount("questions", next)}
-              />
-              <Counter
-                label="Yeses"
-                value={selectedRow.yeses}
-                onChange={(next) => logActivityCount("yeses", next)}
-              />
-            </div>
 
             <div className="card space-y-2">
               <p className="section-title flex items-center gap-1.5">
