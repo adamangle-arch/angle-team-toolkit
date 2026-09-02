@@ -143,6 +143,7 @@ function normalizeRow(row: StreakDay): StreakDay {
     depth_texts: row.depth_texts ?? 0,
     off_day: row.off_day ?? false,
     conversations: row.conversations ?? 0,
+    takeaways: row.takeaways ?? "",
   };
 }
 
@@ -170,6 +171,7 @@ function emptyDay(userId: string, day: string): StreakDay {
     read_minutes: 0,
     depth_texts: 0,
     off_day: false,
+    takeaways: "",
   };
 }
 
@@ -320,6 +322,7 @@ export default function StreakPage() {
   const [newRead, setNewRead] = useState("");
   const [newAudio, setNewAudio] = useState("");
   const [newMeeting, setNewMeeting] = useState("");
+  const [takeaways, setTakeaways] = useState("");
 
   // Which unit reading is tracked in - shared with the Reading goal on
   // Goals via profiles.reading_unit, so switching it here keeps that page
@@ -557,6 +560,7 @@ export default function StreakPage() {
     setNewRead("");
     setNewAudio("");
     setNewMeeting("");
+    setTakeaways(selectedRow.takeaways);
   }
 
   // Pipeline totals for whichever day the Daily Update summary is being
@@ -691,6 +695,7 @@ export default function StreakPage() {
             meeting_items: merged.meeting_items,
             depth_texts: merged.depth_texts,
             off_day: merged.off_day,
+            takeaways: merged.takeaways,
           },
           { onConflict: "user_id,day" }
         )
@@ -957,6 +962,8 @@ export default function StreakPage() {
       selectedRow.meeting_items.length > 0 ? selectedRow.meeting_items.join("\n") : "None today."
     );
 
+    section("🧠 Takeaways From Today:", selectedRow.takeaways.trim() || "—");
+
     section(
       `👋 New Contacts Today (${newCandidatesForDay.length}):`,
       newCandidatesForDay.length > 0
@@ -1043,7 +1050,10 @@ export default function StreakPage() {
     readingUnit,
   ]);
 
+  const canCopySummary = selectedRow.takeaways.trim() !== "";
+
   async function copySummary() {
+    if (!canCopySummary) return;
     try {
       await navigator.clipboard.writeText(summaryText);
       setCopied(true);
@@ -1513,6 +1523,27 @@ export default function StreakPage() {
                 </button>
               </div>
             </div>
+
+            <div className="card space-y-2">
+              <p className="section-title flex items-center gap-1.5">
+                <NotebookPen className="h-4 w-4" aria-hidden />
+                Takeaways From Today
+              </p>
+              <p className="text-xs text-slate-400">
+                What are you thinking, learning, loving, or frustrated about?
+                This is what your upline actually reads for — required before
+                you can copy your Daily Update.
+              </p>
+              <textarea
+                className="textarea min-h-[90px]"
+                placeholder="What's on your mind today?"
+                value={takeaways}
+                onChange={(e) => setTakeaways(e.target.value)}
+                onBlur={() => {
+                  if (takeaways !== selectedRow.takeaways) saveToday({ takeaways });
+                }}
+              />
+            </div>
           </>
         )}
 
@@ -1527,7 +1558,16 @@ export default function StreakPage() {
             className="textarea min-h-[220px] font-mono text-xs"
             value={summaryText}
           />
-          <button className="btn-primary w-full" onClick={copySummary}>
+          {!canCopySummary && (
+            <p className="text-xs text-amber-light">
+              Add a takeaway above before you can copy your Daily Update.
+            </p>
+          )}
+          <button
+            className="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={copySummary}
+            disabled={!canCopySummary}
+          >
             {copied ? "Copied!" : "Copy Daily Update"}
           </button>
           {copied && (

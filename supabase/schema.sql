@@ -782,6 +782,13 @@ alter table streak_days add column if not exists off_day boolean not null defaul
 -- bump_pipeline_stage below).
 alter table streak_days add column if not exists conversations int not null default 0;
 
+-- Free-text "what's on your mind" field - what an upline actually reads
+-- the daily update for (thoughts, wins, frustrations), as opposed to the
+-- pure activity counts above. The app requires this be non-empty before
+-- Copy Daily Update is enabled, but that's a client-side gate only - no
+-- not-null/check constraint here, since historical rows predate the field.
+alter table streak_days add column if not exists takeaways text not null default '';
+
 -- ============================================================
 -- 4b. PERSONAL CIRCLE PV
 -- One row per calendar month per user, self-reported. Core 300 means

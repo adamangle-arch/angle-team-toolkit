@@ -568,6 +568,7 @@ export type StreakDay = {
   read_minutes: number;
   depth_texts: number;
   off_day: boolean;
+  takeaways: string;
 };
 
 export type Goal = {
