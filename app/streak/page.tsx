@@ -855,11 +855,13 @@ export default function StreakPage() {
 
     lines.push(`📋 Daily Update — ${formatDateLabel(selectedDay)}`);
 
-    section("🧠 Takeaways From Today:", selectedRow.takeaways.trim() || "—");
+    section("🧠 Takeaways From Today:", "", selectedRow.takeaways.trim() || "—");
 
     section(
       "Today:",
+      "",
       `📖 Read: ${selectedRow.read_what || "—"}${selectedRow.read_amount ? ` — ${selectedRow.read_amount} ${readingUnit}` : ""}`,
+      "",
       `🎧 Listened: ${selectedRow.listen_what || "—"}${selectedRow.listen_count ? ` — ${selectedRow.listen_count} audio(s)` : ""}`,
       "",
       `💬 Conversations: ${selectedRow.conversations} | Story Shares: ${selectedRow.story_shares} | Questions: ${selectedRow.questions} | Yeses: ${selectedRow.yeses}`
@@ -867,13 +869,15 @@ export default function StreakPage() {
 
     section(
       `🤝 Meetings Today (${selectedRow.meeting_items.length}):`,
-      selectedRow.meeting_items.length > 0 ? selectedRow.meeting_items.join("\n") : "None today."
+      "",
+      selectedRow.meeting_items.length > 0 ? selectedRow.meeting_items.join("\n\n") : "None today."
     );
 
     section(
       `👋 New Contacts Today (${newCandidatesForDay.length}):`,
+      "",
       newCandidatesForDay.length > 0
-        ? newCandidatesForDay.map((c) => `${c.name}${c.notes ? ` — ${c.notes}` : ""}`).join("\n")
+        ? newCandidatesForDay.map((c) => `${c.name}${c.notes ? ` — ${c.notes}` : ""}`).join("\n\n")
         : "None today."
     );
 
@@ -881,11 +885,13 @@ export default function StreakPage() {
 
     section(
       "My Pipeline — This Week:",
+      "",
       weekly
         ? PIPELINE_STAGES.map((s) => `${s.label}: ${weekly[s.key]}`).join(" | ")
         : "No pipeline activity logged yet.",
       "",
       "My Pipeline — This Month:",
+      "",
       monthly
         ? PIPELINE_STAGES.map((s) => `${s.label}: ${monthly[s.key]}`).join(" | ")
         : "No pipeline activity logged yet."
@@ -895,45 +901,50 @@ export default function StreakPage() {
 
     section(
       `My Active Pipeline (${activeCandidates.length}):`,
+      "",
       activeCandidates.length > 0
         ? activeCandidates
             .map((c) => `${c.name} — ${CANDIDATE_STEP_SHORT_LABELS[c.current_step] ?? "QI1"}`)
-            .join("\n")
+            .join("\n\n")
         : "No active candidates right now."
     );
 
     section(
       `📅 Tomorrow's Calendar (${nextDayEvents.length}):`,
+      "",
       nextDayEvents.length > 0
         ? nextDayEvents
             .map(
               (e) =>
                 `${new Date(e.event_at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })} — ${e.title}`
             )
-            .join("\n")
+            .join("\n\n")
         : "Nothing on the calendar yet."
     );
 
     if (downlineMemberCount === 0) {
-      section(`— Downline (0 member(s)) —`, "No downline yet.");
+      section(`— Downline (0 member(s)) —`, "", "No downline yet.");
     } else {
       section(
         `— Downline (${downlineMemberCount} member(s)) —`,
         "",
         "Downline — This Week:",
+        "",
         PIPELINE_STAGES.map((s) => `${s.label}: ${downlineWeekly[s.key]}`).join(" | "),
         "",
         "Downline — This Month:",
+        "",
         PIPELINE_STAGES.map((s) => `${s.label}: ${downlineMonthly[s.key]}`).join(" | "),
         "",
         `Downline Active in Pipeline (${downlineActive.length}):`,
+        "",
         downlineActive.length > 0
           ? downlineActive
               .map(
                 ({ candidate, ownerName }) =>
                   `${candidate.name} — ${CANDIDATE_STEP_SHORT_LABELS[candidate.current_step] ?? "QI1"} (${ownerName})`
               )
-              .join("\n")
+              .join("\n\n")
           : "No active downline candidates right now."
       );
     }
