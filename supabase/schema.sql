@@ -233,12 +233,13 @@ alter table pipeline_periods add column if not exists manually_adjusted boolean 
 
 -- Conversations and Story Shares: tally-tracked here just like every
 -- other pipeline stage (same +/- stepper, same Daily/Weekly/Monthly
--- cascade via bump_pipeline_stage), but deliberately NOT added to
--- PIPELINE_STAGES/PipelineStageKey in lib/constants.ts - not everyone
--- tracks these two, so they're left out of the Leaderboard's per-stage
--- funnel and rankings entirely. Mirrored into streak_days (see
--- mirror_pipeline_stage_to_streak below) so logging either one on the
--- Tally tab also shows up on that same day's Core Run Daily Update.
+-- cascade via bump_pipeline_stage), full PIPELINE_STAGES/PipelineStageKey
+-- members in lib/constants.ts - but not everyone tracks these two, so
+-- they're left out of the Leaderboard's per-stage funnel and rankings
+-- specifically (see the CATEGORIES filter in app/leaderboard/page.tsx).
+-- Mirrored into streak_days (see mirror_pipeline_stage_to_streak below)
+-- so logging either one on the Tally tab also shows up on that same
+-- day's Core Run Daily Update.
 alter table pipeline_periods add column if not exists conversations int not null default 0;
 alter table pipeline_periods add column if not exists story_shares int not null default 0;
 
@@ -2949,14 +2950,15 @@ grant execute on function public.bump_pipeline_stage(uuid, date, text, int) to a
 
 -- The other half of the Pipeline <-> Core Run Streak sync: logging a
 -- Question, Yes, Story Share, or Conversation on the Daily Tally also
--- bumps that same day's Core Run Streak "Today's Activity" counters.
+-- mirrors that same number into streak_days, one-for-one, so the Daily
+-- Update Summary always shows exactly what's in the Pipeline Tracker.
 --
--- Questions/Yeses keep their existing special case: asking the question
--- (or getting a yes) is itself a story-sharing moment, so Story Shares
--- goes up by the same amount too, on top of the story_share boolean
--- already being satisfied by either count. Story Shares and
--- Conversations mirror one-for-one with no second column touched - a
--- direct Story Shares edit shouldn't double-bump itself.
+-- Used to also bump Story Shares an extra time whenever Questions/Yeses
+-- changed (on the theory that asking a question is itself a
+-- story-sharing moment) - that made streak_days.story_shares silently
+-- drift above the real Pipeline Tracker number, which read as a bug
+-- ("why don't my numbers match") rather than a feature. Removed: every
+-- stage now only ever touches its own column here.
 --
 -- Always targets the caller's own streak_days regardless of whose
 -- pipeline row was touched, since these are inherently personal - the
@@ -2977,24 +2979,13 @@ begin
     raise exception 'Invalid streak-mirror stage: %', p_stage;
   end if;
 
-  if p_stage in ('questions', 'yeses') then
-    execute format(
-      'insert into streak_days (user_id, day, %1$I, story_shares)
-       values ($1, $2, greatest(0, $3), greatest(0, $3))
-       on conflict (user_id, day)
-       do update set %1$I = greatest(0, streak_days.%1$I + $3),
-                     story_shares = greatest(0, streak_days.story_shares + $3)',
-      p_stage
-    ) using auth.uid(), p_period_start, p_delta;
-  else
-    execute format(
-      'insert into streak_days (user_id, day, %1$I)
-       values ($1, $2, greatest(0, $3))
-       on conflict (user_id, day)
-       do update set %1$I = greatest(0, streak_days.%1$I + $3)',
-      p_stage
-    ) using auth.uid(), p_period_start, p_delta;
-  end if;
+  execute format(
+    'insert into streak_days (user_id, day, %1$I)
+     values ($1, $2, greatest(0, $3))
+     on conflict (user_id, day)
+     do update set %1$I = greatest(0, streak_days.%1$I + $3)',
+    p_stage
+  ) using auth.uid(), p_period_start, p_delta;
 
   update streak_days
   set story_share = (story_shares > 0 or questions > 0)

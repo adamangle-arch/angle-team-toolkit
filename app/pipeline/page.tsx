@@ -722,11 +722,11 @@ function PipelinePageInner() {
     }
     setUpdateError(null);
 
-    // Questions/Yeses/Story Shares/Conversations also mirror into Core
-    // Run Streak's own Today's Activity counters (Questions/Yeses count
-    // toward Story Share too) - only when editing your own tally, not
-    // filling in for a downline member, since that shouldn't touch the
-    // filler's own personal streak.
+    // Questions/Yeses/Story Shares/Conversations also mirror one-for-one
+    // into the caller's own streak_days row (read by the Core Run Streak
+    // page's Daily Update Summary) - only when editing your own tally,
+    // not filling in for a downline member, since that shouldn't touch
+    // the filler's own personal streak.
     if (
       (key === "questions" || key === "yeses" || key === "story_shares" || key === "conversations") &&
       !actingFor &&
