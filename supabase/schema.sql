@@ -670,6 +670,18 @@ alter table contacts add column if not exists connection_tags text[] not null de
 -- Snapchat, Other) - purely descriptive, same as connection_tags above.
 alter table contacts add column if not exists reconnect_method text not null default '';
 
+-- Set the moment a networking contact's status flips to "Yes" (see the
+-- client-side auto-create in app/contacts/page.tsx) - a real candidates
+-- row gets created automatically so someone doesn't have to re-type the
+-- same name on the Candidate Roadmap. The contact itself is deliberately
+-- NOT removed or hidden once converted (still useful for someone to keep
+-- building their A/B list) - this column just remembers which candidate
+-- it became, both so the UI can link to it and so flipping status away
+-- from and back to "Yes" later doesn't spawn a second duplicate
+-- candidate. on delete set null: if that candidate row is later deleted,
+-- the contact simply reverts to "not yet converted" rather than erroring.
+alter table contacts add column if not exists converted_candidate_id uuid references candidates(id) on delete set null;
+
 -- ============================================================
 -- 4. CORE RUN STREAK
 -- One row per calendar day per user. Read / Listen / Daily Update /

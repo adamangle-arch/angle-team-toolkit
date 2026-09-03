@@ -541,6 +541,7 @@ export type Contact = {
   notes: string;
   connection_tags: string[];
   reconnect_method: string;
+  converted_candidate_id: string | null;
   created_at: string;
   updated_at: string;
 };

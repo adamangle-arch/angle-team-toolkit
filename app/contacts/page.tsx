@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, ReactNode } from "react";
-import { Lightbulb, Trophy, Upload, X } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, Lightbulb, Trophy, Upload, X } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/components/AuthGate";
 import FeatureGate from "@/components/FeatureGate";
@@ -171,10 +172,40 @@ export default function ContactsPage() {
 
   async function updateContact(id: string, patch: Partial<Contact>) {
     const previous = contacts.find((c) => c.id === id);
-    setContacts((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+
+    // The moment a networking contact's status flips to "Yes", spin up a
+    // real candidates row automatically - one less re-typed name on the
+    // Candidate Roadmap. Guarded on the transition INTO "Yes" (not
+    // already there) and no candidate already linked, so toggling status
+    // away and back later doesn't spawn a duplicate. Deliberately doesn't
+    // touch or remove the contact itself - it's still useful for someone
+    // to keep building their A/B list past this point.
+    let extraPatch: Partial<Contact> = {};
+    let candidateErrorMessage: string | null = null;
+    if (
+      previous &&
+      patch.status === "Yes" &&
+      previous.status !== "Yes" &&
+      previous.category !== "Customer" &&
+      !previous.converted_candidate_id
+    ) {
+      const { data: newCandidate, error: candidateError } = await supabase
+        .from("candidates")
+        .insert({ name: previous.name, user_id: ownerId, notes: previous.notes })
+        .select("id")
+        .single();
+      if (candidateError) {
+        candidateErrorMessage = `Saved the status, but couldn't add them to the Candidate Roadmap: ${candidateError.message}`;
+      } else if (newCandidate) {
+        extraPatch = { converted_candidate_id: (newCandidate as { id: string }).id };
+      }
+    }
+
+    const fullPatch = { ...patch, ...extraPatch };
+    setContacts((prev) => prev.map((c) => (c.id === id ? { ...c, ...fullPatch } : c)));
     const { error } = await supabase
       .from("contacts")
-      .update({ ...patch, updated_at: new Date().toISOString() })
+      .update({ ...fullPatch, updated_at: new Date().toISOString() })
       .eq("id", id);
     if (error) {
       // Revert - otherwise a failed status/tag change still shows as saved.
@@ -183,7 +214,7 @@ export default function ContactsPage() {
       }
       setUpdateError(error.message);
     } else {
-      setUpdateError(null);
+      setUpdateError(candidateErrorMessage);
     }
   }
 
@@ -566,6 +597,15 @@ function ContactCard({
           <X className="h-3.5 w-3.5" aria-hidden />
         </button>
       </div>
+      {contact.converted_candidate_id && (
+        <Link
+          href="/pipeline?tab=roadmap"
+          className="flex items-center gap-1 text-xs text-amber-light underline decoration-dotted underline-offset-2"
+        >
+          <ArrowRight className="h-3 w-3 shrink-0" aria-hidden />
+          On the Candidate Roadmap now
+        </Link>
+      )}
       {contact.connection_tags.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {contact.connection_tags.map((tag) => (
