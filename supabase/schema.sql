@@ -8692,3 +8692,44 @@ end;
 $$;
 
 grant execute on function public.set_candidate_timezone(text, text) to anon, authenticated;
+
+-- ============================================================
+-- 30. SUCCESS STORIES (Classroom)
+-- ============================================================
+-- A separate tab on Classroom, apart from the 5 onboarding sessions -
+-- short videos of real people on the team sharing how their business
+-- has grown. Company-wide content (same "one shared list, admin
+-- manages it" shape as optional_resources), not tied to any one
+-- session or user. Gated client-side (app/onboarding/page.tsx) on
+-- having all 5 sessions unlocked - deliberately not RLS-enforced past
+-- plain authentication, same as optional_resources, since nothing here
+-- is sensitive.
+create table if not exists success_story_videos (
+  id uuid primary key default gen_random_uuid(),
+  author_name text not null,
+  youtube_url text not null,
+  display_order int,
+  created_at timestamptz not null default now()
+);
+
+alter table success_story_videos enable row level security;
+
+drop policy if exists "success_story_videos_read_all" on success_story_videos;
+create policy "success_story_videos_read_all" on success_story_videos for select using (true);
+
+drop policy if exists "success_story_videos_insert_admin" on success_story_videos;
+create policy "success_story_videos_insert_admin" on success_story_videos
+for insert with check (public.is_app_admin());
+
+drop policy if exists "success_story_videos_update_admin" on success_story_videos;
+create policy "success_story_videos_update_admin" on success_story_videos
+for update using (public.is_app_admin()) with check (public.is_app_admin());
+
+drop policy if exists "success_story_videos_delete_admin" on success_story_videos;
+create policy "success_story_videos_delete_admin" on success_story_videos
+for delete using (public.is_app_admin());
+
+-- Seed the first one - safe to re-run, only inserts if it's not already there.
+insert into success_story_videos (author_name, youtube_url, display_order)
+select 'Dominic', 'https://youtu.be/Sii5MdsSX1g?is=FoMjV7SFszDdL0MH', 0
+where not exists (select 1 from success_story_videos where author_name = 'Dominic');

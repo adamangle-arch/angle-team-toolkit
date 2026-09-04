@@ -509,6 +509,17 @@ export type PendingTeamTestimonial = PublicTeamTestimonial & {
   author_id: string;
 };
 
+// Classroom's "Success Stories" tab - short videos of real people on the
+// team sharing how their business has grown, unlocked once all 5
+// onboarding sessions are.
+export type SuccessStoryVideo = {
+  id: string;
+  author_name: string;
+  youtube_url: string;
+  display_order: number | null;
+  created_at: string;
+};
+
 export type OnboardingResourceOverride = {
   id: string;
   user_id: string;
