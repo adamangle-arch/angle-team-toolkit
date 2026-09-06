@@ -2,7 +2,7 @@
 
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Lock } from "lucide-react";
+import { ArrowLeft, Lock, Trophy, Video, X } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import ProgressBar from "@/components/ProgressBar";
 import { SkeletonList } from "@/components/Skeleton";
@@ -11,11 +11,16 @@ import { useAuth } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabaseClient";
 import {
   ONBOARDING_SESSIONS,
+  SUCCESS_STORIES_SESSION_NUMBER,
+  SUCCESS_STORIES_TITLE,
+  SUCCESS_STORIES_DESCRIPTION,
   effectiveResourcesForSession,
   isPrimaryUser,
   type OnboardingResourceOverrideEntry,
 } from "@/lib/constants";
-import { SESSION_STYLE } from "@/lib/onboarding-style";
+import { SESSION_STYLE, SUCCESS_STORIES_STYLE } from "@/lib/onboarding-style";
+import { extractYoutubeId } from "@/lib/youtube";
+import type { SuccessStoryVideo } from "@/lib/types";
 
 // A resource url starting with "/" is a link to somewhere else in the
 // app (e.g. a Resources tab) rather than an external video/doc link -
@@ -31,9 +36,13 @@ export default function OnboardingSessionPage({ params }: { params: Promise<{ se
   const isAdmin = isPrimaryUser(user.email);
 
   const sessionNumber = Number(sessionParam);
-  const valid = Number.isInteger(sessionNumber) && sessionNumber >= 1 && sessionNumber <= ONBOARDING_SESSIONS.length;
+  const isSuccessStories = sessionNumber === SUCCESS_STORIES_SESSION_NUMBER;
+  const valid =
+    Number.isInteger(sessionNumber) &&
+    sessionNumber >= 1 &&
+    (sessionNumber <= ONBOARDING_SESSIONS.length || isSuccessStories);
 
-  const [unlockedThrough, setUnlockedThrough] = useState(1);
+  const [unlockedSessionNumbers, setUnlockedSessionNumbers] = useState<Set<number>>(new Set());
   const [welcomeVideoWatchedAt, setWelcomeVideoWatchedAt] = useState<string | null>(null);
   const [resourceOverrides, setResourceOverrides] = useState<OnboardingResourceOverrideEntry[]>([]);
   const [completedLabels, setCompletedLabels] = useState<Set<string>>(new Set());
@@ -47,25 +56,25 @@ export default function OnboardingSessionPage({ params }: { params: Promise<{ se
     if (!valid) return;
     let cancelled = false;
     async function load() {
-      const [{ data: profileData }, { data: overrideRows }, { data: completionRows }] = await Promise.all([
-        supabase
-          .from("profiles")
-          .select("onboarding_unlocked_through,welcome_video_watched_at")
-          .eq("id", user.id)
-          .single(),
-        supabase.from("onboarding_resource_overrides").select("*").eq("user_id", ownerId),
-        supabase
-          .from("onboarding_resource_completions")
-          .select("resource_label")
-          .eq("user_id", user.id)
-          .eq("session", sessionNumber),
-      ]);
+      const [{ data: profileData }, { data: overrideRows }, { data: completionRows }, { data: unlockRows }] =
+        await Promise.all([
+          supabase.from("profiles").select("welcome_video_watched_at").eq("id", user.id).single(),
+          supabase.from("onboarding_resource_overrides").select("*").eq("user_id", ownerId),
+          supabase
+            .from("onboarding_resource_completions")
+            .select("resource_label")
+            .eq("user_id", user.id)
+            .eq("session", sessionNumber),
+          supabase.from("onboarding_session_unlocks").select("session_number").eq("user_id", user.id),
+        ]);
       if (!cancelled) {
-        setUnlockedThrough(profileData?.onboarding_unlocked_through ?? 1);
         setWelcomeVideoWatchedAt(profileData?.welcome_video_watched_at ?? null);
         setResourceOverrides((overrideRows as OnboardingResourceOverrideEntry[]) ?? []);
         setCompletedLabels(
           new Set(((completionRows as { resource_label: string }[]) ?? []).map((r) => r.resource_label))
+        );
+        setUnlockedSessionNumbers(
+          new Set(((unlockRows as { session_number: number }[]) ?? []).map((r) => r.session_number))
         );
         setLoading(false);
       }
@@ -114,19 +123,24 @@ export default function OnboardingSessionPage({ params }: { params: Promise<{ se
     );
   }
 
-  const session = ONBOARDING_SESSIONS[sessionNumber - 1];
-  const style = SESSION_STYLE[sessionNumber - 1];
+  const title = isSuccessStories ? SUCCESS_STORIES_TITLE : ONBOARDING_SESSIONS[sessionNumber - 1].title;
+  const description = isSuccessStories
+    ? SUCCESS_STORIES_DESCRIPTION
+    : ONBOARDING_SESSIONS[sessionNumber - 1].description;
+  const style = isSuccessStories ? SUCCESS_STORIES_STYLE : SESSION_STYLE[sessionNumber - 1];
   const videoWatched = isAdmin || Boolean(welcomeVideoWatchedAt);
-  const unlocked = isAdmin || (sessionNumber <= unlockedThrough && (sessionNumber !== 1 || videoWatched));
-  const resources = effectiveResourcesForSession(sessionNumber, session.resources, resourceOverrides);
+  const unlocked = isAdmin || (sessionNumber === 1 ? videoWatched : unlockedSessionNumbers.has(sessionNumber));
+  const resources = isSuccessStories
+    ? []
+    : effectiveResourcesForSession(sessionNumber, ONBOARDING_SESSIONS[sessionNumber - 1].resources, resourceOverrides);
   const doneCount = resources.filter((r) => completedLabels.has(r.label)).length;
   const pct = resources.length > 0 ? Math.round((doneCount / resources.length) * 100) : 0;
 
   return (
     <>
       <PageHeader
-        title={session.title}
-        subtitle={unlocked ? `${doneCount}/${resources.length} homework items done` : "Locked"}
+        title={title}
+        subtitle={unlocked ? (isSuccessStories ? undefined : `${doneCount}/${resources.length} homework items done`) : "Locked"}
       />
       <main className="page-main">
         <Link href="/onboarding" className="chip-btn inline-flex w-fit items-center gap-1.5">
@@ -158,9 +172,9 @@ export default function OnboardingSessionPage({ params }: { params: Promise<{ se
             </span>
           )}
           <p className="relative z-10 text-lg font-extrabold leading-tight text-paper drop-shadow-sm">
-            {session.title}
+            {title}
           </p>
-          <p className="relative z-10 text-sm text-paper/85">{session.description}</p>
+          <p className="relative z-10 text-sm text-paper/85">{description}</p>
         </div>
 
         {!unlocked && sessionNumber === 1 && !videoWatched ? (
@@ -181,6 +195,8 @@ export default function OnboardingSessionPage({ params }: { params: Promise<{ se
           </div>
         ) : loading ? (
           <SkeletonList cards={3} />
+        ) : isSuccessStories ? (
+          <SuccessStoriesContent isAdmin={isAdmin} />
         ) : (
           <>
             {resources.length > 0 && (
@@ -248,6 +264,152 @@ export default function OnboardingSessionPage({ params }: { params: Promise<{ se
           </>
         )}
       </main>
+    </>
+  );
+}
+
+// Real people on the team sharing how their business has grown - not
+// tied to any homework/resources, just a video list. Admin can add/
+// remove videos directly here rather than needing a schema.sql seed for
+// every new one after the first.
+function SuccessStoriesContent({ isAdmin }: { isAdmin: boolean }) {
+  const [videos, setVideos] = useState<SuccessStoryVideo[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [newAuthor, setNewAuthor] = useState("");
+  const [newUrl, setNewUrl] = useState("");
+  const [adding, setAdding] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const { data } = await supabase
+        .from("success_story_videos")
+        .select("*")
+        .order("display_order", { ascending: true, nullsFirst: false })
+        .order("created_at", { ascending: true });
+      if (!cancelled) {
+        setVideos((data as SuccessStoryVideo[]) ?? []);
+        setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function addVideo() {
+    const author = newAuthor.trim();
+    const url = newUrl.trim();
+    if (!author || !url) return;
+    if (!extractYoutubeId(url)) {
+      setAddError("That doesn't look like a YouTube link - paste the full youtube.com or youtu.be URL.");
+      return;
+    }
+    setAdding(true);
+    setAddError(null);
+    const { data, error } = await supabase
+      .from("success_story_videos")
+      .insert({ author_name: author, youtube_url: url })
+      .select("*")
+      .single();
+    setAdding(false);
+    if (error) {
+      setAddError(error.message);
+      return;
+    }
+    if (data) setVideos((prev) => [...prev, data as SuccessStoryVideo]);
+    setNewAuthor("");
+    setNewUrl("");
+  }
+
+  async function removeVideo(id: string) {
+    const previous = videos;
+    setVideos((prev) => prev.filter((v) => v.id !== id));
+    const { error } = await supabase.from("success_story_videos").delete().eq("id", id);
+    if (error) setVideos(previous);
+  }
+
+  return (
+    <>
+      {isAdmin && (
+        <div className="card space-y-2">
+          <p className="section-title flex items-center gap-1.5">
+            <Video className="h-4 w-4" aria-hidden />
+            Add a Success Story
+          </p>
+          <input
+            className="input"
+            placeholder="Name"
+            value={newAuthor}
+            onChange={(e) => setNewAuthor(e.target.value)}
+          />
+          <input
+            className="input"
+            placeholder="YouTube link"
+            value={newUrl}
+            onChange={(e) => setNewUrl(e.target.value)}
+          />
+          {addError && <p className="text-xs text-red-400">{addError}</p>}
+          <button
+            className="btn-primary w-full"
+            onClick={addVideo}
+            disabled={adding || !newAuthor.trim() || !newUrl.trim()}
+          >
+            {adding ? "Adding..." : "Add Video"}
+          </button>
+        </div>
+      )}
+
+      {loading ? (
+        <SkeletonList cards={2} />
+      ) : videos.length === 0 ? (
+        <div className="empty-state">No success stories yet.</div>
+      ) : (
+        videos.map((v) => {
+          const youtubeId = extractYoutubeId(v.youtube_url);
+          return (
+            <div key={v.id} className="card space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <p className="flex items-center gap-1.5 font-semibold text-white">
+                  <Trophy className="h-4 w-4 shrink-0 text-amber-light" aria-hidden />
+                  {v.author_name}
+                </p>
+                {isAdmin && (
+                  <button
+                    className="btn-icon !h-7 !w-7 text-sm"
+                    onClick={() => removeVideo(v.id)}
+                    aria-label={`Remove ${v.author_name}'s video`}
+                  >
+                    <X className="h-3.5 w-3.5" aria-hidden />
+                  </button>
+                )}
+              </div>
+              {youtubeId ? (
+                <div className="aspect-video w-full overflow-hidden rounded-xl bg-black">
+                  <iframe
+                    className="h-full w-full"
+                    src={`https://www.youtube.com/embed/${youtubeId}`}
+                    title={`${v.author_name}'s success story`}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                </div>
+              ) : (
+                <a
+                  href={v.youtube_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-amber-light underline"
+                >
+                  Watch video
+                </a>
+              )}
+            </div>
+          );
+        })
+      )}
     </>
   );
 }

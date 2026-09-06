@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { notifyUsers } from "@/lib/notifyEvent";
-import { isPrimaryUser } from "@/lib/constants";
+import { isPrimaryUser, SUCCESS_STORIES_SESSION_NUMBER, SUCCESS_STORIES_TITLE } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -524,7 +524,11 @@ export async function POST(request: Request) {
           userIds: [body.targetUserId],
           kind: "onboarding_unlocked",
           title: "🔓 Onboarding unlocked",
-          body: `${fullName(grantor)} unlocked Session ${body.sessionNumber} for you`,
+          body: `${fullName(grantor)} unlocked ${
+            body.sessionNumber === SUCCESS_STORIES_SESSION_NUMBER
+              ? SUCCESS_STORIES_TITLE
+              : `Session ${body.sessionNumber}`
+          } for you`,
           url: "/onboarding",
         });
         return NextResponse.json(result);

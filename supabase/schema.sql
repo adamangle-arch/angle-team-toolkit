@@ -1396,43 +1396,148 @@ create policy "onboarding_grants_select_own_or_admin" on onboarding_grants for s
   or public.is_app_admin()
 );
 
--- Unlocks the next Onboarding session for a downline member. Only their
--- upline (any level) or an admin can do this — it's a manual approval
--- step, never automatic. There's no upper bound checked here (the total
--- session count only lives in the app's ONBOARDING_SESSIONS constant);
--- the client clamps display so an extra grant past the last session is
--- harmless.
-create or replace function public.grant_next_onboarding_session(p_user_id uuid)
+-- ============================================================
+-- ONBOARDING: OUT-OF-ORDER SESSION UNLOCKING
+-- ============================================================
+-- Supersedes the old "onboarding_unlocked_through" strictly-sequential
+-- model (grant_next_onboarding_session / lock_previous_onboarding_session
+-- below, now dropped) - an upline can now unlock ANY specific session,
+-- not just the next one in line, for whatever circumstance calls for
+-- going out of order. Session 1 is never in here - it's always
+-- available from signup, same as before, just implicitly rather than
+-- via a row.
+--
+-- profiles.onboarding_unlocked_through is KEPT and still maintained by
+-- the RPCs below (as a plain count of how many of the 5 real curriculum
+-- sessions are unlocked, regardless of which specific ones) - every
+-- existing consumer (FEATURE_MIN_SESSION gating in lib/onboarding-gate.ts,
+-- AuthGate's debug preview, the Fast Learner badge, ProfileGate's
+-- "existing member, skip onboarding" path) keeps working completely
+-- unchanged. This table is purely additive: which specific sessions,
+-- and in what order they were unlocked, for the Classroom page's
+-- display and the Team page's per-session toggle controls.
+--
+-- Session 6 is "Success Stories" (see success_story_videos above) -
+-- its own unlockable session now, same table/RPCs, just excluded from
+-- the 1-5 count that feeds onboarding_unlocked_through/FEATURE_MIN_SESSION,
+-- since it isn't real curriculum.
+-- Retired in favor of grant_onboarding_session/lock_onboarding_session
+-- below - the old strictly-sequential "next"/"previous" actions no
+-- longer make sense once any session can be unlocked out of order.
+drop function if exists public.grant_next_onboarding_session(uuid);
+drop function if exists public.lock_previous_onboarding_session(uuid);
+
+create table if not exists onboarding_session_unlocks (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references profiles(id) on delete cascade,
+  session_number int not null check (session_number between 2 and 6),
+  unlocked_at timestamptz not null default now(),
+  unique (user_id, session_number)
+);
+
+alter table onboarding_session_unlocks enable row level security;
+
+drop policy if exists "onboarding_session_unlocks_select_own_or_upline_or_admin" on onboarding_session_unlocks;
+create policy "onboarding_session_unlocks_select_own_or_upline_or_admin" on onboarding_session_unlocks for select using (
+  user_id = auth.uid()
+  or public.is_upline_of(auth.uid(), user_id)
+  or public.is_app_admin()
+);
+-- Deliberately no insert/update/delete policy - every write goes through
+-- the security-definer RPCs below, same as onboarding_grants above.
+
+-- Unlocks one specific session (2-6) for a downline member - out of
+-- order is fine, that's the whole point. Re-unlocking an already-
+-- unlocked session just refreshes its unlocked_at (bumps it back to the
+-- top of the Classroom list), rather than erroring. Self-callable too
+-- (auth.uid() = p_user_id) for ProfileGate's "existing member, skip
+-- onboarding" path, which unlocks 2-5 for the signing-up user themselves.
+create or replace function public.grant_onboarding_session(p_user_id uuid, p_session_number int)
 returns void
 language plpgsql
 security definer
 set search_path = public
 as $$
 begin
-  if not (public.is_app_admin() or public.is_upline_of(auth.uid(), p_user_id)) then
+  if p_session_number not between 2 and 6 then
+    raise exception 'Session 1 is always unlocked; nothing to grant.';
+  end if;
+
+  if not (
+    public.is_app_admin()
+    or public.is_upline_of(auth.uid(), p_user_id)
+    or auth.uid() = p_user_id
+  ) then
     raise exception 'Not authorized to grant onboarding access for this account.';
   end if;
 
-  insert into onboarding_grants (granter_id, target_id) values (auth.uid(), p_user_id);
+  insert into onboarding_session_unlocks (user_id, session_number)
+  values (p_user_id, p_session_number)
+  on conflict (user_id, session_number) do update set unlocked_at = now();
 
-  update profiles
-  set onboarding_unlocked_through = onboarding_unlocked_through + 1,
-      onboarding_completed_at = case
-        when onboarding_unlocked_through + 1 >= 5 and onboarding_completed_at is null then now()
-        else onboarding_completed_at
-      end
-  where id = p_user_id;
+  -- Only sessions 2-5 are real curriculum - Success Stories (6) doesn't
+  -- count toward the completed-onboarding count/badge/feature-gating.
+  if p_session_number between 2 and 5 then
+    insert into onboarding_grants (granter_id, target_id) values (auth.uid(), p_user_id);
+
+    update profiles
+    set onboarding_unlocked_through = 1 + (
+          select count(*) from onboarding_session_unlocks
+          where user_id = p_user_id and session_number between 2 and 5
+        ),
+        onboarding_completed_at = case
+          when (
+            select count(*) from onboarding_session_unlocks
+            where user_id = p_user_id and session_number between 2 and 5
+          ) >= 4 and onboarding_completed_at is null then now()
+          else onboarding_completed_at
+        end
+    where id = p_user_id;
+  end if;
 end;
 $$;
 
-grant execute on function public.grant_next_onboarding_session(uuid) to authenticated;
+grant execute on function public.grant_onboarding_session(uuid, int) to authenticated;
 
--- Same authorization as grant_next_onboarding_session, but jumps straight
--- to fully unlocked - for someone who isn't actually new (e.g. already
--- experienced elsewhere in the business) instead of clicking "Unlock
--- Next" four times. The session count (5) only lives in the app's
--- ONBOARDING_SESSIONS constant - bump this literal too if that list ever
--- grows.
+-- Reverses grant_onboarding_session - changed your mind about having
+-- unlocked something. Session 1 can't be locked (always available).
+create or replace function public.lock_onboarding_session(p_user_id uuid, p_session_number int)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if p_session_number not between 2 and 6 then
+    raise exception 'Session 1 is always unlocked; nothing to lock.';
+  end if;
+
+  if not (public.is_app_admin() or public.is_upline_of(auth.uid(), p_user_id)) then
+    raise exception 'Not authorized to change onboarding access for this account.';
+  end if;
+
+  delete from onboarding_session_unlocks
+  where user_id = p_user_id and session_number = p_session_number;
+
+  if p_session_number between 2 and 5 then
+    update profiles
+    set onboarding_unlocked_through = 1 + (
+      select count(*) from onboarding_session_unlocks
+      where user_id = p_user_id and session_number between 2 and 5
+    )
+    where id = p_user_id;
+  end if;
+end;
+$$;
+
+grant execute on function public.lock_onboarding_session(uuid, int) to authenticated;
+
+-- Jumps straight to all 5 real curriculum sessions unlocked - for
+-- someone who isn't actually new, instead of unlocking one at a time.
+-- Self-callable too (see grant_onboarding_session above) - ProfileGate's
+-- "existing member" signup path calls this on itself. Deliberately
+-- leaves Success Stories (session 6) untouched; that's still its own
+-- separate unlock.
 create or replace function public.grant_all_onboarding_sessions(p_user_id uuid)
 returns void
 language plpgsql
@@ -1440,11 +1545,20 @@ security definer
 set search_path = public
 as $$
 begin
-  if not (public.is_app_admin() or public.is_upline_of(auth.uid(), p_user_id)) then
+  if not (
+    public.is_app_admin()
+    or public.is_upline_of(auth.uid(), p_user_id)
+    or auth.uid() = p_user_id
+  ) then
     raise exception 'Not authorized to grant onboarding access for this account.';
   end if;
 
   insert into onboarding_grants (granter_id, target_id) values (auth.uid(), p_user_id);
+
+  insert into onboarding_session_unlocks (user_id, session_number)
+  select p_user_id, s
+  from generate_series(2, 5) as s
+  on conflict (user_id, session_number) do nothing;
 
   update profiles
   set onboarding_unlocked_through = 5,
@@ -1454,29 +1568,6 @@ end;
 $$;
 
 grant execute on function public.grant_all_onboarding_sessions(uuid) to authenticated;
-
--- Same authorization as grant_next_onboarding_session, but walks back
--- down a session instead of up - for when an upline/admin changes their
--- mind about having unlocked something. Floored at 1: Session 1 is
--- always available from signup, never lockable.
-create or replace function public.lock_previous_onboarding_session(p_user_id uuid)
-returns void
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  if not (public.is_app_admin() or public.is_upline_of(auth.uid(), p_user_id)) then
-    raise exception 'Not authorized to change onboarding access for this account.';
-  end if;
-
-  update profiles
-  set onboarding_unlocked_through = greatest(1, onboarding_unlocked_through - 1)
-  where id = p_user_id;
-end;
-$$;
-
-grant execute on function public.lock_previous_onboarding_session(uuid) to authenticated;
 
 create or replace function public.handle_new_user()
 returns trigger

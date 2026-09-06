@@ -13,9 +13,7 @@ import {
   Lock,
   Mail,
   Rocket,
-  Trophy,
   Unlock,
-  Video,
   X,
 } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
@@ -29,18 +27,32 @@ import {
   ONBOARDING_SESSIONS,
   SESSION_4_CONTACT_MINIMUM,
   SESSION_4_READING_REQUIREMENT,
+  SUCCESS_STORIES_SESSION_NUMBER,
+  SUCCESS_STORIES_TITLE,
+  SUCCESS_STORIES_DESCRIPTION,
   effectiveResourcesForSession,
   isPrimaryUser,
   type OnboardingResourceOverrideEntry,
 } from "@/lib/constants";
-import { SESSION_STYLE } from "@/lib/onboarding-style";
-import { extractYoutubeId } from "@/lib/youtube";
-import type { MemberResource, SuccessStoryVideo } from "@/lib/types";
+import { SESSION_STYLE, SUCCESS_STORIES_STYLE } from "@/lib/onboarding-style";
+import type { MemberResource } from "@/lib/types";
+
+// Every card the Classroom overview can show, real curriculum sessions
+// (1-5) plus the Success Stories slot (6) - unified so both kinds sort
+// and render through the exact same logic instead of a separate tab.
+type ClassroomSlot = {
+  sessionNumber: number;
+  title: string;
+  description: string;
+  style: { icon: typeof SESSION_STYLE[number]["icon"]; from: string; to: string };
+  resources: ReturnType<typeof effectiveResourcesForSession>;
+  isSuccessStories: boolean;
+};
 
 export default function OnboardingPage() {
   const { user, ownerId, onboardingComplete } = useAuth();
   const isAdmin = isPrimaryUser(user.email);
-  const [unlockedThrough, setUnlockedThrough] = useState(1);
+  const [sessionUnlocks, setSessionUnlocks] = useState<{ session_number: number; unlocked_at: string }[]>([]);
   const [welcomeVideoWatchedAt, setWelcomeVideoWatchedAt] = useState<string | null>(null);
   const [networkContactCount, setNetworkContactCount] = useState(0);
   const [chaptersConfirmed, setChaptersConfirmed] = useState(false);
@@ -58,34 +70,39 @@ export default function OnboardingPage() {
   // thing on the page even though most visits don't need it open.
   const [showLtdMediaGuide, setShowLtdMediaGuide] = useState(false);
   const [showLtdMessagingGuide, setShowLtdMessagingGuide] = useState(false);
-  const [classroomTab, setClassroomTab] = useState<"sessions" | "success-stories">("sessions");
 
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
-      const [{ data: profileData }, { count }, { data: overrideRows }, { data: sentRows }, { data: completionRows }] =
-        await Promise.all([
-          supabase
-            .from("profiles")
-            .select("onboarding_unlocked_through,thinking_big_chapters_confirmed,welcome_video_watched_at")
-            .eq("id", user.id)
-            .single(),
-          supabase
-            .from("contacts")
-            .select("id", { count: "exact", head: true })
-            .eq("user_id", ownerId)
-            .in("category", ["A", "B"]),
-          supabase.from("onboarding_resource_overrides").select("*").eq("user_id", ownerId),
-          supabase
-            .from("member_resources")
-            .select("*")
-            .eq("recipient_id", user.id)
-            .order("created_at", { ascending: true }),
-          supabase.from("onboarding_resource_completions").select("session,resource_label").eq("user_id", user.id),
-        ]);
+      const [
+        { data: profileData },
+        { count },
+        { data: overrideRows },
+        { data: sentRows },
+        { data: completionRows },
+        { data: unlockRows },
+      ] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("thinking_big_chapters_confirmed,welcome_video_watched_at")
+          .eq("id", user.id)
+          .single(),
+        supabase
+          .from("contacts")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", ownerId)
+          .in("category", ["A", "B"]),
+        supabase.from("onboarding_resource_overrides").select("*").eq("user_id", ownerId),
+        supabase
+          .from("member_resources")
+          .select("*")
+          .eq("recipient_id", user.id)
+          .order("created_at", { ascending: true }),
+        supabase.from("onboarding_resource_completions").select("session,resource_label").eq("user_id", user.id),
+        supabase.from("onboarding_session_unlocks").select("session_number,unlocked_at").eq("user_id", user.id),
+      ]);
       if (!cancelled) {
-        setUnlockedThrough(profileData?.onboarding_unlocked_through ?? 1);
         setWelcomeVideoWatchedAt(profileData?.welcome_video_watched_at ?? null);
         setChaptersConfirmed(profileData?.thinking_big_chapters_confirmed ?? false);
         setNetworkContactCount(count ?? 0);
@@ -97,6 +114,9 @@ export default function OnboardingPage() {
               (r) => `${r.session}:${r.resource_label}`
             )
           )
+        );
+        setSessionUnlocks(
+          (unlockRows as { session_number: number; unlocked_at: string }[]) ?? []
         );
         setLoading(false);
       }
@@ -134,35 +154,49 @@ export default function OnboardingPage() {
   }
 
   // Session 1 additionally requires the welcome video (see WELCOME VIDEO
-  // in supabase/schema.sql) - unlockedThrough alone already includes
-  // session 1 by default for every signup, so this is an extra AND, not
-  // a replacement for the usual sessionNumber <= unlockedThrough check.
+  // in supabase/schema.sql) - it has no row in onboarding_session_unlocks
+  // (it's always implicitly available), so this AND is the only gate it
+  // ever needs.
   const videoWatched = isAdmin || Boolean(welcomeVideoWatchedAt);
 
-  const unlockedCount = isAdmin
-    ? ONBOARDING_SESSIONS.length
-    : videoWatched
-      ? Math.min(unlockedThrough, ONBOARDING_SESSIONS.length)
-      : 0;
+  const sessionUnlockMap = new Map(sessionUnlocks.map((r) => [r.session_number, r.unlocked_at]));
 
-  const successStoriesUnlocked = isAdmin || unlockedCount >= ONBOARDING_SESSIONS.length;
+  function isSlotUnlocked(sessionNumber: number): boolean {
+    if (isAdmin) return true;
+    if (sessionNumber === 1) return videoWatched;
+    return sessionUnlockMap.has(sessionNumber);
+  }
+
+  // Sort key for "bubble unlocked-to-the-top" ordering - session 1 has
+  // no real unlocked_at (it's implicit), so it sorts to 0 same as an
+  // admin's never-actually-granted sessions, which just keeps them in
+  // their original numeric order rather than doing anything erratic.
+  function unlockedAtMs(sessionNumber: number): number {
+    if (sessionNumber === 1) return 0;
+    const ts = sessionUnlockMap.get(sessionNumber);
+    return ts ? new Date(ts).getTime() : 0;
+  }
+
+  const curriculumUnlockedCount = [1, 2, 3, 4, 5].filter(isSlotUnlocked).length;
 
   // Resource-level completion across everything actually reachable right
-  // now (not the still-locked sessions further down) - the top-of-page
-  // progress bar, distinct from the "X/Y sessions unlocked" subtitle
-  // which is about gating, not how much of what's unlocked is done.
-  // Starts at 1 (done or not) for the welcome video itself, which isn't
-  // one of any session's own resources.length - counted here so it
-  // shows up in the same "X/Y resources completed" number instead of
-  // being invisible to this progress bar. Deliberately checks the raw
-  // welcome_video_watched_at, not videoWatched - that flag is true for
-  // admins regardless of whether they've actually watched it (it just
-  // bypasses the Session 1 lock), which would otherwise show an admin
-  // as having "completed" a resource they haven't touched.
+  // now (not the still-locked sessions) - the top-of-page progress bar,
+  // distinct from the "X/Y sessions unlocked" subtitle which is about
+  // gating, not how much of what's unlocked is done. Starts at 1 (done or
+  // not) for the welcome video itself, which isn't one of any session's
+  // own resources - counted here so it shows up in the same "X/Y
+  // resources completed" number instead of being invisible to this
+  // progress bar. Deliberately checks the raw welcome_video_watched_at,
+  // not videoWatched - that flag is true for admins regardless of
+  // whether they've actually watched it (it just bypasses the Session 1
+  // lock), which would otherwise show an admin as having "completed" a
+  // resource they haven't touched. Success Stories (6) never enters this
+  // loop - it has no resources of its own.
   let overallTotal = 1;
   let overallDone = welcomeVideoWatchedAt ? 1 : 0;
-  for (let i = 0; i < unlockedCount; i++) {
+  for (let i = 0; i < ONBOARDING_SESSIONS.length; i++) {
     const sessionNumber = i + 1;
+    if (!isSlotUnlocked(sessionNumber)) continue;
     const resources = effectiveResourcesForSession(
       sessionNumber,
       ONBOARDING_SESSIONS[i].resources,
@@ -172,6 +206,37 @@ export default function OnboardingPage() {
     overallDone += resources.filter((r) => completedKeys.has(`${sessionNumber}:${r.label}`)).length;
   }
   const overallPct = overallTotal > 0 ? Math.round((overallDone / overallTotal) * 100) : 0;
+
+  const slots: ClassroomSlot[] = [
+    ...ONBOARDING_SESSIONS.map((session, i) => ({
+      sessionNumber: i + 1,
+      title: session.title,
+      description: session.description,
+      style: SESSION_STYLE[i],
+      resources: effectiveResourcesForSession(i + 1, session.resources, resourceOverrides),
+      isSuccessStories: false,
+    })),
+    {
+      sessionNumber: SUCCESS_STORIES_SESSION_NUMBER,
+      title: SUCCESS_STORIES_TITLE,
+      description: SUCCESS_STORIES_DESCRIPTION,
+      style: SUCCESS_STORIES_STYLE,
+      resources: [],
+      isSuccessStories: true,
+    },
+  ];
+
+  // Upline can unlock any session out of order now (see
+  // onboarding_session_unlocks in supabase/schema.sql) - whichever one
+  // just got unlocked bubbles to the top so it's easy to find, while
+  // still-locked sessions stay put in their original 1-6 order beneath.
+  const orderedSlots = [...slots].sort((a, b) => {
+    const aUnlocked = isSlotUnlocked(a.sessionNumber);
+    const bUnlocked = isSlotUnlocked(b.sessionNumber);
+    if (aUnlocked !== bUnlocked) return aUnlocked ? -1 : 1;
+    if (aUnlocked) return unlockedAtMs(b.sessionNumber) - unlockedAtMs(a.sessionNumber);
+    return a.sessionNumber - b.sessionNumber;
+  });
 
   // TEMPORARY: lets an admin preview a locked-down onboarding tier in
   // their own browser (see AuthGate's atk_debug_unlock sessionStorage
@@ -190,28 +255,9 @@ export default function OnboardingPage() {
     <>
       <PageHeader
         title="Classroom"
-        subtitle={`${unlockedCount}/${ONBOARDING_SESSIONS.length} sessions unlocked`}
+        subtitle={`${curriculumUnlockedCount}/${ONBOARDING_SESSIONS.length} sessions unlocked`}
       />
       <main className="page-main">
-        <div className="card flex p-1">
-          <button
-            className={classroomTab === "sessions" ? "toggle-pill-active" : "toggle-pill-inactive"}
-            onClick={() => setClassroomTab("sessions")}
-          >
-            Sessions
-          </button>
-          <button
-            className={classroomTab === "success-stories" ? "toggle-pill-active" : "toggle-pill-inactive"}
-            onClick={() => setClassroomTab("success-stories")}
-          >
-            Success Stories
-          </button>
-        </div>
-
-        {classroomTab === "success-stories" ? (
-          <SuccessStoriesTab unlocked={successStoriesUnlocked} isAdmin={isAdmin} />
-        ) : (
-          <>
         {!loading && overallTotal > 0 && (
           <div
             className="space-y-3 rounded-2xl border p-5"
@@ -498,21 +544,17 @@ export default function OnboardingPage() {
         {loading ? (
           <SkeletonList cards={4} />
         ) : (
-          ONBOARDING_SESSIONS.map((session, i) => {
-            const sessionNumber = i + 1;
-            const unlocked = isAdmin || (sessionNumber <= unlockedThrough && (sessionNumber !== 1 || videoWatched));
-            const resources = effectiveResourcesForSession(
-              sessionNumber,
-              session.resources,
-              resourceOverrides
-            );
-            const style = SESSION_STYLE[i];
+          orderedSlots.map((slot) => {
+            const sessionNumber = slot.sessionNumber;
+            const unlocked = isSlotUnlocked(sessionNumber);
+            const resources = slot.resources;
+            const style = slot.style;
             const doneCount = resources.filter((r) => completedKeys.has(`${sessionNumber}:${r.label}`)).length;
             const sessionPct = resources.length > 0 ? Math.round((doneCount / resources.length) * 100) : 0;
 
             if (!unlocked) {
               return (
-                <div key={session.title} className="card space-y-3 opacity-55">
+                <div key={slot.title} className="card space-y-3 opacity-55">
                   <div
                     className="relative flex min-h-[110px] flex-col justify-end overflow-hidden rounded-xl p-4"
                     style={{
@@ -533,10 +575,10 @@ export default function OnboardingPage() {
                       <Lock className="h-3.5 w-3.5 text-paper" />
                     </span>
                     <p className="relative z-10 text-lg font-extrabold leading-tight text-paper drop-shadow-sm">
-                      {session.title}
+                      {slot.title}
                     </p>
                   </div>
-                  <p className="text-sm text-slate-400">{session.description}</p>
+                  <p className="text-sm text-slate-400">{slot.description}</p>
                   <span className="pill inline-flex w-fit items-center gap-1">
                     <Lock className="h-3 w-3" aria-hidden />
                     Locked
@@ -577,7 +619,7 @@ export default function OnboardingPage() {
 
             return (
               <Link
-                key={session.title}
+                key={slot.title}
                 href={`/onboarding/${sessionNumber}`}
                 className="block transition active:scale-[0.98]"
               >
@@ -595,10 +637,10 @@ export default function OnboardingPage() {
                       aria-hidden
                     />
                     <p className="relative z-10 text-lg font-extrabold leading-tight text-paper drop-shadow-sm">
-                      {session.title}
+                      {slot.title}
                     </p>
                   </div>
-                  <p className="text-sm text-slate-400">{session.description}</p>
+                  <p className="text-sm text-slate-400">{slot.description}</p>
 
                   {resources.length > 0 && (
                     <div className="space-y-1">
@@ -613,7 +655,7 @@ export default function OnboardingPage() {
                   )}
 
                   <p className="flex items-center justify-end gap-0.5 text-xs font-semibold text-amber-light">
-                    View homework
+                    {slot.isSuccessStories ? "Watch videos" : "View homework"}
                     <ChevronRight className="h-3.5 w-3.5" aria-hidden />
                   </p>
                 </div>
@@ -621,180 +663,7 @@ export default function OnboardingPage() {
             );
           })
         )}
-          </>
-        )}
       </main>
-    </>
-  );
-}
-
-// Separate from the 5 onboarding sessions - real people on the team
-// sharing how their business has grown, not tied to any one session's
-// homework. Unlocks once all 5 sessions do (successStoriesUnlocked in
-// the parent), same "earn it by finishing onboarding" gating Resources
-// already uses. Admin can add/remove videos directly from here rather
-// than needing a schema.sql seed for every new one after the first.
-function SuccessStoriesTab({ unlocked, isAdmin }: { unlocked: boolean; isAdmin: boolean }) {
-  const [videos, setVideos] = useState<SuccessStoryVideo[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [newAuthor, setNewAuthor] = useState("");
-  const [newUrl, setNewUrl] = useState("");
-  const [adding, setAdding] = useState(false);
-  const [addError, setAddError] = useState<string | null>(null);
-
-  useEffect(() => {
-    // Not fetched at all while locked - the render below returns the
-    // locked card before ever checking `loading`, so there's nothing
-    // for this effect to do until `unlocked` flips true.
-    if (!unlocked) return;
-    let cancelled = false;
-    async function load() {
-      const { data } = await supabase
-        .from("success_story_videos")
-        .select("*")
-        .order("display_order", { ascending: true, nullsFirst: false })
-        .order("created_at", { ascending: true });
-      if (!cancelled) {
-        setVideos((data as SuccessStoryVideo[]) ?? []);
-        setLoading(false);
-      }
-    }
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [unlocked]);
-
-  async function addVideo() {
-    const author = newAuthor.trim();
-    const url = newUrl.trim();
-    if (!author || !url) return;
-    if (!extractYoutubeId(url)) {
-      setAddError("That doesn't look like a YouTube link - paste the full youtube.com or youtu.be URL.");
-      return;
-    }
-    setAdding(true);
-    setAddError(null);
-    const { data, error } = await supabase
-      .from("success_story_videos")
-      .insert({ author_name: author, youtube_url: url })
-      .select("*")
-      .single();
-    setAdding(false);
-    if (error) {
-      setAddError(error.message);
-      return;
-    }
-    if (data) setVideos((prev) => [...prev, data as SuccessStoryVideo]);
-    setNewAuthor("");
-    setNewUrl("");
-  }
-
-  async function removeVideo(id: string) {
-    const previous = videos;
-    setVideos((prev) => prev.filter((v) => v.id !== id));
-    const { error } = await supabase.from("success_story_videos").delete().eq("id", id);
-    if (error) setVideos(previous);
-  }
-
-  if (!unlocked) {
-    return (
-      <div className="card space-y-2 opacity-55">
-        <p className="section-title flex items-center gap-1.5">
-          <Lock className="h-4 w-4" aria-hidden />
-          Success Stories
-        </p>
-        <p className="text-sm text-slate-400">
-          Real people on the team sharing how their business has grown. Unlocks once
-          you&apos;ve completed all {ONBOARDING_SESSIONS.length} onboarding sessions.
-        </p>
-        <span className="pill inline-flex w-fit items-center gap-1">
-          <Lock className="h-3 w-3" aria-hidden />
-          Locked
-        </span>
-      </div>
-    );
-  }
-
-  return (
-    <>
-      {isAdmin && (
-        <div className="card space-y-2">
-          <p className="section-title flex items-center gap-1.5">
-            <Video className="h-4 w-4" aria-hidden />
-            Add a Success Story
-          </p>
-          <input
-            className="input"
-            placeholder="Name"
-            value={newAuthor}
-            onChange={(e) => setNewAuthor(e.target.value)}
-          />
-          <input
-            className="input"
-            placeholder="YouTube link"
-            value={newUrl}
-            onChange={(e) => setNewUrl(e.target.value)}
-          />
-          {addError && <p className="text-xs text-red-400">{addError}</p>}
-          <button
-            className="btn-primary w-full"
-            onClick={addVideo}
-            disabled={adding || !newAuthor.trim() || !newUrl.trim()}
-          >
-            {adding ? "Adding..." : "Add Video"}
-          </button>
-        </div>
-      )}
-
-      {loading ? (
-        <SkeletonList cards={2} />
-      ) : videos.length === 0 ? (
-        <div className="empty-state">No success stories yet.</div>
-      ) : (
-        videos.map((v) => {
-          const youtubeId = extractYoutubeId(v.youtube_url);
-          return (
-            <div key={v.id} className="card space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <p className="flex items-center gap-1.5 font-semibold text-white">
-                  <Trophy className="h-4 w-4 shrink-0 text-amber-light" aria-hidden />
-                  {v.author_name}
-                </p>
-                {isAdmin && (
-                  <button
-                    className="btn-icon !h-7 !w-7 text-sm"
-                    onClick={() => removeVideo(v.id)}
-                    aria-label={`Remove ${v.author_name}'s video`}
-                  >
-                    <X className="h-3.5 w-3.5" aria-hidden />
-                  </button>
-                )}
-              </div>
-              {youtubeId ? (
-                <div className="aspect-video w-full overflow-hidden rounded-xl bg-black">
-                  <iframe
-                    className="h-full w-full"
-                    src={`https://www.youtube.com/embed/${youtubeId}`}
-                    title={`${v.author_name}'s success story`}
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
-                </div>
-              ) : (
-                <a
-                  href={v.youtube_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-amber-light underline"
-                >
-                  Watch video
-                </a>
-              )}
-            </div>
-          );
-        })
-      )}
     </>
   );
 }

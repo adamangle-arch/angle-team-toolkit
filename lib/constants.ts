@@ -883,6 +883,18 @@ export const ONBOARDING_SESSIONS: OnboardingSession[] = [
   },
 ];
 
+// Classroom's "Success Stories" - unlockable the same way as any of the
+// 5 sessions above (see onboarding_session_unlocks in supabase/schema.sql),
+// but deliberately NOT one of ONBOARDING_SESSIONS: it isn't real
+// curriculum (no homework/resources), so it stays out of every place
+// that counts "how many sessions unlocked" for feature-gating purposes
+// (FEATURE_MIN_SESSION, the Fast Learner badge, etc.) - session number 6
+// is reserved for it specifically, tracked only in the unlock table.
+export const SUCCESS_STORIES_SESSION_NUMBER = 6;
+export const SUCCESS_STORIES_TITLE = "Success Stories";
+export const SUCCESS_STORIES_DESCRIPTION =
+  "Real people on the team sharing how their business has grown.";
+
 // My Budget (app/budget/page.tsx) - line items matching the Budget
 // Session's worksheet exactly, so nothing gets lost bringing it in-app.
 // `slug` is the jsonb key on budget_worksheets.{income,fixed_expenses,

@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabaseClient";
 import { fireNotifyEvent } from "@/lib/notifyClient";
-import { TEAMS, ONBOARDING_SESSIONS, isPrimaryUser } from "@/lib/constants";
+import { TEAMS, isPrimaryUser } from "@/lib/constants";
 import type { Profile } from "@/lib/types";
 
 export default function ProfileGate({
@@ -72,12 +72,6 @@ export default function ProfileGate({
         last_name: lastName.trim(),
         team,
         team_confirmed_at: new Date().toISOString(),
-        ...(skipOnboarding
-          ? {
-              onboarding_unlocked_through: ONBOARDING_SESSIONS.length,
-              onboarding_completed_at: new Date().toISOString(),
-            }
-          : {}),
       })
       .eq("id", user.id);
 
@@ -85,6 +79,22 @@ export default function ProfileGate({
       setSaving(false);
       setError(profileError.message);
       return;
+    }
+
+    // Unlocks all 5 real curriculum sessions in one shot (self-callable -
+    // see grant_all_onboarding_sessions in schema.sql), same RPC an
+    // upline uses on someone else's behalf, keeping
+    // onboarding_session_unlocks and onboarding_unlocked_through in sync
+    // rather than writing onboarding_unlocked_through directly here.
+    if (skipOnboarding) {
+      const { error: unlockError } = await supabase.rpc("grant_all_onboarding_sessions", {
+        p_user_id: user.id,
+      });
+      if (unlockError) {
+        setSaving(false);
+        setError(unlockError.message);
+        return;
+      }
     }
 
     // Required for everyone except admins - every other new signup has to

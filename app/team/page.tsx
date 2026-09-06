@@ -33,6 +33,8 @@ import {
   ONBOARDING_SESSIONS,
   SESSION_4_CONTACT_MINIMUM,
   SESSION_4_READING_REQUIREMENT,
+  SUCCESS_STORIES_SESSION_NUMBER,
+  SUCCESS_STORIES_TITLE,
   GOAL_ITEMS_BY_PERIOD,
   GOAL_PERIODS,
   NOTIFICATION_KINDS,
@@ -146,6 +148,7 @@ type MemberData = {
   budgetWorksheet: BudgetWorksheet | null;
   onboardingCompletions: { session: number; resource_label: string }[];
   onboardingOverrides: OnboardingResourceOverride[];
+  sessionUnlocks: { session_number: number; unlocked_at: string }[];
 };
 
 export default function TeamPage() {
@@ -446,6 +449,7 @@ export default function TeamPage() {
         { data: goals },
         { data: onboardingCompletions },
         { data: onboardingOverrides },
+        { data: sessionUnlocks },
         { data: monthlyPv },
         { data: budgetWorksheet },
         dailyRowsForPeriodResult,
@@ -495,6 +499,7 @@ export default function TeamPage() {
           .select("session,resource_label")
           .eq("user_id", selectedId),
         supabase.from("onboarding_resource_overrides").select("*").eq("user_id", selectedId),
+        supabase.from("onboarding_session_unlocks").select("session_number,unlocked_at").eq("user_id", selectedId),
         // PV/Ditto is always tracked by calendar month regardless of
         // which period-type tab (daily/weekly/monthly) is selected above
         // - same as the Volume page itself, which has no period-type
@@ -548,6 +553,7 @@ export default function TeamPage() {
           budgetWorksheet: (budgetWorksheet as BudgetWorksheet) ?? null,
           onboardingCompletions: (onboardingCompletions as { session: number; resource_label: string }[]) ?? [],
           onboardingOverrides: (onboardingOverrides as OnboardingResourceOverride[]) ?? [],
+          sessionUnlocks: (sessionUnlocks as { session_number: number; unlocked_at: string }[]) ?? [],
         });
         setLoadingMember(false);
       }
@@ -561,16 +567,28 @@ export default function TeamPage() {
 
   const selectedProfile = profiles.find((p) => p.id === selectedId) ?? null;
 
+  // Which specific sessions (2-6) this person has unlocked - out of
+  // order is fine now (see onboarding_session_unlocks in
+  // supabase/schema.sql), so this is a set rather than a single
+  // "unlocked through" number. Session 1 is always implicitly unlocked.
+  const memberUnlockedSessionNumbers = new Set(
+    (memberData?.sessionUnlocks ?? []).map((r) => r.session_number)
+  );
+  function isMemberSessionUnlocked(sessionNumber: number): boolean {
+    return sessionNumber === 1 || memberUnlockedSessionNumbers.has(sessionNumber);
+  }
+
   // Session 4 ("Sharing Your Story") shouldn't unlock until this person
   // has put real work into their A/B list (not the Customer list) and
-  // confirmed they've done the assigned reading. Only relevant for the
-  // 3 -> 4 transition; every other "Unlock Next" step is ungated.
+  // confirmed they've done the assigned reading - checked whenever
+  // session 4 is still locked, regardless of what else is unlocked,
+  // since any session can now be granted out of order.
   const networkContactCount =
     memberData?.contacts.filter((c) => c.category === "A" || c.category === "B").length ?? 0;
-  const unlockingSession4 = (selectedProfile?.onboarding_unlocked_through ?? 1) === 3;
   const contactRequirementMet = networkContactCount >= SESSION_4_CONTACT_MINIMUM;
   const readingRequirementMet = Boolean(selectedProfile?.thinking_big_chapters_confirmed);
-  const session4Gated = unlockingSession4 && (!contactRequirementMet || !readingRequirementMet);
+  const session4Gated =
+    !isMemberSessionUnlocked(4) && (!contactRequirementMet || !readingRequirementMet);
 
   // Same "resources actually completed, not just unlocked" progress
   // read as the person's own Classroom page shows themselves (see
@@ -580,14 +598,12 @@ export default function TeamPage() {
   const completedKeys = new Set(
     (memberData?.onboardingCompletions ?? []).map((c) => `${c.session}:${c.resource_label}`)
   );
-  const classroomUnlockedCount = Math.min(
-    selectedProfile?.onboarding_unlocked_through ?? 1,
-    ONBOARDING_SESSIONS.length
-  );
+  const classroomUnlockedCount = [1, 2, 3, 4, 5].filter(isMemberSessionUnlocked).length;
   let classroomDone = selectedProfile?.welcome_video_watched_at ? 1 : 0;
   let classroomTotal = 1;
-  for (let i = 0; i < classroomUnlockedCount; i++) {
+  for (let i = 0; i < ONBOARDING_SESSIONS.length; i++) {
     const sessionNumber = i + 1;
+    if (!isMemberSessionUnlocked(sessionNumber)) continue;
     const resources = effectiveResourcesForSession(
       sessionNumber,
       ONBOARDING_SESSIONS[i].resources,
@@ -607,90 +623,64 @@ export default function TeamPage() {
     setShowFullBudget(false);
   }
 
-  async function handleGrantOnboarding() {
+  // Toggles one specific session (2-6) on or off for the selected
+  // member - out of order is fine, that's the whole point (see
+  // grant_onboarding_session/lock_onboarding_session in
+  // supabase/schema.sql). Session 1 is never passed here - it's always
+  // unlocked and its chip is disabled.
+  async function handleToggleSession(sessionNumber: number, unlock: boolean) {
     if (!selectedId) return;
     setGrantingOnboarding(true);
     setGrantError("");
-    const { error } = await supabase.rpc("grant_next_onboarding_session", {
+    const { error } = await supabase.rpc(unlock ? "grant_onboarding_session" : "lock_onboarding_session", {
       p_user_id: selectedId,
+      p_session_number: sessionNumber,
     });
     if (error) {
       setGrantError(error.message);
       setGrantingOnboarding(false);
       return;
     }
-    const previousSessionNumber = profiles.find((p) => p.id === selectedId)?.onboarding_unlocked_through ?? 1;
-    const newSessionNumber = previousSessionNumber + 1;
-    setProfiles((prev) =>
-      prev.map((p) =>
-        p.id === selectedId
-          ? { ...p, onboarding_unlocked_through: (p.onboarding_unlocked_through ?? 1) + 1 }
-          : p
-      )
-    );
-    fireNotifyEvent({
-      kind: "onboarding_unlocked",
-      targetUserId: selectedId,
-      sessionNumber: newSessionNumber,
-    });
-    if (newSessionNumber >= ONBOARDING_SESSIONS.length && previousSessionNumber < ONBOARDING_SESSIONS.length) {
-      fireNotifyEvent({ kind: "onboarding_completed", targetUserId: selectedId });
-    }
-    setGrantingOnboarding(false);
-  }
 
-  // For someone who isn't actually new - skips straight to fully
-  // unlocked instead of tapping "Unlock Next" through every session.
-  async function handleGrantAllOnboarding() {
-    if (!selectedId) return;
-    setGrantingOnboarding(true);
-    setGrantError("");
-    const { error } = await supabase.rpc("grant_all_onboarding_sessions", {
-      p_user_id: selectedId,
-    });
-    if (error) {
-      setGrantError(error.message);
-      setGrantingOnboarding(false);
-      return;
-    }
-    const previousSessionNumber = profiles.find((p) => p.id === selectedId)?.onboarding_unlocked_through ?? 1;
-    setProfiles((prev) =>
-      prev.map((p) =>
-        p.id === selectedId ? { ...p, onboarding_unlocked_through: ONBOARDING_SESSIONS.length } : p
-      )
-    );
-    fireNotifyEvent({
-      kind: "onboarding_unlocked",
-      targetUserId: selectedId,
-      sessionNumber: ONBOARDING_SESSIONS.length,
-    });
-    if (previousSessionNumber < ONBOARDING_SESSIONS.length) {
-      fireNotifyEvent({ kind: "onboarding_completed", targetUserId: selectedId });
-    }
-    setGrantingOnboarding(false);
-  }
+    const wasCurriculumComplete =
+      [1, 2, 3, 4, 5].filter((n) => n === 1 || memberUnlockedSessionNumbers.has(n)).length >=
+      ONBOARDING_SESSIONS.length;
 
-  // Changed your mind about an unlock? Walks back down a session
-  // (floored at 1 - Session 1 is always available from signup).
-  async function handleLockPreviousOnboarding() {
-    if (!selectedId) return;
-    setGrantingOnboarding(true);
-    setGrantError("");
-    const { error } = await supabase.rpc("lock_previous_onboarding_session", {
-      p_user_id: selectedId,
+    setMemberData((prev) => {
+      if (!prev) return prev;
+      const filtered = prev.sessionUnlocks.filter((r) => r.session_number !== sessionNumber);
+      return {
+        ...prev,
+        sessionUnlocks: unlock
+          ? [...filtered, { session_number: sessionNumber, unlocked_at: new Date().toISOString() }]
+          : filtered,
+      };
     });
-    if (error) {
-      setGrantError(error.message);
-      setGrantingOnboarding(false);
-      return;
+
+    // profiles.onboarding_unlocked_through is a maintained derived
+    // counter (see grant_onboarding_session in supabase/schema.sql) -
+    // kept in sync here too since other tabs (badges, gating) still read
+    // it directly off the profiles row.
+    if (sessionNumber >= 2 && sessionNumber <= 5) {
+      const nextUnlockedNumbers = new Set(memberUnlockedSessionNumbers);
+      if (unlock) nextUnlockedNumbers.add(sessionNumber);
+      else nextUnlockedNumbers.delete(sessionNumber);
+      const newCount =
+        1 + [2, 3, 4, 5].filter((n) => nextUnlockedNumbers.has(n)).length;
+      setProfiles((prev) =>
+        prev.map((p) => (p.id === selectedId ? { ...p, onboarding_unlocked_through: newCount } : p))
+      );
+
+      if (unlock) {
+        fireNotifyEvent({ kind: "onboarding_unlocked", targetUserId: selectedId, sessionNumber });
+        if (newCount >= ONBOARDING_SESSIONS.length && !wasCurriculumComplete) {
+          fireNotifyEvent({ kind: "onboarding_completed", targetUserId: selectedId });
+        }
+      }
+    } else if (unlock) {
+      fireNotifyEvent({ kind: "onboarding_unlocked", targetUserId: selectedId, sessionNumber });
     }
-    setProfiles((prev) =>
-      prev.map((p) =>
-        p.id === selectedId
-          ? { ...p, onboarding_unlocked_through: Math.max(1, (p.onboarding_unlocked_through ?? 1) - 1) }
-          : p
-      )
-    );
+
     setGrantingOnboarding(false);
   }
 
@@ -1599,11 +1589,7 @@ export default function TeamPage() {
                         <GraduationCap className="h-4 w-4" aria-hidden /> Classroom
                       </p>
                       <p className="text-xs text-slate-400">
-                        {Math.min(
-                          selectedProfile?.onboarding_unlocked_through ?? 1,
-                          ONBOARDING_SESSIONS.length
-                        )}
-                        /{ONBOARDING_SESSIONS.length} sessions unlocked
+                        {classroomUnlockedCount}/{ONBOARDING_SESSIONS.length} sessions unlocked
                       </p>
                       <p className="text-xs text-slate-400">
                         {classroomDone}/{classroomTotal} resources completed within those sessions
@@ -1629,7 +1615,7 @@ export default function TeamPage() {
                         )}
                       </p>
                       {grantError && <p className="text-xs text-red-400">{grantError}</p>}
-                      {unlockingSession4 && (
+                      {!isMemberSessionUnlocked(4) && (
                         <div className="space-y-0.5">
                           <p
                             className={`flex items-start gap-1 text-xs ${contactRequirementMet ? "text-slate-500" : "text-amber-light"}`}
@@ -1658,46 +1644,37 @@ export default function TeamPage() {
                           </p>
                         </div>
                       )}
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        className="btn-secondary flex-1 whitespace-nowrap px-2 text-xs"
-                        onClick={handleLockPreviousOnboarding}
-                        disabled={
-                          grantingOnboarding || (selectedProfile?.onboarding_unlocked_through ?? 1) <= 1
-                        }
-                      >
-                        {grantingOnboarding ? (
-                          "…"
-                        ) : (
-                          <>
-                            <Lock className="h-3 w-3" aria-hidden /> Lock Previous
-                          </>
-                        )}
-                      </button>
-                      <button
-                        className="btn-secondary flex-1 whitespace-nowrap px-2 text-xs"
-                        onClick={handleGrantAllOnboarding}
-                        disabled={
-                          grantingOnboarding ||
-                          (selectedProfile?.onboarding_unlocked_through ?? 1) >=
-                            ONBOARDING_SESSIONS.length
-                        }
-                      >
-                        {grantingOnboarding ? "…" : "Unlock All"}
-                      </button>
-                      <button
-                        className="btn-primary flex-1 whitespace-nowrap px-2 text-xs"
-                        onClick={handleGrantOnboarding}
-                        disabled={
-                          grantingOnboarding ||
-                          session4Gated ||
-                          (selectedProfile?.onboarding_unlocked_through ?? 1) >=
-                            ONBOARDING_SESSIONS.length
-                        }
-                      >
-                        {grantingOnboarding ? "…" : "Unlock Next"}
-                      </button>
+                      <p className="pt-1 text-xs text-slate-500">
+                        Tap a session to unlock or lock it — any order is fine.
+                      </p>
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {[1, 2, 3, 4, 5, SUCCESS_STORIES_SESSION_NUMBER].map((sessionNumber) => {
+                          const unlocked = isMemberSessionUnlocked(sessionNumber);
+                          const isSuccessStories = sessionNumber === SUCCESS_STORIES_SESSION_NUMBER;
+                          const title = isSuccessStories
+                            ? SUCCESS_STORIES_TITLE
+                            : ONBOARDING_SESSIONS[sessionNumber - 1].title;
+                          const blockedBySession4Gate =
+                            sessionNumber === 4 && !unlocked && session4Gated;
+                          return (
+                            <button
+                              key={sessionNumber}
+                              type="button"
+                              title={title}
+                              className={`${unlocked ? "toggle-pill-active" : "toggle-pill-inactive"} flex items-center gap-1 px-2.5`}
+                              onClick={() => handleToggleSession(sessionNumber, !unlocked)}
+                              disabled={sessionNumber === 1 || grantingOnboarding || blockedBySession4Gate}
+                            >
+                              {unlocked ? (
+                                <Check className="h-3 w-3" aria-hidden />
+                              ) : (
+                                <Lock className="h-3 w-3" aria-hidden />
+                              )}
+                              {isSuccessStories ? "SS" : sessionNumber}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
                 )}

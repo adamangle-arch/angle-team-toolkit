@@ -1,4 +1,4 @@
-import { ClipboardList, Flame, MessageCircle, PiggyBank, ShoppingBag, type LucideIcon } from "lucide-react";
+import { ClipboardList, Flame, MessageCircle, PiggyBank, ShoppingBag, Trophy, type LucideIcon } from "lucide-react";
 
 // One icon + gradient per session, index-matched to ONBOARDING_SESSIONS
 // - same "colorful module card" language the Home hub's tiles use, just
@@ -13,3 +13,12 @@ export const SESSION_STYLE: { icon: LucideIcon; from: string; to: string }[] = [
   { icon: MessageCircle, from: "#fda4af", to: "#be123c" }, // Sharing Your Story
   { icon: Flame, from: "#fde68a", to: "#b45309" }, // 30-Day Core Run
 ];
+
+// Success Stories isn't index-matched into the array above (it's not one
+// of ONBOARDING_SESSIONS - see lib/constants.ts), so it gets its own
+// fixed style instead of a 6th array slot.
+export const SUCCESS_STORIES_STYLE: { icon: LucideIcon; from: string; to: string } = {
+  icon: Trophy,
+  from: "#fcd34d",
+  to: "#92400e",
+};
