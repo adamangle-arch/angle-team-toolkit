@@ -1586,6 +1586,20 @@ cross join generate_series(2, least(onboarding_unlocked_through, 5)) as s
 where onboarding_unlocked_through >= 2
 on conflict (user_id, session_number) do nothing;
 
+-- Second half of the same backfill: Success Stories (session 6) used to
+-- auto-unlock once someone finished all 5 real sessions (the old tab-
+-- toggle version of this feature), but it's now its own explicit grant
+-- like every other session - see grant_onboarding_session above, which
+-- deliberately leaves session 6 untouched even when granting all 5 real
+-- sessions at once. Without this, everyone who had already "graduated"
+-- under the old auto-unlock rule would lose access to Success Stories
+-- until an upline manually re-granted it to each of them one at a time.
+insert into onboarding_session_unlocks (user_id, session_number, unlocked_at)
+select id, 6, now()
+from profiles
+where onboarding_unlocked_through >= 5
+on conflict (user_id, session_number) do nothing;
+
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
