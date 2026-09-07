@@ -1569,6 +1569,23 @@ $$;
 
 grant execute on function public.grant_all_onboarding_sessions(uuid) to authenticated;
 
+-- One-time backfill: onboarding_session_unlocks didn't exist before this
+-- feature - anyone who was already unlocked past Session 1 under the old
+-- onboarding_unlocked_through-only model has no rows here yet, and the
+-- Classroom/[session] pages now read this table as the sole source of
+-- truth for which sessions are unlocked. Without this, every previously-
+-- unlocked member would suddenly see every session as locked. Spaces the
+-- backfilled unlocked_at timestamps by session number (5 most recent,
+-- down to 2 least recent) so the Classroom page's "most recently
+-- unlocked first" ordering still lines up with the old sequential order
+-- these were actually unlocked in.
+insert into onboarding_session_unlocks (user_id, session_number, unlocked_at)
+select id, s, now() - (5 - s) * interval '1 second'
+from profiles
+cross join generate_series(2, least(onboarding_unlocked_through, 5)) as s
+where onboarding_unlocked_through >= 2
+on conflict (user_id, session_number) do nothing;
+
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
