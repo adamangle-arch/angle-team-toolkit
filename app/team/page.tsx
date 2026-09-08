@@ -578,17 +578,16 @@ export default function TeamPage() {
     return sessionNumber === 1 || memberUnlockedSessionNumbers.has(sessionNumber);
   }
 
-  // Session 4 ("Sharing Your Story") shouldn't unlock until this person
-  // has put real work into their A/B list (not the Customer list) and
-  // confirmed they've done the assigned reading - checked whenever
-  // session 4 is still locked, regardless of what else is unlocked,
-  // since any session can now be granted out of order.
+  // Session 4 ("Sharing Your Story") normally expects this person to have
+  // put real work into their A/B list (not the Customer list) and
+  // confirmed they've done the assigned reading - shown here as an
+  // informational note while it's still locked, but an upline/admin can
+  // still unlock it early regardless (see the toggle chips below), for
+  // whatever circumstance calls for going out of order.
   const networkContactCount =
     memberData?.contacts.filter((c) => c.category === "A" || c.category === "B").length ?? 0;
   const contactRequirementMet = networkContactCount >= SESSION_4_CONTACT_MINIMUM;
   const readingRequirementMet = Boolean(selectedProfile?.thinking_big_chapters_confirmed);
-  const session4Gated =
-    !isMemberSessionUnlocked(4) && (!contactRequirementMet || !readingRequirementMet);
 
   // Same "resources actually completed, not just unlocked" progress
   // read as the person's own Classroom page shows themselves (see
@@ -1654,8 +1653,6 @@ export default function TeamPage() {
                           const title = isSuccessStories
                             ? SUCCESS_STORIES_TITLE
                             : ONBOARDING_SESSIONS[sessionNumber - 1].title;
-                          const blockedBySession4Gate =
-                            sessionNumber === 4 && !unlocked && session4Gated;
                           return (
                             <button
                               key={sessionNumber}
@@ -1663,7 +1660,7 @@ export default function TeamPage() {
                               title={title}
                               className={`${unlocked ? "toggle-pill-active" : "toggle-pill-inactive"} flex items-center gap-1 px-2.5`}
                               onClick={() => handleToggleSession(sessionNumber, !unlocked)}
-                              disabled={sessionNumber === 1 || grantingOnboarding || blockedBySession4Gate}
+                              disabled={sessionNumber === 1 || grantingOnboarding}
                             >
                               {unlocked ? (
                                 <Check className="h-3 w-3" aria-hidden />
