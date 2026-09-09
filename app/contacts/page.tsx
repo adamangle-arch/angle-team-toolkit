@@ -11,6 +11,7 @@ import { SkeletonList } from "@/components/Skeleton";
 import { supabase } from "@/lib/supabaseClient";
 import { CONTACT_STATUSES, CUSTOMER_STATUSES, CONNECTION_TAGS, RECONNECT_METHODS } from "@/lib/constants";
 import { NETWORKING_MEMORY_PROMPTS, CUSTOMER_MEMORY_PROMPTS } from "@/lib/contact-questions-data";
+import { extractNamesFromRows } from "@/lib/contactImport";
 import type { Contact } from "@/lib/types";
 
 const LIST_TARGET = 100;
@@ -27,16 +28,15 @@ type ViewMode = "networking" | "customer";
 type PendingImport = { name: string; destination: "networking" | "customer" };
 
 // Deliberately not a full RFC 4180 CSV parser (quoted fields with
-// embedded commas, etc.) - this only needs to handle a plain list of
-// names, one per line, or the first column of a simple export (e.g. a
-// phone contacts CSV with Name/Email/Phone columns), which covers what
-// anyone's actually going to paste in here. Takes the text before the
-// first comma on each line, skips blank lines and a lone "name" header.
-function parseContactNamesFromCsv(text: string): string[] {
+// embedded commas, etc.) - just splits each line on commas into cells and
+// hands them to extractNamesFromRows, which recognizes a Name column, a
+// First Name/Last Name pair, or falls back to the first column for a
+// plain unlabeled list.
+function parseCsvRows(text: string): string[][] {
   return text
     .split(/\r?\n/)
-    .map((line) => line.split(",")[0]?.trim() ?? "")
-    .filter((name) => name.length > 0 && name.toLowerCase() !== "name");
+    .filter((line) => line.trim().length > 0)
+    .map((line) => line.split(","));
 }
 
 export default function ContactsPage() {
@@ -62,20 +62,60 @@ export default function ContactsPage() {
   const [pendingImports, setPendingImports] = useState<PendingImport[] | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
+  // Only meaningful for the .xlsx/.xls path below (a round trip to the
+  // server), so the button has something to show while that's in flight -
+  // the plain CSV/TXT path resolves fast enough locally that it doesn't
+  // need its own spinner state.
+  const [parsingFile, setParsingFile] = useState(false);
 
-  function handleFileSelected(e: ChangeEvent<HTMLInputElement>) {
+  function applyParsedNames(names: string[]) {
+    if (names.length === 0) {
+      setImportError("Couldn't find any names in that file.");
+      return;
+    }
+    setImportError(null);
+    setPendingImports(names.map((name) => ({ name, destination: "networking" })));
+  }
+
+  async function handleFileSelected(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = ""; // lets the same file be re-picked later if needed
     if (!file) return;
+
+    // A real .xlsx/.xls file is a zipped binary format, not plain text -
+    // it can't be read client-side the way a CSV/TXT list can, so this
+    // hands it off to the server to parse instead (see
+    // app/api/contacts/parse-import/route.ts). Detected by extension
+    // rather than file.type, since that's unreliable across browsers/OSes
+    // for spreadsheet mime types.
+    if (/\.xlsx?$/i.test(file.name)) {
+      setParsingFile(true);
+      setImportError(null);
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData.session?.access_token;
+        if (!accessToken) throw new Error("Not signed in");
+        const formData = new FormData();
+        formData.append("file", file);
+        const res = await fetch("/api/contacts/parse-import", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${accessToken}` },
+          body: formData,
+        });
+        const body = await res.json();
+        if (!res.ok) throw new Error(body?.error || "Couldn't read that file.");
+        applyParsedNames((body.names as string[]) ?? []);
+      } catch (err) {
+        setImportError(err instanceof Error ? err.message : "Couldn't read that file.");
+      } finally {
+        setParsingFile(false);
+      }
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = () => {
-      const names = parseContactNamesFromCsv(String(reader.result ?? ""));
-      if (names.length === 0) {
-        setImportError("Couldn't find any names in that file.");
-        return;
-      }
-      setImportError(null);
-      setPendingImports(names.map((name) => ({ name, destination: "networking" })));
+      applyParsedNames(extractNamesFromRows(parseCsvRows(String(reader.result ?? ""))));
     };
     reader.readAsText(file);
   }
@@ -410,7 +450,7 @@ export default function ContactsPage() {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".csv,.txt,text/csv,text/plain"
+            accept=".csv,.txt,.xlsx,.xls,text/csv,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
             className="hidden"
             onChange={handleFileSelected}
           />
@@ -418,9 +458,10 @@ export default function ContactsPage() {
             type="button"
             className="btn-secondary flex w-full items-center justify-center gap-1.5"
             onClick={() => fileInputRef.current?.click()}
+            disabled={parsingFile}
           >
             <Upload className="h-3.5 w-3.5" aria-hidden />
-            Or Upload a List (CSV)
+            {parsingFile ? "Reading file…" : "Or Upload a List (CSV/Excel)"}
           </button>
           {importError && <p className="text-xs text-red-400">{importError}</p>}
           <p
