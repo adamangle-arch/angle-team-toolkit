@@ -280,6 +280,11 @@ function SuccessStoriesContent({ isAdmin }: { isAdmin: boolean }) {
   const [newUrl, setNewUrl] = useState("");
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
+  // Tapping a progress-screenshot thumbnail opens it full-size in this
+  // in-app overlay (with its own close button) rather than a new browser
+  // tab/window - a bare target="_blank" left no way back on some devices
+  // once the image opened on its own.
+  const [viewingImage, setViewingImage] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -417,7 +422,12 @@ function SuccessStoriesContent({ isAdmin }: { isAdmin: boolean }) {
                   )}
                   <div className="grid grid-cols-2 gap-2">
                     {v.image_urls.map((url) => (
-                      <a key={url} href={url} target="_blank" rel="noopener noreferrer">
+                      <button
+                        key={url}
+                        type="button"
+                        onClick={() => setViewingImage(url)}
+                        aria-label={`View ${v.author_name}'s progress screenshot full-size`}
+                      >
                         <Image
                           src={url}
                           alt={`${v.author_name}'s progress`}
@@ -426,7 +436,7 @@ function SuccessStoriesContent({ isAdmin }: { isAdmin: boolean }) {
                           className="w-full rounded-lg border border-white/10 bg-black object-contain"
                           style={{ height: "160px" }}
                         />
-                      </a>
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -434,6 +444,25 @@ function SuccessStoriesContent({ isAdmin }: { isAdmin: boolean }) {
             </div>
           );
         })
+      )}
+
+      {viewingImage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
+          onClick={() => setViewingImage(null)}
+        >
+          <button
+            type="button"
+            className="btn-icon absolute right-4 top-4 z-10 bg-black/50"
+            onClick={() => setViewingImage(null)}
+            aria-label="Close"
+          >
+            <X className="h-5 w-5" aria-hidden />
+          </button>
+          <div className="relative h-full w-full" onClick={(e) => e.stopPropagation()}>
+            <Image src={viewingImage} alt="Success story progress screenshot" fill className="object-contain" />
+          </div>
+        </div>
       )}
     </>
   );
