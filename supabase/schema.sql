@@ -8888,5 +8888,5 @@ where author_name = 'Adam';
 update success_story_videos
 set
   image_urls = array['/success-stories/dominic-potential-earnings-2024-09.jpg'],
-  image_caption = '$8,617.16 Potential Earnings'
+  image_caption = '20,000 monthly PV at 24 years old'
 where author_name = 'Dominic';
