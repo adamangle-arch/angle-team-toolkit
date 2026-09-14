@@ -8882,3 +8882,11 @@ set
   image_urls = array['/success-stories/adam-pv-2024-05.jpg', '/success-stories/adam-pv-2025-03.jpg'],
   image_caption = '400 to 7,500 PV in 10 months'
 where author_name = 'Adam';
+
+-- Dominic's Potential Earnings screenshot, same "image below the video"
+-- treatment as Adam's above.
+update success_story_videos
+set
+  image_urls = array['/success-stories/dominic-potential-earnings-2024-09.jpg'],
+  image_caption = '$8,617.16 Potential Earnings'
+where author_name = 'Dominic';
