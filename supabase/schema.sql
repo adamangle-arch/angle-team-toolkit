@@ -8834,6 +8834,11 @@ create table if not exists success_story_videos (
   created_at timestamptz not null default now()
 );
 
+-- Additive: optional supporting screenshots shown below the video itself
+-- (e.g. a PV-growth progression) - most videos have none, hence the
+-- empty-array default rather than a required field.
+alter table success_story_videos add column if not exists image_urls text[] not null default '{}'::text[];
+
 alter table success_story_videos enable row level security;
 
 drop policy if exists "success_story_videos_read_all" on success_story_videos;
@@ -8855,3 +8860,13 @@ for delete using (public.is_app_admin());
 insert into success_story_videos (author_name, youtube_url, display_order)
 select 'Dominic', 'https://youtu.be/Sii5MdsSX1g?is=FoMjV7SFszDdL0MH', 0
 where not exists (select 1 from success_story_videos where author_name = 'Dominic');
+
+-- Adam's video - includes two screenshots showing his PV progression
+-- (400 to 7,500+ over about 10 months) below the video itself.
+insert into success_story_videos (author_name, youtube_url, display_order, image_urls)
+select
+  'Adam',
+  'https://youtu.be/mMomd3LTmS0?is=PXmE2oK7k0mMmP9n',
+  1,
+  array['/success-stories/adam-pv-2024-05.jpg', '/success-stories/adam-pv-2025-03.jpg']
+where not exists (select 1 from success_story_videos where author_name = 'Adam');

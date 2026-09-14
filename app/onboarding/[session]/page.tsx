@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, Lock, Trophy, Video, X } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
@@ -405,6 +406,22 @@ function SuccessStoriesContent({ isAdmin }: { isAdmin: boolean }) {
                 >
                   Watch video
                 </a>
+              )}
+
+              {v.image_urls.length > 0 && (
+                <div className="space-y-2">
+                  {v.image_urls.map((url) => (
+                    <Image
+                      key={url}
+                      src={url}
+                      alt={`${v.author_name}'s progress`}
+                      width={1170}
+                      height={1426}
+                      className="w-full rounded-xl object-contain"
+                      style={{ maxHeight: "70vh" }}
+                    />
+                  ))}
+                </div>
               )}
             </div>
           );

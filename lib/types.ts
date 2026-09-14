@@ -518,6 +518,9 @@ export type SuccessStoryVideo = {
   youtube_url: string;
   display_order: number | null;
   created_at: string;
+  // Optional supporting screenshots (e.g. a PV-growth progression) shown
+  // below the video itself - most videos have none.
+  image_urls: string[];
 };
 
 export type OnboardingResourceOverride = {
