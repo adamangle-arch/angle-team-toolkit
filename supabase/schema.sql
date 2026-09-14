@@ -8872,7 +8872,7 @@ select
   'https://youtu.be/mMomd3LTmS0?is=PXmE2oK7k0mMmP9n',
   1,
   array['/success-stories/adam-pv-2024-05.jpg', '/success-stories/adam-pv-2025-03.jpg'],
-  '400 to 7,500 PV in 10 months'
+  '400 to 7,500 PV in 10 months at 22 years old'
 where not exists (select 1 from success_story_videos where author_name = 'Adam');
 
 -- Covers the case where "Adam" was already added (e.g. through the
@@ -8880,7 +8880,7 @@ where not exists (select 1 from success_story_videos where author_name = 'Adam')
 update success_story_videos
 set
   image_urls = array['/success-stories/adam-pv-2024-05.jpg', '/success-stories/adam-pv-2025-03.jpg'],
-  image_caption = '400 to 7,500 PV in 10 months'
+  image_caption = '400 to 7,500 PV in 10 months at 22 years old'
 where author_name = 'Adam';
 
 -- Dominic's Potential Earnings screenshot, same "image below the video"
