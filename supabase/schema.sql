@@ -8887,6 +8887,6 @@ where author_name = 'Adam';
 -- treatment as Adam's above.
 update success_story_videos
 set
-  image_urls = array['/success-stories/dominic-potential-earnings-2024-09.jpg'],
+  image_urls = array['/success-stories/dominic-potential-earnings-2024-11.jpg'],
   image_caption = '20,000 monthly PV at 24 years old'
 where author_name = 'Dominic';
