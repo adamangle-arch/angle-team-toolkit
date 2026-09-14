@@ -453,7 +453,8 @@ function SuccessStoriesContent({ isAdmin }: { isAdmin: boolean }) {
         >
           <button
             type="button"
-            className="btn-icon absolute right-4 top-4 z-10 bg-black/50"
+            className="btn-icon absolute right-4 z-10 bg-black/50"
+            style={{ top: "calc(env(safe-area-inset-top) + 1rem)" }}
             onClick={() => setViewingImage(null)}
             aria-label="Close"
           >
