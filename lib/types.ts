@@ -521,6 +521,9 @@ export type SuccessStoryVideo = {
   // Optional supporting screenshots (e.g. a PV-growth progression) shown
   // below the video itself - most videos have none.
   image_urls: string[];
+  // Short label shown above image_urls (e.g. "400 to 7,500 PV in 10
+  // months") - null when there's nothing worth captioning.
+  image_caption: string | null;
 };
 
 export type OnboardingResourceOverride = {

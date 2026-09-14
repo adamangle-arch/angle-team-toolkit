@@ -8836,8 +8836,11 @@ create table if not exists success_story_videos (
 
 -- Additive: optional supporting screenshots shown below the video itself
 -- (e.g. a PV-growth progression) - most videos have none, hence the
--- empty-array default rather than a required field.
+-- empty-array default rather than a required field. image_caption is a
+-- short label shown above that set of screenshots (e.g. "400 to 7,500 PV
+-- in 10 months") - null when there's nothing worth captioning.
 alter table success_story_videos add column if not exists image_urls text[] not null default '{}'::text[];
+alter table success_story_videos add column if not exists image_caption text;
 
 alter table success_story_videos enable row level security;
 
@@ -8863,10 +8866,19 @@ where not exists (select 1 from success_story_videos where author_name = 'Domini
 
 -- Adam's video - includes two screenshots showing his PV progression
 -- (400 to 7,500+ over about 10 months) below the video itself.
-insert into success_story_videos (author_name, youtube_url, display_order, image_urls)
+insert into success_story_videos (author_name, youtube_url, display_order, image_urls, image_caption)
 select
   'Adam',
   'https://youtu.be/mMomd3LTmS0?is=PXmE2oK7k0mMmP9n',
   1,
-  array['/success-stories/adam-pv-2024-05.jpg', '/success-stories/adam-pv-2025-03.jpg']
+  array['/success-stories/adam-pv-2024-05.jpg', '/success-stories/adam-pv-2025-03.jpg'],
+  '400 to 7,500 PV in 10 months'
 where not exists (select 1 from success_story_videos where author_name = 'Adam');
+
+-- Covers the case where "Adam" was already added (e.g. through the
+-- in-app Add Video form, which has no image fields) before this ran.
+update success_story_videos
+set
+  image_urls = array['/success-stories/adam-pv-2024-05.jpg', '/success-stories/adam-pv-2025-03.jpg'],
+  image_caption = '400 to 7,500 PV in 10 months'
+where author_name = 'Adam';

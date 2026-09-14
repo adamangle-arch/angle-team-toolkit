@@ -409,18 +409,26 @@ function SuccessStoriesContent({ isAdmin }: { isAdmin: boolean }) {
               )}
 
               {v.image_urls.length > 0 && (
-                <div className="space-y-2">
-                  {v.image_urls.map((url) => (
-                    <Image
-                      key={url}
-                      src={url}
-                      alt={`${v.author_name}'s progress`}
-                      width={1170}
-                      height={1426}
-                      className="w-full rounded-xl object-contain"
-                      style={{ maxHeight: "70vh" }}
-                    />
-                  ))}
+                <div className="space-y-1.5">
+                  {v.image_caption && (
+                    <p className="text-center text-xs font-semibold uppercase tracking-wide text-amber-light">
+                      {v.image_caption}
+                    </p>
+                  )}
+                  <div className="grid grid-cols-2 gap-2">
+                    {v.image_urls.map((url) => (
+                      <a key={url} href={url} target="_blank" rel="noopener noreferrer">
+                        <Image
+                          src={url}
+                          alt={`${v.author_name}'s progress`}
+                          width={1170}
+                          height={1426}
+                          className="w-full rounded-lg border border-white/10 bg-black object-contain"
+                          style={{ height: "160px" }}
+                        />
+                      </a>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
