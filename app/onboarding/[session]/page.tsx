@@ -460,7 +460,7 @@ function SuccessStoriesContent({ isAdmin }: { isAdmin: boolean }) {
           >
             <X className="h-5 w-5" aria-hidden />
           </button>
-          <div className="relative h-full w-full" onClick={(e) => e.stopPropagation()}>
+          <div className="relative h-full w-full">
             <Image src={viewingImage} alt="Success story progress screenshot" fill className="object-contain" />
           </div>
         </div>
