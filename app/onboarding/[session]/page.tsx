@@ -3,9 +3,10 @@
 import { use, useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, Lock, Trophy, Video, X } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronUp, Lock, Send, Trophy, Video, X } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import ProgressBar from "@/components/ProgressBar";
+import SearchablePicker from "@/components/SearchablePicker";
 import { SkeletonList } from "@/components/Skeleton";
 import WelcomeVideoLockCard from "@/components/WelcomeVideoLockCard";
 import { useAuth } from "@/components/AuthGate";
@@ -274,6 +275,7 @@ export default function OnboardingSessionPage({ params }: { params: Promise<{ se
 // remove videos directly here rather than needing a schema.sql seed for
 // every new one after the first.
 function SuccessStoriesContent({ isAdmin }: { isAdmin: boolean }) {
+  const { ownerId } = useAuth();
   const [videos, setVideos] = useState<SuccessStoryVideo[]>([]);
   const [loading, setLoading] = useState(true);
   const [newAuthor, setNewAuthor] = useState("");
@@ -285,6 +287,19 @@ function SuccessStoriesContent({ isAdmin }: { isAdmin: boolean }) {
   // tab/window - a bare target="_blank" left no way back on some devices
   // once the image opened on its own.
   const [viewingImage, setViewingImage] = useState<string | null>(null);
+
+  // "Send to a Prospect" - lets anyone (not just admin) send one of these
+  // videos straight to one of their own active candidates, same
+  // candidate_specific_resources mechanism CandidateResourceSender on the
+  // Pipeline Tracker already uses to send resources to a prospect - it
+  // then shows up on that candidate's own /prospect view. Only one
+  // video's picker is ever open at a time (sendOpenId).
+  const [candidates, setCandidates] = useState<{ id: string; name: string }[]>([]);
+  const [sendOpenId, setSendOpenId] = useState<string | null>(null);
+  const [selectedCandidateId, setSelectedCandidateId] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [justSentId, setJustSentId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -304,6 +319,24 @@ function SuccessStoriesContent({ isAdmin }: { isAdmin: boolean }) {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadCandidates() {
+      const { data } = await supabase
+        .from("candidates")
+        .select("id,name")
+        .eq("user_id", ownerId)
+        .eq("launched", false)
+        .eq("filtered_out", false)
+        .order("name", { ascending: true });
+      if (!cancelled) setCandidates((data as { id: string; name: string }[]) ?? []);
+    }
+    loadCandidates();
+    return () => {
+      cancelled = true;
+    };
+  }, [ownerId]);
 
   async function addVideo() {
     const author = newAuthor.trim();
@@ -335,6 +368,43 @@ function SuccessStoriesContent({ isAdmin }: { isAdmin: boolean }) {
     setVideos((prev) => prev.filter((v) => v.id !== id));
     const { error } = await supabase.from("success_story_videos").delete().eq("id", id);
     if (error) setVideos(previous);
+  }
+
+  // Swaps two adjacent cards, then writes explicit sequential 0..n-1
+  // display_order values across the whole list at once - same approach
+  // /team-story's reorderLive uses, so a video added before this feature
+  // existed (display_order still null) gets normalized into the
+  // sequence the first time anything is moved, rather than mixing
+  // manually-ordered and still-null rows going forward.
+  async function reorderVideos(index: number, direction: -1 | 1) {
+    const swapIndex = index + direction;
+    if (swapIndex < 0 || swapIndex >= videos.length) return;
+    const next = [...videos];
+    [next[index], next[swapIndex]] = [next[swapIndex], next[index]];
+    setVideos(next);
+    await Promise.all(
+      next.map((v, i) => supabase.from("success_story_videos").update({ display_order: i }).eq("id", v.id))
+    );
+  }
+
+  async function sendVideo(video: SuccessStoryVideo) {
+    if (!selectedCandidateId) return;
+    setSending(true);
+    setSendError(null);
+    const { error } = await supabase.from("candidate_specific_resources").insert({
+      candidate_id: selectedCandidateId,
+      label: `🎥 ${video.author_name}'s Success Story`,
+      detail: "A real person on the team sharing how their business has grown.",
+      url: video.youtube_url,
+    });
+    setSending(false);
+    if (error) {
+      setSendError(error.message);
+      return;
+    }
+    setJustSentId(video.id);
+    setSendOpenId(null);
+    setSelectedCandidateId("");
   }
 
   return (
@@ -373,7 +443,7 @@ function SuccessStoriesContent({ isAdmin }: { isAdmin: boolean }) {
       ) : videos.length === 0 ? (
         <div className="empty-state">No success stories yet.</div>
       ) : (
-        videos.map((v) => {
+        videos.map((v, i) => {
           const youtubeId = extractYoutubeId(v.youtube_url);
           return (
             <div key={v.id} className="card space-y-2">
@@ -383,13 +453,33 @@ function SuccessStoriesContent({ isAdmin }: { isAdmin: boolean }) {
                   {v.author_name}
                 </p>
                 {isAdmin && (
-                  <button
-                    className="btn-icon !h-7 !w-7 text-sm"
-                    onClick={() => removeVideo(v.id)}
-                    aria-label={`Remove ${v.author_name}'s video`}
-                  >
-                    <X className="h-3.5 w-3.5" aria-hidden />
-                  </button>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <button
+                      type="button"
+                      className="chip-btn h-8 w-8 !p-0"
+                      aria-label={`Move ${v.author_name}'s video up`}
+                      onClick={() => reorderVideos(i, -1)}
+                      disabled={i === 0}
+                    >
+                      <ChevronUp className="mx-auto h-4 w-4" aria-hidden />
+                    </button>
+                    <button
+                      type="button"
+                      className="chip-btn h-8 w-8 !p-0"
+                      aria-label={`Move ${v.author_name}'s video down`}
+                      onClick={() => reorderVideos(i, 1)}
+                      disabled={i === videos.length - 1}
+                    >
+                      <ChevronDown className="mx-auto h-4 w-4" aria-hidden />
+                    </button>
+                    <button
+                      className="btn-icon !h-7 !w-7 text-sm"
+                      onClick={() => removeVideo(v.id)}
+                      aria-label={`Remove ${v.author_name}'s video`}
+                    >
+                      <X className="h-3.5 w-3.5" aria-hidden />
+                    </button>
+                  </div>
                 )}
               </div>
               {youtubeId ? (
@@ -441,6 +531,63 @@ function SuccessStoriesContent({ isAdmin }: { isAdmin: boolean }) {
                   </div>
                 </div>
               )}
+
+              <div className="space-y-1.5 border-t border-white/10 pt-2">
+                {sendOpenId === v.id ? (
+                  <div className="space-y-1.5">
+                    <SearchablePicker
+                      value={selectedCandidateId}
+                      onChange={setSelectedCandidateId}
+                      placeholder="Choose a prospect…"
+                      searchPlaceholder="Search your prospects…"
+                      options={candidates.map((c) => ({ value: c.id, label: c.name }))}
+                    />
+                    {candidates.length === 0 && (
+                      <p className="text-xs text-slate-500">
+                        No active prospects on your Candidate Roadmap yet.
+                      </p>
+                    )}
+                    {sendError && <p className="text-xs text-red-400">{sendError}</p>}
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        className="btn-secondary flex-1"
+                        onClick={() => {
+                          setSendOpenId(null);
+                          setSelectedCandidateId("");
+                          setSendError(null);
+                        }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-primary flex-1"
+                        onClick={() => sendVideo(v)}
+                        disabled={sending || !selectedCandidateId}
+                      >
+                        {sending ? "Sending…" : "Send"}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="chip-btn flex w-fit items-center gap-1.5"
+                    onClick={() => {
+                      setSendOpenId(v.id);
+                      setSelectedCandidateId("");
+                      setSendError(null);
+                    }}
+                  >
+                    <Send className="h-3.5 w-3.5" aria-hidden />
+                    Send to a Prospect
+                  </button>
+                )}
+                {justSentId === v.id && (
+                  <p className="text-xs text-emerald-400">Sent - it&apos;ll show up on their prospect page.</p>
+                )}
+              </div>
             </div>
           );
         })
