@@ -1,7 +1,8 @@
 import { ImageResponse } from "next/og";
+import { LEGACY_CHURCH_MARK_DATA_URI } from "@/lib/way/brandMark";
 
-// Same waypoint mark as icon.tsx, at Apple's expected touch-icon size -
-// this is what shows on the iOS home screen after "Add to Home Screen".
+// Same mark as icon.tsx, at Apple's expected touch-icon size - this is
+// what shows on the iOS home screen after "Add to Home Screen".
 export const size = { width: 180, height: 180 };
 export const contentType = "image/png";
 
@@ -18,26 +19,7 @@ export default function AppleIcon() {
           background: "#16283f",
         }}
       >
-        <div
-          style={{
-            width: 96,
-            height: 96,
-            borderRadius: "50%",
-            border: "14px solid #e07b35",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <div
-            style={{
-              width: 28,
-              height: 28,
-              borderRadius: "50%",
-              background: "#e07b35",
-            }}
-          />
-        </div>
+        <img src={LEGACY_CHURCH_MARK_DATA_URI} width={86} height={118} alt="" />
       </div>
     ),
     { ...size }

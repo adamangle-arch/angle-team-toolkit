@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
+import { LEGACY_CHURCH_MARK_DATA_URI } from "@/lib/way/brandMark";
 
-// A waypoint marker (a ring with a lit center) in The Way's own navy and
-// signpost orange, matching the church's path/trail-sign artwork -
+// Legacy Church Abingdon's own cross mark on The Way's navy background -
 // deliberately unlike Angle Team Toolkit's amber arrow mark - this route
 // segment's icon overrides the root app's for every /the-way page,
 // including "Add to Home Screen".
@@ -22,26 +22,7 @@ export default function Icon() {
           borderRadius: 14,
         }}
       >
-        <div
-          style={{
-            width: 34,
-            height: 34,
-            borderRadius: "50%",
-            border: "5px solid #e07b35",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <div
-            style={{
-              width: 10,
-              height: 10,
-              borderRadius: "50%",
-              background: "#e07b35",
-            }}
-          />
-        </div>
+        <img src={LEGACY_CHURCH_MARK_DATA_URI} width={30} height={41} alt="" />
       </div>
     ),
     { ...size }
