@@ -517,11 +517,14 @@ create policy journal_entries_delete on journal_entries
   for delete
   using (user_id = auth.uid());
 
--- Placeholder - replace with today's real verse/reflection, or set up a
--- week's worth ahead of time from the table editor.
-insert into devotionals (devotional_date, reflection) values
-  (current_date, 'Add your own verse and reflection here from the Supabase table editor — this placeholder just shows what the card looks like.')
-on conflict (devotional_date) do nothing;
+-- No seed row here on purpose: the Courses page's "Today" card only shows
+-- up when a devotionals row exists for the current date, so an empty
+-- table just means no card - the right default for real members, rather
+-- than showing placeholder filler text. Add today's (or a week's worth of)
+-- real verse/reflection any time from the Supabase table editor:
+--
+--   insert into devotionals (devotional_date, verse_reference, verse_text, reflection)
+--   values (current_date, 'John 3:16', 'For God so loved the world...', 'Write your reflection here.');
 
 -- A rotating pool of verses shown as a full-screen overlay on every app
 -- open (see VerseOverlay.tsx) - distinct from `devotionals`, which is one
