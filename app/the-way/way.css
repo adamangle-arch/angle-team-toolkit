@@ -247,6 +247,10 @@
    fighting SVG hit-testing.
    ---------------------------------------------------------------------- */
 .way-road {
+  width: 100%;
+}
+
+.way-road-canvas {
   position: relative;
   width: 100%;
 }

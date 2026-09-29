@@ -4,7 +4,6 @@ import {
   Users,
   Flame,
   Heart,
-  Cross,
   Star,
   Sparkles,
   Headphones,
@@ -13,6 +12,30 @@ import {
   MessageCircle,
 } from "lucide-react";
 import type { CourseColorTheme, LessonItemType } from "./types";
+
+// lucide-react's own "Cross" icon reads as a plain plus sign at icon
+// size - its arms are close enough to equal length that the religious
+// cross shape doesn't register. This is a genuine Latin cross instead:
+// a short top arm and a long bottom arm either side of the crossbar,
+// drawn in the same stroke style as the surrounding lucide icons so it
+// sits in the set without looking out of place.
+function WayCross({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <line x1="12" y1="2" x2="12" y2="22" />
+      <line x1="5" y1="8" x2="19" y2="8" />
+    </svg>
+  );
+}
 
 // Course.icon/lesson_items.type are picked from a fixed set of keys, and
 // resolved below via a switch that returns an already-built element rather
@@ -32,7 +55,7 @@ export function renderCourseIcon(icon: string, className?: string) {
     case "heart":
       return <Heart className={className} aria-hidden />;
     case "cross":
-      return <Cross className={className} aria-hidden />;
+      return <WayCross className={className} />;
     case "star":
       return <Star className={className} aria-hidden />;
     case "sparkles":

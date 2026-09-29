@@ -84,47 +84,53 @@ export default function JourneyRoad({ courses }: { courses: CourseWithProgress[]
         </p>
       </div>
 
-      <svg viewBox={`0 0 ${VB_WIDTH} ${VB_HEIGHT}`} className="block w-full h-auto" aria-hidden>
-        <path d={hillFar} fill="var(--way-text)" opacity={0.05} />
-        <path d={hillNear} fill="var(--way-text)" opacity={0.08} />
+      {/* Waypoints/marker are positioned by percentage against THIS box
+          specifically (not the outer card, which also contains the
+          heading above) - aspect-ratio keeps it matching the SVG's own
+          box exactly regardless of the card's actual rendered width. */}
+      <div className="way-road-canvas" style={{ aspectRatio: `${VB_WIDTH} / ${VB_HEIGHT}` }}>
+        <svg viewBox={`0 0 ${VB_WIDTH} ${VB_HEIGHT}`} className="block w-full h-full" aria-hidden>
+          <path d={hillFar} fill="var(--way-text)" opacity={0.05} />
+          <path d={hillNear} fill="var(--way-text)" opacity={0.08} />
 
-        <path d={d} fill="none" stroke="var(--way-border)" strokeWidth={5} strokeLinecap="round" strokeDasharray="2 9" />
-        <path
-          className="way-road-line-fill"
-          d={d}
-          fill="none"
-          stroke="var(--way-accent)"
-          strokeWidth={6}
-          strokeLinecap="round"
-          pathLength={100}
-          strokeDasharray={`${percent} 100`}
-        />
-      </svg>
+          <path d={d} fill="none" stroke="var(--way-border)" strokeWidth={5} strokeLinecap="round" strokeDasharray="2 9" />
+          <path
+            className="way-road-line-fill"
+            d={d}
+            fill="none"
+            stroke="var(--way-accent)"
+            strokeWidth={6}
+            strokeLinecap="round"
+            pathLength={100}
+            strokeDasharray={`${percent} 100`}
+          />
+        </svg>
 
-      {courses.slice(0, WAYPOINTS.length).map((course, i) => {
-        const state = states[i];
-        const point = WAYPOINTS[i];
-        return (
-          <Link
-            key={course.id}
-            href={`/the-way/courses/${course.id}`}
-            aria-label={`${course.title} — ${state === "done" ? "completed" : state === "current" ? "in progress" : "not started"}`}
-            className={`way-road-marker way-road-waypoint ${state === "done" ? "way-road-waypoint--done" : ""} ${state === "current" ? "way-road-waypoint--current" : ""}`}
-            style={{ left: pct(point.x, VB_WIDTH), top: pct(point.y, VB_HEIGHT) }}
-          >
-            {renderCourseIcon(course.icon, "h-4 w-4")}
-          </Link>
-        );
-      })}
+        {courses.slice(0, WAYPOINTS.length).map((course, i) => {
+          const state = states[i];
+          const point = WAYPOINTS[i];
+          return (
+            <Link
+              key={course.id}
+              href={`/the-way/courses/${course.id}`}
+              aria-label={`${course.title} — ${state === "done" ? "completed" : state === "current" ? "in progress" : "not started"}`}
+              className={`way-road-marker way-road-waypoint ${state === "done" ? "way-road-waypoint--done" : ""} ${state === "current" ? "way-road-waypoint--current" : ""}`}
+              style={{ left: pct(point.x, VB_WIDTH), top: pct(point.y, VB_HEIGHT) }}
+            >
+              {renderCourseIcon(course.icon, "h-4 w-4")}
+            </Link>
+          );
+        })}
 
-      <div
-        className="way-road-marker way-road-you-are-here"
-        style={{ left: pct(marker.x, VB_WIDTH), top: pct(marker.y, VB_HEIGHT) }}
-        aria-hidden
-      >
-        <div className="way-road-you-are-here-glow" />
-        {/* eslint-disable-next-line @next/next/no-img-element -- a fixed local asset, not user content. */}
-        <img src="/the-way/legacy-church-mark.png" alt="" className="way-road-you-are-here-mark" />
+        <div
+          className="way-road-marker way-road-you-are-here"
+          style={{ left: pct(marker.x, VB_WIDTH), top: pct(marker.y, VB_HEIGHT) }}
+          aria-hidden
+        >
+          <div className="way-road-you-are-here-glow" />
+          {/* eslint-disable-next-line @next/next/no-img-element -- a fixed local asset, not user content. */}
+          <img src="/the-way/legacy-church-mark.png" alt="" className="way-road-you-are-here-mark" />
+        </div>
       </div>
     </div>
   );
