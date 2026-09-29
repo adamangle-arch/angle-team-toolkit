@@ -48,13 +48,7 @@ export default function WayLoginForm() {
           <img
             src="/the-way/legacy-church-logo-light.png"
             alt="Legacy Church Abingdon"
-            className="way-logo-light mx-auto mb-3 h-auto w-44"
-          />
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/the-way/legacy-church-logo-dark.png"
-            alt="Legacy Church Abingdon"
-            className="way-logo-dark mx-auto mb-3 h-auto w-44"
+            className="mx-auto mb-3 h-auto w-44"
           />
           <p className="way-wordmark text-3xl" style={{ color: "var(--way-text)" }}>
             The Way

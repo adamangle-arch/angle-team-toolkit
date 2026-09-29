@@ -3,9 +3,12 @@
    dashboard look in app/globals.css. Concept: the church's own "path and
    trail-signpost" brand — a warm signpost orange against deep navy and
    parchment cream, matching the artwork the church sent (winding path,
-   mountains, wooden waypoint signs). Archivo (bold, headings/wordmark) +
-   Karla (sans, everything else) instead of Geist, so it reads as its own
-   app rather than a reskinned dashboard. */
+   mountains, wooden waypoint signs). Deliberately locked to this one
+   light/cream palette regardless of the phone's system theme, rather than
+   switching to a dark variant - the church's artwork is a specific,
+   consistent look, not something that should invert on its own. Archivo
+   (bold, headings/wordmark) + Karla (sans, everything else) instead of
+   Geist, so it reads as its own app rather than a reskinned dashboard. */
 
 .way-scope {
   --way-bg: #f4ecdd;
@@ -29,22 +32,6 @@
   font-family: var(--font-way-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  .way-scope {
-    --way-bg: #13233a;
-    --way-surface: #1b3049;
-    --way-surface-2: #223a58;
-    --way-border: #2e4966;
-    --way-text: #f4ecdd;
-    --way-text-dim: #a7b9cc;
-    --way-accent: #ec8a44;
-    --way-accent-ink: #fdf6ec;
-    --way-accent-2: #6fa1c9;
-    --way-danger: #d97a63;
-    --way-shadow: rgba(0, 0, 0, 0.45);
-  }
-}
-
 .way-scope .way-serif {
   font-family: var(--font-way-serif), Arial, sans-serif;
 }
@@ -54,23 +41,6 @@
   font-weight: 800;
   letter-spacing: 0.01em;
   text-transform: uppercase;
-}
-
-/* Legacy Church Abingdon's logo comes as two pre-cropped assets (light
-   text for dark backgrounds, dark text for light backgrounds) rather than
-   one image recolored at runtime, so the swap is a plain display toggle
-   keyed off the same prefers-color-scheme query .way-scope itself uses. */
-.way-logo-dark {
-  display: none;
-}
-
-@media (prefers-color-scheme: dark) {
-  .way-logo-light {
-    display: none;
-  }
-  .way-logo-dark {
-    display: block;
-  }
 }
 
 .way-page-main {
@@ -88,7 +58,7 @@
   top: 0;
   z-index: 5;
   padding: 16px 18px;
-  background: var(--way-surface);
+  background: var(--way-bg);
   border-bottom: 1px solid var(--way-border);
 }
 
@@ -108,10 +78,9 @@
 .way-card {
   position: relative;
   border-radius: 14px;
-  padding: 16px 16px 16px 18px;
+  padding: 16px 18px;
   background: var(--way-surface);
   border: 1px solid var(--way-border);
-  border-left: 3px solid var(--way-accent);
   box-shadow: 0 10px 24px -18px var(--way-shadow);
 }
 

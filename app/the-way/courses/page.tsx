@@ -10,7 +10,7 @@ import { WaySkeletonList } from "@/components/way/WaySkeleton";
 import { useWayAuth } from "@/components/way/WayAuthGate";
 import { waySupabase } from "@/lib/way/supabaseClient";
 import { computeStreak } from "@/lib/way/streak";
-import { renderCourseIcon, courseColor } from "@/lib/way/theme";
+import { renderCourseIcon } from "@/lib/way/theme";
 import type { Course, CourseWithProgress, Devotional, LessonItem } from "@/lib/way/types";
 
 type CompletionRow = { lesson_item_id: string; completed_at: string };
@@ -104,7 +104,6 @@ export default function CoursesPage() {
     };
   }, [profile.id]);
 
-  const resumeColor = resumeCourse ? courseColor(resumeCourse.color_theme) : null;
   const resumePct =
     resumeCourse && resumeCourse.totalItems > 0 ? Math.round((resumeCourse.completedItems / resumeCourse.totalItems) * 100) : 0;
 
@@ -112,6 +111,17 @@ export default function CoursesPage() {
     <>
       <WayHeader title="The Way" subtitle="Your discipleship journey" />
       <main className="way-page-main">
+        <div className="flex flex-col items-center gap-3 pb-1">
+          {/* eslint-disable-next-line @next/next/no-img-element -- a fixed local asset, not user content. */}
+          <img src="/the-way/legacy-church-logo-light.png" alt="Legacy Church Abingdon" className="h-auto w-32" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/the-way/hero-path.png"
+            alt="The Way — Come and Follow Me, Jesus. A discipleship path."
+            className="h-auto w-full rounded-[10px]"
+          />
+        </div>
+
         {loading ? (
           <WaySkeletonList cards={4} />
         ) : error ? (
@@ -149,7 +159,7 @@ export default function CoursesPage() {
               </div>
             )}
 
-            {resumeCourse && resumeColor && (
+            {resumeCourse && (
               <Link href={`/the-way/courses/${resumeCourse.id}`} className="way-card block space-y-2">
                 <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--way-text-dim)" }}>
                   <CirclePlay className="h-3.5 w-3.5" aria-hidden />
@@ -158,7 +168,7 @@ export default function CoursesPage() {
                 <div className="flex items-center gap-2">
                   <div
                     className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-                    style={{ background: resumeColor.bg, color: resumeColor.ink }}
+                    style={{ background: "var(--way-accent)", color: "var(--way-accent-ink)" }}
                   >
                     {renderCourseIcon(resumeCourse.icon, "h-4 w-4")}
                   </div>

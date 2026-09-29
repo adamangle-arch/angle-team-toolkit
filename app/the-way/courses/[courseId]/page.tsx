@@ -9,7 +9,8 @@ import CompletionCelebration from "@/components/way/CompletionCelebration";
 import { WaySkeletonList } from "@/components/way/WaySkeleton";
 import { useWayAuth } from "@/components/way/WayAuthGate";
 import { waySupabase } from "@/lib/way/supabaseClient";
-import { renderCourseIcon, courseColor, renderLessonTypeIcon, LESSON_TYPE_LABELS } from "@/lib/way/theme";
+import CourseSign from "@/components/way/CourseSign";
+import { renderCourseIcon, renderLessonTypeIcon, LESSON_TYPE_LABELS } from "@/lib/way/theme";
 import type { Course, LessonItem } from "@/lib/way/types";
 
 const MILESTONE_THRESHOLDS = [25, 50, 75] as const;
@@ -135,7 +136,6 @@ export default function CourseDetailPage({ params }: { params: Promise<{ courseI
   }
 
   const pct = items.length > 0 ? Math.round((completedIds.size / items.length) * 100) : 0;
-  const color = course ? courseColor(course.color_theme) : null;
 
   return (
     <>
@@ -145,16 +145,15 @@ export default function CourseDetailPage({ params }: { params: Promise<{ courseI
           <WaySkeletonList cards={3} />
         ) : error && !course ? (
           <p className="way-empty-state">Couldn&apos;t load this course: {error}</p>
-        ) : !course || !color ? (
+        ) : !course ? (
           <p className="way-empty-state">Course not found.</p>
         ) : (
           <>
-            <div className="flex items-center gap-3 rounded-[10px] p-4" style={{ background: color.bg, color: color.ink }}>
-              {renderCourseIcon(course.icon, "h-6 w-6 shrink-0")}
-              <p className="way-serif min-w-0 truncate text-lg font-semibold">{course.title}</p>
+            <div className="flex justify-center">
+              <CourseSign icon={renderCourseIcon(course.icon, "h-7 w-7")} title={course.title} size="lg" />
             </div>
 
-            <p className="text-sm" style={{ color: "var(--way-text-dim)" }}>
+            <p className="text-center text-sm" style={{ color: "var(--way-text-dim)" }}>
               {course.description}
             </p>
 
