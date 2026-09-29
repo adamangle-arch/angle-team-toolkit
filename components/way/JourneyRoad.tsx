@@ -70,6 +70,15 @@ export default function JourneyRoad({ courses }: { courses: CourseWithProgress[]
   const [hillFar, hillNear] = roadHills();
   const percent = Math.round(fraction * 100);
 
+  // The floating "you are here" marker only earns its keep between
+  // waypoints. At fraction 0 (nothing done in the current course yet) or
+  // fraction 1 (every course finished) it lands exactly on top of a
+  // waypoint - that waypoint's own pulsing/checkmark state already says
+  // "you are here", so a second cross graphic stacked on it just looks
+  // like visual noise rather than adding information.
+  const currentIndex = states.indexOf("current");
+  const showTravelMarker = currentIndex !== -1 && courses[currentIndex].completedItems > 0;
+
   return (
     <div className="way-card way-road" style={{ padding: "16px 12px 12px" }}>
       <div className="flex items-center justify-between px-1 pb-2">
@@ -122,15 +131,17 @@ export default function JourneyRoad({ courses }: { courses: CourseWithProgress[]
           );
         })}
 
-        <div
-          className="way-road-marker way-road-you-are-here"
-          style={{ left: pct(marker.x, VB_WIDTH), top: pct(marker.y, VB_HEIGHT) }}
-          aria-hidden
-        >
-          <div className="way-road-you-are-here-glow" />
-          {/* eslint-disable-next-line @next/next/no-img-element -- a fixed local asset, not user content. */}
-          <img src="/the-way/legacy-church-mark.png" alt="" className="way-road-you-are-here-mark" />
-        </div>
+        {showTravelMarker && (
+          <div
+            className="way-road-marker way-road-you-are-here"
+            style={{ left: pct(marker.x, VB_WIDTH), top: pct(marker.y, VB_HEIGHT) }}
+            aria-hidden
+          >
+            <div className="way-road-you-are-here-glow" />
+            {/* eslint-disable-next-line @next/next/no-img-element -- a fixed local asset, not user content. */}
+            <img src="/the-way/legacy-church-mark.png" alt="" className="way-road-you-are-here-mark" />
+          </div>
+        )}
       </div>
     </div>
   );
