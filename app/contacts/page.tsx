@@ -11,7 +11,7 @@ import { SkeletonList } from "@/components/Skeleton";
 import { supabase } from "@/lib/supabaseClient";
 import { CONTACT_STATUSES, CUSTOMER_STATUSES, CONNECTION_TAGS, RECONNECT_METHODS } from "@/lib/constants";
 import { NETWORKING_MEMORY_PROMPTS, CUSTOMER_MEMORY_PROMPTS } from "@/lib/contact-questions-data";
-import { extractNamesFromRows } from "@/lib/contactImport";
+import { extractNamesFromRows, parseVCard } from "@/lib/contactImport";
 import type { Contact } from "@/lib/types";
 
 const LIST_TARGET = 100;
@@ -25,7 +25,7 @@ const LIST_MILESTONES: { threshold: number; dotColor?: string; trophy?: boolean 
 
 type ViewMode = "networking" | "customer";
 
-type PendingImport = { name: string; destination: "networking" | "customer" };
+type PendingImport = { name: string; destination: "networking" | "customer"; notes?: string };
 
 // Deliberately not a full RFC 4180 CSV parser (quoted fields with
 // embedded commas, etc.) - just splits each line on commas into cells and
@@ -68,19 +68,35 @@ export default function ContactsPage() {
   // need its own spinner state.
   const [parsingFile, setParsingFile] = useState(false);
 
-  function applyParsedNames(names: string[]) {
-    if (names.length === 0) {
-      setImportError("Couldn't find any names in that file.");
+  function applyParsedContacts(entries: { name: string; notes?: string }[]) {
+    if (entries.length === 0) {
+      setImportError("Couldn't find any contacts in that file.");
       return;
     }
     setImportError(null);
-    setPendingImports(names.map((name) => ({ name, destination: "networking" })));
+    setPendingImports(entries.map(({ name, notes }) => ({ name, destination: "networking", notes })));
   }
 
   async function handleFileSelected(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = ""; // lets the same file be re-picked later if needed
     if (!file) return;
+
+    // iOS has no Contact Picker API - Safari doesn't implement it - so a
+    // live "pick from your phone's contacts" button can't work there.
+    // Instead, this rides the same file-upload path: the Contacts app's
+    // own Share Sheet can export one or many contacts as a .vcf, and
+    // that's plain text, so it reads client-side exactly like the CSV/TXT
+    // path below (see parseVCard in lib/contactImport.ts). Also carries
+    // over each contact's Notes field, unlike the name-only paths here.
+    if (/\.vcf$/i.test(file.name)) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        applyParsedContacts(parseVCard(String(reader.result ?? "")));
+      };
+      reader.readAsText(file);
+      return;
+    }
 
     // A real .xlsx/.xls file is a zipped binary format, not plain text -
     // it can't be read client-side the way a CSV/TXT list can, so this
@@ -104,7 +120,7 @@ export default function ContactsPage() {
         });
         const body = await res.json();
         if (!res.ok) throw new Error(body?.error || "Couldn't read that file.");
-        applyParsedNames((body.names as string[]) ?? []);
+        applyParsedContacts(((body.names as string[]) ?? []).map((name) => ({ name })));
       } catch (err) {
         setImportError(err instanceof Error ? err.message : "Couldn't read that file.");
       } finally {
@@ -115,7 +131,9 @@ export default function ContactsPage() {
 
     const reader = new FileReader();
     reader.onload = () => {
-      applyParsedNames(extractNamesFromRows(parseCsvRows(String(reader.result ?? ""))));
+      applyParsedContacts(
+        extractNamesFromRows(parseCsvRows(String(reader.result ?? ""))).map((name) => ({ name }))
+      );
     };
     reader.readAsText(file);
   }
@@ -138,6 +156,7 @@ export default function ContactsPage() {
         name: p.name.trim(),
         category: p.destination === "customer" ? "Customer" : "B",
         user_id: ownerId,
+        notes: p.notes?.trim() || "",
       }));
     const { data, error } = await supabase.from("contacts").insert(rows).select("*");
     setImporting(false);
@@ -450,7 +469,7 @@ export default function ContactsPage() {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".csv,.txt,.xlsx,.xls,text/csv,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+            accept=".csv,.txt,.xlsx,.xls,.vcf,text/csv,text/plain,text/vcard,text/x-vcard,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
             className="hidden"
             onChange={handleFileSelected}
           />
@@ -461,7 +480,7 @@ export default function ContactsPage() {
             disabled={parsingFile}
           >
             <Upload className="h-3.5 w-3.5" aria-hidden />
-            {parsingFile ? "Reading file…" : "Or Upload a List (CSV/Excel)"}
+            {parsingFile ? "Reading file…" : "Or Import Contacts (CSV/Excel/vCard)"}
           </button>
           {importError && <p className="text-xs text-red-400">{importError}</p>}
           <p
@@ -486,35 +505,38 @@ export default function ContactsPage() {
             </p>
             <div className="max-h-80 space-y-1.5 overflow-y-auto">
               {pendingImports.map((row, i) => (
-                <div key={i} className="flex items-center gap-1.5">
-                  <input
-                    className="input !py-1.5 flex-1 text-sm"
-                    value={row.name}
-                    onChange={(e) => updatePendingImport(i, { name: e.target.value })}
-                  />
-                  <button
-                    className={
-                      row.destination === "networking" ? "toggle-pill-active px-2 text-xs" : "toggle-pill-inactive px-2 text-xs"
-                    }
-                    onClick={() => updatePendingImport(i, { destination: "networking" })}
-                  >
-                    Networking
-                  </button>
-                  <button
-                    className={
-                      row.destination === "customer" ? "toggle-pill-active px-2 text-xs" : "toggle-pill-inactive px-2 text-xs"
-                    }
-                    onClick={() => updatePendingImport(i, { destination: "customer" })}
-                  >
-                    Customer
-                  </button>
-                  <button
-                    className="btn-icon !h-7 !w-7 shrink-0 text-sm"
-                    onClick={() => removePendingImport(i)}
-                    aria-label={`Remove ${row.name || "this row"}`}
-                  >
-                    <X className="h-3.5 w-3.5" aria-hidden />
-                  </button>
+                <div key={i} className="space-y-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      className="input !py-1.5 flex-1 text-sm"
+                      value={row.name}
+                      onChange={(e) => updatePendingImport(i, { name: e.target.value })}
+                    />
+                    <button
+                      className={
+                        row.destination === "networking" ? "toggle-pill-active px-2 text-xs" : "toggle-pill-inactive px-2 text-xs"
+                      }
+                      onClick={() => updatePendingImport(i, { destination: "networking" })}
+                    >
+                      Networking
+                    </button>
+                    <button
+                      className={
+                        row.destination === "customer" ? "toggle-pill-active px-2 text-xs" : "toggle-pill-inactive px-2 text-xs"
+                      }
+                      onClick={() => updatePendingImport(i, { destination: "customer" })}
+                    >
+                      Customer
+                    </button>
+                    <button
+                      className="btn-icon !h-7 !w-7 shrink-0 text-sm"
+                      onClick={() => removePendingImport(i)}
+                      aria-label={`Remove ${row.name || "this row"}`}
+                    >
+                      <X className="h-3.5 w-3.5" aria-hidden />
+                    </button>
+                  </div>
+                  {row.notes && <p className="line-clamp-1 pl-1 text-[11px] text-slate-500">{row.notes}</p>}
                 </div>
               ))}
             </div>
