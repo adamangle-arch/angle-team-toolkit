@@ -56,6 +56,23 @@
   text-transform: uppercase;
 }
 
+/* Legacy Church Abingdon's logo comes as two pre-cropped assets (light
+   text for dark backgrounds, dark text for light backgrounds) rather than
+   one image recolored at runtime, so the swap is a plain display toggle
+   keyed off the same prefers-color-scheme query .way-scope itself uses. */
+.way-logo-dark {
+  display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  .way-logo-light {
+    display: none;
+  }
+  .way-logo-dark {
+    display: block;
+  }
+}
+
 .way-page-main {
   flex: 1;
   overflow-y: auto;

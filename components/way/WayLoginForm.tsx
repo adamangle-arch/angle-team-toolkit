@@ -44,6 +44,18 @@ export default function WayLoginForm() {
     <div className="flex flex-1 flex-col items-center justify-center px-6">
       <div className="w-full max-w-xs space-y-5">
         <div className="text-center">
+          {/* eslint-disable-next-line @next/next/no-img-element -- a fixed local asset, not user content; next/image's remote-loader config isn't needed here. */}
+          <img
+            src="/the-way/legacy-church-logo-light.png"
+            alt="Legacy Church Abingdon"
+            className="way-logo-light mx-auto mb-3 h-auto w-44"
+          />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/the-way/legacy-church-logo-dark.png"
+            alt="Legacy Church Abingdon"
+            className="way-logo-dark mx-auto mb-3 h-auto w-44"
+          />
           <p className="way-wordmark text-3xl" style={{ color: "var(--way-text)" }}>
             The Way
           </p>
