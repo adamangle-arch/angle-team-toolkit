@@ -21,14 +21,13 @@ export function courseStates(courses: CourseWithProgress[]): CourseJourneyState[
   });
 }
 
-// Overall progress through the 5-stage path as a 0-1 fraction, weighted
-// evenly by course (not by raw lesson-item count) so courses with very
-// different lesson counts don't distort how far along the road you look -
-// finishing course 1 of 5 always reads as 1/5 of the way, whether it had
-// 4 lessons or 7.
-export function journeyFraction(courses: CourseWithProgress[]): number {
-  if (courses.length === 0) return 0;
+// Where you are along the path, in whole-stage units: 0 = standing at the
+// first stage's sign, 1.5 = halfway through the second stage, n = every
+// stage finished. Weighted evenly per stage (not by raw lesson count) so
+// a 4-lesson stage and a 7-lesson stage each cover the same stretch of
+// road - finishing stage 1 of 5 always reads as 1/5 of the way.
+export function journeyPosition(courses: CourseWithProgress[]): number {
   const firstUnfinishedIndex = courses.findIndex((c) => coursePct(c) < 1);
-  if (firstUnfinishedIndex === -1) return 1;
-  return (firstUnfinishedIndex + coursePct(courses[firstUnfinishedIndex])) / courses.length;
+  if (firstUnfinishedIndex === -1) return courses.length;
+  return firstUnfinishedIndex + coursePct(courses[firstUnfinishedIndex]);
 }

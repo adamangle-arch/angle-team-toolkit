@@ -242,79 +242,269 @@
 }
 
 /* ----------------------------------------------------------------------
-   Journey road — an animated winding path standing in for "progressing
-   down a road" through the 5-stage curriculum. Waypoint dots are real
-   HTML buttons/links positioned by percentage over a purely decorative
-   background SVG line, rather than clickable SVG shapes, so they stay
-   ordinary interactive elements (focus ring, tap target) instead of
-   fighting SVG hit-testing.
+   Journey map (components/way/JourneyRoad.tsx) - a living landscape: the
+   road winds toward the cross on the far hill while a lantern walks it to
+   where you are. The scene itself is one decorative SVG; the stage signs
+   are real links laid over it by percentage, so they keep an ordinary
+   focus ring and tap target instead of fighting SVG hit-testing.
    ---------------------------------------------------------------------- */
-.way-road {
+.way-map {
+  position: relative;
   width: 100%;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid var(--way-border);
+  background: #fbe8cf;
+  /* Inside .way-page-main's flex column, overflow:hidden would otherwise
+     let it shrink to nothing. */
+  flex-shrink: 0;
+  box-shadow: 0 18px 36px -24px rgba(22, 40, 63, 0.55);
 }
 
-.way-road-canvas {
+.way-map-canvas {
   position: relative;
   width: 100%;
 }
 
-.way-road-marker {
+.way-map-canvas > svg {
   position: absolute;
-  transform: translate(-50%, -50%);
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.way-map-heading {
+  position: absolute;
+  top: 12px;
+  left: 14px;
+  right: 14px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  pointer-events: none;
+}
+
+.way-map-eyebrow {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(22, 40, 63, 0.65);
+}
+
+.way-map-stage {
+  margin-top: 2px;
+  font-family: var(--font-way-serif), Arial, sans-serif;
+  font-weight: 800;
+  font-size: 13px;
+  line-height: 1.2;
+  color: var(--way-text);
+}
+
+.way-map-percent {
+  font-family: var(--font-way-serif), Arial, sans-serif;
+  font-weight: 800;
+  font-size: 30px;
+  line-height: 1;
+  color: var(--way-accent);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.way-map-sign {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: translate(-50%, -100%) scale(var(--way-sign-scale, 1));
+  transform-origin: 50% 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+.way-map-sign:focus-visible {
+  outline: none;
+}
+.way-map-sign:focus-visible .way-map-sign-board {
+  outline: 2px solid var(--way-accent);
+  outline-offset: 2px;
+}
+.way-map-sign:active .way-map-sign-board {
+  transform: scale(0.94);
+}
+
+.way-map-sign-board {
+  position: relative;
+  display: block;
+  max-width: 78px;
+  padding: 4px 7px;
+  border-radius: 6px;
+  font-family: var(--font-way-serif), Arial, sans-serif;
+  font-weight: 800;
+  font-size: 10.5px;
+  line-height: 1.08;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  text-align: center;
+  box-shadow: 0 6px 12px -8px rgba(0, 0, 0, 0.6);
+  transition: background-color 0.35s ease, color 0.35s ease, border-color 0.35s ease, transform 0.12s ease;
+}
+
+.way-map-sign-post {
+  display: block;
+  width: 3px;
+  height: 9px;
+  border-radius: 0 0 1px 1px;
+  transition: background-color 0.35s ease;
+}
+
+.way-map-sign--upcoming .way-map-sign-board {
+  background: rgba(26, 49, 80, 0.72);
+  color: rgba(244, 236, 221, 0.78);
+  border: 1.5px dashed rgba(244, 236, 221, 0.55);
+}
+.way-map-sign--upcoming .way-map-sign-post {
+  background: rgba(244, 236, 221, 0.35);
+}
+
+.way-map-sign--current .way-map-sign-board,
+.way-map-sign--done .way-map-sign-board {
+  background: var(--way-accent);
+  color: var(--way-accent-ink);
+  border: 1.5px solid var(--way-text);
+  animation: way-map-sign-light 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.way-map-sign--current .way-map-sign-board {
+  animation:
+    way-map-sign-light 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both,
+    way-map-sign-glow 1.8s ease-out 0.45s infinite;
+}
+.way-map-sign--current .way-map-sign-post,
+.way-map-sign--done .way-map-sign-post {
+  background: #b85f22;
+}
+
+.way-map-sign-check {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  width: 15px;
+  height: 15px;
+  border-radius: 999px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 999px;
-  transition: left 0.7s cubic-bezier(0.34, 1.2, 0.64, 1), top 0.7s cubic-bezier(0.34, 1.2, 0.64, 1);
-}
-
-.way-road-waypoint {
-  width: 30px;
-  height: 30px;
-  border: 3px solid var(--way-border);
-  background: var(--way-surface);
-  color: var(--way-text-dim);
-  box-shadow: 0 4px 10px -6px var(--way-shadow);
-  font-size: 13px;
-  font-weight: 700;
-}
-.way-road-waypoint:active {
-  transform: translate(-50%, -50%) scale(0.92);
-}
-
-.way-road-waypoint--done {
-  background: var(--way-accent);
+  background: var(--way-accent-2);
   color: var(--way-accent-ink);
-  border-color: var(--way-text);
+  border: 1.5px solid #ffffff;
 }
 
-.way-road-waypoint--current {
-  background: var(--way-surface);
-  border-color: var(--way-accent);
-  color: var(--way-accent);
-  transform: translate(-50%, -50%) scale(1.15);
-  animation: way-road-pulse-ring 1.8s ease-out infinite;
+@keyframes way-map-sign-light {
+  0% {
+    transform: scale(0.82);
+    filter: brightness(1.6);
+  }
+  60% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
 }
 
-.way-road-you-are-here {
-  width: 26px;
-  height: 26px;
-  animation: way-road-bob 1.6s ease-in-out infinite;
+/* Ambient life in the scene. SVG shapes need fill-box so their scale
+   and rotation pivot on themselves, not the SVG's top-left corner. */
+.way-map-halo {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: way-map-breathe 2.2s ease-in-out infinite;
 }
 
-.way-road-you-are-here-glow {
-  position: absolute;
-  inset: -9px;
-  border-radius: 999px;
-  background: radial-gradient(circle, color-mix(in srgb, var(--way-accent) 55%, transparent) 0%, transparent 72%);
+.way-map-rays {
+  opacity: 0.22;
+  animation: way-map-spin 90s linear infinite;
+  transition: opacity 1.2s ease;
+}
+.way-map--complete .way-map-rays {
+  opacity: 0.5;
 }
 
-.way-road-you-are-here-mark {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  filter: drop-shadow(0 2px 4px var(--way-shadow));
+.way-map-cloud {
+  animation: way-map-drift 26s ease-in-out infinite alternate;
+}
+.way-map-cloud--slow {
+  animation-duration: 38s;
+  animation-direction: alternate-reverse;
+}
+
+.way-map-birds {
+  animation: way-map-fly 14s ease-in-out infinite alternate;
+}
+
+.way-map-sparkle {
+  animation: way-map-twinkle 2.4s ease-in-out infinite;
+}
+
+@keyframes way-map-sign-glow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 170, 100, 0.75), 0 0 14px 2px rgba(240, 138, 58, 0.55);
+  }
+  70% {
+    box-shadow: 0 0 0 9px rgba(255, 170, 100, 0), 0 0 14px 2px rgba(240, 138, 58, 0.25);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 170, 100, 0), 0 0 14px 2px rgba(240, 138, 58, 0.55);
+  }
+}
+
+@keyframes way-map-breathe {
+  0%,
+  100% {
+    transform: scale(0.85);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+}
+
+@keyframes way-map-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes way-map-drift {
+  from {
+    transform: translateX(-14px);
+  }
+  to {
+    transform: translateX(14px);
+  }
+}
+
+@keyframes way-map-fly {
+  0% {
+    transform: translate(-6px, 2px);
+  }
+  50% {
+    transform: translate(4px, -3px);
+  }
+  100% {
+    transform: translate(12px, 1px);
+  }
+}
+
+@keyframes way-map-twinkle {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 @keyframes way-road-pulse-ring {
@@ -327,29 +517,6 @@
   100% {
     box-shadow: 0 0 0 0 transparent;
   }
-}
-
-@keyframes way-road-bob {
-  0%,
-  100% {
-    transform: translate(-50%, -50%) translateY(0);
-  }
-  50% {
-    transform: translate(-50%, -50%) translateY(-4px);
-  }
-}
-
-@keyframes way-road-draw {
-  from {
-    stroke-dashoffset: 100;
-  }
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-
-.way-road-line-fill {
-  animation: way-road-draw 1.4s ease-out both;
 }
 
 /* Signpost state accents - a subtle glow on the course you're currently
@@ -432,17 +599,18 @@
   .way-chip {
     transition: none;
   }
-  .way-road-marker {
+  .way-sign-board--current,
+  .way-map-sign-board,
+  .way-map-halo,
+  .way-map-rays,
+  .way-map-cloud,
+  .way-map-birds,
+  .way-map-sparkle {
+    animation: none !important;
+  }
+  .way-map-sign-board,
+  .way-map-sign-post {
     transition: none;
-  }
-  .way-road-waypoint--current,
-  .way-road-you-are-here,
-  .way-sign-board--current {
-    animation: none;
-  }
-  .way-road-line-fill {
-    animation: none;
-    stroke-dashoffset: 0;
   }
   .way-fade-up,
   .way-pop,

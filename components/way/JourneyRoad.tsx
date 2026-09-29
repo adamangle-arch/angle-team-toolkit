@@ -1,148 +1,302 @@
 "use client";
 
+import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { Compass } from "lucide-react";
-import { renderCourseIcon } from "@/lib/way/theme";
-import { courseStates, journeyFraction } from "@/lib/way/journey";
+import { Check } from "lucide-react";
+import { journeyPosition } from "@/lib/way/journey";
+import {
+  MAP_H,
+  MAP_W,
+  ROAD_CENTERLINE,
+  ROAD_EDGE,
+  ROAD_OUTLINE,
+  ROAD_START_ARC,
+  SIGN_BASES,
+  SPARKLE_ARCS,
+  STOPS,
+  SUMMIT,
+  SUN,
+  SUN_RAYS,
+  TREES_FAR,
+  TREES_MID,
+  TREES_NEAR,
+  arcForPosition,
+  perspectiveScale,
+  pointAtArc,
+  ribbonPath,
+} from "@/lib/way/journeyMap";
 import type { CourseWithProgress } from "@/lib/way/types";
 
-// Five hand-placed stops forming a gentle S-curve, echoing the winding
-// path in the church's own "Come and Follow Me" artwork. Fixed rather
-// than computed from course count, since the path is a piece of art, not
-// a data visualization - it's designed for exactly 5 stages.
-const WAYPOINTS = [
-  { x: 40, y: 26 },
-  { x: 214, y: 62 },
-  { x: 58, y: 116 },
-  { x: 226, y: 168 },
-  { x: 92, y: 216 },
-];
+type SignVisual = "upcoming" | "current" | "done";
 
-const VB_WIDTH = 260;
-const VB_HEIGHT = 240;
-
-function roadPath(): string {
-  const [p0, p1, p2, p3, p4] = WAYPOINTS;
-  return [
-    `M${p0.x},${p0.y}`,
-    `Q${(p0.x + p1.x) / 2},${p0.y - 18} ${p1.x},${p1.y}`,
-    `Q${(p1.x + p2.x) / 2},${p1.y + 30} ${p2.x},${p2.y}`,
-    `Q${(p2.x + p3.x) / 2},${p2.y + 30} ${p3.x},${p3.y}`,
-    `Q${(p3.x + p4.x) / 2},${p3.y + 30} ${p4.x},${p4.y}`,
-  ].join(" ");
+function signVisual(index: number, position: number): SignVisual {
+  const p = position + 1e-6;
+  if (p < index) return "upcoming";
+  if (p < index + 1) return "current";
+  return "done";
 }
 
-// Two soft rolling-hill silhouettes behind the road, purely atmospheric -
-// low enough opacity to never compete with the path or the waypoints.
-function roadHills(): string[] {
-  return [
-    `M0,${VB_HEIGHT} L0,${VB_HEIGHT - 55} Q45,${VB_HEIGHT - 95} 90,${VB_HEIGHT - 65} T180,${VB_HEIGHT - 80} T${VB_WIDTH},${VB_HEIGHT - 50} L${VB_WIDTH},${VB_HEIGHT} Z`,
-    `M0,${VB_HEIGHT} L0,${VB_HEIGHT - 25} Q60,${VB_HEIGHT - 55} 120,${VB_HEIGHT - 30} T${VB_WIDTH},${VB_HEIGHT - 20} L${VB_WIDTH},${VB_HEIGHT} Z`,
-  ];
+function pct(v: number, total: number): string {
+  return `${(v / total) * 100}%`;
 }
 
-// Interpolates a point along the WAYPOINTS polyline (straight segments,
-// not the drawn curve's bezier bulge) for a 0-1 progress fraction - close
-// enough to the visible road for a marker, without the complexity of
-// walking an actual bezier path.
-function pointAtFraction(fraction: number): { x: number; y: number } {
-  const segments = WAYPOINTS.length - 1;
-  const clamped = Math.min(Math.max(fraction, 0), 1);
-  const scaled = clamped * segments;
-  const segIndex = Math.min(Math.floor(scaled), segments - 1);
-  const localT = scaled - segIndex;
-  const a = WAYPOINTS[segIndex];
-  const b = WAYPOINTS[segIndex + 1];
-  return { x: a.x + (b.x - a.x) * localT, y: a.y + (b.y - a.y) * localT };
+function easeInOutCubic(t: number): number {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
-function pct(x: number, total: number): string {
-  return `${(x / total) * 100}%`;
+const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
+
+function subscribeReducedMotion(onChange: () => void) {
+  const mq = window.matchMedia(REDUCED_MOTION_QUERY);
+  mq.addEventListener("change", onChange);
+  return () => mq.removeEventListener("change", onChange);
 }
 
+function usePrefersReducedMotion(): boolean {
+  return useSyncExternalStore(
+    subscribeReducedMotion,
+    () => window.matchMedia(REDUCED_MOTION_QUERY).matches,
+    () => false
+  );
+}
+
+// The Courses page centerpiece: a winding road narrowing into the
+// distance toward a cross on the far hill, with a sign for each stage at
+// its switchback. On load a lantern walks the road from the start to
+// where you actually are, lighting each sign as it passes and counting
+// your percentage up - "your word is a lamp to my feet and a light to my
+// path." Designed for the church's five stages; a shorter curriculum
+// just uses the first stretches of road.
 export default function JourneyRoad({ courses }: { courses: CourseWithProgress[] }) {
-  if (courses.length === 0) return null;
+  const uid = useId().replace(/[^a-zA-Z0-9_-]/g, "");
+  const reducedMotion = usePrefersReducedMotion();
 
-  const states = courseStates(courses);
-  const fraction = journeyFraction(courses);
-  const marker = pointAtFraction(fraction);
-  const d = roadPath();
-  const [hillFar, hillNear] = roadHills();
-  const percent = Math.round(fraction * 100);
+  const stages = courses.slice(0, STOPS.length);
+  const target = journeyPosition(stages);
 
-  // The floating "you are here" marker only earns its keep between
-  // waypoints. At fraction 0 (nothing done in the current course yet) or
-  // fraction 1 (every course finished) it lands exactly on top of a
-  // waypoint - that waypoint's own pulsing/checkmark state already says
-  // "you are here", so a second cross graphic stacked on it just looks
-  // like visual noise rather than adding information.
-  const currentIndex = states.indexOf("current");
-  const showTravelMarker = currentIndex !== -1 && courses[currentIndex].completedItems > 0;
+  const [animated, setAnimated] = useState(0);
+  const animatedRef = useRef(0);
+
+  useEffect(() => {
+    if (reducedMotion) return;
+    const from = animatedRef.current;
+    const to = target;
+    if (Math.abs(to - from) < 1e-6) return;
+    const duration = Math.min(3400, 900 + 620 * Math.abs(to - from));
+    const delay = from === 0 ? 450 : 0;
+    let start: number | undefined;
+    let frame = 0;
+    const step = (now: number) => {
+      if (start === undefined) start = now + delay;
+      const t = Math.min(Math.max((now - start) / duration, 0), 1);
+      const value = from + (to - from) * easeInOutCubic(t);
+      animatedRef.current = value;
+      setAnimated(value);
+      if (t < 1) frame = requestAnimationFrame(step);
+    };
+    frame = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frame);
+  }, [target, reducedMotion]);
+
+  if (stages.length === 0) return null;
+
+  const position = reducedMotion ? target : animated;
+  const travelerArc = arcForPosition(position);
+  const traveler = pointAtArc(travelerArc);
+  const travelerScale = perspectiveScale(traveler.y);
+  const complete = target >= stages.length - 1e-6;
+  const percent = Math.round((position / stages.length) * 100);
+
+  const currentIndex = stages.findIndex((c) => c.totalItems === 0 || c.completedItems < c.totalItems);
+  const stageLabel =
+    currentIndex === -1
+      ? "Journey complete"
+      : `Stage ${currentIndex + 1} of ${stages.length} · ${stages[currentIndex].title}`;
+
+  const ids = {
+    sky: `${uid}-sky`,
+    sunGlow: `${uid}-sunglow`,
+    sunDisk: `${uid}-sundisk`,
+    halo: `${uid}-halo`,
+    blur: `${uid}-blur`,
+  };
 
   return (
-    <div className="way-card way-road" style={{ padding: "16px 12px 12px" }}>
-      <div className="flex items-center justify-between px-1 pb-2">
-        <div className="flex items-center gap-1.5">
-          <Compass className="h-4 w-4" style={{ color: "var(--way-accent)" }} aria-hidden />
-          <p className="way-serif text-sm font-bold uppercase tracking-wide" style={{ color: "var(--way-text)" }}>
-            Your Journey
-          </p>
-        </div>
-        <p className="text-xs font-semibold" style={{ color: "var(--way-text-dim)" }}>
-          {percent}% of the way
-        </p>
-      </div>
+    <section
+      className={`way-map way-fade-up ${complete ? "way-map--complete" : ""}`}
+      aria-label={`Your journey: ${Math.round((target / stages.length) * 100)}% complete`}
+    >
+      <div className="way-map-canvas" style={{ aspectRatio: `${MAP_W} / ${MAP_H}` }}>
+        <svg viewBox={`0 0 ${MAP_W} ${MAP_H}`} aria-hidden>
+          <defs>
+            <linearGradient id={ids.sky} x1="0" y1="0" x2="0" y2="150" gradientUnits="userSpaceOnUse">
+              <stop offset="0" stopColor="#fdf7ee" />
+              <stop offset="0.55" stopColor="#fbe7cd" />
+              <stop offset="1" stopColor="#f5cc9b" />
+            </linearGradient>
+            <radialGradient id={ids.sunGlow} cx={SUN.x} cy={SUN.y} r="100" gradientUnits="userSpaceOnUse">
+              <stop offset="0" stopColor="#ffd9a6" stopOpacity="0.95" />
+              <stop offset="0.4" stopColor="#f8bf85" stopOpacity="0.4" />
+              <stop offset="1" stopColor="#f8bf85" stopOpacity="0" />
+            </radialGradient>
+            <radialGradient id={ids.sunDisk} cx="0.42" cy="0.38" r="0.7">
+              <stop offset="0" stopColor="#fff0d6" />
+              <stop offset="1" stopColor="#f08f3e" />
+            </radialGradient>
+            <radialGradient id={ids.halo}>
+              <stop offset="0" stopColor="#ffb86b" stopOpacity="0.85" />
+              <stop offset="0.5" stopColor="#f08a3a" stopOpacity="0.35" />
+              <stop offset="1" stopColor="#f08a3a" stopOpacity="0" />
+            </radialGradient>
+            <filter id={ids.blur} x="-30%" y="-30%" width="160%" height="160%">
+              <feGaussianBlur stdDeviation="3.2" />
+            </filter>
+          </defs>
 
-      {/* Waypoints/marker are positioned by percentage against THIS box
-          specifically (not the outer card, which also contains the
-          heading above) - aspect-ratio keeps it matching the SVG's own
-          box exactly regardless of the card's actual rendered width. */}
-      <div className="way-road-canvas" style={{ aspectRatio: `${VB_WIDTH} / ${VB_HEIGHT}` }}>
-        <svg viewBox={`0 0 ${VB_WIDTH} ${VB_HEIGHT}`} className="block w-full h-full" aria-hidden>
-          <path d={hillFar} fill="var(--way-text)" opacity={0.05} />
-          <path d={hillNear} fill="var(--way-text)" opacity={0.08} />
-
-          <path d={d} fill="none" stroke="var(--way-border)" strokeWidth={5} strokeLinecap="round" strokeDasharray="2 9" />
+          {/* Sky, and the sun rising behind the summit */}
+          <rect width={MAP_W} height={MAP_H} fill={`url(#${ids.sky})`} />
+          <circle cx={SUN.x} cy={SUN.y} r="100" fill={`url(#${ids.sunGlow})`} />
           <path
-            className="way-road-line-fill"
-            d={d}
-            fill="none"
-            stroke="var(--way-accent)"
-            strokeWidth={6}
-            strokeLinecap="round"
-            pathLength={100}
-            strokeDasharray={`${percent} 100`}
+            className="way-map-rays"
+            style={{ transformOrigin: `${SUN.x}px ${SUN.y}px` }}
+            d={SUN_RAYS}
+            fill="#f3b06a"
           />
+          <circle cx={SUN.x} cy={SUN.y} r="17" fill={`url(#${ids.sunDisk})`} />
+
+          <g className="way-map-cloud" fill="#fffaf2" opacity="0.85">
+            <ellipse cx="54" cy="78" rx="19" ry="5" />
+            <circle cx="45" cy="74" r="6" />
+            <circle cx="55" cy="70" r="8" />
+            <circle cx="65" cy="74" r="6.5" />
+          </g>
+          <g className="way-map-cloud way-map-cloud--slow" fill="#fffaf2" opacity="0.75">
+            <ellipse cx="246" cy="64" rx="16" ry="4.2" />
+            <circle cx="238" cy="61" r="5" />
+            <circle cx="247" cy="57" r="6.8" />
+            <circle cx="256" cy="61" r="5.4" />
+          </g>
+          <g className="way-map-birds" fill="none" stroke="#16283f" strokeOpacity="0.5" strokeWidth="1.1" strokeLinecap="round">
+            <path d="M96,72 q3,-3 6,0 q3,-3 6,0" />
+            <path d="M112,63 q2.4,-2.4 4.8,0 q2.4,-2.4 4.8,0" />
+          </g>
+
+          {/* Mountains, the summit hill, and the valley the road climbs */}
+          <path
+            d="M0,118 L22,100 L44,108 L70,86 L96,106 L118,98 L140,116 L168,122 L196,114 L220,94 L244,104 L266,84 L286,98 L300,92 L300,350 L0,350 Z"
+            fill="#9bb1c6"
+          />
+          <path d="M70,86 L84,96 L78,100 Z M266,84 L278,93 L271,96 Z M220,94 L230,101 L224,104 Z" fill="#b8c9d8" />
+          <path
+            d="M0,150 Q40,128 84,136 Q120,142 148,130 Q160,125 168,128 Q180,132 204,134 Q250,138 300,122 L300,350 L0,350 Z"
+            fill="#5d7c9b"
+          />
+          <path d={TREES_FAR} fill="#48688a" />
+          <path d="M0,196 Q70,176 136,184 Q170,188 210,178 Q260,166 300,172 L300,350 L0,350 Z" fill="#2f5075" />
+          <path d={TREES_MID} fill="#1f3a5c" />
+          <path d="M0,262 Q90,248 170,258 Q240,266 300,250 L300,350 L0,350 Z" fill="#22406a" />
+          <path d="M0,318 Q110,306 200,318 Q260,326 300,312 L300,350 L0,350 Z" fill="#1a3252" />
+          <path d={TREES_NEAR} fill="#132840" />
+
+          {/* The cross on the summit, silhouetted against the sun */}
+          <g stroke="#16283f" strokeWidth="3.2">
+            <line x1={SUMMIT.x} y1={SUMMIT.y - 31} x2={SUMMIT.x} y2={SUMMIT.y + 1} />
+            <line x1={SUMMIT.x - 8.5} y1={SUMMIT.y - 23} x2={SUMMIT.x + 8.5} y2={SUMMIT.y - 23} />
+          </g>
+
+          {/* The road */}
+          <path d={ROAD_EDGE} fill="#c7b186" />
+          <path d={ROAD_OUTLINE} fill="#f4ecdd" />
+          <path d={ROAD_CENTERLINE} fill="none" stroke="#d6c39b" strokeWidth="1.1" strokeDasharray="4 6" />
+
+          {/* The stretch you've walked, lit up */}
+          <path d={ribbonPath(ROAD_START_ARC, travelerArc, 0.95)} fill="#f08a3a" opacity="0.55" filter={`url(#${ids.blur})`} />
+          <path d={ribbonPath(ROAD_START_ARC, travelerArc, 0.42)} fill="#e07b35" />
+          <path d={ribbonPath(ROAD_START_ARC, travelerArc, 0.14)} fill="#ffe2b8" />
+
+          {SPARKLE_ARCS.filter((a) => a < travelerArc - 6).map((a, i) => {
+            const p = pointAtArc(a);
+            return (
+              <circle
+                key={a}
+                className="way-map-sparkle"
+                style={{ animationDelay: `${(i * 0.37) % 2.4}s` }}
+                cx={p.x}
+                cy={p.y}
+                r={1.5 * perspectiveScale(p.y)}
+                fill="#fff4dc"
+              />
+            );
+          })}
+
+          {STOPS.slice(0, stages.length).map((s, i) => {
+            const reached = position + 1e-6 >= i;
+            const r = 1.8 + 2.4 * perspectiveScale(s.y);
+            return (
+              <circle
+                key={i}
+                cx={s.x}
+                cy={s.y}
+                r={r}
+                fill={reached ? "#e07b35" : "#cdb88f"}
+                stroke="#fff6e8"
+                strokeWidth="0.9"
+              />
+            );
+          })}
+
+          {/* The lantern - you */}
+          <g transform={`translate(${traveler.x.toFixed(2)} ${traveler.y.toFixed(2)}) scale(${travelerScale.toFixed(3)})`}>
+            <circle className="way-map-halo" r="17" fill={`url(#${ids.halo})`} />
+            <circle r="6.2" fill="#fff6e8" stroke="#e07b35" strokeWidth="2.6" />
+            <circle r="2.1" fill="#e07b35" />
+          </g>
         </svg>
 
-        {courses.slice(0, WAYPOINTS.length).map((course, i) => {
-          const state = states[i];
-          const point = WAYPOINTS[i];
+        <div className="way-map-heading">
+          <div className="min-w-0">
+            <p className="way-map-eyebrow">Your Journey</p>
+            <p className="way-map-stage">{stageLabel}</p>
+          </div>
+          <div className="shrink-0 text-right">
+            <p className="way-map-percent">{percent}%</p>
+            <p className="way-map-eyebrow">of the way</p>
+          </div>
+        </div>
+
+        {stages.map((course, i) => {
+          const visual = signVisual(i, position);
+          const finalVisual = signVisual(i, target);
+          const base = SIGN_BASES[i];
+          const scale = Math.max(0.8, perspectiveScale(base.y));
           return (
             <Link
               key={course.id}
               href={`/the-way/courses/${course.id}`}
-              aria-label={`${course.title} — ${state === "done" ? "completed" : state === "current" ? "in progress" : "not started"}`}
-              className={`way-road-marker way-road-waypoint ${state === "done" ? "way-road-waypoint--done" : ""} ${state === "current" ? "way-road-waypoint--current" : ""}`}
-              style={{ left: pct(point.x, VB_WIDTH), top: pct(point.y, VB_HEIGHT) }}
+              aria-label={`${course.title} — ${finalVisual === "done" ? "completed" : finalVisual === "current" ? "in progress" : "not started yet"}`}
+              className={`way-map-sign way-map-sign--${visual}`}
+              style={
+                {
+                  left: pct(base.x, MAP_W),
+                  top: pct(base.y, MAP_H),
+                  zIndex: 10 - i,
+                  "--way-sign-scale": scale,
+                } as React.CSSProperties
+              }
             >
-              {renderCourseIcon(course.icon, "h-4 w-4")}
+              <span className="way-map-sign-board">
+                {visual === "done" && (
+                  <span className="way-map-sign-check way-pop" aria-hidden>
+                    <Check className="h-2.5 w-2.5" strokeWidth={3.5} />
+                  </span>
+                )}
+                {course.title}
+              </span>
+              <span className="way-map-sign-post" />
             </Link>
           );
         })}
-
-        {showTravelMarker && (
-          <div
-            className="way-road-marker way-road-you-are-here"
-            style={{ left: pct(marker.x, VB_WIDTH), top: pct(marker.y, VB_HEIGHT) }}
-            aria-hidden
-          >
-            <div className="way-road-you-are-here-glow" />
-            {/* eslint-disable-next-line @next/next/no-img-element -- a fixed local asset, not user content. */}
-            <img src="/the-way/legacy-church-mark.png" alt="" className="way-road-you-are-here-mark" />
-          </div>
-        )}
       </div>
-    </div>
+    </section>
   );
 }
