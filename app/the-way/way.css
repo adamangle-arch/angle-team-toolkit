@@ -30,6 +30,9 @@
   background: var(--way-bg);
   color: var(--way-text);
   font-family: var(--font-way-sans), ui-sans-serif, system-ui, sans-serif;
+  /* Its own stacking context, so WayBackdrop's negative z-index stays
+     contained here rather than interacting with anything outside it. */
+  isolation: isolate;
 }
 
 .way-scope .way-serif {

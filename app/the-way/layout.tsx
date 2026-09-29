@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Archivo, Karla } from "next/font/google";
 import WayAuthGate from "@/components/way/WayAuthGate";
 import WayShell from "@/components/way/WayShell";
+import WayBackdrop from "@/components/way/WayBackdrop";
 import "./way.css";
 
 // Variable name kept as --font-way-serif (not renamed to -display) to avoid
@@ -27,6 +28,7 @@ export const metadata: Metadata = {
 export default function WayLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className={`way-scope ${waySerif.variable} ${waySans.variable}`}>
+      <WayBackdrop />
       <WayAuthGate>
         <WayShell>{children}</WayShell>
       </WayAuthGate>
