@@ -8,7 +8,7 @@ import { Sparkles } from "lucide-react";
 export default function MilestoneToast({ pct }: { pct: number }) {
   return (
     <div
-      className="way-scope fixed inset-x-4 top-4 z-50 mx-auto flex max-w-md items-center gap-2 rounded-[14px] px-4 py-3"
+      className="way-scope way-toast-in fixed inset-x-4 top-4 z-50 mx-auto flex max-w-md items-center gap-2 rounded-[14px] px-4 py-3"
       style={{
         background: "var(--way-surface)",
         border: "1px solid var(--way-border)",

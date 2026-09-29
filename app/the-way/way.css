@@ -238,6 +238,170 @@
   }
 }
 
+/* ----------------------------------------------------------------------
+   Journey road — an animated winding path standing in for "progressing
+   down a road" through the 5-stage curriculum. Waypoint dots are real
+   HTML buttons/links positioned by percentage over a purely decorative
+   background SVG line, rather than clickable SVG shapes, so they stay
+   ordinary interactive elements (focus ring, tap target) instead of
+   fighting SVG hit-testing.
+   ---------------------------------------------------------------------- */
+.way-road {
+  position: relative;
+  width: 100%;
+}
+
+.way-road-marker {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  transition: left 0.7s cubic-bezier(0.34, 1.2, 0.64, 1), top 0.7s cubic-bezier(0.34, 1.2, 0.64, 1);
+}
+
+.way-road-waypoint {
+  width: 30px;
+  height: 30px;
+  border: 3px solid var(--way-border);
+  background: var(--way-surface);
+  color: var(--way-text-dim);
+  box-shadow: 0 4px 10px -6px var(--way-shadow);
+  font-size: 13px;
+  font-weight: 700;
+}
+.way-road-waypoint:active {
+  transform: translate(-50%, -50%) scale(0.92);
+}
+
+.way-road-waypoint--done {
+  background: var(--way-accent);
+  color: var(--way-accent-ink);
+  border-color: var(--way-text);
+}
+
+.way-road-waypoint--current {
+  background: var(--way-surface);
+  border-color: var(--way-accent);
+  color: var(--way-accent);
+  animation: way-road-pulse-ring 1.8s ease-out infinite;
+}
+
+.way-road-you-are-here {
+  width: 13px;
+  height: 13px;
+  background: var(--way-accent);
+  border: 2px solid var(--way-accent-ink);
+  animation: way-road-bob 1.6s ease-in-out infinite;
+}
+
+@keyframes way-road-pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--way-accent) 45%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 10px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+@keyframes way-road-bob {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) translateY(0);
+  }
+  50% {
+    transform: translate(-50%, -50%) translateY(-4px);
+  }
+}
+
+@keyframes way-road-draw {
+  from {
+    stroke-dashoffset: var(--way-road-length, 600);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.way-road-line-fill {
+  animation: way-road-draw 1.4s ease-out both;
+}
+
+/* Signpost state accents - a subtle glow on the course you're currently
+   on, a checkmark badge on one you've finished. Independent of the road
+   above; CourseCard/the course detail page pass these per-course. */
+.way-sign-board--current {
+  animation: way-road-pulse-ring 2.2s ease-out infinite;
+}
+
+.way-sign-badge-done {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--way-accent-2);
+  color: var(--way-accent-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--way-surface);
+}
+
+/* Staggered entrance for the course list - each card fades/slides up on
+   mount, delay set per-item via inline style. */
+@keyframes way-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.way-fade-up {
+  animation: way-fade-up 0.45s ease both;
+}
+
+@keyframes way-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.way-toast-in {
+  animation: way-toast-in 0.35s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+}
+
+/* A quick overshoot pop when a lesson gets checked off. */
+@keyframes way-pop {
+  0% {
+    transform: scale(0.6);
+  }
+  60% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.way-pop {
+  animation: way-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .way-skeleton {
     animation: none;
@@ -246,5 +410,22 @@
   .way-btn-icon,
   .way-chip {
     transition: none;
+  }
+  .way-road-marker {
+    transition: none;
+  }
+  .way-road-waypoint--current,
+  .way-road-you-are-here,
+  .way-sign-board--current {
+    animation: none;
+  }
+  .way-road-line-fill {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+  .way-fade-up,
+  .way-pop,
+  .way-toast-in {
+    animation: none;
   }
 }

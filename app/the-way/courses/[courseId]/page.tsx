@@ -150,7 +150,12 @@ export default function CourseDetailPage({ params }: { params: Promise<{ courseI
         ) : (
           <>
             <div className="flex justify-center">
-              <CourseSign icon={renderCourseIcon(course.icon, "h-7 w-7")} title={course.title} size="lg" />
+              <CourseSign
+                icon={renderCourseIcon(course.icon, "h-7 w-7")}
+                title={course.title}
+                size="lg"
+                state={pct >= 100 ? "done" : "default"}
+              />
             </div>
 
             <p className="text-center text-sm" style={{ color: "var(--way-text-dim)" }}>
@@ -189,7 +194,11 @@ export default function CourseDetailPage({ params }: { params: Promise<{ courseI
                         disabled={savingId === item.id}
                       >
                         {done ? (
-                          <CircleCheckBig className="h-6 w-6" style={{ color: "var(--way-accent-2)" }} aria-hidden />
+                          <CircleCheckBig
+                            className="way-pop h-6 w-6"
+                            style={{ color: "var(--way-accent-2)" }}
+                            aria-hidden
+                          />
                         ) : (
                           <Circle className="h-6 w-6" style={{ color: "var(--way-border)" }} aria-hidden />
                         )}

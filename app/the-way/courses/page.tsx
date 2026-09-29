@@ -5,11 +5,13 @@ import Link from "next/link";
 import { Flame, CirclePlay, Sunrise } from "lucide-react";
 import WayHeader from "@/components/way/WayHeader";
 import CourseCard from "@/components/way/CourseCard";
+import JourneyRoad from "@/components/way/JourneyRoad";
 import WayProgressBar from "@/components/way/WayProgressBar";
 import { WaySkeletonList } from "@/components/way/WaySkeleton";
 import { useWayAuth } from "@/components/way/WayAuthGate";
 import { waySupabase } from "@/lib/way/supabaseClient";
 import { computeStreak } from "@/lib/way/streak";
+import { courseStates } from "@/lib/way/journey";
 import { renderCourseIcon } from "@/lib/way/theme";
 import type { Course, CourseWithProgress, Devotional, LessonItem } from "@/lib/way/types";
 
@@ -106,6 +108,7 @@ export default function CoursesPage() {
 
   const resumePct =
     resumeCourse && resumeCourse.totalItems > 0 ? Math.round((resumeCourse.completedItems / resumeCourse.totalItems) * 100) : 0;
+  const states = courseStates(courses);
 
   return (
     <>
@@ -130,6 +133,8 @@ export default function CoursesPage() {
           <p className="way-empty-state">No courses yet — check back soon.</p>
         ) : (
           <>
+            <JourneyRoad courses={courses} />
+
             {devotional && (
               <div className="way-card space-y-1.5">
                 <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--way-text-dim)" }}>
@@ -180,8 +185,8 @@ export default function CoursesPage() {
               </Link>
             )}
 
-            {courses.map((course) => (
-              <CourseCard key={course.id} course={course} />
+            {courses.map((course, i) => (
+              <CourseCard key={course.id} course={course} state={states[i]} delayMs={i * 70} />
             ))}
           </>
         )}
