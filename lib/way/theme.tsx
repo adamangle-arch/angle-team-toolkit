@@ -43,19 +43,20 @@ export function renderCourseIcon(icon: string, className?: string) {
   }
 }
 
-// Flat, muted earth tones per course.color_theme (not Tailwind's stock
-// saturated palette, not a glossy gradient) — banner background + the ink
-// color that reads on it, keeping the calmer "waypoint marker" feel
-// rather than a gamified dashboard badge.
+// Course banner background + the ink color that reads on it. Pulled from
+// the church's own signpost-and-path artwork (signpost orange, deep and
+// steel navy, trail-sign browns) rather than Tailwind's stock jewel-tone
+// palette, so every course banner feels like it belongs to the same brand
+// instead of a rainbow of unrelated hues.
 export const COURSE_COLORS: Record<CourseColorTheme, { bg: string; ink: string }> = {
-  amber: { bg: "#8a5a2e", ink: "#fdf3e4" },
-  indigo: { bg: "#3d3a63", ink: "#eee9fb" },
-  emerald: { bg: "#3f5c46", ink: "#eaf3ea" },
-  rose: { bg: "#7a3f42", ink: "#fbe9ea" },
-  sky: { bg: "#3c5566", ink: "#e8f1f5" },
-  violet: { bg: "#5a4470", ink: "#f1e9f7" },
-  fuchsia: { bg: "#75405d", ink: "#f8e9f0" },
-  teal: { bg: "#2f5955", ink: "#e6f3f0" },
+  amber: { bg: "#e07b35", ink: "#fdf6ec" },
+  indigo: { bg: "#223a58", ink: "#f4ecdd" },
+  emerald: { bg: "#16283f", ink: "#f4ecdd" },
+  rose: { bg: "#b3432c", ink: "#fdf6ec" },
+  sky: { bg: "#2f5578", ink: "#f4ecdd" },
+  violet: { bg: "#8a5a2e", ink: "#fdf3e4" },
+  fuchsia: { bg: "#6b4a35", ink: "#fdf3e4" },
+  teal: { bg: "#3d6690", ink: "#f4ecdd" },
 };
 
 export function courseColor(theme: CourseColorTheme): { bg: string; ink: string } {

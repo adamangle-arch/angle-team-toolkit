@@ -1,14 +1,16 @@
 import type { Metadata } from "next";
-import { Petrona, Karla } from "next/font/google";
+import { Archivo, Karla } from "next/font/google";
 import WayAuthGate from "@/components/way/WayAuthGate";
 import WayShell from "@/components/way/WayShell";
 import "./way.css";
 
-const waySerif = Petrona({
+// Variable name kept as --font-way-serif (not renamed to -display) to avoid
+// touching the way-serif/way-wordmark class name in every component that
+// references it - it's an internal identifier, not user-facing text.
+const waySerif = Archivo({
   variable: "--font-way-serif",
   subsets: ["latin"],
-  weight: ["600", "700"],
-  style: ["normal", "italic"],
+  weight: ["600", "700", "800"],
 });
 
 const waySans = Karla({

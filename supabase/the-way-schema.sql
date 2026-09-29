@@ -392,36 +392,67 @@ create policy lesson_completions_delete on lesson_completions
 -- (RLS above lets any admin update any profile row).
 
 -- ============================================================================
--- Example seed data — replace with your church's real curriculum, or leave
--- as a starting point and edit from the Supabase table editor.
+-- The church's real discipleship path — "Come and Follow Me" (Jesus).
+-- Five stages, each with sub-lessons the pastor is recording video for one
+-- at a time; a lesson_item with no content_url yet just shows its title
+-- with no "Open" link until one's added (see the course detail page).
 -- ============================================================================
 
-insert into courses (slug, title, description, icon, color_theme, order_index) values
-  ('foundations-of-faith', 'Foundations of Faith', 'What we believe and why it matters for how you live.', 'book-open', 'amber', 1),
-  ('prayer-and-the-word', 'Prayer & the Word', 'Building a daily rhythm of prayer and Scripture.', 'compass', 'sky', 2),
-  ('church-and-community', 'Church & Community', 'Why the local church matters and how to belong to one.', 'users', 'emerald', 3),
-  ('living-on-mission', 'Living on Mission', 'Sharing your faith and serving others in everyday life.', 'flame', 'rose', 4)
-on conflict (slug) do nothing;
+-- Clears out the placeholder curriculum this schema shipped with, if it's
+-- still there (cascades to its lesson_items and any completions on them).
+delete from courses where slug in ('foundations-of-faith', 'prayer-and-the-word', 'church-and-community', 'living-on-mission');
 
--- Example completion messages - edit these, or set your own per course
--- from the Supabase table editor. Safe to re-run.
-update courses set completion_message = 'You now have a foundation to build the rest of your walk on. Well done.' where slug = 'foundations-of-faith' and completion_message is null;
-update courses set completion_message = 'A daily rhythm of prayer and Scripture is one of the best gifts you can give yourself. Keep it going.' where slug = 'prayer-and-the-word' and completion_message is null;
-update courses set completion_message = 'You were not meant to walk this out alone. Glad you are more connected to this church now.' where slug = 'church-and-community' and completion_message is null;
-update courses set completion_message = 'You are ready to take what you have learned and share it. Someone needs what you have.' where slug = 'living-on-mission' and completion_message is null;
+insert into courses (slug, title, description, icon, color_theme, order_index, completion_message) values
+  ('meet-jesus', 'Meet Jesus', 'The starting point of the path — who Jesus is, and what it means to follow him.', 'cross', 'amber', 1, 'You''ve taken the first steps. Welcome to the path.'),
+  ('know-jesus', 'Know Jesus', 'Going deeper into who you are in Christ and the everyday practices that grow your walk with him.', 'book-open', 'sky', 2, 'You''re building a real foundation. Keep going deeper.'),
+  ('be-like-jesus', 'Be Like Jesus', 'Growing in character, being led by the Spirit, and learning to lead yourself well.', 'heart', 'emerald', 3, 'Christ is being formed in you. That''s the whole point.'),
+  ('freedom-in-jesus', 'Freedom in Jesus', 'Walking in the freedom Jesus already won for you — healed, whole, and free.', 'flame', 'rose', 4, 'Whatever held you back, you don''t have to carry it anymore.'),
+  ('serve-jesus', 'Serve Jesus', 'Living out your calling — sharing your faith, leading others, and serving well.', 'users', 'violet', 5, 'You''ve walked the whole path. Now go make disciples.')
+on conflict (slug) do update set
+  title = excluded.title,
+  description = excluded.description,
+  icon = excluded.icon,
+  color_theme = excluded.color_theme,
+  order_index = excluded.order_index,
+  completion_message = excluded.completion_message;
 
-insert into lesson_items (course_id, type, title, description, order_index) values
-  ((select id from courses where slug = 'foundations-of-faith'), 'reading', 'Who is God?', 'A short reading on the character of God.', 1),
-  ((select id from courses where slug = 'foundations-of-faith'), 'video', 'The Gospel in Four Words', 'A 10-minute teaching video.', 2),
-  ((select id from courses where slug = 'foundations-of-faith'), 'discussion', 'Discuss with your mentor', 'What stood out to you this week? What questions do you still have?', 3),
-  ((select id from courses where slug = 'prayer-and-the-word'), 'reading', 'How to Read the Bible', 'A practical guide to daily Bible reading.', 1),
-  ((select id from courses where slug = 'prayer-and-the-word'), 'audio', 'A Model for Prayer', 'A short audio teaching you can listen to on the go.', 2),
-  ((select id from courses where slug = 'prayer-and-the-word'), 'worksheet', 'Your Prayer Journal', 'Fill out this worksheet for the week.', 3),
-  ((select id from courses where slug = 'church-and-community'), 'reading', 'Why the Church?', 'What the Bible says about belonging to a local church.', 1),
-  ((select id from courses where slug = 'church-and-community'), 'discussion', 'Discuss with your mentor', 'Where could you take a next step to get more connected?', 2),
-  ((select id from courses where slug = 'living-on-mission'), 'reading', 'Your Story Matters', 'How to share your own faith story simply.', 1),
-  ((select id from courses where slug = 'living-on-mission'), 'worksheet', 'Serve Somewhere', 'Pick one way to serve this month and write it down.', 2)
+insert into lesson_items (course_id, type, title, order_index) values
+  ((select id from courses where slug = 'meet-jesus'), 'video', 'What is the Gospel?', 1),
+  ((select id from courses where slug = 'meet-jesus'), 'video', 'Water Baptism', 2),
+  ((select id from courses where slug = 'meet-jesus'), 'video', 'Who is God?', 3),
+  ((select id from courses where slug = 'meet-jesus'), 'video', 'The Baptism of the Holy Spirit', 4),
+  ((select id from courses where slug = 'meet-jesus'), 'video', 'Community: The Church', 5),
+
+  ((select id from courses where slug = 'know-jesus'), 'video', 'The Cross and Your Truest Identity', 1),
+  ((select id from courses where slug = 'know-jesus'), 'video', 'Communion', 2),
+  ((select id from courses where slug = 'know-jesus'), 'video', 'How to Read the Bible', 3),
+  ((select id from courses where slug = 'know-jesus'), 'video', 'How to Pray', 4),
+  ((select id from courses where slug = 'know-jesus'), 'video', 'Worship: That Thing We Do', 5),
+  ((select id from courses where slug = 'know-jesus'), 'video', 'The Kingdom of God', 6),
+  ((select id from courses where slug = 'know-jesus'), 'video', 'Foundational Beliefs', 7),
+
+  ((select id from courses where slug = 'be-like-jesus'), 'video', 'Love One Another', 1),
+  ((select id from courses where slug = 'be-like-jesus'), 'video', 'The Fruit of the Spirit', 2),
+  ((select id from courses where slug = 'be-like-jesus'), 'video', 'The Secret to a Powerful Life', 3),
+  ((select id from courses where slug = 'be-like-jesus'), 'video', 'Being Led by the Spirit', 4),
+  ((select id from courses where slug = 'be-like-jesus'), 'video', 'Leading Yourself Well', 5),
+
+  ((select id from courses where slug = 'freedom-in-jesus'), 'video', 'Inner Healing', 1),
+  ((select id from courses where slug = 'freedom-in-jesus'), 'video', 'Deliverance', 2),
+  ((select id from courses where slug = 'freedom-in-jesus'), 'video', 'Physical Healing', 3),
+  ((select id from courses where slug = 'freedom-in-jesus'), 'video', 'Spiritual Warfare', 4),
+
+  ((select id from courses where slug = 'serve-jesus'), 'video', 'Finding Your S.H.A.P.E.', 1),
+  ((select id from courses where slug = 'serve-jesus'), 'video', 'Sharing Your Faith', 2),
+  ((select id from courses where slug = 'serve-jesus'), 'video', 'Walking in Power and Authority', 3),
+  ((select id from courses where slug = 'serve-jesus'), 'video', 'Making Disciples', 4),
+  ((select id from courses where slug = 'serve-jesus'), 'video', 'The Servant as Leader', 5),
+  ((select id from courses where slug = 'serve-jesus'), 'video', 'Leaving a Legacy', 6)
 on conflict (course_id, order_index) do nothing;
+
+-- Catches an environment that already ran the earlier "be-free-in-jesus"
+-- naming before the church confirmed "Freedom in Jesus" as the real title.
+update courses set slug = 'freedom-in-jesus', title = 'Freedom in Jesus' where slug = 'be-free-in-jesus';
 
 -- ============================================================================
 -- Phase 2 — personal spiritual practice: daily devotional, prayer

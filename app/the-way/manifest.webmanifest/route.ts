@@ -13,8 +13,8 @@ export function GET() {
     description: "A discipleship course platform.",
     start_url: "/the-way",
     display: "standalone",
-    background_color: "#1a1625",
-    theme_color: "#1a1625",
+    background_color: "#16283f",
+    theme_color: "#16283f",
     icons: [
       { src: "/the-way/icon", sizes: "64x64", type: "image/png" },
       { src: "/the-way/apple-icon", sizes: "180x180", type: "image/png" },

@@ -1,23 +1,24 @@
 /* The Way's own visual identity — scoped entirely under .way-scope so it
    never leaks into (or fights with) Angle Team Toolkit's navy/amber
-   dashboard look in app/globals.css. Concept: a lantern lighting a path at
-   dusk — a warm honey-gold light against an indigo-plum evening, with a
-   soft sage green marking growth/completion. Petrona (serif, headings) +
+   dashboard look in app/globals.css. Concept: the church's own "path and
+   trail-signpost" brand — a warm signpost orange against deep navy and
+   parchment cream, matching the artwork the church sent (winding path,
+   mountains, wooden waypoint signs). Archivo (bold, headings/wordmark) +
    Karla (sans, everything else) instead of Geist, so it reads as its own
    app rather than a reskinned dashboard. */
 
 .way-scope {
-  --way-bg: #f3f0f6;
+  --way-bg: #f4ecdd;
   --way-surface: #ffffff;
-  --way-surface-2: #ece7f0;
-  --way-border: #dad2e3;
-  --way-text: #251f30;
-  --way-text-dim: #6e6480;
-  --way-accent: #b5652b;
-  --way-accent-ink: #fdf8ef;
-  --way-accent-2: #4f6b4f;
-  --way-danger: #a8452f;
-  --way-shadow: rgba(60, 40, 20, 0.08);
+  --way-surface-2: #ece1c9;
+  --way-border: #ddcda8;
+  --way-text: #16283f;
+  --way-text-dim: #5c7186;
+  --way-accent: #e07b35;
+  --way-accent-ink: #fdf6ec;
+  --way-accent-2: #2f5578;
+  --way-danger: #b3432c;
+  --way-shadow: rgba(22, 40, 63, 0.12);
 
   display: flex;
   flex: 1;
@@ -30,29 +31,29 @@
 
 @media (prefers-color-scheme: dark) {
   .way-scope {
-    --way-bg: #1a1625;
-    --way-surface: #221c30;
-    --way-surface-2: #2a233a;
-    --way-border: #37304a;
-    --way-text: #ece7f3;
-    --way-text-dim: #a89bc0;
-    --way-accent: #d98c4a;
-    --way-accent-ink: #1a1625;
-    --way-accent-2: #7a9878;
+    --way-bg: #13233a;
+    --way-surface: #1b3049;
+    --way-surface-2: #223a58;
+    --way-border: #2e4966;
+    --way-text: #f4ecdd;
+    --way-text-dim: #a7b9cc;
+    --way-accent: #ec8a44;
+    --way-accent-ink: #fdf6ec;
+    --way-accent-2: #6fa1c9;
     --way-danger: #d97a63;
-    --way-shadow: rgba(0, 0, 0, 0.4);
+    --way-shadow: rgba(0, 0, 0, 0.45);
   }
 }
 
 .way-scope .way-serif {
-  font-family: var(--font-way-serif), Georgia, serif;
+  font-family: var(--font-way-serif), Arial, sans-serif;
 }
 
 .way-wordmark {
-  font-family: var(--font-way-serif), Georgia, serif;
-  font-style: italic;
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  font-family: var(--font-way-serif), Arial, sans-serif;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
 }
 
 .way-page-main {
