@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { waySupabase } from "@/lib/way/supabaseClient";
+import { WAY_RESET_PASSWORD_PATH, waySupabase } from "@/lib/way/supabaseClient";
 
 export default function WayLoginForm() {
   const [mode, setMode] = useState<"signin" | "signup" | "forgot">("signin");
@@ -29,7 +29,7 @@ export default function WayLoginForm() {
       }
     } else {
       const { error } = await waySupabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/the-way`,
+        redirectTo: `${window.location.origin}${WAY_RESET_PASSWORD_PATH}`,
       });
       if (error) {
         setError(error.message);

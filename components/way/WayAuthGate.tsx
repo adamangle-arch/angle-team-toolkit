@@ -1,9 +1,11 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
-import { waySupabase } from "@/lib/way/supabaseClient";
+import { WAY_RESET_PASSWORD_PATH, waySupabase, wayArrivedFromRecoveryLink } from "@/lib/way/supabaseClient";
 import WayLoginForm from "./WayLoginForm";
+import WayResetPasswordForm from "./WayResetPasswordForm";
 import type { WayProfile } from "@/lib/way/types";
 
 type WayAuthContextValue = {
@@ -44,6 +46,11 @@ export default function WayAuthGate({ children }: { children: React.ReactNode })
   const [profile, setProfile] = useState<WayProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
+  const pathname = usePathname();
+  // A recovery link signs you in with a temporary session. Without this
+  // check, that session would drop you straight into the app and you
+  // would never get to choose a new password.
+  const recovering = pathname === WAY_RESET_PASSWORD_PATH || wayArrivedFromRecoveryLink;
 
   useEffect(() => {
     withTimeout(waySupabase.auth.getSession(), "Timed out checking your session — check your connection.")
@@ -133,6 +140,19 @@ export default function WayAuthGate({ children }: { children: React.ReactNode })
       <div className="flex flex-1 items-center justify-center text-sm" style={{ color: "var(--way-text-dim)" }}>
         Loading…
       </div>
+    );
+  }
+
+  if (recovering) {
+    return (
+      <WayResetPasswordForm
+        hasSession={Boolean(user)}
+        // A full page load rather than a client navigation: the page
+        // underneath may be anything (even a redirect stub, if the link
+        // landed on the Site URL), and a fresh load starts clean with the
+        // now-permanent session.
+        onDone={() => window.location.replace("/the-way/courses")}
+      />
     );
   }
 

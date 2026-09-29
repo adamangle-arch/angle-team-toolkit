@@ -15,6 +15,18 @@ if (!wayConfigured && typeof window !== "undefined") {
   );
 }
 
+// Where "Forgot password?" emails link to (see WayAuthGate).
+export const WAY_RESET_PASSWORD_PATH = "/the-way/reset-password";
+
+// Captured before createClient below, because supabase-js parses the
+// recovery token out of the URL hash and then clears it. That parse fires
+// PASSWORD_RECOVERY before any component can subscribe. The reset link
+// normally lands on /the-way/reset-password; this also catches one that
+// Supabase sent to its Site URL instead (a redirect URL that isn't
+// allow-listed).
+export const wayArrivedFromRecoveryLink =
+  typeof window !== "undefined" && /[#&]type=recovery(&|$)/.test(window.location.hash);
+
 export const waySupabase = createClient(
   wayUrl || "https://placeholder.supabase.co",
   wayAnonKey || "placeholder-anon-key"
