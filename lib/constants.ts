@@ -732,16 +732,6 @@ export const ONBOARDING_SESSIONS: OnboardingSession[] = [
           "A five-minute explanation on how to fill out your budget properly before meeting back up with your coach.",
         url: "https://www.dropbox.com/scl/fi/dhr72f5nf2sfizigwpxqi/How-To-Fill-Out-Budget-Sheet.m4a?rlkey=58h4eaufoelcnpp896xfwykbw&st=mvwit11f&dl=0",
       },
-      {
-        label: "🎧 Welcome to the Success Journey",
-        detail:
-          "Audio by Andrew Tidwell — your coach will send this to you on the LTD media app. Listen before your next meeting.",
-      },
-      {
-        label: "🎧 Getting Through the First Year",
-        detail:
-          "Audio by Toby Ayers — your coach will send this to you on the LTD media app. Listen before your next meeting.",
-      },
     ],
   },
   {
