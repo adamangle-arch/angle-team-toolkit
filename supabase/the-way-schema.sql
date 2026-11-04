@@ -560,62 +560,73 @@ insert into verses (reference, text)
 select 'Add a real verse here', 'Add your own verse text from the Supabase table editor — this placeholder just shows what the overlay looks like.'
 where not exists (select 1 from verses);
 
--- 50 real verses (King James Version - public domain, so safe to ship in
--- code unlike a modern copyrighted translation) replacing the placeholder
--- above. Add more, or swap in your preferred translation's wording, any
--- time from the table editor - this just gets the overlay off the ground
--- with real content instead of an empty pool.
 delete from verses where reference = 'Add a real verse here';
 
+-- 50 verses in the New International Version, at the church's request for
+-- readability. They replaced an earlier King James set: the delete below
+-- removes those KJV rows by reference (a few NIV picks extend to the next
+-- verse so they end on a full sentence, which changed their reference).
+-- Rows the church added themselves are left alone. Re-running this file
+-- refreshes the NIV text in place.
+--
+-- The NIV is copyrighted. Biblica allows quoting up to 500 verses without
+-- written permission, with "NIV" shown after each quotation; VerseOverlay
+-- shows that and the full notice. Stay well under that limit if the pool
+-- grows.
+delete from verses where reference in (
+  'Proverbs 3:5', 'Ephesians 2:8', 'James 1:2', 'Colossians 3:23',
+  'Lamentations 3:22', 'Ephesians 3:20', 'Nahum 1:7'
+);
+
 insert into verses (reference, text) values
-('John 3:16', 'For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.'),
-('Romans 8:28', 'And we know that all things work together for good to them that love God, to them who are the called according to his purpose.'),
-('Philippians 4:13', 'I can do all things through Christ which strengtheneth me.'),
-('Jeremiah 29:11', 'For I know the thoughts that I think toward you, saith the LORD, thoughts of peace, and not of evil, to give you an expected end.'),
-('Psalm 23:1', 'The LORD is my shepherd; I shall not want.'),
-('Proverbs 3:5', 'Trust in the LORD with all thine heart; and lean not unto thine own understanding.'),
-('Isaiah 41:10', 'Fear thou not; for I am with thee: be not dismayed; for I am thy God: I will strengthen thee; yea, I will help thee; yea, I will uphold thee with the right hand of my righteousness.'),
-('Matthew 6:33', 'But seek ye first the kingdom of God, and his righteousness; and all these things shall be added unto you.'),
-('Joshua 1:9', 'Have not I commanded thee? Be strong and of a good courage; be not afraid, neither be thou dismayed: for the LORD thy God is with thee whithersoever thou goest.'),
-('2 Corinthians 5:17', 'Therefore if any man be in Christ, he is a new creature: old things are passed away; behold, all things are become new.'),
-('Psalm 46:1', 'God is our refuge and strength, a very present help in trouble.'),
-('Romans 12:2', 'And be not conformed to this world: but be ye transformed by the renewing of your mind, that ye may prove what is that good, and acceptable, and perfect, will of God.'),
-('Galatians 2:20', 'I am crucified with Christ: nevertheless I live; yet not I, but Christ liveth in me: and the life which I now live in the flesh I live by the faith of the Son of God, who loved me, and gave himself for me.'),
-('Ephesians 2:8', 'For by grace are ye saved through faith; and that not of yourselves: it is the gift of God.'),
-('Hebrews 11:1', 'Now faith is the substance of things hoped for, the evidence of things not seen.'),
-('James 1:2', 'My brethren, count it all joy when ye fall into divers temptations.'),
-('1 Peter 5:7', 'Casting all your care upon him; for he careth for you.'),
-('1 John 4:19', 'We love him, because he first loved us.'),
-('Psalm 119:105', 'Thy word is a lamp unto my feet, and a light unto my path.'),
-('Matthew 11:28', 'Come unto me, all ye that labour and are heavy laden, and I will give you rest.'),
-('Romans 5:8', 'But God commendeth his love toward us, in that, while we were yet sinners, Christ died for us.'),
-('2 Timothy 1:7', 'For God hath not given us the spirit of fear; but of power, and of love, and of a sound mind.'),
-('Philippians 4:6', 'Be careful for nothing; but in every thing by prayer and supplication with thanksgiving let your requests be made known unto God.'),
-('Psalm 27:1', 'The LORD is my light and my salvation; whom shall I fear? the LORD is the strength of my life; of whom shall I be afraid?'),
-('Isaiah 40:31', 'But they that wait upon the LORD shall renew their strength; they shall mount up with wings as eagles; they shall run, and not be weary; and they shall walk, and not faint.'),
-('Deuteronomy 31:6', 'Be strong and of a good courage, fear not, nor be afraid of them: for the LORD thy God, he it is that doth go with thee; he will not fail thee, nor forsake thee.'),
-('Psalm 34:18', 'The LORD is nigh unto them that are of a broken heart; and saveth such as be of a contrite spirit.'),
-('Romans 15:13', 'Now the God of hope fill you with all joy and peace in believing, that ye may abound in hope, through the power of the Holy Ghost.'),
-('Colossians 3:23', 'And whatsoever ye do, do it heartily, as to the Lord, and not unto men.'),
-('Matthew 5:16', 'Let your light so shine before men, that they may see your good works, and glorify your Father which is in heaven.'),
-('John 14:6', 'Jesus saith unto him, I am the way, the truth, and the life: no man cometh unto the Father, but by me.'),
-('John 8:32', 'And ye shall know the truth, and the truth shall make you free.'),
-('Psalm 139:14', 'I will praise thee; for I am fearfully and wonderfully made: marvellous are thy works; and that my soul knoweth right well.'),
-('Proverbs 16:3', 'Commit thy works unto the LORD, and thy thoughts shall be established.'),
-('Isaiah 26:3', 'Thou wilt keep him in perfect peace, whose mind is stayed on thee: because he trusteth in thee.'),
-('Lamentations 3:22', 'It is of the LORD''s mercies that we are not consumed, because his compassions fail not.'),
-('Zephaniah 3:17', 'The LORD thy God in the midst of thee is mighty; he will save, he will rejoice over thee with joy; he will rest in his love, he will joy over thee with singing.'),
-('Psalm 37:4', 'Delight thyself also in the LORD; and he shall give thee the desires of thine heart.'),
-('Ephesians 3:20', 'Now unto him that is able to do exceeding abundantly above all that we ask or think, according to the power that worketh in us.'),
-('Philippians 1:6', 'Being confident of this very thing, that he which hath begun a good work in you will perform it until the day of Jesus Christ.'),
-('1 Corinthians 10:13', 'There hath no temptation taken you but such as is common to man: but God is faithful, who will not suffer you to be tempted above that ye are able; but will with the temptation also make a way to escape, that ye may be able to bear it.'),
-('Hebrews 4:16', 'Let us therefore come boldly unto the throne of grace, that we may obtain mercy, and find grace to help in time of need.'),
-('James 4:8', 'Draw nigh to God, and he will draw nigh to you. Cleanse your hands, ye sinners; and purify your hearts, ye double minded.'),
-('1 Thessalonians 5:16-18', 'Rejoice evermore. Pray without ceasing. In every thing give thanks: for this is the will of God in Christ Jesus concerning you.'),
-('Psalm 91:1', 'He that dwelleth in the secret place of the most High shall abide under the shadow of the Almighty.'),
-('Micah 6:8', 'He hath shewed thee, O man, what is good; and what doth the LORD require of thee, but to do justly, and to love mercy, and to walk humbly with thy God?'),
-('Galatians 5:22-23', 'But the fruit of the Spirit is love, joy, peace, longsuffering, gentleness, goodness, faith, meekness, temperance: against such there is no law.'),
-('Romans 8:38-39', 'For I am persuaded, that neither death, nor life, nor angels, nor principalities, nor powers, nor things present, nor things to come, nor height, nor depth, nor any other creature, shall be able to separate us from the love of God, which is in Christ Jesus our Lord.'),
-('Nahum 1:7', 'The LORD is good, a strong hold in the day of trouble; and he knoweth them that trust in him.'),
-('Psalm 121:1-2', 'I will lift up mine eyes unto the hills, from whence cometh my help. My help cometh from the LORD, which made heaven and earth.')
-on conflict (reference) do nothing;
+('John 3:16', 'For God so loved the world that he gave his one and only Son, that whoever believes in him shall not perish but have eternal life.'),
+('Romans 8:28', 'And we know that in all things God works for the good of those who love him, who have been called according to his purpose.'),
+('Philippians 4:13', 'I can do all this through him who gives me strength.'),
+('Jeremiah 29:11', '"For I know the plans I have for you," declares the LORD, "plans to prosper you and not to harm you, plans to give you hope and a future."'),
+('Psalm 23:1', 'The LORD is my shepherd, I lack nothing.'),
+('Proverbs 3:5-6', 'Trust in the LORD with all your heart and lean not on your own understanding; in all your ways submit to him, and he will make your paths straight.'),
+('Isaiah 41:10', 'So do not fear, for I am with you; do not be dismayed, for I am your God. I will strengthen you and help you; I will uphold you with my righteous right hand.'),
+('Matthew 6:33', 'But seek first his kingdom and his righteousness, and all these things will be given to you as well.'),
+('Joshua 1:9', 'Have I not commanded you? Be strong and courageous. Do not be afraid; do not be discouraged, for the LORD your God will be with you wherever you go.'),
+('2 Corinthians 5:17', 'Therefore, if anyone is in Christ, the new creation has come: The old has gone, the new is here!'),
+('Psalm 46:1', 'God is our refuge and strength, an ever-present help in trouble.'),
+('Romans 12:2', 'Do not conform to the pattern of this world, but be transformed by the renewing of your mind. Then you will be able to test and approve what God''s will is—his good, pleasing and perfect will.'),
+('Galatians 2:20', 'I have been crucified with Christ and I no longer live, but Christ lives in me. The life I now live in the body, I live by faith in the Son of God, who loved me and gave himself for me.'),
+('Ephesians 2:8-9', 'For it is by grace you have been saved, through faith—and this is not from yourselves, it is the gift of God—not by works, so that no one can boast.'),
+('Hebrews 11:1', 'Now faith is confidence in what we hope for and assurance about what we do not see.'),
+('James 1:2-3', 'Consider it pure joy, my brothers and sisters, whenever you face trials of many kinds, because you know that the testing of your faith produces perseverance.'),
+('1 Peter 5:7', 'Cast all your anxiety on him because he cares for you.'),
+('1 John 4:19', 'We love because he first loved us.'),
+('Psalm 119:105', 'Your word is a lamp for my feet, a light on my path.'),
+('Matthew 11:28', 'Come to me, all you who are weary and burdened, and I will give you rest.'),
+('Romans 5:8', 'But God demonstrates his own love for us in this: While we were still sinners, Christ died for us.'),
+('2 Timothy 1:7', 'For the Spirit God gave us does not make us timid, but gives us power, love and self-discipline.'),
+('Philippians 4:6', 'Do not be anxious about anything, but in every situation, by prayer and petition, with thanksgiving, present your requests to God.'),
+('Psalm 27:1', 'The LORD is my light and my salvation—whom shall I fear? The LORD is the stronghold of my life—of whom shall I be afraid?'),
+('Isaiah 40:31', 'But those who hope in the LORD will renew their strength. They will soar on wings like eagles; they will run and not grow weary, they will walk and not be faint.'),
+('Deuteronomy 31:6', 'Be strong and courageous. Do not be afraid or terrified because of them, for the LORD your God goes with you; he will never leave you nor forsake you.'),
+('Psalm 34:18', 'The LORD is close to the brokenhearted and saves those who are crushed in spirit.'),
+('Romans 15:13', 'May the God of hope fill you with all joy and peace as you trust in him, so that you may overflow with hope by the power of the Holy Spirit.'),
+('Colossians 3:23-24', 'Whatever you do, work at it with all your heart, as working for the Lord, not for human masters, since you know that you will receive an inheritance from the Lord as a reward. It is the Lord Christ you are serving.'),
+('Matthew 5:16', 'In the same way, let your light shine before others, that they may see your good deeds and glorify your Father in heaven.'),
+('John 14:6', 'Jesus answered, "I am the way and the truth and the life. No one comes to the Father except through me."'),
+('John 8:32', 'Then you will know the truth, and the truth will set you free.'),
+('Psalm 139:14', 'I praise you because I am fearfully and wonderfully made; your works are wonderful, I know that full well.'),
+('Proverbs 16:3', 'Commit to the LORD whatever you do, and he will establish your plans.'),
+('Isaiah 26:3', 'You will keep in perfect peace those whose minds are steadfast, because they trust in you.'),
+('Lamentations 3:22-23', 'Because of the LORD''s great love we are not consumed, for his compassions never fail. They are new every morning; great is your faithfulness.'),
+('Zephaniah 3:17', 'The LORD your God is with you, the Mighty Warrior who saves. He will take great delight in you; in his love he will no longer rebuke you, but will rejoice over you with singing.'),
+('Psalm 37:4', 'Take delight in the LORD, and he will give you the desires of your heart.'),
+('Ephesians 3:20-21', 'Now to him who is able to do immeasurably more than all we ask or imagine, according to his power that is at work within us, to him be glory in the church and in Christ Jesus throughout all generations, for ever and ever! Amen.'),
+('Philippians 1:6', 'Being confident of this, that he who began a good work in you will carry it on to completion until the day of Christ Jesus.'),
+('1 Corinthians 10:13', 'No temptation has overtaken you except what is common to mankind. And God is faithful; he will not let you be tempted beyond what you can bear. But when you are tempted, he will also provide a way out so that you can endure it.'),
+('Hebrews 4:16', 'Let us then approach God''s throne of grace with confidence, so that we may receive mercy and find grace to help us in our time of need.'),
+('James 4:8', 'Come near to God and he will come near to you. Wash your hands, you sinners, and purify your hearts, you double-minded.'),
+('1 Thessalonians 5:16-18', 'Rejoice always, pray continually, give thanks in all circumstances; for this is God''s will for you in Christ Jesus.'),
+('Psalm 91:1', 'Whoever dwells in the shelter of the Most High will rest in the shadow of the Almighty.'),
+('Micah 6:8', 'He has shown you, O mortal, what is good. And what does the LORD require of you? To act justly and to love mercy and to walk humbly with your God.'),
+('Galatians 5:22-23', 'But the fruit of the Spirit is love, joy, peace, forbearance, kindness, goodness, faithfulness, gentleness and self-control. Against such things there is no law.'),
+('Romans 8:38-39', 'For I am convinced that neither death nor life, neither angels nor demons, neither the present nor the future, nor any powers, neither height nor depth, nor anything else in all creation, will be able to separate us from the love of God that is in Christ Jesus our Lord.'),
+('Psalm 16:11', 'You make known to me the path of life; you will fill me with joy in your presence, with eternal pleasures at your right hand.'),
+('Psalm 121:1-2', 'I lift up my eyes to the mountains—where does my help come from? My help comes from the LORD, the Maker of heaven and earth.')
+on conflict (reference) do update set text = excluded.text;

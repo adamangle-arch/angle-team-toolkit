@@ -84,11 +84,18 @@ export default function VerseOverlay() {
           &ldquo;{verse.text}&rdquo;
         </p>
         <p className="text-sm font-semibold" style={{ color: "var(--way-accent)" }}>
-          {verse.reference}
+          {verse.reference} NIV
         </p>
         <button className="way-btn way-btn-primary w-full" onClick={() => setDismissed(true)}>
           Let&apos;s Go
         </button>
+        {/* The notice Biblica requires when quoting the NIV (the verse pool
+            in supabase/the-way-schema.sql is NIV). */}
+        <p className="text-[9.5px] leading-snug" style={{ color: "var(--way-text-dim)" }}>
+          Scripture quotations taken from The Holy Bible, New International Version® NIV®.
+          Copyright © 1973, 1978, 1984, 2011 by Biblica, Inc.™ Used by permission. All rights
+          reserved worldwide.
+        </p>
       </div>
     </div>
   );
