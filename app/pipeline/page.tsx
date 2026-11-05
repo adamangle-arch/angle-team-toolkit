@@ -1657,6 +1657,8 @@ function CandidateCard({
 }) {
   const { user } = useAuth();
   const [expanded, setExpanded] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState(candidate.name);
   const [notes, setNotes] = useState(candidate.notes);
   const [codeCopied, setCodeCopied] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
@@ -1683,6 +1685,16 @@ function CandidateCard({
       filtered_out_reason: null,
     });
     setFilterReason("");
+  }
+
+  function saveName() {
+    const trimmed = nameDraft.trim();
+    if (trimmed && trimmed !== candidate.name) {
+      onUpdate(candidate.id, { name: trimmed });
+    } else {
+      setNameDraft(candidate.name);
+    }
+    setEditingName(false);
   }
 
   // Deliberately two separate copy actions instead of one combined
@@ -1728,7 +1740,42 @@ function CandidateCard({
         aria-expanded={expanded}
       >
         <div className="min-w-0 flex-1">
-          <p className="truncate font-semibold text-white">{candidate.name}</p>
+          {editingName ? (
+            <input
+              autoFocus
+              className="input !h-7 py-0 text-sm font-semibold"
+              value={nameDraft}
+              onClick={(e) => e.stopPropagation()}
+              onChange={(e) => setNameDraft(e.target.value)}
+              onBlur={saveName}
+              onKeyDown={(e) => {
+                e.stopPropagation();
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  saveName();
+                } else if (e.key === "Escape") {
+                  setNameDraft(candidate.name);
+                  setEditingName(false);
+                }
+              }}
+            />
+          ) : (
+            <p className="flex items-center gap-1">
+              <span className="truncate font-semibold text-white">{candidate.name}</span>
+              <button
+                type="button"
+                className="btn-icon !h-5 !w-5 shrink-0 border-0 bg-transparent text-slate-500"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setNameDraft(candidate.name);
+                  setEditingName(true);
+                }}
+                aria-label={`Edit ${candidate.name}'s name`}
+              >
+                <Pencil className="h-3 w-3" aria-hidden />
+              </button>
+            </p>
+          )}
           <p className="truncate text-xs text-amber-light">
             {statusLabel}
             {candidate.launched && (
@@ -2267,7 +2314,7 @@ function BookMeetingButton({ candidate }: { candidate: Candidate }) {
           onClick={() => setShowModal(false)}
         >
           <div
-            className="w-full max-w-md space-y-3 rounded-2xl bg-navy-lighter p-4"
+            className="max-h-[85vh] w-full max-w-md space-y-3 overflow-y-auto rounded-2xl bg-navy-lighter p-4"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
