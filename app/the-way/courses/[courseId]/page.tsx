@@ -10,7 +10,9 @@ import { WaySkeletonList } from "@/components/way/WaySkeleton";
 import { useWayAuth } from "@/components/way/WayAuthGate";
 import { waySupabase } from "@/lib/way/supabaseClient";
 import CourseSign from "@/components/way/CourseSign";
+import LessonVideo from "@/components/way/LessonVideo";
 import { renderCourseIcon, renderLessonTypeIcon, LESSON_TYPE_LABELS } from "@/lib/way/theme";
+import { youTubeIdFromUrl } from "@/lib/way/youtube";
 import type { Course, LessonItem } from "@/lib/way/types";
 
 const MILESTONE_THRESHOLDS = [25, 50, 75] as const;
@@ -184,6 +186,7 @@ export default function CourseDetailPage({ params }: { params: Promise<{ courseI
               <div className="space-y-2">
                 {items.map((item) => {
                   const done = completedIds.has(item.id);
+                  const videoId = item.content_url ? youTubeIdFromUrl(item.content_url) : null;
                   return (
                     <div key={item.id} className="way-card flex items-start gap-3">
                       <button
@@ -227,7 +230,9 @@ export default function CourseDetailPage({ params }: { params: Promise<{ courseI
                             {item.description}
                           </p>
                         )}
-                        {item.content_url && (
+                        {videoId ? (
+                          <LessonVideo videoId={videoId} title={item.title} />
+                        ) : item.content_url && (
                           <a
                             href={item.content_url}
                             target="_blank"

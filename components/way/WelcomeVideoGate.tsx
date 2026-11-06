@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Hand, X } from "lucide-react";
 import { waySupabase } from "@/lib/way/supabaseClient";
+import { youTubeIdFromUrl } from "@/lib/way/youtube";
 
 // Accepts either a bare video id or a full YouTube URL (youtu.be/<id>,
 // youtube.com/watch?v=<id>, youtube.com/embed/<id>) - pasting the full
@@ -11,19 +12,7 @@ import { waySupabase } from "@/lib/way/supabaseClient";
 // anything useful if handed a full URL as a videoId.
 function extractYouTubeId(value: string): string {
   const trimmed = value.trim();
-  if (!trimmed) return "";
-  if (!/^https?:\/\//i.test(trimmed)) return trimmed;
-  try {
-    const url = new URL(trimmed);
-    if (url.hostname === "youtu.be") return url.pathname.slice(1);
-    const vParam = url.searchParams.get("v");
-    if (vParam) return vParam;
-    const embedMatch = url.pathname.match(/\/embed\/([^/?]+)/);
-    if (embedMatch) return embedMatch[1];
-  } catch {
-    // Fall through to returning the raw value below.
-  }
-  return trimmed;
+  return youTubeIdFromUrl(trimmed) ?? trimmed;
 }
 
 // Unlisted/public YouTube video id for the welcome message shown before a

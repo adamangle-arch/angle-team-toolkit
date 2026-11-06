@@ -416,12 +416,31 @@ on conflict (slug) do update set
   order_index = excluded.order_index,
   completion_message = excluded.completion_message;
 
+-- "Come and Follow Me" became Meet Jesus's first lesson after the
+-- curriculum was first seeded, so a database seeded before then moves its
+-- Meet Jesus lessons down one place to make room. A fresh database has no
+-- lessons yet, skips this, and gets the full list from the insert below.
+do $$
+declare
+  meet uuid := (select id from courses where slug = 'meet-jesus');
+begin
+  if exists (select 1 from lesson_items where course_id = meet)
+     and not exists (select 1 from lesson_items where course_id = meet and title = 'Come and Follow Me') then
+    -- In two steps, so no two lessons ever share a position mid-update.
+    update lesson_items set order_index = order_index + 1000 where course_id = meet;
+    update lesson_items set order_index = order_index - 999 where course_id = meet;
+    insert into lesson_items (course_id, type, title, order_index)
+    values (meet, 'video', 'Come and Follow Me', 1);
+  end if;
+end $$;
+
 insert into lesson_items (course_id, type, title, order_index) values
-  ((select id from courses where slug = 'meet-jesus'), 'video', 'What is the Gospel?', 1),
-  ((select id from courses where slug = 'meet-jesus'), 'video', 'Water Baptism', 2),
-  ((select id from courses where slug = 'meet-jesus'), 'video', 'Who is God?', 3),
-  ((select id from courses where slug = 'meet-jesus'), 'video', 'The Baptism of the Holy Spirit', 4),
-  ((select id from courses where slug = 'meet-jesus'), 'video', 'Community: The Church', 5),
+  ((select id from courses where slug = 'meet-jesus'), 'video', 'Come and Follow Me', 1),
+  ((select id from courses where slug = 'meet-jesus'), 'video', 'What is the Gospel?', 2),
+  ((select id from courses where slug = 'meet-jesus'), 'video', 'Water Baptism', 3),
+  ((select id from courses where slug = 'meet-jesus'), 'video', 'Who is God?', 4),
+  ((select id from courses where slug = 'meet-jesus'), 'video', 'The Baptism of the Holy Spirit', 5),
+  ((select id from courses where slug = 'meet-jesus'), 'video', 'Community: The Church', 6),
 
   ((select id from courses where slug = 'know-jesus'), 'video', 'The Cross and Your Truest Identity', 1),
   ((select id from courses where slug = 'know-jesus'), 'video', 'Communion', 2),
@@ -449,6 +468,16 @@ insert into lesson_items (course_id, type, title, order_index) values
   ((select id from courses where slug = 'serve-jesus'), 'video', 'The Servant as Leader', 5),
   ((select id from courses where slug = 'serve-jesus'), 'video', 'Leaving a Legacy', 6)
 on conflict (course_id, order_index) do nothing;
+
+-- Video links, added by lesson title as the pastor records each one
+-- (unlisted YouTube videos, which play inside the lesson card). Re-running
+-- this file keeps them in sync.
+update lesson_items set content_url = v.url
+from (values
+  ('meet-jesus', 'Come and Follow Me', 'https://www.youtube.com/watch?v=0AyZC3x4qvI')
+) as v (course_slug, title, url)
+where lesson_items.title = v.title
+  and lesson_items.course_id = (select id from courses where slug = v.course_slug);
 
 -- Catches an environment that already ran the earlier "be-free-in-jesus"
 -- naming before the church confirmed "Freedom in Jesus" as the real title.
